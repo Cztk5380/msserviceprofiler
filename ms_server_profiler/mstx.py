@@ -23,7 +23,7 @@ class LibserverProfiler:
         try:
             self.lib = ctypes.cdll.LoadLibrary("libms_server_profiler.so")
         except Exception as ex:
-            logging.error("libserver_profiler.so load failed.", ex)
+            logging.error("libserver_profiler.so load failed.%s", ex)
             self.lib = None
 
         self.func_start_span = None

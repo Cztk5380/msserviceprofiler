@@ -12,8 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ms_server_profiler.plugins.plugin_common import PluginCommon
-from ms_server_profiler.plugins.plugin_timestamp import PluginTimeStamp
-from ms_server_profiler.plugins.plugin_metric import PluginMetric
+from enum import Enum
 
-buildin_plugins = [PluginCommon, PluginTimeStamp, PluginMetric]
+from pathlib import Path
+
+from ms_server_profiler.exporters.base import ExporterBase
+
+
+class ReqStatus(Enum):
+    WAITING = 0
+    PENDING = 1
+    RUNNING = 2
+    SWAPPED = 3
+    RECOMPUTE = 4
+    SUSPENDED = 5
+    END = 6
+    STOP = 7
+    PREFILL_HOLD = 8
+
+
+class ExporterReqStatus(ExporterBase):
+    name = "req_status"
+
+    @classmethod
+    def initialize(cls, args):
+        cls.args = args
+
+    @classmethod
+    def export(cls, data) -> None:
+        metrics = data.get('metric_data_details_df')
+        metrics.to_csv(Path(cls.args.output_path) / 'request_status.csv')

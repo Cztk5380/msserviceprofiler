@@ -19,6 +19,9 @@ import sqlite3
 import pandas as pd
 
 from ms_server_profiler.constant import US_PER_SECOND
+from ms_server_profiler.plugins import buildin_plugins
+from ms_server_profiler.plugins.sort_plugins import sort_plugins
+
 
 def find_config_files(folder_path):
     config_path = None
@@ -163,9 +166,11 @@ def read_origin_db(db_path: str):
         )
 
 
-def parse(args, all_plugins, exporters):
+def parse(input_path, custom_plugins, exporters):
     # 解析数据
-    data = read_origin_db(args.input_path)
+    data = read_origin_db(input_path)
+
+    all_plugins = sort_plugins(buildin_plugins + custom_plugins)
     for plugin in all_plugins:
         data = plugin.parse(data)
 

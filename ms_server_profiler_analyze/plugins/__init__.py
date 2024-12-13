@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ms_server_profiler.plugins.plugin_common import PluginCommon
-from ms_server_profiler.plugins.plugin_timestamp import PluginTimeStamp
-from ms_server_profiler.plugins.plugin_metric import PluginMetric
+from ms_server_profiler_analyze.plugins.plugin_req_status import PluginReqStatus
 
-buildin_plugins = [PluginCommon, PluginTimeStamp, PluginMetric]
+custom_plugins = [PluginReqStatus]
