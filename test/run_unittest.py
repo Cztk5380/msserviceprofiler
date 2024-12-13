@@ -20,8 +20,6 @@ def run_tests_with_coverage(test_directory):
 
     total_statements = cov.html_report(directory="coverage_report")
 
-    print(f"Coverage rate: {total_statements:.2f}%")
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.CRITICAL)
