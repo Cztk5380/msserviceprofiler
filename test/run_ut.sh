@@ -25,6 +25,7 @@ run_test_cpp() {
 }
 
 run_test_python() {
+  python --version
   pip install pytest "pandas>=2.2"
   export PYTHONPATH=${TOP_DIR}:${PYTHONPATH}
   coverage run --branch --source ${TOP_DIR}/'ms_server_profiler',${TOP_DIR}/'ms_server_profiler_analyze' -m pytest ${TEST_DIR}/ut/python_test
