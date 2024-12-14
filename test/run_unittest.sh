@@ -20,20 +20,25 @@ clean() {
   fi
 }
 
-run_cpp_test() {
-  cd ${TEST_DIR}/ut/ait_testcase
-  chmod +x ./run_ait_cases.sh
-  ./run_ait_cases.sh
+run_test_cpp() {
+  cd .
 }
 
-run_python_test() {
-  export PYTHONPATH=${TOP_DIR}:${PYTHONPATH} && python3 run_ut.py
-  run_ait
+run_test_python() {
+  pip install pytest
+  export PYTHONPATH=${TOP_DIR}:${PYTHONPATH}
+  cd ${TEST_DIR}/ut/python_test
+  # coverage run --branch --source ${TOP_DIR}/'ms_server_profiler',${TOP_DIR}/'ms_server_profiler_analyze' -m pytest /home/raonaxin/projects/msserviceprofiler/test/ut/python_test/testcase/test_plugins.py
+  # coverage run --source ${TOP_DIR}/'ms_server_profiler',${TOP_DIR}/'ms_server_profiler_analyze' -m pytest
+  python3 run_ut.py
+  coverage xml -o coverage.xml
+  coverage report
+  cd -
 }
 
 run_test() {
-  run_cpp_test
-  run_python_test
+  run_test_cpp
+  run_test_python
 }
 
 main() {

@@ -33,7 +33,7 @@ def run_tests_with_coverage(test_directory):
 
     cov.save()
 
-    total_statements = cov.html_report(directory="coverage_report")
+    # total_statements = cov.html_report(directory="report")
 
 
 if __name__ == "__main__":

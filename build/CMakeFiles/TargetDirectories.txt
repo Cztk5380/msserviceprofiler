@@ -1,0 +1,8 @@
+/home/raonaxin/projects/msserviceprofiler/build/CMakeFiles/ms_server_profiler.dir
+/home/raonaxin/projects/msserviceprofiler/build/CMakeFiles/test_server_profiler.dir
+/home/raonaxin/projects/msserviceprofiler/build/CMakeFiles/edit_cache.dir
+/home/raonaxin/projects/msserviceprofiler/build/CMakeFiles/rebuild_cache.dir
+/home/raonaxin/projects/msserviceprofiler/build/CMakeFiles/list_install_components.dir
+/home/raonaxin/projects/msserviceprofiler/build/CMakeFiles/install.dir
+/home/raonaxin/projects/msserviceprofiler/build/CMakeFiles/install/local.dir
+/home/raonaxin/projects/msserviceprofiler/build/CMakeFiles/install/strip.dir
