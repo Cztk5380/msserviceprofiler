@@ -15,7 +15,7 @@
  */
  
 #include <chrono>
-#include "../include/msServerProfiler.h"
+#include "../../../include/msServerProfiler.h"
 #include "acl/acl.h"
 #include "acl/acl_prof.h"
 using namespace msServerProfiler;

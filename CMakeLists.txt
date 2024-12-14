@@ -33,7 +33,7 @@ add_library(ms_server_profiler
     src/msServerProfilerMarker.cpp
 )
 
-add_executable(test_server_profiler test/test.cpp
+add_executable(test_server_profiler test/ut/cpp_test/test.cpp
     src/msServerProfiler.cpp
     src/msServerProfilerMarker.cpp
 )
