@@ -22,7 +22,7 @@ class PluginBase:
 
     @classmethod
     @abstractmethod
-    def parse(data: Dict) -> Dict:
+    def parse(cls, data: Dict) -> Dict:
         pass
 
 

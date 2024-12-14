@@ -21,10 +21,10 @@ class ExporterBase:
 
     @classmethod
     @abstractmethod
-    def initialize(args):
+    def initialize(cls, args):
         pass
 
     @classmethod
     @abstractmethod
-    def export(data: Dict) -> None:
+    def export(cls, data: Dict) -> None:
         pass
