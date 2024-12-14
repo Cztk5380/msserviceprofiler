@@ -13,7 +13,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
-os.system("pip install coverage")
-os.system("pip install pandas")
-os.system("pip install pytest")
-os.system("python3 run_unittest_py3.py")
+import unittest
+import logging
+
+
+def run_tests_with_coverage(test_directory):
+    import coverage
+    cov = coverage.Coverage(omit=["testcase/*"])
+
+    cov.start()
+
+    loader = unittest.TestLoader()
+    suite = loader.discover(test_directory)
+
+    runner = unittest.TextTestRunner()
+    runner.run(suite)
+
+    cov.stop()
+
+    cov.save()
+
+    total_statements = cov.html_report(directory="coverage_report")
+    print("total_statements:" + str(total_statements))
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.CRITICAL)
+
+    test_directory = "./testcase"
+
+    run_tests_with_coverage(test_directory)
