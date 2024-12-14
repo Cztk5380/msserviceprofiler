@@ -46,6 +46,7 @@ class PluginReqStatus(PluginBase):
         data['tx_data_df'] = tx_data_df
         return data
 
+
 def is_metric(name):
     if name[0] in ['+', '=']:
         return True
@@ -67,8 +68,8 @@ def status_index_to_status_name(metric):
         raise ValueError(f"Invalid status index: {index}")
     
     return f"{metric[0]}{ReqStatus(index).name}"
-           
-                    
+
+
 def parse_message_state_name(message):
     if not isinstance(message, dict):
         raise ValueError(f"Message must be a dict, but got {type(message)}")

@@ -33,6 +33,7 @@ class PluginCommon(PluginBase):
         data["tx_data_df"] = tx_data_df
         return data
 
+
 def extract_ids_from_reslist(rid_from_message, rid_map):
     res_list = rid_from_message
     rid = []
@@ -44,12 +45,14 @@ def extract_ids_from_reslist(rid_from_message, rid_map):
         return rid, token_id
     return res_list, res_list
 
+
 def convert_message_to_json(message):
     if message.startswith('{') and message.endswith('}'):
         return json.loads(message)
     else:
         message = '{' + message[:-1] + '}'
         return json.loads(message)   
+
 
 def extract_batch_type(token_list):
     if token_list is None:
@@ -60,6 +63,7 @@ def extract_batch_type(token_list):
         return 'Prefill, Decode'
     else:
         return 'Decode'
+
 
 def extract_rid(rid_from_message, rid_map):
     rid, rid_list, token_id_list, batch_size = None, None, None, None
@@ -74,6 +78,7 @@ def extract_rid(rid_from_message, rid_map):
             batch_size = len(rid_list)
     return rid, rid_list, token_id_list, batch_size
 
+
 def parse_rid(all_data_df):
     rid_link_map = {x.get("from"): x.get("to") for x in all_data_df[all_data_df["type"] == 3]["message"]}
     all_data_df[['rid', 'rid_list', 'token_id_list', 'batch_size']] = all_data_df['rid'].apply(
@@ -82,10 +87,9 @@ def parse_rid(all_data_df):
     all_data_df['batch_type'] = all_data_df['token_id_list'].apply(lambda x: extract_batch_type(x))
     return all_data_df
 
+
 def parse_message(all_data_df):
     all_data_df['message'] = all_data_df['message'].apply(lambda x: convert_message_to_json(x))
     all_data_df = all_data_df.join(all_data_df['message'].apply(pd.Series))
     all_data_df = parse_rid(all_data_df)
     return all_data_df
-
-

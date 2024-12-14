@@ -17,14 +17,14 @@ from typing import List, Dict
 
 
 class ExporterBase:
+    name: str = 'base'
+
+    @classmethod
     @abstractmethod
-    def __init__(self, args):
+    def initialize(args):
         pass
 
+    @classmethod
     @abstractmethod
-    def name(self) -> str:
-        pass
-
-    @abstractmethod
-    def export(self, data: Dict) -> None:
+    def export(data: Dict) -> None:
         pass

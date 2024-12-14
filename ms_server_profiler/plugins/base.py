@@ -17,16 +17,12 @@ from typing import List, Dict
 
 
 class PluginBase:
-    @abstractmethod
-    def name(self) -> str:
-        pass
+    name: str = 'plugin_base'
+    depends: List[str] = []
 
+    @classmethod
     @abstractmethod
-    def depends(self) -> List[str]:
-        pass
-
-    @abstractmethod
-    def parse(self, data: Dict) -> Dict:
+    def parse(data: Dict) -> Dict:
         pass
 
 

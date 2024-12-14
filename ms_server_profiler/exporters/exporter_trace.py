@@ -32,6 +32,7 @@ class ExporterTrace(ExporterBase):
         trace_data = create_trace_events(all_data_df, cpu_data_df)
         save_trace_data_into_json(trace_data, output)
 
+
 def save_trace_data_into_json(trace_data, output):
     file_path = os.path.join(output, 'chrome_tracing.json')
     flags = os.O_WRONLY | os.O_CREAT
@@ -114,6 +115,7 @@ def create_trace_events(all_data_df, cpu_data_df):
     trace_data = {"traceEvents": trace_events}
     return trace_data
 
+
 def sort_trace_events_by_cat(trace_events):
     sorting_order = ['Metrics', 'Request Status', 'Execute']
 
@@ -147,6 +149,7 @@ def sort_trace_events_by_cat(trace_events):
     sorted_trace_events = sort_events_by_cat + event_without_cat + tid_sorting_meta
     return sorted_trace_events
 
+
 def add_cpu_events(cpu_data_df, trace_events):
     for _, data in cpu_data_df.iterrows():
         trace_events.append(
@@ -163,6 +166,7 @@ def add_cpu_events(cpu_data_df, trace_events):
             }
         )
     return trace_events
+
 
 def add_args_for_state_type(message):
     args = {}

@@ -12,16 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os
 import unittest
 import logging
 
+import coverage
+
 
 def run_tests_with_coverage(test_directory):
-<<<<<<< HEAD
-=======
-    import coverage
->>>>>>> cl
     cov = coverage.Coverage(omit=["testcase/*"])
 
     cov.start()
@@ -37,11 +34,7 @@ def run_tests_with_coverage(test_directory):
     cov.save()
 
     total_statements = cov.html_report(directory="coverage_report")
-<<<<<<< HEAD
-    print("coverage: " + str(total_statements))
-=======
-    print("total_statements:" + str(total_statements))
->>>>>>> cl
+    print(f"coverage: {total_statements:.2f}%")
 
 
 if __name__ == "__main__":

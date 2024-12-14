@@ -13,7 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
-os.system("pip install coverage")
-os.system("pip install pandas")
-os.system("pip install pytest")
+os.system("pip install coverage pytest pandas")
 os.system("python3 run_unittest_py3.py")

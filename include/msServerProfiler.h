@@ -156,7 +156,7 @@ template <Level level=Level::INFO>
 class ProfilerBase {
   public:
     inline bool IsEnable(Level msgLevel=level) { 
-      return ServerProfilerManager::GetInstance().IsEnable(msgLevel);
+        return ServerProfilerManager::GetInstance().IsEnable(msgLevel);
     };
 
     template <Level levelAttr=level, typename T>
@@ -212,7 +212,7 @@ class ProfilerBase {
     }
 
     std::string &GetMsg() { 
-      return collector_.GetMsg(); 
+        return collector_.GetMsg(); 
     }
 
   private:
