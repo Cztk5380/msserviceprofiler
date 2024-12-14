@@ -1,29 +1,5 @@
-import unittest
-import coverage
-import logging
+import os
 
-
-def run_tests_with_coverage(test_directory):
-    cov = coverage.Coverage(omit=["testcase/*"])
-
-    cov.start()
-
-    loader = unittest.TestLoader()
-    suite = loader.discover(test_directory)
-
-    runner = unittest.TextTestRunner()
-    runner.run(suite)
-
-    cov.stop()
-
-    cov.save()
-
-    total_statements = cov.html_report(directory="coverage_report")
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.CRITICAL)
-
-    test_directory = "./testcase"
-
-    run_tests_with_coverage(test_directory)
+os.system('pip3 install coverage')
+os.system('pip3 install pandas')
+os.system('python3 run_unittest_py3.py')
