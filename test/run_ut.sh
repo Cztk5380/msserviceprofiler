@@ -25,15 +25,11 @@ run_test_cpp() {
 }
 
 run_test_python() {
-  pip install pytest
+  pip install pytest "pandas>=2.2"
   export PYTHONPATH=${TOP_DIR}:${PYTHONPATH}
-  cd ${TEST_DIR}/ut/python_test
-  # coverage run --branch --source ${TOP_DIR}/'ms_server_profiler',${TOP_DIR}/'ms_server_profiler_analyze' -m pytest /home/raonaxin/projects/msserviceprofiler/test/ut/python_test/testcase/test_plugins.py
-  # coverage run --source ${TOP_DIR}/'ms_server_profiler',${TOP_DIR}/'ms_server_profiler_analyze' -m pytest
-  python3 run_ut.py
-  coverage xml -o coverage.xml
+  coverage run --branch --source ${TOP_DIR}/'ms_server_profiler',${TOP_DIR}/'ms_server_profiler_analyze' -m pytest ${TEST_DIR}/ut/python_test
   coverage report
-  cd -
+  coverage xml -o coverage.xml
 }
 
 run_test() {
