@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ms_service_profiler.signals import Span, Metric, Event, ResLink
+from ms_service_profiler.signals import Profiler
