@@ -5,8 +5,8 @@
  * Create: 2024-12-16
  */
 
-#ifndef _ACL_H
-#define _ACL_H
+#ifndef MS_SERVICE_PROFILER_ACL_H
+#define MS_SERVICE_PROFILER_ACL_H
 
 #include <cstdint>
 
