@@ -40,13 +40,13 @@ constexpr int STRING_TO_UINT_BASE = 10;
 #define PROF_LOGD(...)       \
     do {                     \
         printf(__VA_ARGS__); \
-        printf("\n")         \
+        printf("\n");        \
     } while (0)
 
 #define PROF_LOGE(...)       \
     do {                     \
         printf(__VA_ARGS__); \
-        printf("\n")         \
+        printf("\n");        \
     } while (0)
 
 SpanHandle StartSpan()
