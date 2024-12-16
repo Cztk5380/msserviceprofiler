@@ -7,6 +7,7 @@ make_msserviceprofiler() {
     cd build
     cmake ..
     make -j
+    cmake --install . --prefix ../../ms_service_profiler
     cd -
 }
 
