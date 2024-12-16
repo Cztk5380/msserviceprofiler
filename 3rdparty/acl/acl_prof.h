@@ -5,8 +5,8 @@
  * Create: 2024-12-16
  */
 
-#ifndef _ACL_PROF_H
-#define _ACL_PROF_H
+#ifndef MS_SERVICE_PROFILER_ACL_PROF_H
+#define MS_SERVICE_PROFILER_ACL_PROF_H
 
 #include <cstdlib>
 #include <cstdint>

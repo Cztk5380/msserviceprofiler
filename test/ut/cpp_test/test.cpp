@@ -29,26 +29,32 @@ constexpr int TEST_VALUE_100 = 100;
 constexpr int TEST_VALUE_0 = 0;
 constexpr int TEST_SPEED_5 = 5;
 
-#define TEST_SMOKE(FUNC)                                                             \
-    do {                                                                             \
-        try {                                                                        \
-            (FUNC)();                                                                \
-        } catch (const std::exception &e) {                                          \
-            std::cerr << (#FUNC) << " smoke test FAILED. " << e.what() << std::endl; \
-        }                                                                            \
-    } while (0)
+int64_t Now()
+{
+    auto now = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds ms = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
+    return ms.count();
+}
 
-#define TEST_SPEED(FUNC, ms)                                                                          \
-    do {                                                                                              \
-        auto startTime = Now();                                                                       \
-        (FUNC)();                                                                                     \
-        auto du = Now() - startTime;                                                                  \
-        if (du > ((ms)*1000)) {                                                                       \
-            std::cerr << (#FUNC) << " speed FAILED. " << (du / 1000.0) << " > " << (ms) << std::endl; \
-        } else {                                                                                      \
-            std::cout << (#FUNC) << (du / 1000.0) << " < " << (ms) << std::endl;                      \
-        }                                                                                             \
-    } while (0)
+void TestSmoke(const std::string funcName, void (*func)()) {
+    try {
+        func();
+    } catch (const std::exception& e) {
+        // 处理异常
+        std::cerr << funcName << " smoke test FAILED. " << e.what() << std::endl;
+    }
+}
+
+void TestSpeed(const std::string funcName, void (*func)(), int ms) {
+    auto startTime = Now();
+    func();
+    auto du = Now() - startTime;
+    if (du > (ms * 1000)) {
+        std::cerr << funcName << " speed FAILED. " << (du / 1000.0) << " > " << ms << std::endl;
+    } else {
+        std::cout << funcName << (du / 1000.0) << " < " << ms << std::endl;
+    }
+}
 
 void TestSpan()
 {
@@ -105,27 +111,20 @@ void TestSpan100ObjAttr()
 
 void SmokeTest()
 {
-    TEST_SMOKE(TestSpan);
-    TEST_SMOKE(TestMetric);
-    TEST_SMOKE(TestEvent);
-    TEST_SMOKE(TestLinker);
-}
-
-int64_t Now()
-{
-    auto now = std::chrono::high_resolution_clock::now();
-    std::chrono::nanoseconds ms = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
-    return ms.count();
+    TestSmoke("TestSpan", TestSpan);
+    TestSmoke("TestMetric", TestMetric);
+    TestSmoke("TestEvent", TestEvent);
+    TestSmoke("TestLinker", TestLinker);
 }
 
 void SpeedTest()
 {
-    TEST_SPEED(TestSpan, TEST_SPEED_5);
-    TEST_SPEED(TestMetric, TEST_SPEED_5);
-    TEST_SPEED(TestEvent, TEST_SPEED_5);
-    TEST_SPEED(TestLinker, TEST_SPEED_5);
-    TEST_SPEED(TestSpan100NumAttr, TEST_SPEED_5);
-    TEST_SPEED(TestSpan100ObjAttr, TEST_SPEED_5);
+    TestSpeed("TestSpan", TestSpan, TEST_SPEED_5);
+    TestSpeed("TestMetric", TestMetric, TEST_SPEED_5);
+    TestSpeed("TestEvent", TestEvent, TEST_SPEED_5);
+    TestSpeed("TestLinker", TestLinker, TEST_SPEED_5);
+    TestSpeed("TestSpan100NumAttr", TestSpan100NumAttr, TEST_SPEED_5);
+    TestSpeed("TestSpan100ObjAttr", TestSpan100ObjAttr, TEST_SPEED_5);
 }
 
 int main()

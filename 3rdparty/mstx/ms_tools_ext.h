@@ -5,8 +5,8 @@
  * Create: 2024-12-16
  */
 
-#ifndef _MS_TOOLS_EXT_H
-#define _MS_TOOLS_EXT_H
+#ifndef MS_SERVICE_PROFILER_MS_TOOLS_EXT_H
+#define MS_SERVICE_PROFILER_MS_TOOLS_EXT_H
 
 #include <cstdint>
 #include <acl/acl.h>
