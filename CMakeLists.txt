@@ -23,6 +23,7 @@ add_executable(test_server_profiler test/ut/cpp_test/test.cpp
 
 if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
     message(AUTHOR_WARNING "no env $ASCEND_TOOLKIT_HOME")
+    set(BUILD_ENV_MSPROF_DEPEND_PATH /usr1/slave1/msprof/collector/dvvp/depend/inc)
     set(BUILD_ENV_MSPROF_PATH /usr1/slave1/msprof/collector/inc/external)
     set(BUILD_ENV_MSTX_PATH /usr1/slave1/mstx/include)
 
@@ -37,6 +38,7 @@ if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
     include_directories(
             ${BUILD_ENV_MSTX_PATH}
             ${BUILD_ENV_MSPROF_PATH}
+            ${BUILD_ENV_MSPROF_DEPEND_PATH}
             3rdparty
     )
 elseif ()
