@@ -14,6 +14,7 @@
 extern "C" {
 #endif
 
+#ifndef ACL_PROF_ACL_API
 #define ACL_PROF_ACL_API                0x0001ULL
 #define ACL_PROF_TASK_TIME              0x0002ULL
 #define ACL_PROF_AICORE_METRICS         0x0004ULL
@@ -26,14 +27,20 @@ extern "C" {
 #define ACL_PROF_TASK_TIME_L0           0x0800ULL
 #define ACL_PROF_TASK_MEMORY            0x1000ULL
 #define ACL_PROF_OP_ATTR                0x4000ULL
+#endif
+
+#ifndef INC_EXTERNAL_ACL_PROF_H_
 static const int ACL_ERROR_NONE = 0;
 static const int ACL_SUCCESS = 0;
+#endif
 
 typedef void *aclrtStream;
 typedef void *aclrtContext;
 typedef int aclError;
 aclError aclInit(const char *configPath);
-
+aclError aclrtSetDevice(int32_t deviceId);
+aclError aclrtCreateContext(aclrtContext *context, int32_t deviceId);
+aclError aclrtCreateStream(aclrtStream *stream);
 #ifdef __cplusplus
 }
 #endif

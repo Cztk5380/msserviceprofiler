@@ -53,9 +53,6 @@ aclError aclprofSetConfig(aclprofConfigType configType, const char *config, size
 
 aclError aclprofStart(const aclprofConfig *profilerConfig);
 aclError aclprofStop(const aclprofConfig *profilerConfig);
-aclError aclrtSetDevice(int32_t deviceId);
-aclError aclrtCreateContext(aclrtContext *context, int32_t deviceId);
-aclError aclrtCreateStream(aclrtStream *stream);
 #ifdef __cplusplus
 }
 #endif

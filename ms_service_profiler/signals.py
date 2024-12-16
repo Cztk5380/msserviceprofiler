@@ -31,104 +31,74 @@ class Level(int, Enum):
     VERBOSE = 40
 
 
-class AttrCollect:
-    def __init__(self) -> None:
+class Profiler:
+    def __init__(self, profiler_level) -> None:
+        self._enable = service_profiler.is_enable(profiler_level)
         self._attr = dict()
+        self._span_handle = None
 
-    def add_attr(self, key, value):
+    def attr(self, key, value):
         self._attr[key] = value
+        return self
+
+    def domain(self, domain):
+        self.attr("domain", domain)
+        return self
+
+    def res(self, res):
+        self.attr("rid", res)
+        return self
+
+    def metric(self, metric_name, metric_value):
+        self.attr(f"{metric_name}=", metric_value)
+        return self
+
+    def metric_inc(self, metric_name, metric_value):
+        self.attr(f"{metric_name}+", metric_value)
+        return self
+
+    def metric_scope(self, scope_name, scope_value=0):
+        self.attr(f"scope#{scope_name}", scope_value)
+        return self
+
+    def metric_scope_as_req_id(self):
+        self.attr(f"scope#", "req")
+        return self
+
+    def launch(self):
+        if self._enable:
+            service_profiler.mark_event(self.get_msg())
 
     def get_msg(self):
         return json.dumps(self._attr)
 
+    def link(self, from_rid, to_rid):
+        if self._enable:
+            self.attr("type", MarkType.TYPE_LINK)
+            self.attr("from", from_rid)
+            self.attr("to", to_rid)
+            service_profiler.mark_event(self.get_msg())
 
-class Span(AttrCollect):
-    def __init__(self, span_name, rid, profiler_level) -> None:
-        super().__init__()
-        self._enable = service_profiler.is_enable(profiler_level)
+    def event(self, event_name):
+        if self._enable:
+            self.attr("type", MarkType.TYPE_EVENT)
+            self.attr("name", event_name)
+            service_profiler.mark_event(self.get_msg())
 
-        if not self._enable:
-            return
-
-        self._span_handle = 0
-        if rid is not None:
-            self.add_attr("rid", rid)
-
-        self.add_attr("type", MarkType.TYPE_SPAN)
-        self.add_attr("name", span_name)
-
-    def __enter__(self):
-        self.start()
+    def span_start(self, span_name):
+        if self._enable:
+            self.attr("name", span_name)
+            self.attr("type", MarkType.TYPE_SPAN)
+            self._span_handle = service_profiler.start_span()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.end()
-
-    def start(self):
-        if self._enable:
-            self._span_handle = service_profiler.start_span()
-
-    def end(self):
+    def span_end(self):
         if self._enable:
             service_profiler.mark_span_attr(self.get_msg(), self._span_handle)
             service_profiler.end_span(self._span_handle)
 
+    def __enter__(self):
+        return self
 
-class Metric(AttrCollect):
-    def __init__(self, profiler_level) -> None:
-        super().__init__()
-        self._enable = service_profiler.is_enable(profiler_level)
-        if not self._enable:
-            return
-
-    @staticmethod
-    def add_metric(metric_name, value, rid, profiler_level):
-        Metric(profiler_level).mark(metric_name, value)
-
-    def mark(self, metric_name, value, rid):
-        if self._enable:
-            self.add_attr("type", MarkType.TYPE_METRIC)
-            self.add_attr("name", metric_name)
-            self.add_attr("value", value)
-            if rid is not None:
-                self.add_attr("rid", rid)
-            service_profiler.mark_event(self.get_msg())
-
-
-class Event(AttrCollect):
-    def __init__(self, profiler_level) -> None:
-        super().__init__()
-        if not self._enable:
-            return
-
-    @staticmethod
-    def add_event(event_name, value, rid, profiler_level):
-        Event(profiler_level).mark(event_name, value, rid)
-
-    def mark(self, event_name, value, rid):
-        if self._enable:
-            self.add_attr("type", MarkType.TYPE_EVENT)
-            self.add_attr("name", event_name)
-            self.add_attr("value", value)
-            if rid is not None:
-                self.add_attr("rid", rid)
-            service_profiler.mark_event(self.get_msg())
-
-
-class ResLink(AttrCollect):
-    def __init__(self, profiler_level) -> None:
-        super().__init__()
-        self._enable = service_profiler.is_enable(profiler_level)
-        if not self._enable:
-            return
-
-    @staticmethod
-    def link(from_rid, to_rid, profiler_level):
-        ResLink(profiler_level).mark(from_rid, to_rid)
-
-    def mark(self, from_rid, to_rid):
-        if self._enable:
-            self.add_attr("type", MarkType.TYPE_LINK)
-            self.add_attr("from", from_rid)
-            self.add_attr("to", to_rid)
-            service_profiler.mark_event(self.get_msg())
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.span_end()
