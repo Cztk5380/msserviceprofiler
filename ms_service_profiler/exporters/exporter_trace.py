@@ -42,6 +42,28 @@ def save_trace_data_into_json(trace_data, output):
         json.dump(trace_data, f, ensure_ascii=False, indent=2)
 
 
+def add_flow_event(data, trace_events):
+    rids = str(data["rid"]).split(",")
+    for rid in rids:
+        flow_event = {
+                "name": "flow_" + rid,
+                "id": rid,
+                "cat": rid,
+                "pid": data['pid'],
+                "tid": data['name'],
+                "ts": data['start_time']
+            }
+        if data["name"] == "httpReq":
+            flow_event["ph"] = 's'
+        elif data["name"] == "httpRes":
+            flow_event["ph"] = 'f'
+            flow_event["bp"] = 'e'
+        else:
+            flow_event["ph"] = 't'
+        trace_events.append(flow_event)
+    return trace_events
+
+
 def create_trace_events(all_data_df, cpu_data_df):
     trace_events = []
 
@@ -76,24 +98,7 @@ def create_trace_events(all_data_df, cpu_data_df):
                 },
             )
         if data['rid'] is not None:
-            rids = str(data["rid"]).split(",")
-            for rid in rids:
-                flow_event = {
-                        "name": "flow_" + rid,
-                        "id": rid,
-                        "cat": rid,
-                        "pid": data['pid'],
-                        "tid": data['name'],
-                        "ts": data['start_time']
-                    }
-                if data["name"] == "httpReq":
-                    flow_event["ph"] = 's'
-                elif data["name"] == "httpRes":
-                    flow_event["ph"] = 'f'
-                    flow_event["bp"] = 'e'
-                else:
-                    flow_event["ph"] = 't'
-                trace_events.append(flow_event)
+            trace_events = add_flow_event(data, trace_events)
         if data['type'] == 1:
             trace_events.append(
                 {
