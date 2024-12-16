@@ -37,15 +37,18 @@ bool IsEnable(uint32_t level);
 namespace msServerProfiler {
 
 class ServerProfilerManager {
-  public:
+public:
     static ServerProfilerManager &GetInstance();
 
-    inline bool IsEnable(uint32_t level) { return enable_ && level_ > level; }
+    inline bool IsEnable(uint32_t level)
+    {
+        return enable_ && level_ > level;
+    }
 
     void StartProfiler();
     void StopProfiler();
 
-  private:
+private:
     ServerProfilerManager();
 
     void ReadConfig();
@@ -53,13 +56,13 @@ class ServerProfilerManager {
     bool ReadProfPath(const std::string &key, const std::string &value);
     bool ReadLevel(const std::string &key, const std::string &value);
 
-  private:
+private:
     bool enable_ = false;
     bool started_ = false;
     std::string profPath_;
     uint32_t level_ = Level::DETAILED;
     void *configHandle_;
 };
-} // namespace msServerProfiler
+}  // namespace msServerProfiler
 
 #endif

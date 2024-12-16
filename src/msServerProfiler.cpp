@@ -18,4 +18,4 @@
 
 namespace msServerProfiler {
 const ResID ResID::ILLEGAL_RES = ResID(std::numeric_limits<uint64_t>::max());
-} // namespace msServerProfiler
+}  // namespace msServerProfiler

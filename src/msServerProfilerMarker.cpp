@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -36,11 +36,19 @@
 constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
 constexpr int STRING_TO_UINT_BASE = 10;
-#define PROF_LOGD(...)   printf(__VA_ARGS__);     printf("\n")
-#define PROF_LOGE(...)    printf(__VA_ARGS__);     printf("\n")
-SpanHandle StartSpan() { return mstxRangeStartA("", nullptr); }
+#define PROF_LOGD(...)   \
+    printf(__VA_ARGS__); \
+    printf("\n")
+#define PROF_LOGE(...)   \
+    printf(__VA_ARGS__); \
+    printf("\n")
+SpanHandle StartSpan()
+{
+    return mstxRangeStartA("", nullptr);
+}
 
-void MarkSpanAttr(const char *msg, SpanHandle spanHandle) {
+void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
+{
     std::string spanTag;
     spanTag.reserve(MAX_TX_MSG_LEN);
     spanTag.append("span=").append(std::to_string(spanHandle)).append("|");
@@ -59,35 +67,43 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle) {
     }
 }
 
-void EndSpan(SpanHandle spanHandle) { mstxRangeEnd(spanHandle); }
+void EndSpan(SpanHandle spanHandle)
+{
+    mstxRangeEnd(spanHandle);
+}
 
-void MarkEventLongAttr(const char *msg) {
+void MarkEventLongAttr(const char *msg)
+{
     auto spanHandle = StartSpan();
     MarkSpanAttr(msg, spanHandle);
 }
 
-void MarkEvent(const char *msg) {
+void MarkEvent(const char *msg)
+{
     if (strlen(msg) > MAX_TX_MSG_LEN) {
         MarkEventLongAttr(msg);
     }
     mstxMarkA(msg, nullptr);
 }
 
-void StartServerProfiler() {
+void StartServerProfiler()
+{
     msServerProfiler::ServerProfilerManager::GetInstance().StartProfiler();
 }
 
-void StopServerProfiler() {
+void StopServerProfiler()
+{
     msServerProfiler::ServerProfilerManager::GetInstance().StopProfiler();
 }
 
-bool IsEnable(uint32_t level) {
-    return msServerProfiler::ServerProfilerManager::GetInstance().IsEnable(
-        level);
+bool IsEnable(uint32_t level)
+{
+    return msServerProfiler::ServerProfilerManager::GetInstance().IsEnable(level);
 }
 
 namespace msServerProfiler {
-static inline std::string TrimStr(const std::string& str) {
+static inline std::string TrimStr(const std::string &str)
+{
     auto start = str.find_first_not_of(" \t\n\v\f\r");
     if (start == std::string::npos) {
         return "";
@@ -96,12 +112,14 @@ static inline std::string TrimStr(const std::string& str) {
     return str.substr(start, end - start + 1);
 }
 
-static inline unsigned long Str2Uint(const char *pcStr) {
+static inline unsigned long Str2Uint(const char *pcStr)
+{
     char *endPtr;
     return std::strtoul(pcStr, &endPtr, STRING_TO_UINT_BASE);
 }
 
-static inline std::pair<std::string, std::string> SplitStr(const std::string& str, char splitChar) {
+static inline std::pair<std::string, std::string> SplitStr(const std::string &str, char splitChar)
+{
 
     auto start = str.find_first_of(splitChar);
     if (start == std::string::npos) {
@@ -111,8 +129,8 @@ static inline std::pair<std::string, std::string> SplitStr(const std::string& st
     }
 }
 
-
-bool MakeDirs(const std::string &dirPath) {
+bool MakeDirs(const std::string &dirPath)
+{
     if (access(dirPath.c_str(), F_OK) == 0) {
         return true;
     }
@@ -132,12 +150,14 @@ bool MakeDirs(const std::string &dirPath) {
     return true;
 }
 
-ServerProfilerManager &ServerProfilerManager::GetInstance() {
+ServerProfilerManager &ServerProfilerManager::GetInstance()
+{
     static ServerProfilerManager manager;
     return manager;
 }
 
-ServerProfilerManager::ServerProfilerManager() {
+ServerProfilerManager::ServerProfilerManager()
+{
     std::string homePath = getenv("HOME") ? getenv("HOME") : "";
     profPath_.append(homePath).append("/.ms_server_profiler/");
     ReadConfig();
@@ -146,7 +166,8 @@ ServerProfilerManager::ServerProfilerManager() {
     }
 }
 
-void ServerProfilerManager::ReadConfig() {
+void ServerProfilerManager::ReadConfig()
+{
     time_t now = time(nullptr);
     tm *ltm = std::localtime(&now);
     std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
@@ -162,12 +183,11 @@ void ServerProfilerManager::ReadConfig() {
             }
 
             auto kvPair = SplitStr(lineData, '=');
-            
+
             std::string key(TrimStr(kvPair.first));
             std::string value(TrimStr(kvPair.second));
 
-            ReadEnable(key, value) || ReadProfPath(key, value) ||
-                ReadLevel(key, value);
+            ReadEnable(key, value) || ReadProfPath(key, value) || ReadLevel(key, value);
         }
     }
     profPath_.append(std::to_string(ltm->tm_mon + 1))
@@ -178,8 +198,8 @@ void ServerProfilerManager::ReadConfig() {
         .append("/");
 }
 
-bool ServerProfilerManager::ReadEnable(const std::string &key,
-                                       const std::string &value) {
+bool ServerProfilerManager::ReadEnable(const std::string &key, const std::string &value)
+{
     if (key == "enable") {
         enable_ = value == "1";
         return true;
@@ -188,8 +208,8 @@ bool ServerProfilerManager::ReadEnable(const std::string &key,
     }
 }
 
-bool ServerProfilerManager::ReadProfPath(const std::string &key,
-                                         const std::string &value) {
+bool ServerProfilerManager::ReadProfPath(const std::string &key, const std::string &value)
+{
     if (key == "prof_dir") {
         if (!value.empty()) {
             profPath_ = value;
@@ -203,8 +223,8 @@ bool ServerProfilerManager::ReadProfPath(const std::string &key,
     }
 }
 
-bool ServerProfilerManager::ReadLevel(const std::string &key,
-                                      const std::string &value) {
+bool ServerProfilerManager::ReadLevel(const std::string &key, const std::string &value)
+{
     static const std::map<std::string, Level> enumMap = {
         {"ERROR", Level::ERROR},
         {"INFO", Level::INFO},
@@ -231,7 +251,8 @@ bool ServerProfilerManager::ReadLevel(const std::string &key,
     }
 }
 
-void ServerProfilerManager::StartProfiler() {
+void ServerProfilerManager::StartProfiler()
+{
     if (started_) {
         return;
     }
@@ -254,8 +275,7 @@ void ServerProfilerManager::StartProfiler() {
         return;
     }
 
-    auto config_ = aclprofCreateConfig(deviceIdList, 1, ACL_AICORE_NONE,
-                                       nullptr, profSwitch);
+    auto config_ = aclprofCreateConfig(deviceIdList, 1, ACL_AICORE_NONE, nullptr, profSwitch);
     if (config_ == nullptr) {
         PROF_LOGE("acl prof crate config failed.");
         enable_ = false;
@@ -281,7 +301,8 @@ void ServerProfilerManager::StartProfiler() {
     started_ = true;
 }
 
-void ServerProfilerManager::StopProfiler() {
+void ServerProfilerManager::StopProfiler()
+{
     if (!started_) {
         return;
     }
@@ -308,4 +329,4 @@ void ServerProfilerManager::StopProfiler() {
     }
     started_ = false;
 }
-} // namespace msServerProfiler
+}  // namespace msServerProfiler
