@@ -60,19 +60,4 @@ void mstxRangeEnd(mstxRangeId id)
     // empty
 }
 
-aclError aclrtSetDevice(int32_t deviceId)
-{
-    return 0;
-}
-
-aclError aclrtCreateContext(aclrtContext *context, int32_t deviceId)
-{
-    return 0;
-}
-
-aclError aclrtCreateStream(aclrtStream *stream)
-{
-    return 0;
-}
-
 #endif  //_BUILD_ACL_FUNCTIONS_H
