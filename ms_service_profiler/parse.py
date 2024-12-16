@@ -88,20 +88,9 @@ def concat_data_from_folder(folder_path):
     
     for root, _, files in os.walk(folder_path):
         for filename in files:
-            # if filename == 'msproftx.db':
-            #     db_path = os.path.join(root, filename)
-            #     data_df = load_data_from_database(db_path)
-                
-            #     span_info = data_df[["mark_id", "message"]].apply(
-            #         lambda x: extract_span_info_from_message(x["message"], x["mark_id"]), axis=1
-            #     )
-            #     data_df[["span_id", "message"]] = pd.DataFrame(span_info.tolist())
-            #     data_df = data_df.groupby("span_id").apply(merge_message, include_groups=False)
-                
-            #     full_df = pd.concat([full_df, data_df], ignore_index=True)
-            if filename.startswith('msprof_tx_') and filename.endswith('.csv'):
+            if filename == 'msproftx.db':
                 db_path = os.path.join(root, filename)
-                data_df = pd.read_csv(db_path)
+                data_df = load_data_from_database(db_path)
                 
                 span_info = data_df[["mark_id", "message"]].apply(
                     lambda x: extract_span_info_from_message(x["message"], x["mark_id"]), axis=1
