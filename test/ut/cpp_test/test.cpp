@@ -36,7 +36,8 @@ int64_t Now()
     return ms.count();
 }
 
-void TestSmoke(const std::string funcName, void (*func)()) {
+void TestSmoke(const std::string funcName, void (*func)())
+{
     try {
         func();
     } catch (const std::exception& e) {
@@ -45,13 +46,16 @@ void TestSmoke(const std::string funcName, void (*func)()) {
     }
 }
 
-void TestSpeed(const std::string funcName, void (*func)(), int ms) {
+void TestSpeed(const std::string funcName, void (*func)(), int ms)
+{
     auto startTime = Now();
     func();
     auto du = Now() - startTime;
-    if (du > (ms * 1000)) {
+    if (du > (ms * 1000)) { // 1000: MILLISECONDS_TO_SECONDS
+        // 1000.0: MILLISECONDS_TO_SECONDS
         std::cerr << funcName << " speed FAILED. " << (du / 1000.0) << " > " << ms << std::endl;
     } else {
+        // 1000.0: MILLISECONDS_TO_SECONDS
         std::cout << funcName << (du / 1000.0) << " < " << ms << std::endl;
     }
 }
