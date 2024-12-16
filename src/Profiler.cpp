@@ -14,18 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef MS_SERVER_PROFILER_DEFINES_H
-#define MS_SERVER_PROFILER_DEFINES_H
-#define SERVER_PROFILER
-#include <cstdint>
+#include "../include/Profiler.h"
 
-namespace msServerProfiler {
-enum Level : uint32_t {
-    ERROR = 10,
-    INFO = 20,
-    DETAILED = 30,
-    VERBOSE = 40,
-};
-}
-
-#endif
+namespace msServiceProfiler {
+    const ResID ResID::ILLEGAL_RESOURCE = ResID(std::numeric_limits<uint64_t>::max());
+}  // namespace msServiceProfiler
