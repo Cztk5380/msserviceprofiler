@@ -64,6 +64,20 @@ def add_flow_event(data, trace_events):
     return trace_events
 
 
+def get_npu_usage(data):
+    return {
+                "name": data["name"],
+                "ph": "C",
+                "ts": data['start_time'],
+                "pid": data['pid'],
+                "tid": "NPU Usage",
+                "cat": "Metrics",
+                "args": {
+                    'NPU Usage': data['message'].get('value', None)
+                }
+            }
+
+
 def create_trace_events(all_data_df, cpu_data_df):
     trace_events = []
 
@@ -100,19 +114,7 @@ def create_trace_events(all_data_df, cpu_data_df):
         if data['rid'] is not None:
             trace_events = add_flow_event(data, trace_events)
         if data['type'] == 1:
-            trace_events.append(
-                {
-                    "name": data["name"],
-                    "ph": "C",
-                    "ts": data['start_time'],
-                    "pid": data['pid'],
-                    "tid": "NPU Usage",
-                    "cat": "Metrics",
-                    "args": {
-                        'NPU Usage': data['message'].get('value', None)
-                    }
-                }
-            )
+            trace_events.append(get_npu_usage(data))
 
     trace_events = add_cpu_events(cpu_data_df, trace_events)
     trace_events = sort_trace_events_by_cat(trace_events)
