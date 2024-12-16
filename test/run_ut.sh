@@ -18,6 +18,7 @@ clean() {
     rm -r ${TEST_DIR}/report
     echo "remove last ut_report success"
   fi
+  cd -
 }
 
 run_test_cpp() {
@@ -25,12 +26,12 @@ run_test_cpp() {
 }
 
 run_test_python() {
-  python --version
-  pip install pytest "pandas>=2.2"
+  python3 --version
+  pip3 install pytest "pandas>=2.2"
   export PYTHONPATH=${TOP_DIR}:${PYTHONPATH}
-  coverage run --branch --source ${TOP_DIR}/'ms_server_profiler',${TOP_DIR}/'ms_server_profiler_analyze' -m pytest ${TEST_DIR}/ut/python_test
-  coverage report
-  coverage xml -o coverage.xml
+  python3 -m coverage run --branch --source ${TOP_DIR}/'ms_server_profiler',${TOP_DIR}/'ms_server_profiler_analyze' -m pytest ${TEST_DIR}/ut/python_test
+  python3 -m coverage report
+  python3 -m coverage xml -o coverage.xml
 }
 
 run_test() {
@@ -39,11 +40,11 @@ run_test() {
 }
 
 main() {
+  cd ${TEST_DIR}
   clean
   local ret=1
   run_test
   ret=$?
-
   if [ "x"$ret == "x"0 ]; then
     exit 0
   else
