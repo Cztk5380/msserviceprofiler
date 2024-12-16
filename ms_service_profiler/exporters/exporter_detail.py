@@ -12,6 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ms_server_profiler_analyze.plugins.plugin_req_status import PluginReqStatus
+from pathlib import Path
 
-custom_plugins = [PluginReqStatus]
+import pandas as pd
+from ms_service_profiler.exporters.base import ExporterBase
+
+
+class ExporterDetail(ExporterBase):
+    name = "detail"
+
+    @classmethod
+    def initialize(cls, args):
+        cls.args = args
+
+    @classmethod
+    def export(cls, data) -> None:
+        for k, v in data.items():
+            filename = Path(cls.args.output_path) / f'{k}.txt'
+            if isinstance(v, pd.DataFrame):
+                v.to_csv(filename.with_suffix('.csv'), index=False)
+            else:
+                filename.write_text(f"{k}: {v}")

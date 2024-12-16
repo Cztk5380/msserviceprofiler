@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import pandas as pd
-from ms_server_profiler.plugins.base import PluginBase
+from ms_service_profiler.plugins.base import PluginBase
 
 
 class PluginMetric(PluginBase):

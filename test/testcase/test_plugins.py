@@ -16,8 +16,8 @@ import sys
 sys.path.append('..')
 
 import unittest
-from ms_server_profiler.plugins.base import PluginBase
-from ms_server_profiler.plugins.sort_plugins import sort_plugins, DependencyNotFoundError, DependencyCycleError
+from ms_service_profiler.plugins.base import PluginBase
+from ms_service_profiler.plugins.sort_plugins import sort_plugins, DependencyNotFoundError, DependencyCycleError
 
 
 class TestSortPlugins(unittest.TestCase):

@@ -14,7 +14,7 @@
 
 import json
 from enum import Enum
-from ms_server_profiler.mstx import server_profiler
+from ms_service_profiler.mstx import service_profiler
 
 
 class MarkType(int, Enum):
@@ -45,7 +45,7 @@ class AttrCollect:
 class Span(AttrCollect):
     def __init__(self, span_name, rid, profiler_level) -> None:
         super().__init__()
-        self._enable = server_profiler.is_enable(profiler_level)
+        self._enable = service_profiler.is_enable(profiler_level)
 
         if not self._enable:
             return
@@ -66,18 +66,18 @@ class Span(AttrCollect):
 
     def start(self):
         if self._enable:
-            self._span_handle = server_profiler.start_span()
+            self._span_handle = service_profiler.start_span()
 
     def end(self):
         if self._enable:
-            server_profiler.mark_span_attr(self.get_msg(), self._span_handle)
-            server_profiler.end_span(self._span_handle)
+            service_profiler.mark_span_attr(self.get_msg(), self._span_handle)
+            service_profiler.end_span(self._span_handle)
 
 
 class Metric(AttrCollect):
     def __init__(self, profiler_level) -> None:
         super().__init__()
-        self._enable = server_profiler.is_enable(profiler_level)
+        self._enable = service_profiler.is_enable(profiler_level)
         if not self._enable:
             return
 
@@ -92,7 +92,7 @@ class Metric(AttrCollect):
             self.add_attr("value", value)
             if rid is not None:
                 self.add_attr("rid", rid)
-            server_profiler.mark_event(self.get_msg())
+            service_profiler.mark_event(self.get_msg())
 
 
 class Event(AttrCollect):
@@ -112,13 +112,13 @@ class Event(AttrCollect):
             self.add_attr("value", value)
             if rid is not None:
                 self.add_attr("rid", rid)
-            server_profiler.mark_event(self.get_msg())
+            service_profiler.mark_event(self.get_msg())
 
 
 class ResLink(AttrCollect):
     def __init__(self, profiler_level) -> None:
         super().__init__()
-        self._enable = server_profiler.is_enable(profiler_level)
+        self._enable = service_profiler.is_enable(profiler_level)
         if not self._enable:
             return
 
@@ -131,4 +131,4 @@ class ResLink(AttrCollect):
             self.add_attr("type", MarkType.TYPE_LINK)
             self.add_attr("from", from_rid)
             self.add_attr("to", to_rid)
-            server_profiler.mark_event(self.get_msg())
+            service_profiler.mark_event(self.get_msg())

@@ -17,9 +17,9 @@ import argparse
 from pathlib import Path
 from datetime import datetime, timezone
 
-from ms_server_profiler.parse import parse
-from ms_server_profiler_analyze.exporters.factory import ExporterFactory
-from ms_server_profiler_analyze.plugins import custom_plugins
+from ms_service_profiler.parse import parse
+from ms_service_profiler.exporters.factory import ExporterFactory
+from ms_service_profiler.plugins import custom_plugins
 
 
 def check_input_path_valid(path):
@@ -56,7 +56,7 @@ def main():
     parser.add_argument(
         '--output_path',
         type=check_output_path_valid,
-        default=os.getcwd(),
+        default=os.path.join(os.getcwd(), 'output'),
         help='Output file path to save results.')
     parser.add_argument(
         '--exporter',

@@ -16,7 +16,7 @@ from enum import Enum
 
 from pathlib import Path
 
-from ms_server_profiler.exporters.base import ExporterBase
+from ms_service_profiler.exporters.base import ExporterBase
 
 
 class ReqStatus(Enum):

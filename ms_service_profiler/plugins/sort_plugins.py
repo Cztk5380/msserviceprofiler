@@ -14,7 +14,7 @@
 
 from collections import defaultdict, deque
 from typing import List
-from ms_server_profiler.plugins.base import PluginBase
+from ms_service_profiler.plugins.base import PluginBase
 
 
 class DependencyNotFoundError(Exception):

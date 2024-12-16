@@ -15,8 +15,8 @@
 
 import psutil
 
-from ms_server_profiler.constant import US_PER_SECOND
-from ms_server_profiler.plugins.base import PluginBase
+from ms_service_profiler.constant import US_PER_SECOND
+from ms_service_profiler.plugins.base import PluginBase
 
 
 SYS_TS = psutil.boot_time()

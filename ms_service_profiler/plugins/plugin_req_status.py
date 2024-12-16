@@ -14,7 +14,7 @@
 
 from enum import Enum
 
-from ms_server_profiler.plugins.base import PluginBase
+from ms_service_profiler.plugins.base import PluginBase
 
 
 class ReqStatus(Enum):

@@ -18,9 +18,9 @@ import sqlite3
 
 import pandas as pd
 
-from ms_server_profiler.constant import US_PER_SECOND
-from ms_server_profiler.plugins import buildin_plugins
-from ms_server_profiler.plugins.sort_plugins import sort_plugins
+from ms_service_profiler.constant import US_PER_SECOND
+from ms_service_profiler.plugins import buildin_plugins
+from ms_service_profiler.plugins.sort_plugins import sort_plugins
 
 
 def find_config_files(folder_path):

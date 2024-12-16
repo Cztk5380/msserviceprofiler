@@ -15,7 +15,7 @@
 import json
 import pandas as pd
 import numpy as np
-from ms_server_profiler.plugins.base import PluginBase
+from ms_service_profiler.plugins.base import PluginBase
 
 
 class PluginCommon(PluginBase):

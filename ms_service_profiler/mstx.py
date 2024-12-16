@@ -16,22 +16,23 @@ import ctypes
 import logging
 
 
-class LibserverProfiler:
-    lib_server_profiler = None
+class LibServiceProfiler:
+    lib_service_profiler = None
 
     def __init__(self) -> None:
+        fp = "libms_service_profiler.so"
         try:
-            self.lib = ctypes.cdll.LoadLibrary("libms_server_profiler.so")
+            self.lib = ctypes.cdll.LoadLibrary(fp)
         except Exception as ex:
-            logging.error("libserver_profiler.so load failed.%s", ex)
+            logging.error("%s load failed.%s", fp, ex)
             self.lib = None
 
         self.func_start_span = None
         self.func_end_span = None
         self.func_mark_span_attr = None
         self.func_mark_event = None
-        self.func_start_server_profiler = None
-        self.func_stop_server_profiler = None
+        self.func_start_service_profiler = None
+        self.func_stop_service_profiler = None
         self.func_is_enable = None
 
         if self.lib is not None:
@@ -43,8 +44,8 @@ class LibserverProfiler:
             self.func_mark_span_attr.argtypes = (ctypes.c_char_p, ctypes.c_ulonglong)
             self.func_mark_event = self.lib.MarkEvent
             self.func_mark_event.argtypes = (ctypes.c_char_p,)
-            self.func_start_server_profiler = self.lib.StartServerProfiler
-            self.func_stop_server_profiler = self.lib.StopServerProfiler
+            self.func_start_service_profiler = self.lib.StartServerProfiler
+            self.func_stop_service_profiler = self.lib.StopServerProfiler
             self.func_is_enable = self.lib.IsEnable
             self.func_is_enable.argtypes = (ctypes.c_ulong,)
             self.func_is_enable.restype = ctypes.c_bool
@@ -67,12 +68,12 @@ class LibserverProfiler:
             self.func_mark_event(bytes(msg, encoding="utf-8"))
 
     def start_profiler(self):
-        if self.func_start_server_profiler is not None:
-            self.func_start_server_profiler()
+        if self.func_start_service_profiler is not None:
+            self.func_start_service_profiler()
 
     def stop_profiler(self):
-        if self.func_stop_server_profiler is not None:
-            self.func_stop_server_profiler()
+        if self.func_stop_service_profiler is not None:
+            self.func_stop_service_profiler()
 
     def is_enable(self, profiler_level):
         if self.func_is_enable is None:
@@ -80,4 +81,4 @@ class LibserverProfiler:
         return self.func_is_enable(profiler_level)
 
 
-server_profiler = LibserverProfiler()
+service_profiler = LibServiceProfiler()

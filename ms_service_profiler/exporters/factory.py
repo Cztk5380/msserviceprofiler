@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ms_server_profiler.exporters.exporter_trace import ExporterTrace
-from ms_server_profiler.exporters.exporter_detail import ExporterDetail
-
-from ms_server_profiler_analyze.exporters.exporter_req_status import ExporterReqStatus
+from ms_service_profiler.exporters.exporter_trace import ExporterTrace
+from ms_service_profiler.exporters.exporter_detail import ExporterDetail
+from ms_service_profiler.exporters.exporter_req_status import ExporterReqStatus
 
 
 # 插件工厂类

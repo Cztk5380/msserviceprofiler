@@ -23,7 +23,7 @@ run_test_python() {
   python3 --version
   pip3 install pytest "pandas>=2.2"
   export PYTHONPATH=${TOP_DIR}:${PYTHONPATH}
-  python3 -m coverage run --branch --source ${TOP_DIR}/'ms_server_profiler',${TOP_DIR}/'ms_server_profiler_analyze' -m pytest ${TEST_DIR}/ut/python_test
+  python3 -m coverage run --branch --source ${TOP_DIR}/'ms_service_profiler' -m pytest ${TEST_DIR}/ut/python_test
   python3 -m coverage report
   python3 -m coverage xml -o ${TEST_DIR}/coverage.xml
 }
