@@ -20,8 +20,6 @@
 #include <string>
 #include <vector>
 
-#include "msServerProfilerDefines.h"
-
 using SpanHandle = uint64_t;
 
 extern "C" {
@@ -34,35 +32,46 @@ void StopServerProfiler();
 bool IsEnable(uint32_t level);
 }
 
-namespace msServerProfiler {
+namespace msServiceProfiler {
 
-class ServerProfilerManager {
-public:
-    static ServerProfilerManager &GetInstance();
+    enum Level : uint32_t {
+        ERROR = 10,
+        INFO = 20,
+        DETAILED = 30,
+        VERBOSE = 40,
+    };
 
-    inline bool IsEnable(uint32_t level)
-    {
-        return enable_ && level_ > level;
-    }
+    class ServiceProfilerManager {
+    public:
+        static ServiceProfilerManager &GetInstance();
 
-    void StartProfiler();
-    void StopProfiler();
+        inline bool IsEnable(uint32_t level)
+        {
+            return enable_ && level_ > level;
+        }
 
-private:
-    ServerProfilerManager();
+        void StartProfiler();
 
-    void ReadConfig();
-    bool ReadEnable(const std::string &key, const std::string &value);
-    bool ReadProfPath(const std::string &key, const std::string &value);
-    bool ReadLevel(const std::string &key, const std::string &value);
+        void StopProfiler();
 
-private:
-    bool enable_ = false;
-    bool started_ = false;
-    std::string profPath_;
-    uint32_t level_ = Level::DETAILED;
-    void *configHandle_;
-};
-}  // namespace msServerProfiler
+    private:
+        ServiceProfilerManager();
+
+        void ReadConfig();
+
+        bool ReadEnable(const std::string &key, const std::string &value);
+
+        bool ReadProfPath(const std::string &key, const std::string &value);
+
+        bool ReadLevel(const std::string &key, const std::string &value);
+
+    private:
+        bool enable_ = false;
+        bool started_ = false;
+        std::string profPath_;
+        uint32_t level_ = Level::DETAILED;
+        void *configHandle_;
+    };
+}  // namespace msServiceProfiler
 
 #endif
