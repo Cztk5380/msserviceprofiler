@@ -31,6 +31,12 @@ def create_dashboard(grafana_url, token, datasource_uid):
                 {
                     "type": "xychart",
                     "title": "Batch Size by Batch ID",
+                    "gridPos": {
+                        "x": 0,
+                        "y": 0,
+                        "h": 8,
+                        "w": 12
+                    },  # 在dashboard中的位置
                     "fieldConfig": {
                         "defaults": {
                             "custom": {
