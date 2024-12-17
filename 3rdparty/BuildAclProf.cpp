@@ -4,8 +4,8 @@
  * Author: Huawei Technologies Co., Ltd.
  * Create: 2024-12-16
  */
-#ifndef _BUILD_ACL_FUNCTIONS_H
-#define _BUILD_ACL_FUNCTIONS_H
+#ifndef MS_SERVICE_PROFILER_BUILD_ACL_FUNCTIONS_H
+#define MS_SERVICE_PROFILER_BUILD_ACL_FUNCTIONS_H
 #include <cstdint>
 #include "acl/acl.h"
 #include "acl/acl_prof.h"

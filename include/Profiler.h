@@ -40,7 +40,7 @@ namespace msServiceProfiler {
         ResIdValue resValue;
         ResType type;
 
-        static const ResID ILLEGAL_RESOURCE;
+        static const ResID illegalResource ;
 
         ResID(int rid) noexcept : type(ResType::UINT64)
         {

@@ -37,33 +37,33 @@ class Profiler:
         self._attr = dict()
         self._span_handle = None
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.span_end()
+
     def attr(self, key, value):
         self._attr[key] = value
         return self
 
     def domain(self, domain):
-        self.attr("domain", domain)
-        return self
+        return self.attr("domain", domain)
 
     def res(self, res):
-        self.attr("rid", res)
-        return self
+        return self.attr("rid", res)
 
     def metric(self, metric_name, metric_value):
-        self.attr(f"{metric_name}=", metric_value)
-        return self
+        return self.attr(f"{metric_name}=", metric_value)
 
     def metric_inc(self, metric_name, metric_value):
-        self.attr(f"{metric_name}+", metric_value)
-        return self
+        return self.attr(f"{metric_name}+", metric_value)
 
     def metric_scope(self, scope_name, scope_value=0):
-        self.attr(f"scope#{scope_name}", scope_value)
-        return self
+        return self.attr(f"scope#{scope_name}", scope_value)
 
     def metric_scope_as_req_id(self):
-        self.attr(f"scope#", "req")
-        return self
+        return self.attr(f"scope#", "req")
 
     def launch(self):
         if self._enable:
@@ -74,21 +74,17 @@ class Profiler:
 
     def link(self, from_rid, to_rid):
         if self._enable:
-            self.attr("type", MarkType.TYPE_LINK)
-            self.attr("from", from_rid)
-            self.attr("to", to_rid)
+            self.attr("type", MarkType.TYPE_LINK).attr("from", from_rid).attr("to", to_rid)
             service_profiler.mark_event(self.get_msg())
 
     def event(self, event_name):
         if self._enable:
-            self.attr("type", MarkType.TYPE_EVENT)
-            self.attr("name", event_name)
+            self.attr("type", MarkType.TYPE_EVENT).attr("name", event_name)
             service_profiler.mark_event(self.get_msg())
 
     def span_start(self, span_name):
         if self._enable:
-            self.attr("name", span_name)
-            self.attr("type", MarkType.TYPE_SPAN)
+            self.attr("name", span_name).attr("type", MarkType.TYPE_SPAN)
             self._span_handle = service_profiler.start_span()
         return self
 
@@ -96,9 +92,3 @@ class Profiler:
         if self._enable:
             service_profiler.mark_span_attr(self.get_msg(), self._span_handle)
             service_profiler.end_span(self._span_handle)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.span_end()

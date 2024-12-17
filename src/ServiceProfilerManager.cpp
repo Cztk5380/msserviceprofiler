@@ -37,12 +37,17 @@ constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
 constexpr int STRING_TO_UINT_BASE = 10;
 
-#define PROF_LOGD(...)   \
-    printf(__VA_ARGS__); \
-    printf("\n")
-#define PROF_LOGE(...)   \
-    printf(__VA_ARGS__); \
-    printf("\n")
+#define PROF_LOGD(...)       \
+    do {                     \
+        printf(__VA_ARGS__); \
+        printf("\n");        \
+    } while (0)
+
+#define PROF_LOGE(...)       \
+    do {                     \
+        printf(__VA_ARGS__); \
+        printf("\n");        \
+    } while (0)
 
 SpanHandle StartSpan()
 {
@@ -171,8 +176,8 @@ namespace msServiceProfiler {
     {
         time_t now = time(nullptr);
         tm *ltm = std::localtime(&now);
-        std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
 
+        std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
         if (!strConfigPath.empty() && access(strConfigPath.c_str(), F_OK) == 0) {
             std::ifstream configFile;
             configFile.open(strConfigPath.c_str(), std::ios::in);
@@ -227,10 +232,10 @@ namespace msServiceProfiler {
     bool ServiceProfilerManager::ReadLevel(const std::string &key, const std::string &value)
     {
         static const std::map<std::string, Level> enumMap = {
-                {"ERROR", Level::ERROR},
-                {"INFO", Level::INFO},
-                {"DETAILED", Level::DETAILED},
-                {"VERBOSE", Level::VERBOSE},
+            {"ERROR", Level::ERROR},
+            {"INFO", Level::INFO},
+            {"DETAILED", Level::DETAILED},
+            {"VERBOSE", Level::VERBOSE},
         };
 
         if (key == "profiler_level") {

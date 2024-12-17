@@ -10,16 +10,6 @@ project(ms_service_profiler)
 set(CMAKE_CXX_STANDARD 11)
 add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
 
-add_library(ms_service_profiler
-        SHARED
-        src/Profiler.cpp
-        src/ServiceProfilerManager.cpp
-)
-
-add_executable(test_server_profiler test/ut/cpp_test/test.cpp
-        src/Profiler.cpp
-        src/ServiceProfilerManager.cpp
-)
 
 if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
     message(AUTHOR_WARNING "no env $ASCEND_TOOLKIT_HOME")
@@ -45,29 +35,31 @@ if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
             ${BUILD_ENV_MSPROF_DEPEND_API_PATH}
             3rdparty
     )
-elseif ()
+else ()
     set(TOOLKIT_BASE_PATH $ENV{ASCEND_TOOLKIT_HOME})
     include_directories(
             ${TOOLKIT_BASE_PATH}/include
             ${TOOLKIT_BASE_PATH}/aarch64-linux/include
             ${TOOLKIT_BASE_PATH}/x86_64-linux/include
-
-            ${BUILD_ENV_MSTX_PATH}/include
-            ${BUILD_ENV_MSPROF_PATH}/include
     )
 
     link_directories(
             ${TOOLKIT_BASE_PATH}/lib64
             ${TOOLKIT_BASE_PATH}/aarch64-linux/devlib
             ${TOOLKIT_BASE_PATH}/x86_64-linux/devlib
-
-            ${BUILD_ENV_MSTX_PATH}/lib64
-            ${BUILD_ENV_MSPROF_PATH}/lib64
     )
 endif ()
 
+add_library(ms_service_profiler
+        SHARED
+        src/Profiler.cpp
+        src/ServiceProfilerManager.cpp
+)
 
-
+add_executable(test_server_profiler test/ut/cpp_test/test.cpp
+        src/Profiler.cpp
+        src/ServiceProfilerManager.cpp
+)
 
 target_compile_options(ms_service_profiler PRIVATE
         -std=c++11
