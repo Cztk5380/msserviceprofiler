@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "../include/Profiler.h"
+#include "../include/msServiceProfiler/Profiler.h"
 
 namespace msServiceProfiler {
     const ResID ResID::illegalResource  = ResID(std::numeric_limits<uint64_t>::max());

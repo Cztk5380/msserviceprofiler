@@ -15,7 +15,7 @@
  */
 
 #include <chrono>
-#include "../../../include/msServiceProfiler.h"
+#include "../../../include/msServiceProfiler/msServiceProfiler.h"
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
 
