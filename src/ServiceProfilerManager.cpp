@@ -61,7 +61,7 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
         return;
     }
     const char *oriMsgStart = msg;
-    while (oriMsgStart - msg < msgLen) {
+    while (static_cast<decltype(msgLen)>(oriMsgStart - msg) < msgLen) {
         spanTag.append(oriMsgStart, maxMarkSize);
         oriMsgStart += maxMarkSize;
         MarkEvent(spanTag.c_str());
@@ -136,7 +136,7 @@ namespace msServiceProfiler {
             return true;
         }
         auto pathLen = dirPath.size();
-        auto offset = 0;
+        decltype(pathLen) offset = 0;
 
         do {
             const char *str = strchr(dirPath.c_str() + offset, '/');

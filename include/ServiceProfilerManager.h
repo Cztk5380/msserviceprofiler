@@ -22,14 +22,17 @@
 
 using SpanHandle = uint64_t;
 
+#define MS_SERVICE_PROFILER_API __attribute__((visibility("default")))
+
+
 extern "C" {
-SpanHandle StartSpan();
-void MarkSpanAttr(const char *msg, SpanHandle spanHandle);
-void EndSpan(SpanHandle spanHandle);
-void MarkEvent(const char *msg);
-void StartServerProfiler();
-void StopServerProfiler();
-bool IsEnable(uint32_t level);
+MS_SERVICE_PROFILER_API SpanHandle StartSpan();
+MS_SERVICE_PROFILER_API void MarkSpanAttr(const char *msg, SpanHandle spanHandle);
+MS_SERVICE_PROFILER_API void EndSpan(SpanHandle spanHandle);
+MS_SERVICE_PROFILER_API void MarkEvent(const char *msg);
+MS_SERVICE_PROFILER_API void StartServerProfiler();
+MS_SERVICE_PROFILER_API void StopServerProfiler();
+MS_SERVICE_PROFILER_API bool IsEnable(uint32_t level);
 }
 
 namespace msServiceProfiler {
@@ -43,16 +46,16 @@ namespace msServiceProfiler {
 
     class ServiceProfilerManager {
     public:
-        static ServiceProfilerManager &GetInstance();
+        MS_SERVICE_PROFILER_API static ServiceProfilerManager &GetInstance();
 
-        inline bool IsEnable(uint32_t level)
+        MS_SERVICE_PROFILER_API inline bool IsEnable(uint32_t level)
         {
             return enable_ && level_ > level;
         }
 
-        void StartProfiler();
+        MS_SERVICE_PROFILER_API void StartProfiler();
 
-        void StopProfiler();
+        MS_SERVICE_PROFILER_API void StopProfiler();
 
     private:
         ServiceProfilerManager();
