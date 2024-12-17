@@ -3,8 +3,8 @@ import os
 import re
 from urllib.parse import urlparse
 
-from datasource import create_datasource
-from dashboard import create_dashboard
+from ms_service_profiler.views.datasource import create_datasource
+from ms_service_profiler.views.dashboard import create_dashboard
 
 
 def check_db_path_valid(path):
@@ -14,9 +14,8 @@ def check_db_path_valid(path):
 
     # 校验文件权限，可读写
     file_stat = os.stat(path)
-    if not (file_stat.st_mode & 0o664):
-        raise argparse.ArgumentTypeError(
-            f"Error: The file '{path}' does not have the required read/write permissions (664).")
+    if file_stat.st_mode & 0o777 > 0o664:
+        raise argparse.ArgumentTypeError(f"The file '{path}' does not have the required read/write permissions (664).")
 
     # 校验是否为合法sqlite数据库
     with open(path, 'rb') as f:
@@ -24,29 +23,31 @@ def check_db_path_valid(path):
         sqlite_header = b'SQLite format 3\x00'
 
         if header != sqlite_header:
-            raise argparse.ArgumentTypeError(f"Error: The file '{path}' is not a valid SQLite database file.")
+            raise argparse.ArgumentTypeError(f"The file '{path}' is not a valid SQLite database file.")
     return path
 
 
 def check_token_valid(token):
     # 校验是字符串
     if not isinstance(token, str):
-        raise argparse.ArgumentTypeError("Error: Grafana token should be a string.")
+        raise argparse.ArgumentTypeError("Grafana token should be a string.")
     # 校验字符串内容
     pattern = r'^[a-zA-Z0-9_]+$'
     if not re.match(pattern, token):
-        raise argparse.ArgumentTypeError("Error: Invalid Grafana token format.")
+        raise argparse.ArgumentTypeError("Invalid Grafana token format.")
     return token
 
 
 def check_url_valid(url):
     parsed_url = urlparse(url)
 
-    # 检查URL是否包含有效的scheme（http 或 https）和 netloc（域名部分）
+    # 检查URL是否包含有效的scheme和 netloc
     if not parsed_url.scheme or not parsed_url.netloc:
         raise argparse.ArgumentTypeError(f"Invalid URL: {url}, please check.")
 
-    # 返回有效的URL
+    if parsed_url.scheme not in ['http', 'https']:
+        raise argparse.ArgumentTypeError(f"Invalid URL scheme: {url}, please use 'http' or 'https'.")
+
     return url
 
 
