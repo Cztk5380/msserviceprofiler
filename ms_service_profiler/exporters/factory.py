@@ -15,11 +15,14 @@
 from ms_service_profiler.exporters.exporter_trace import ExporterTrace
 from ms_service_profiler.exporters.exporter_detail import ExporterDetail
 from ms_service_profiler.exporters.exporter_req_status import ExporterReqStatus
+from ms_service_profiler.exporters.exporter_request import ExporterAnalyzeData
+from ms_service_profiler.exporters.exporter_batch import ExporterBatchData
+from ms_service_profiler.exporters.exporter_kvcache import ExporterKVCacheData
 
 
 # 插件工厂类
 class ExporterFactory:
-    exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterDetail]
+    exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterDetail, ExporterAnalyzeData, ExporterBatchData, ExporterKVCacheData]
 
     @staticmethod
     def create_exporters(args):

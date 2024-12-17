@@ -15,12 +15,30 @@
 import os
 import json
 import sqlite3
-
+from sqlite3 import Error
 import pandas as pd
 
 from ms_service_profiler.constant import US_PER_SECOND
 from ms_service_profiler.plugins import buildin_plugins
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
+
+
+def create_connection(db_file):
+    conn = None
+    try:
+        conn = sqlite3.connect(db_file)
+        print(f"Connected to {db_file}")
+    except Error as e:
+        print(f"Error: {e}")
+    return conn
+
+
+def df_to_sqlite(df, db_file, table_name):
+    conn = create_connection(db_file)
+    if conn:
+        df.to_sql(table_name, conn, if_exists='replace', index=False)
+        conn.close()
+        print(f"Data has been written to {db_file}")
 
 
 def find_config_files(folder_path):

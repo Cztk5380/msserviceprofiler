@@ -1,0 +1,145 @@
+# Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from enum import Enum   
+
+from pathlib import Path
+import json
+import pandas as pd
+from matplotlib import pyplot as plt
+
+from ms_service_profiler.parse import parse
+from ms_service_profiler.exporters.base import ExporterBase
+from ms_service_profiler.parse import df_to_sqlite
+
+
+def update_name(row):
+    if row['+RUNNING'] == 1:
+        row['name'] = 'RUNNING'
+    elif row['+PENDING'] == 1:
+        row['name'] = 'PENDING'
+    return row
+
+    
+class ExporterAnalyzeData(ExporterBase):
+    name = "request_data"
+
+    @classmethod
+    def initialize(cls, args):
+        cls.args = args
+
+    @classmethod
+    def export(cls, data) -> None:
+        df = data.get('tx_data_df')
+        df = df.apply(update_name, axis=1)
+        output = cls.args.output_path
+
+
+        # 使用apply函数应用parse_message函数到每一行，并将结果存储在新的列中
+        http_req_df = df[df['name'] == 'httpReq'].drop(columns=['name'])
+        http_res_df = df[df['name'] == 'httpRes'].drop(columns=['name'])
+        http_rectoken_df = df[df['name'] == 'encode'].drop(columns=['name'])
+        http_restoken_df = df[df['name'] == 'DecodeEnd'].drop(columns=['name'])
+        req_en_queue_df = df[df['name'] == 'ReqEnQueue'].drop(columns=['name'])
+        req_running_df = df[df['name'] == 'RUNNING']
+        pending_df = df[df['name'] == 'PENDING'].drop(columns=['name'])
+        
+        decode_first_df = req_en_queue_df.groupby('rid').head(1)
+        running_first_df = req_running_df.groupby('rid').head(1)
+        
+        if decode_first_df.shape[0] == running_first_df.shape[0]:
+            prefill_df = pd.merge(decode_first_df,running_first_df,on=['rid'], suffixes=('_enque', '_running'))
+        else:
+            print("The data is wrong, please check")
+            return
+        prefill_df['waiting_time'] = prefill_df["start_time_running"] - prefill_df["end_time_enque"]
+        decode_running_df = req_running_df.groupby('rid').apply(lambda x: x.iloc[1:]).reset_index(drop=True)
+        pending_df = pending_df.reset_index(drop=True)
+        pending_df = pending_df[['start_time', 'end_time', 'rid']]
+        decode_running_df = decode_running_df[['start_time', 'end_time', 'rid']]
+        rows_pending = pending_df.shape[0]
+        rows_running = decode_running_df.shape[0]
+        if rows_pending == rows_running:
+            decode_merge = pd.concat([pending_df, decode_running_df], ignore_index=True, axis=1)
+        else:
+            print("The data is wrong, please check")
+            return
+        decode_merge.columns = ['start_time_pending', 'end_time_pending', 'rid', 'start_time_running', 'end_time_running', 'rid_running']
+        decode_merge["pending_time"] = decode_merge['start_time_running'] - decode_merge['start_time_pending']
+        decode_merge = decode_merge.drop(columns=['start_time_running', 'end_time_running', 'start_time_running', 'end_time_running', 'rid_running'])
+        pending_time_sum = decode_merge.groupby('rid')['pending_time'].sum().reset_index()
+        if prefill_df.shape[0] == pending_time_sum.shape[0]:
+            wait_df = pd.merge(prefill_df, pending_time_sum, on='rid')
+        else:
+            print("The data is wrong, please check")
+            return
+        wait_df['queue_wait_time'] = wait_df['waiting_time'] + wait_df['pending_time']
+        wait_df['rid'] = pd.to_numeric(wait_df['rid'], errors='coerce')
+        wait_df = wait_df[['rid', 'queue_wait_time']]
+
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        file_name = 'request_output.csv'
+        file_path = output_path / file_name
+        wait_df.to_csv(file_path, index=False)
+        http_res_df['execution_time'] = None
+
+        # 使用merge操作将httpReq和httpRes的数据进行匹配
+        if http_req_df.shape[0] == http_res_df.shape[0]:
+            df_merged = pd.merge(http_req_df, http_res_df, on='rid', suffixes=('_httpReq', '_httpRes'))
+            
+        else:
+            print("The data is wrong, please check")
+            return
+        # 计算execution_time
+        if df_merged.shape[0] == wait_df.shape[0]:
+            df_merged['rid'] = pd.to_numeric(df_merged['rid'], errors='coerce')
+            df_merged = pd.merge(df_merged, wait_df, on='rid')
+        else:
+            print("The data is wrong, please check")
+            return
+        http_rectoken_df = http_rectoken_df[['rid', '=recvTokenSize']]
+        http_restoken_df = http_restoken_df[['rid', '=replyTokenSize']]
+        if http_rectoken_df.shape[0] == http_restoken_df.shape[0]:
+            df_token = pd.merge(http_rectoken_df, http_restoken_df, on='rid')
+        else:
+            print("The data is wrong, please check")
+            return
+        if df_merged.shape[0] == df_token.shape[0]:
+            df_token['rid'] = pd.to_numeric(df_token['rid'], errors='coerce')
+            df_merged = pd.merge(df_merged, df_token, on='rid')
+        else:
+            print("The data is wrong, please check")
+            return
+        
+        df_merged['execution_time'] = df_merged['end_time_httpRes'] - df_merged['start_time_httpReq']
+        df_merged['http_rid'] = df_merged['message_httpReq'].apply(lambda x: x['rid'])
+        
+        # 创建一个新的DataFrame，包含所需的列
+        
+        filtered_df = df_merged[['http_rid', 'start_time_httpReq', '=recvTokenSize', '=replyTokenSize', 'execution_time', 'queue_wait_time']]
+        filtered_df = filtered_df.rename(columns={'=recvTokenSize': 'recvTokenSize'})
+        filtered_df = filtered_df.rename(columns={'=replyTokenSize': 'replyTokenSize'})
+        
+        if output is not None:
+            output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            file_name = 'request_output.csv'
+            file_path = output_path / file_name
+            filtered_df.to_csv(file_path, index=False)
+
+        if cls.args.sqlite:
+            sqlite_file = output_path / "data.db"
+            df_to_sqlite(filtered_df, sqlite_file, 'request')
+

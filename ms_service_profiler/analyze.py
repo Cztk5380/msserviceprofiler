@@ -62,8 +62,13 @@ def main():
         '--exporter',
         type=str,
         nargs='+',
-        default=['trace', 'req_status'],
+        default=['trace', 'req_status', 'request_data', 'batch_data', 'kvcache_data'],
         help='exporter to use')
+    parser.add_argument(
+        '--sqlite',
+        type=str,
+        help='output to sqlite'
+    )
 
     args = parser.parse_args()
 
