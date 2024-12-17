@@ -4,12 +4,9 @@
  * Author: Huawei Technologies Co., Ltd.
  * Create: 2024-12-16
  */
-#ifndef MS_SERVICE_PROFILER_BUILD_ACL_FUNCTIONS_H
-#define MS_SERVICE_PROFILER_BUILD_ACL_FUNCTIONS_H
 #include <cstdint>
 #include "acl/acl.h"
 #include "acl/acl_prof.h"
-#include "mstx/ms_tools_ext.h"
 
 aclError aclprofInit(const char *profilerResultPath, size_t length)
 {
@@ -44,20 +41,3 @@ aclError aclprofStop(const aclprofConfig *profilerConfig)
 {
     return 0;
 }
-
-void mstxMarkA(const char *message, aclrtStream stream)
-{
-    // empty
-}
-
-mstxRangeId mstxRangeStartA(const char *message, aclrtStream stream)
-{
-    return 0;
-}
-
-void mstxRangeEnd(mstxRangeId id)
-{
-    // empty
-}
-
-#endif  //_BUILD_ACL_FUNCTIONS_H

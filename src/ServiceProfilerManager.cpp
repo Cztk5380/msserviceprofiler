@@ -31,7 +31,7 @@
 #include "acl/acl.h"
 #include "mstx/ms_tools_ext.h"
 
-#include "../include/ServiceProfilerManager.h"
+#include "../include/msServiceProfiler/ServiceProfilerManager.h"
 
 constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;

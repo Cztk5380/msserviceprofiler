@@ -5,8 +5,6 @@
  * Create: 2024-12-16
  */
 
-#ifndef MS_SERVICE_PROFILER_BUILD_ACL_FUNCTIONS_H
-#define MS_SERVICE_PROFILER_BUILD_ACL_FUNCTIONS_H
 #include "acl/acl.h"
 
 aclError aclInit(const char *configPath)
@@ -29,4 +27,3 @@ aclError aclrtCreateStream(aclrtStream *stream)
     return 0;
 }
 
-#endif  //_BUILD_ACL_FUNCTIONS_H
