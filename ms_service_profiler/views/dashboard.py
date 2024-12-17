@@ -1,10 +1,25 @@
+# Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import json
-import requests
 import logging
+
+import requests
 
 logging.basicConfig(level=logging.INFO)
 
-batch_query_text = """
+BATCH_QUERY_TEXT = """
 WITH numbered_data AS (
     SELECT 
         ROW_NUMBER() OVER (ORDER BY batch_size) - 1 AS batch_id,
@@ -23,69 +38,11 @@ ORDER BY batch_id;
 
 
 def create_dashboard(grafana_url, token, datasource_uid):
-    dashboard_json = {
-        "dashboard": {
-            "id": None,
-            "title": "Profiler Visualization",
-            "panels": [
-                {
-                    "type": "xychart",
-                    "title": "Batch Size by Batch ID",
-                    "gridPos": {
-                        "x": 0,
-                        "y": 0,
-                        "h": 8,
-                        "w": 12
-                    },  # 在dashboard中的位置
-                    "fieldConfig": {
-                        "defaults": {
-                            "custom": {
-                                "show": "lines",
-                                "pointShape": "circle",
-                            },
-                            "color": {
-                                "mode": "palette-classic"
-                            },
-                        },
-                        "overrides": []
-                    },
-                    "pluginVersion": "11.3.0",
-                    "targets": [
-                        {
-                            "datasource": {
-                                "type": "frser-sqlite-datasource",
-                                "uid": f"{datasource_uid}"
-                            },
-                            "queryText": batch_query_text,
-                            "queryType": "table",
-                            "rawQueryText": batch_query_text,
-                            "refId": "A",
-                        }
-                    ],
-                    "datasource": {
-                        "type": "frser-sqlite-datasource",
-                        "uid": f"{datasource_uid}"
-                    },
-                    "options": {
-                        "legend": {
-                            "showLegend": True,
-                            "displayMode": "list",
-                            "placement": "bottom",
-                            "calcs": []
-                        }
-                    }
-                }
-            ],
-        },
-        "overwrite": True  # 如果为 True，则会覆盖已有的同名仪表盘
-    }
-
+    dashboard_json = create_dashboard_json(datasource_uid)
     headers = {
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {token}'
     }
-
-    # 创建仪表盘
     url = f"{grafana_url}/api/dashboards/db"
 
     try:
@@ -101,3 +58,61 @@ def create_dashboard(grafana_url, token, datasource_uid):
     except Exception as e:
         logging.error(f"An unknown error occurred: {e}")
         raise
+
+
+def create_dashboard_json(datasource_uid):
+    return {
+        "dashboard": {
+            "id": None,
+            "title": "Profiler Visualization",
+            "panels": [create_batch_panel(datasource_uid)],
+        },
+        "overwrite": True,
+    }
+
+
+def create_batch_panel(datasource_uid):
+    return {
+        "type": "xychart",
+        "title": "Batch Size by Batch ID",
+        "gridPos": {
+            "x": 0,
+            "y": 0,
+            "h": 8,
+            "w": 12
+        },
+        "fieldConfig": {
+            "defaults": {
+                "custom": {
+                    "show": "lines",
+                    "pointShape": "circle",
+                },
+            },
+        },
+        "pluginVersion": "11.3.0",
+        "targets": [create_batch_target(datasource_uid)],
+        "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": f"{datasource_uid}",
+        },
+        "options": {
+            "legend": {
+                "showLegend": True,
+                "displayMode": "list",
+                "placement": "bottom",
+            }
+        },
+    }
+
+
+def create_batch_target(datasource_uid):
+    return {
+        "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": f"{datasource_uid}",
+        },
+        "queryText": BATCH_QUERY_TEXT,
+        "queryType": "table",
+        "rawQueryText": BATCH_QUERY_TEXT,
+        "refId": "A",
+    }

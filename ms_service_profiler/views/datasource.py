@@ -1,7 +1,22 @@
+# Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import json
-import requests
-import os
 import logging
+import os
+
+import requests
 
 logging.basicConfig(level=logging.INFO)
 
@@ -68,12 +83,9 @@ def is_datasource_exists(grafana_url, token):
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
-            datasources = response.json()
-            for datasource in datasources:
-                if datasource['name'] == "Profiler SQLite Datasource":
-                    logging.info(f"Datasource 'Profiler SQLite Datasource' exists.")
-                    return datasource['id']
-            logging.info("Datasource 'Profiler SQLite Datasource' not found, create a new datasource.")
+            data_sources = response.json()
+            datasource_id = get_datasource_id(data_sources)
+            return datasource_id
         else:
             raise ValueError(f"Failed to fetch datasources: {response.status_code}, {response.text}")
 
@@ -82,3 +94,15 @@ def is_datasource_exists(grafana_url, token):
         raise
     except Exception as e:
         logging.error(f"An unknown error occurred: {e}")
+        raise
+
+
+def get_datasource_id(data_sources):
+    datasource_id = None
+    for datasource in data_sources:
+        if datasource['name'] == "Profiler SQLite Datasource":
+            datasource_id = datasource['id']
+            logging.info(f"Datasource 'Profiler SQLite Datasource' exists, UID is {datasource_id}")
+            return datasource_id
+    logging.info("Datasource 'Profiler SQLite Datasource' not found, create a new datasource.")
+    return datasource_id
