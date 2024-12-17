@@ -1,10 +1,13 @@
 import argparse
 import os
 import re
+import logging
 from urllib.parse import urlparse
 
-from ms_service_profiler.views.datasource import create_datasource
-from ms_service_profiler.views.dashboard import create_dashboard
+from datasource import create_datasource
+from dashboard import create_dashboard
+
+logging.basicConfig(level=logging.INFO)
 
 
 def check_db_path_valid(path):
@@ -14,8 +17,9 @@ def check_db_path_valid(path):
 
     # 校验文件权限，可读写
     file_stat = os.stat(path)
-    if file_stat.st_mode & 0o777 > 0o664:
-        raise argparse.ArgumentTypeError(f"The file '{path}' does not have the required read/write permissions (664).")
+    if not (file_stat.st_mode & 0o664):
+        raise argparse.ArgumentTypeError(
+            f"Error: The file '{path}' does not have the required read/write permissions (664).")
 
     # 校验是否为合法sqlite数据库
     with open(path, 'rb') as f:
@@ -23,30 +27,27 @@ def check_db_path_valid(path):
         sqlite_header = b'SQLite format 3\x00'
 
         if header != sqlite_header:
-            raise argparse.ArgumentTypeError(f"The file '{path}' is not a valid SQLite database file.")
+            raise argparse.ArgumentTypeError(f"Error: The file '{path}' is not a valid SQLite database file.")
     return path
 
 
 def check_token_valid(token):
     # 校验是字符串
     if not isinstance(token, str):
-        raise argparse.ArgumentTypeError("Grafana token should be a string.")
+        raise argparse.ArgumentTypeError("Error: Grafana token should be a string.")
     # 校验字符串内容
     pattern = r'^[a-zA-Z0-9_]+$'
     if not re.match(pattern, token):
-        raise argparse.ArgumentTypeError("Invalid Grafana token format.")
+        raise argparse.ArgumentTypeError("Error: Invalid Grafana token format.")
     return token
 
 
 def check_url_valid(url):
     parsed_url = urlparse(url)
 
-    # 检查URL是否包含有效的scheme和 netloc
+    # 检查URL是否包含有效的scheme和netloc
     if not parsed_url.scheme or not parsed_url.netloc:
         raise argparse.ArgumentTypeError(f"Invalid URL: {url}, please check.")
-
-    if parsed_url.scheme not in ['http', 'https']:
-        raise argparse.ArgumentTypeError(f"Invalid URL scheme: {url}, please use 'http' or 'https'.")
 
     return url
 
@@ -59,7 +60,7 @@ def main():
     args = parser.parse_args()
     datasource_uid = create_datasource(args.url, args.token, args.db_path)
     grafana_url = create_dashboard(args.url, args.token, datasource_uid)
-    print(grafana_url)
+    logging.info(f"Please log in  {grafana_url} to view the dashboard 'Profiler Visualization'")
 
 
 if __name__ == "__main__":

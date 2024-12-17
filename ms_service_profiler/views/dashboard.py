@@ -1,5 +1,8 @@
 import json
 import requests
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 batch_query_text = """
 WITH numbered_data AS (
@@ -87,8 +90,8 @@ def create_dashboard(grafana_url, token, datasource_uid):
         else:
             raise ValueError(f"Failed to configure dashboard: {response.status_code}, {response.text}")
     except requests.RequestException as e:
-        print(f"An error occurred during the request: {e}")
-    except ValueError as ve:
-        print(f"Error while processing the response: {ve}")
+        logging.error(f"An error occurred during the request: {e}")
+        raise
     except Exception as e:
-        print(f"An unknown error occurred: {e}")
+        logging.error(f"An unknown error occurred: {e}")
+        raise
