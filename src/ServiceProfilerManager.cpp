@@ -292,8 +292,8 @@ namespace msServiceProfiler {
                 PROF_LOGD("get npu memory usage failed");
             }
 
-            const int sleepTime = 10000;
-            std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 10 seconds
+            const int sleepTime = 1000;
+            std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 1 seconds
         }
     }
 
