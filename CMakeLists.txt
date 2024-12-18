@@ -38,6 +38,7 @@ if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
             ${BUILD_ENV_MSPROF_DEPEND_ACL_PATH}
             ${BUILD_ENV_MSPROF_DEPEND_API_PATH}
             3rdparty
+            /usr/local/dcmi
     )
 else ()
     set(TOOLKIT_BASE_PATH $ENV{ASCEND_TOOLKIT_HOME})
@@ -45,6 +46,7 @@ else ()
             ${TOOLKIT_BASE_PATH}/include
             ${TOOLKIT_BASE_PATH}/aarch64-linux/include
             ${TOOLKIT_BASE_PATH}/x86_64-linux/include
+            /usr/local/dcmi
     )
 
     link_directories(
@@ -92,6 +94,7 @@ target_link_libraries(ms_service_profiler
         msprofiler
         ms_tools_ext
         dl
+        pthread
 )
 
 
@@ -100,6 +103,7 @@ target_link_libraries(test_server_profiler
         msprofiler
         ms_tools_ext
         dl
+        pthread
 )
 
 install(TARGETS ms_service_profiler
