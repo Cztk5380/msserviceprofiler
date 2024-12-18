@@ -13,12 +13,12 @@
 # limitations under the License.
 
 from enum import Enum   
-
+import logging
 from pathlib import Path
 import json
 import pandas as pd
 from matplotlib import pyplot as plt
-import logging
+
 
 from ms_service_profiler.parse import parse
 from ms_service_profiler.exporters.base import ExporterBase
@@ -73,7 +73,8 @@ def process_data(req_en_queue_df, req_running_df, pending_df):
         logging.error("The data is wrong, please check")
         return None
 
-    decode_merge.columns = ['start_time_pending', 'end_time_pending', 'rid', 'start_time_running', 'end_time_running', 'rid_running']
+    decode_merge.columns = ['start_time_pending', 'end_time_pending', 'rid', 'start_time_running', \
+        'end_time_running', 'rid_running']
     decode_merge["pending_time"] = decode_merge['start_time_running'] - decode_merge['start_time_pending']
 
     decode_merge = decode_merge.drop(columns=['start_time_running', 'end_time_running'])
@@ -153,7 +154,8 @@ class ExporterAnalyzeData(ExporterBase):
         df_merged['execution_time'] = df_merged['end_time_httpRes'] - df_merged['start_time_httpReq']
         df_merged['http_rid'] = df_merged['message_httpReq'].apply(lambda x: x['rid'])
         
-        filtered_df = df_merged[['http_rid', 'start_time_httpReq', 'recvTokenSize=', 'replyTokenSize=', 'execution_time', 'queue_wait_time']]
+        filtered_df = df_merged[['http_rid', 'start_time_httpReq', 'recvTokenSize=', 'replyTokenSize=', \
+            'execution_time', 'queue_wait_time']]
         filtered_df = filtered_df.rename(columns={
             'recvTokenSize=': 'recv_token_size',
             'replyTokenSize=': 'reply_token_size',

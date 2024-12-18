@@ -22,8 +22,8 @@ from ms_service_profiler.exporters.exporter_kvcache import ExporterKVCacheData
 
 # 插件工厂类
 class ExporterFactory:
-    exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterDetail, ExporterAnalyzeData\
-        , ExporterBatchData, ExporterKVCacheData]
+    exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterDetail, ExporterAnalyzeData, ExporterBatchData, \
+        ExporterKVCacheData]
 
     @staticmethod
     def create_exporters(args):
