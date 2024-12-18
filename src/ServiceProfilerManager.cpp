@@ -268,7 +268,7 @@ namespace msServiceProfiler {
     // Funtion that write info to tx
     void Write2Tx(const std::vector<int> &memoryInfo, const std::string metricName)
     {
-        for (int i = 0; i < memoryInfo.size(); i++) {
+        for (long unsigned int i = 0; i < memoryInfo.size(); i++) {
             msServiceProfiler::Profiler<msServiceProfiler::INFO>()
                 .Domain("npu")
                 .Metric(metricName.c_str(), memoryInfo[i])
@@ -288,7 +288,7 @@ namespace msServiceProfiler {
                 int ret = GetNpuMemoryUsage(memoryUsed, memoryUtiliza);
                 Write2Tx(memoryUsed, "usage");
                 Write2Tx(memoryUtiliza, "utiliza");
-            } catch (exception& e) {
+            } catch (std::exception& e) {
                 PROF_LOGD("get npu memory usage failed");
             }
 
