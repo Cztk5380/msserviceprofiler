@@ -13,6 +13,7 @@
 # limitations under the License.
 import os
 import datetime
+from decimal import Decimal
 import sqlite3
 import numpy as np
 from ms_service_profiler.exporters.base import ExporterBase
@@ -154,12 +155,22 @@ def gen_exporter_results(all_data_df):
     return first_token_latency_view_data, req_latency_view_data, gen_token_speed_view_data
 
 
-def save_to_sqlite_db(table_name, view_data):
+def create_sqlite_db():
     current_path = os.path.dirname(os.path.abspath(__file__))
-    # 创建output文件夹
-    output_folder = os.path.join(current_path, 'output')
-    db_file = os.path.join(output_folder, 'profiler.db')
+    output_path = os.path.join(current_path, 'output')
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+
+    db_file = os.path.join(output_path, 'profiler.db')
     conn = sqlite3.connect(db_file)
+    conn.isolation_level = None
+    cursor = conn.cursor()
+    conn.close()
+    return db_file
+
+
+def save_to_sqlite_db(db_file_path, table_name, view_data):
+    conn = sqlite3.connect(db_file_path)
     cursor = conn.cursor()
     cursor.execute(f'DROP TABLE IF EXISTS {table_name}')  # 删除旧表
     cursor.execute(f'CREATE TABLE {table_name} (timestamp TEXT, avg REAL, \
@@ -189,6 +200,7 @@ class ExporterLatency(ExporterBase):
         first_token_latency_view_data, req_latency_view_data, gen_token_speed_view_data = \
             gen_exporter_results(all_data_df)
 
-        save_to_sqlite_db('first_token_latency', first_token_latency_view_data)
-        save_to_sqlite_db('req_latency', req_latency_view_data)
-        save_to_sqlite_db('gen_speed', gen_token_speed_view_data)
+        db_file_path = create_sqlite_db()
+        save_to_sqlite_db(db_file_path, 'first_token_latency', first_token_latency_view_data)
+        save_to_sqlite_db(db_file_path, 'req_latency', req_latency_view_data)
+        save_to_sqlite_db(db_file_path, 'gen_speed', gen_token_speed_view_data)
