@@ -24,7 +24,6 @@ class LibServiceProfiler:
         try:
             self.lib = ctypes.cdll.LoadLibrary(fp)
         except Exception as ex:
-            logging.error("%s load failed.%s", fp, ex)
             self.lib = None
 
         self.func_start_span = None

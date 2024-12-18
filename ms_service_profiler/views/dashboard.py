@@ -163,7 +163,7 @@ def create_dashboard_json(datasource_uid):
                 create_batch_panel(datasource_uid),
                 create_first_token_panel(datasource_uid),
                 create_generate_speed_panel(datasource_uid),
-                create_request_latency_panel[datasource_uid],
+                create_request_latency_panel(datasource_uid),
                 create_req_status_panel(datasource_uid),
                 create_kvcache_panel(datasource_uid)
                 ],
@@ -467,9 +467,13 @@ def create_kvcache_target(datasource_uid):
             "uid": f"{datasource_uid}",
         },
         "queryText": KVCACHE_QUERY_TEXT,
-        "queryType": "table",
+        "queryType": "time series",
         "rawQueryText": KVCACHE_QUERY_TEXT,
         "refId": "A",
+        "timeColumns": [
+            "time",
+            "ts"
+        ]
     }
 
 

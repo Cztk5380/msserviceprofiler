@@ -102,15 +102,15 @@ def kvcache_usage_rate_calculator(kvcache_df):
     for _, row in kvcache_df.iterrows():
         action = row['action']
         if action == 'KVCacheAlloc':
-            alloc_value = row['deviceKvCache']
-            free_value = kvcache_df[kvcache_df['action'] == 'Free']['deviceKvCache'].values
+            alloc_value = row['device_kvcache_left']
+            free_value = kvcache_df[kvcache_df['action'] == 'Free']['device_kvcache_left'].values
             if len(free_value) > 0:
                 usage_rate = (free_value[0] - alloc_value) / free_value[0]
             else:
                 usage_rate = 0  # 如果没有Free的对应值，默认使用率为0
         elif action == 'AppendSlot':
-            append_value = row['deviceKvCache']
-            free_value = kvcache_df[kvcache_df['action'] == 'Free']['deviceKvCache'].values
+            append_value = row['device_kvcache_left']
+            free_value = kvcache_df[kvcache_df['action'] == 'Free']['device_kvcache_left'].values
             if len(free_value) > 0:
                 usage_rate = (free_value[0] - append_value) / free_value[0]
             else:
@@ -129,14 +129,16 @@ def add_column_to_kvcache(file_name, df):
     """在kvcache表中新增real_time和使用率"""
     file_name = file_name
     if file_name == 'kvcache.csv':
-        df['real_start_time'] = df['start_time'].apply(timestamp_to_datetime)
+        df['real_start_time'] = df['start_time(microsecond)'].apply(timestamp_to_datetime)
         df = kvcache_usage_rate_calculator(df)
     return df
 
 
 def save_csv_to_sqlite(input_path):
     current_path = os.path.dirname(os.path.abspath(__file__))
-    db_path = os.path.join(current_path, '..', 'exporter', 'output' + 'profiler.db')
+    parent_path = os.path.dirname(current_path)  # 获取当前路径的上级路径
+
+    db_path = os.path.join(parent_path, 'exporters', 'output', 'profiler.db')
     csv_whitelist = ['batch.csv', 'kvcache.csv', 'request.csv', "request_status.csv"]
     conn = sqlite3.connect(db_path)
 
