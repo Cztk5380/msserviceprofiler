@@ -15,10 +15,13 @@
 import argparse
 import os
 import re
+import sqlite3
 import logging
 
+import pandas as pd
 from urllib.parse import urlparse
 
+from ms_service_profiler.analyze import check_input_path_valid
 from ms_service_profiler.views.datasource import create_datasource
 from ms_service_profiler.views.dashboard import create_dashboard
 
@@ -67,15 +70,33 @@ def check_url_valid(url):
     return url
 
 
+def save_csv_to_sqlite(input_path):
+    db_path = os.path.join(input_path, '.' + 'profiler.db')  # 隐藏文件
+    csv_whitelist = ['batch.csv', 'kvcache.csv', 'request.csv']
+    conn = sqlite3.connect(db_path)
+
+    for filename in os.listdir(input_path):
+        if filename.endswith('.csv') and filename in csv_whitelist:
+            csv_path = os.path.join(input_path, filename)
+            df = pd.read_csv(csv_path, encoding='utf-8')
+            table_name = os.path.splitext(filename)[0]
+            df.to_sql(table_name, conn, if_exists='replace', index=False)
+
+    conn.commit()
+    conn.close()
+    return check_db_path_valid(db_path)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Process database path.")
-    parser.add_argument('--db_path', type=check_db_path_valid, help="Path to the SQLite database")
+    parser.add_argument('--input_path', type=check_input_path_valid, help="Path to the CSV expoter folder")
     parser.add_argument('--token', type=check_token_valid, help="Grafana token")
     parser.add_argument('--url', type=check_url_valid, default="http://localhost:3000", help="Grafana URL")
     args = parser.parse_args()
-    datasource_uid = create_datasource(args.url, args.token, args.db_path)
+    db_path = save_csv_to_sqlite(args.input_path)
+    datasource_uid = create_datasource(args.url, args.token, db_path)
     grafana_url = create_dashboard(args.url, args.token, datasource_uid)
-    logging.info(f"Please log in  {grafana_url} to view the dashboard 'Profiler Visualization'")
+    logging.info(f"Please log in {grafana_url} to view the dashboard 'Profiler Visualization'")
 
 
 if __name__ == "__main__":
