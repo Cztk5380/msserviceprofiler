@@ -19,11 +19,14 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstring>
 #include <ctime>
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <thread>
 #include <vector>
 #include <map>
 
@@ -31,11 +34,16 @@
 #include "acl/acl.h"
 #include "mstx/ms_tools_ext.h"
 
+#include "../include/msServiceProfiler/GetNpuMemoryUsage.h"
+#include "../include/msServiceProfiler/Profiler.h"
 #include "../include/msServiceProfiler/ServiceProfilerManager.h"
 
 constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
 constexpr int STRING_TO_UINT_BASE = 10;
+
+// 全局标志位，用于控制线程退出
+std::atomic<bool> g_threadRunFlag(true);
 
 #define PROF_LOGD(...)       \
     do {                     \
@@ -257,6 +265,32 @@ namespace msServiceProfiler {
         }
     }
 
+    // Funtion that write info to tx
+    void Write2Tx(std::vector<int> memoryInfo, std::string metricName)
+    {
+        for (int i = 0; i < memoryInfo.size(); i++) {
+            msServiceProfiler::Profiler<msServiceProfiler::INFO>()
+                .Domain("npu")
+                .Metric(metricName.c_str(), memoryInfo[i])
+                .MetricScope("device", i)
+                .Launch();
+        }
+    }
+
+    // 线程函数：npu usage
+    void ThreadFunction()
+    {
+        while (g_threadRunFlag) {
+            std::vector<int> memoryUsed;
+            std::vector<int> memoryUtiliza;
+            int ret = GetNpuMemoryUsage(memoryUsed, memoryUtiliza);
+            Write2Tx(memoryUsed, "usage");
+            Write2Tx(memoryUtiliza, "utiliza");
+            int sleepTime = 10000;
+            std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 10 seconds
+        }
+    }
+
     void ServiceProfilerManager::StartProfiler()
     {
         if (started_) {
@@ -303,6 +337,11 @@ namespace msServiceProfiler {
             return;
         }
 
+        // 启动线程
+        std::thread t(ThreadFunction);
+        // 分离线程，使其在后台运行
+        t.detach();
+
         enable_ = true;
         started_ = true;
     }
@@ -333,6 +372,10 @@ namespace msServiceProfiler {
             PROF_LOGE("acl prof finalize failed, ret = %d", ret);
             return;
         }
+
+        // 设置标志位，通知线程退出
+        g_threadRunFlag = false;
+
         started_ = false;
     }
 }  // namespace msServiceProfiler
