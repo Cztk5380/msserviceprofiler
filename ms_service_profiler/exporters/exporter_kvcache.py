@@ -20,7 +20,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from ms_service_profiler.exporters.base import ExporterBase
-
+from ms_service_profiler.parse import save_dataframe_to_csv
 
 class ExporterKVCacheData(ExporterBase):
     name = "kvcache_data"
@@ -44,10 +44,4 @@ class ExporterKVCacheData(ExporterBase):
             'during_time': 'during_time(microsecond)'
         })
         output = cls.args.output_path
-        if output is not None:
-            output_path = Path(output)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            file_name = 'kvcache.csv'
-            file_path = output_path / file_name
-            kvcache_df.to_csv(file_path, index=False)
+        save_dataframe_to_csv(filtered_df, output, "kvcache.csv")

@@ -21,6 +21,7 @@ from matplotlib import pyplot as plt
 
 
 from ms_service_profiler.parse import parse
+from ms_service_profiler.parse import save_dataframe_to_csv
 from ms_service_profiler.exporters.base import ExporterBase
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -104,14 +105,7 @@ class ExporterAnalyzeData(ExporterBase):
     def export(cls, data) -> None:
         df = data.get('tx_data_df')
         output = cls.args.output_path
-        '''if output is not None:
-            output_path = Path(output)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            file_name = 'request_output.csv'
-            file_path = output_path / file_name
-            df.to_csv(file_path, index=False)'''
         df = df.apply(update_name, axis=1)
-        
 
         http_req_df = df[df['name'] == 'httpReq'].drop(columns=['name'])
         http_res_df = df[df['name'] == 'httpRes'].drop(columns=['name'])
@@ -165,11 +159,6 @@ class ExporterAnalyzeData(ExporterBase):
         })
         
         
-        if output is not None:
-            output_path = Path(output)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            file_name = 'request.csv'
-            file_path = output_path / file_name
-            filtered_df.to_csv(file_path, index=False)
+        save_dataframe_to_csv(filtered_df, output, "request.csv")
 
 
