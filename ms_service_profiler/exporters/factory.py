@@ -18,6 +18,7 @@ from ms_service_profiler.exporters.exporter_req_status import ExporterReqStatus
 from ms_service_profiler.exporters.exporter_request import ExporterAnalyzeData
 from ms_service_profiler.exporters.exporter_batch import ExporterBatchData
 from ms_service_profiler.exporters.exporter_kvcache import ExporterKVCacheData
+from ms_service_profiler.exporters.exporter_latency import ExporterLatency
 
 
 # 插件工厂类

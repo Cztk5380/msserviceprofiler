@@ -89,7 +89,7 @@ def save_csv_to_sqlite(input_path):
 
 def main():
     parser = argparse.ArgumentParser(description="Process database path.")
-    parser.add_argument('--input_path', type=check_input_path_valid, help="Path to the CSV expoter folder")
+    parser.add_argument('--input_path', type=check_input_path_valid, help="Path to the CSV exporter folder")
     parser.add_argument('--token', type=check_token_valid, help="Grafana token")
     parser.add_argument('--url', type=check_url_valid, default="http://localhost:3000", help="Grafana URL")
     args = parser.parse_args()

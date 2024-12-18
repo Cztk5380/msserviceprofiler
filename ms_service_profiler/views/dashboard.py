@@ -42,6 +42,75 @@ FROM numbered_data
 ORDER BY batch_id;
 """
 
+FIRST_TOKEN_LATENCY_SQL = """
+WITH converted AS (
+    SELECT
+        substr(timestamp, 1, 10) || 'T' || substr(timestamp, 12, 8) || 'Z' AS datetime,
+        avg,
+        p99,
+        p90,
+        p50
+    FROM
+        first_token_latency
+)
+SELECT
+    datetime as time,
+    cast(avg as REAL) as "avg",
+    cast(p99 as REAL) as "p99",
+    cast(p90 as REAL) as "p90",
+    cast(p50 as REAL) as "p50"
+FROM
+    converted
+ORDER BY
+    datetime ASC;
+"""
+
+GEN_SPEED_LATENCY_SQL = """
+WITH converted AS (
+    SELECT
+        substr(timestamp, 1, 10) || 'T' || substr(timestamp, 12, 8) || 'Z' AS datetime,
+        avg,
+        p99,
+        p90,
+        p50
+    FROM
+        gen_speed
+)
+SELECT
+    datetime as time,
+    cast(avg as REAL) as "avg",
+    cast(p99 as REAL) as "p99",
+    cast(p90 as REAL) as "p90",
+    cast(p50 as REAL) as "p50"
+FROM
+    converted
+ORDER BY
+    datetime ASC;
+"""
+
+REQ_LATENCY_SQL = """
+WITH converted AS (
+    SELECT
+        substr(timestamp, 1, 10) || 'T' || substr(timestamp, 12, 8) || 'Z' AS datetime,
+        avg,
+        p99,
+        p90,
+        p50
+    FROM
+        req_latency
+)
+SELECT
+    datetime as time,
+    cast(avg as REAL) as "avg",
+    cast(p99 as REAL) as "p99",
+    cast(p90 as REAL) as "p90",
+    cast(p50 as REAL) as "p50"
+FROM
+    converted
+ORDER BY
+    datetime ASC;
+"""
+
 
 def create_dashboard(grafana_url, token, datasource_uid):
     dashboard_json = create_dashboard_json(datasource_uid)
@@ -71,7 +140,8 @@ def create_dashboard_json(datasource_uid):
         "dashboard": {
             "id": None,
             "title": "Profiler Visualization",
-            "panels": [create_batch_panel(datasource_uid)],
+            "panels": [create_batch_panel(datasource_uid), create_first_token_panel(datasource_uid), \
+                create_generate_speed_panel(datasource_uid), create_request_latency_panel[datasource_uid]],
         },
         "overwrite": True,
     }
@@ -107,6 +177,146 @@ def create_batch_panel(datasource_uid):
                 "displayMode": "list",
                 "placement": "bottom",
             }
+        },
+    }
+
+
+def get_lantency_default_panel():
+    return {
+        "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "spanNulls": False,
+            "insertNulls": False,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "stacking": {
+            "mode": "none",
+            "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "axisBorderShow": False,
+            "scaleDistribution": {
+            "type": "linear"
+            },
+            "axisCenteredZero": False,
+            "hideFrom": {
+            "tooltip": False,
+            "viz": False,
+            "legend": False
+            },
+            "thresholdsStyle": {
+            "mode": "off"
+            }
+        }
+    }
+
+
+def create_first_token_panel(datasource_uid):
+    return {
+        "type": "timeseries",
+        "title": "first_token_latency",
+        "gridPos": {
+            "x": 0,
+            "y": 16,
+            "h": 8,
+            "w": 12
+        },
+        "fieldConfig": {
+            "defaults": get_lantency_default_panel(),
+            "overrides": []
+        },
+        "pluginVersion": "11.3.0",
+        "targets": [
+            {
+            "queryText": FIRST_TOKEN_LATENCY_SQL,
+            "queryType": "time series",
+            "rawQueryText": FIRST_TOKEN_LATENCY_SQL,
+            "refId": "A",
+            "timeColumns": [
+                "time",
+                "ts"
+            ]
+            }
+        ],
+        "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": f"{datasource_uid}"
+        }
+    }
+
+
+def create_generate_speed_panel(datasource_uid):
+    return {
+        "type": "timeseries",
+        "title": "generate_speed_latency",
+        "gridPos": {
+            "x": 0,
+            "y": 16,
+            "h": 8,
+            "w": 12
+        },
+        "fieldConfig": {
+            "defaults": get_lantency_default_panel(),
+            "overrides": []
+        },
+        "pluginVersion": "11.3.0",
+        "targets": [
+            {
+            "queryText": GEN_SPEED_LATENCY_SQL,
+            "queryType": "time series",
+            "rawQueryText": GEN_SPEED_LATENCY_SQL,
+            "refId": "A",
+            "timeColumns": [
+                "time",
+                "ts"
+            ]
+            }
+        ],
+        "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": f"{datasource_uid}"
+        }
+    }
+
+
+def create_request_latency_panel(datasource_uid):
+    return {
+        "type": "timeseries",
+        "title": "request_latency",
+        "gridPos": {
+            "x": 0,
+            "y": 16,
+            "h": 8,
+            "w": 12
+        },
+        "fieldConfig": {
+            "defaults": get_lantency_default_panel(),
+            "overrides": []
+        },
+        "pluginVersion": "11.3.0",
+        "targets": [
+            {
+            "queryText": REQ_LATENCY_SQL,
+            "queryType": "time series",
+            "rawQueryText": REQ_LATENCY_SQL,
+            "refId": "A",
+            "timeColumns": [
+                "time",
+                "ts"
+            ]
+            }
+        ],
+        "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": f"{datasource_uid}"
         },
     }
 
