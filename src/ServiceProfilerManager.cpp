@@ -266,7 +266,7 @@ namespace msServiceProfiler {
     }
 
     // Funtion that write info to tx
-    void Write2Tx(std::vector<int> memoryInfo, std::string metricName)
+    void Write2Tx(const std::vector<int> &memoryInfo, const std::string metricName)
     {
         for (int i = 0; i < memoryInfo.size(); i++) {
             msServiceProfiler::Profiler<msServiceProfiler::INFO>()
@@ -283,10 +283,16 @@ namespace msServiceProfiler {
         while (g_threadRunFlag) {
             std::vector<int> memoryUsed;
             std::vector<int> memoryUtiliza;
-            int ret = GetNpuMemoryUsage(memoryUsed, memoryUtiliza);
-            Write2Tx(memoryUsed, "usage");
-            Write2Tx(memoryUtiliza, "utiliza");
-            int sleepTime = 10000;
+
+            try {
+                int ret = GetNpuMemoryUsage(memoryUsed, memoryUtiliza);
+                Write2Tx(memoryUsed, "usage");
+                Write2Tx(memoryUtiliza, "utiliza");
+            } catch (exception& e) {
+                PROF_LOGD("get npu memory usage failed");
+            }
+
+            const int sleepTime = 10000;
             std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 10 seconds
         }
     }
@@ -337,6 +343,8 @@ namespace msServiceProfiler {
             return;
         }
 
+        // 设置标志位
+        g_threadRunFlag = true;
         // 启动线程
         std::thread t(ThreadFunction);
         // 分离线程，使其在后台运行
