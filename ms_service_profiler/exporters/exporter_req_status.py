@@ -17,7 +17,6 @@ from enum import Enum
 from pathlib import Path
 
 from ms_service_profiler.exporters.base import ExporterBase
-from ms_service_profiler.parse import df_to_sqlite
 
 
 class ReqStatus(Enum):
