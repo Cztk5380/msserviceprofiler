@@ -41,16 +41,45 @@ class PluginReqStatus(PluginBase):
         
         tx_data_df['message'] = tx_data_df['message'].apply(parse_message_state_name)
 
-        new_columns = [status_index_to_status_name(metric) for metric in tx_data_df.columns]
-        tx_data_df.columns = new_columns
-        data['tx_data_df'] = tx_data_df
+        req_status_name = [col for col in tx_data_df.columns if is_req_status_metric(col)]
+        req_status_name_new = [status_index_to_status_name(metric) for metric in req_status_name]
+        tx_data_df = tx_data_df.rename(columns={key: value for key, value in zip(req_status_name, req_status_name_new)})
+        data['req_status_inc_df'] = tx_data_df[['start_time'] + \
+            req_status_name_new].rename(columns={'start_time': 'time'})
+        data['req_status_df'] = tx_data_df[['start_time'] + req_status_name_new].rename(columns={'start_time': 'time'})
+        increase_value_to_real_value(data)
         return data
 
+
+def increase_value_to_real_value(data):
+    cur = [0 for _ in range(len(ReqStatus))]
+    for i, _ in data['req_status_inc_df'].iterrows():
+        name = tx_data_df['name'].iloc[i]
+        if name == "httpReq":
+            cur[0] += 1
+        elif name == "ReqState":
+            sdf(data, cur)
+        data['req_status_df'].iloc[i, 1+j] = cur[j]
+
+
+def sdf(data, cur):
+    for j, _ in enumerate(data['req_status_inc_df'].columns[2:]):
+        if cur[j] is None:
+            continue
+        if data['req_status_df'].iloc[i, 1+j] is not None:
+            cur[j] += data['req_status_inc_df'].iloc[i, 1+j]
+            
 
 def is_metric(name):
     if name[-1] in ['+', '=']:
         return True
     return False
+
+
+def is_req_status_metric(metric):
+    # 验证 metric 的格式
+    flag = is_metric(metric) and metric[:-1].isdigit()
+    return flag
 
 
 def status_index_to_status_name(metric):
