@@ -22,74 +22,70 @@
 #include "../include/msServiceProfiler/GetNpuMemoryUsage.h"
 
 
-int DcmiInit(void* handleDcmi_)
+int DcmiInit(void* handleDcmi)
 {
-    // int ret = dcmi_init();
     using DcmiInitFunc = int(*)();
-    DcmiInitFunc dcmiInit = (DcmiInitFunc) dlsym(handleDcmi_, "dcmi_init");
+    DcmiInitFunc dcmiInit = (DcmiInitFunc) dlsym(handleDcmi, "dcmi_init");
     int ret = dcmiInit();
     return ret;
 }
 
-int InitDcmiGetCardList(int *card_num, int *card_list, int list_len, void* handleDcmi_)
+int InitDcmiGetCardList(int *cardNum, int *cardList, int listLen, void* handleDcmi)
 {
-    // int dcmi_get_card_list(int *card_num, int *card_list, int list_len)
     using DcmiGetCardListFunc = int(*)(int *, int *, int);
-    DcmiGetCardListFunc dcmiGetCardList = (DcmiGetCardListFunc) dlsym(handleDcmi_,
+    DcmiGetCardListFunc dcmiGetCardList = (DcmiGetCardListFunc) dlsym(handleDcmi,
         "dcmi_get_card_list");
-    int ret = dcmiGetCardList(card_num, card_list, list_len);
+    int ret = dcmiGetCardList(cardNum, cardList, listLen);
     return ret;
 }
 
-int DcmiGetDeviceIdInCard(int card_id, int *device_id_max, void* handleDcmi_)
+int DcmiGetDeviceIdInCard(int cardId, int *deviceIdMax, void* handleDcmi)
 {
-    // int dcmi_get_device_id_in_card(int card_id, int *device_id_max, int *mcu_id, int *cpu_id)
     using DcmiGetDeviceIdInCardFunc = int(*)(int, int *, int *, int*);
-    DcmiGetDeviceIdInCardFunc dcmiGetDeviceIdInCard = (DcmiGetDeviceIdInCardFunc) dlsym(handleDcmi_,
+    DcmiGetDeviceIdInCardFunc dcmiGetDeviceIdInCard = (DcmiGetDeviceIdInCardFunc) dlsym(handleDcmi,
         "dcmi_get_device_id_in_card");
-    int mcu_id = 0;
-    int cpu_id = 0;
-    int ret = dcmiGetDeviceIdInCard(card_id, device_id_max, &mcu_id, &cpu_id);
+    int mcuId = 0;
+    int cpuId = 0;
+    int ret = dcmiGetDeviceIdInCard(cardId, deviceIdMax, &mcuId, &cpuId);
     return ret;
 }
 
-int DcmiGetDeviceMemoryInfoV3(int card_id, int device_id, struct dcmi_get_memory_info_stru *memory_info, void* handleDcmi_)
+int DcmiGetDeviceMemoryInfoV3(int cardId, int deviceId, struct dcmi_get_memory_info_stru *memoryInfo, void* handleDcmi)
 {
-    // int dcmi_get_device_memory_info_v3(int card_id, int device_id, struct dcmi_get_memory_info_stru *memory_info)
     using DcmiGetDeviceMemoryInfoV3Func = int(*)(int, int, dcmi_get_memory_info_stru *);
-    DcmiGetDeviceMemoryInfoV3Func dcmiGetDeviceMemoryInfoV3 = (DcmiGetDeviceMemoryInfoV3Func) dlsym(
-        handleDcmi_, "dcmi_get_device_memory_info_v3"
-    );
-    int ret = dcmiGetDeviceMemoryInfoV3(card_id, device_id, memory_info);
+    DcmiGetDeviceMemoryInfoV3Func dcmiGetDeviceMemoryInfoV3 = (DcmiGetDeviceMemoryInfoV3Func) dlsym(handleDcmi,
+        "dcmi_get_device_memory_info_v3");
+    int ret = dcmiGetDeviceMemoryInfoV3(cardId, deviceId, memoryInfo);
     return ret;
 }
 
-int GetNpuMemoryUsage(std::vector<int>& memory_used, std::vector<int>& memory_utiliza) {
-    void *handleDcmi_ = nullptr;
-    handleDcmi_ = dlopen("libdcmi.so", RTLD_LAZY | RTLD_LOCAL);
+int GetNpuMemoryUsage(std::vector<int>& memoryUsed, std::vector<int>& memoryUtiliza)
+{
+    void *handleDcmi = nullptr;
+    handleDcmi = dlopen("libdcmi.so", RTLD_LAZY | RTLD_LOCAL);
 
-    int ret = DcmiInit(handleDcmi_);
+    int ret = DcmiInit(handleDcmi);
     if (ret != 0) {
         return ret;
     }
 
-    int card_num = 0;
-    int card_list[64] = {0};
-    int list_len = 64;
+    int cardNum = 0;
+    int cardList[64] = {0};
+    int listLen = 64;
 
-    ret = InitDcmiGetCardList(&card_num, card_list, list_len, handleDcmi_);
+    ret = InitDcmiGetCardList(&cardNum, cardList, listLen, handleDcmi);
     if (ret != 0) {
         return ret;
     }
 
-    for (int card_id = 0; card_id < card_num; card_id++) {
-        int device_id_max = 0;
-        ret = DcmiGetDeviceIdInCard(card_list[card_id], &device_id_max, handleDcmi_);
-        for (int device_id = 0; device_id < device_id_max; device_id++) {
-            struct dcmi_get_memory_info_stru memory_info = {0};
-            ret = DcmiGetDeviceMemoryInfoV3(card_list[card_id], device_id, &memory_info, handleDcmi_);
-            memory_used.push_back(memory_info.memory_size - memory_info.memory_available);
-            memory_utiliza.push_back(memory_info.utiliza);
+    for (int cardId = 0; cardId < cardNum; cardId++) {
+        int deviceIdMax = 0;
+        ret = DcmiGetDeviceIdInCard(cardList[cardId], &deviceIdMax, handleDcmi);
+        for (int deviceId = 0; deviceId < deviceIdMax; deviceId++) {
+            struct dcmi_get_memory_info_stru memoryInfo = {0};
+            ret = DcmiGetDeviceMemoryInfoV3(cardList[cardId], deviceId, &memoryInfo, handleDcmi);
+            memoryUsed.push_back(memoryInfo.memory_size - memoryInfo.memory_available);
+            memoryUtiliza.push_back(memoryInfo.utiliza);
         }
     }
 

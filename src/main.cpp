@@ -26,30 +26,35 @@
 
 
 // Funtion that write info to txt
-void write2Tx(std::vector<int> memory_info, std::string metric_name)
+void Write2Tx(std::vector<int> memoryInfo, std::string metricName)
 {
-    for (int i = 0; i < memory_info.size(); i++) {
-        msServiceProfiler::Profiler<msServiceProfiler::INFO>().Domain("npu").Metric(metric_name.c_str(), memory_info[i]).MetricScope("device", i).Launch();
+    for (int i = 0; i < memoryInfo.size(); i++) {
+        msServiceProfiler::Profiler<msServiceProfiler::INFO>()
+            .Domain("npu")
+            .Metric(metricName.c_str(), memoryInfo[i])
+            .MetricScope("device", i)
+            .Launch();
     }
 }
 
 // Function that will be executed in the new thread
-void threadFunction()
+void ThreadFunction()
 {
     while (true) {
-        std::vector<int> memory_used;
-        std::vector<int> memory_utiliza;
-        int ret = GetNpuMemoryUsage(memory_used, memory_utiliza);
-        write2Tx(memory_used, "usage");
-        write2Tx(memory_utiliza, "utiliza");
-        std::this_thread::sleep_for(std::chrono::milliseconds(10000)); // sleep 10 seconds
+        std::vector<int> memoryUsed;
+        std::vector<int> memoryUtiliza;
+        int ret = GetNpuMemoryUsage(memoryUsed, memoryUtiliza);
+        Write2Tx(memoryUsed, "usage");
+        Write2Tx(memoryUtiliza, "utiliza");
+        int sleepTime = 10000;
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 10 seconds
     }
 }
 
 int main()
 {
     // Create a new thread and pass the function to be executed
-    std::thread t(threadFunction);
+    std::thread t(ThreadFunction);
 
     // Detach the thread so it runs independently
     t.join();

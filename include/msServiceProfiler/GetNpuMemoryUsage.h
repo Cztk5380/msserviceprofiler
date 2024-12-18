@@ -13,5 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifndef GET_NPU_MEMORY_USAGE_H
+#define GET_NPU_MEMORY_USAGE_H
 
-int GetNpuMemoryUsage(std::vector<int>& memory_used, std::vector<int>& memory_utiliza);
+int GetNpuMemoryUsage(std::vector<int>& memoryUsed, std::vector<int>& memoryUtiliza);
+
+#endif  // GET_NPU_MEMORY_USAGE_H
