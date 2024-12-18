@@ -199,6 +199,43 @@ def create_batch_panel(datasource_uid):
     }
 
 
+def get_kvcache_default_panel():
+    return {
+        "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "spanNulls": False,
+            "insertNulls": False,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "stacking": {
+            "mode": "none",
+            "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "axisBorderShow": False,
+            "scaleDistribution": {
+                "type": "linear"
+            },
+            "axisCenteredZero": False,
+            "hideFrom": {
+                "tooltip": False,
+                "viz": False,
+                "legend": False
+            },
+            "thresholdsStyle": {
+            "mode": "off"
+            }
+        },
+    }
+
 def get_lantency_default_panel():
     return {
         "custom": {
@@ -316,41 +353,7 @@ def create_kvcache_panel(datasource_uid):
             "w": 12
         },
         "fieldConfig": {
-            "defaults": {
-                "custom": {
-                    "drawStyle": "line",
-                    "lineInterpolation": "linear",
-                    "barAlignment": 0,
-                    "barWidthFactor": 0.6,
-                    "lineWidth": 1,
-                    "fillOpacity": 0,
-                    "gradientMode": "none",
-                    "spanNulls": False,
-                    "insertNulls": False,
-                    "showPoints": "auto",
-                    "pointSize": 5,
-                    "stacking": {
-                        "mode": "none",
-                        "group": "A"
-                    },
-                    "axisPlacement": "auto",
-                    "axisLabel": "",
-                    "axisColorMode": "text",
-                    "axisBorderShow": False,
-                    "scaleDistribution": {
-                        "type": "linear"
-                    },
-                    "axisCenteredZero": False,
-                    "hideFrom": {
-                        "tooltip": False,
-                        "viz": False,
-                        "legend": False
-                    },
-                    "thresholdsStyle": {
-                        "mode": "off"
-                    }
-                },
-            },
+            "defaults": get_kvcache_default_panel(),
         },
         "pluginVersion": "11.3.0",
         "targets": [create_kvcache_target(datasource_uid)],
