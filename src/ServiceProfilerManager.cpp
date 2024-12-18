@@ -182,7 +182,7 @@ namespace msServiceProfiler {
         if (!strConfigPath.empty() && access(strConfigPath.c_str(), F_OK) == 0) {
             std::ifstream configFile(strConfigPath);
             if (!configFile.good()) {
-                PROF_LOGE("fail to open: %s", strConfigPath);
+                PROF_LOGE("fail to open: %s", strConfigPath.c_str());
                 return;
             }
 
@@ -191,15 +191,17 @@ namespace msServiceProfiler {
                 configFile >> jsonData;
             } catch (const json::parse_error& e) {
                 configFile.close();
-                PROF_LOGE("fail to parse file content as json object, config path: %s", strConfigPath);
+                PROF_LOGE("fail to parse file content as json object, config path: %s", strConfigPath.c_str());
                 return;
             }
             configFile.close();
             if (jsonData.empty()) {
-                PROF_LOGE("paresd json object is empty, config path: %s", strConfigPath);
+                PROF_LOGE("paresd json object is empty, config path: %s", strConfigPath.c_str());
                 return;
             }
-            ReadEnable(jsonData) || ReadProfPath(jsonData) || ReadLevel(jsonData);
+            ReadEnable(jsonData);
+            ReadProfPath(jsonData);
+            ReadLevel(jsonData);
         }
         profPath_.append(std::to_string(ltm->tm_mon + 1))
                 .append(std::to_string(ltm->tm_mday))
@@ -212,7 +214,7 @@ namespace msServiceProfiler {
     bool ServiceProfilerManager::ReadEnable(const json &config)
     {
         if (config.contains("enable")) {
-            enable_ = config["enable"] == "1";
+            enable_ = config["enable"] == 1;
             return true;
         } else {
             return false;
