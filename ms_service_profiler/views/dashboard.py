@@ -236,6 +236,7 @@ def get_kvcache_default_panel():
         },
     }
 
+
 def get_lantency_default_panel():
     return {
         "custom": {
