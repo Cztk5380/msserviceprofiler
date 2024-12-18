@@ -72,7 +72,7 @@ def check_url_valid(url):
 
 def save_csv_to_sqlite(input_path):
     db_path = os.path.join(input_path, '.' + 'profiler.db')  # 隐藏文件
-    csv_whitelist = ['batch.csv', 'kvcache.csv', 'request.csv']
+    csv_whitelist = ['batch.csv', 'kvcache.csv', 'request.csv', "request_status.csv"]
     conn = sqlite3.connect(db_path)
 
     for filename in os.listdir(input_path):
