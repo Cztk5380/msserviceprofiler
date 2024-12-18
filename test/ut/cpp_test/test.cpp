@@ -15,6 +15,7 @@
  */
 
 #include <chrono>
+#include <thread>
 #include "../../../include/msServiceProfiler/msServiceProfiler.h"
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
@@ -157,6 +158,8 @@ int main()
 
     SmokeTest();
     SpeedTest();
+    const int sleepTime = 10000;
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 10 seconds
     StopServerProfiler();
     return 0;
 }
