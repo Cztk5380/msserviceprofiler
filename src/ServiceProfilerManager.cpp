@@ -181,14 +181,24 @@ namespace msServiceProfiler {
         std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
         if (!strConfigPath.empty() && access(strConfigPath.c_str(), F_OK) == 0) {
             std::ifstream configFile(strConfigPath);
-            if (!configFile.is_open()) {
-                std::cerr << "Fail to open: " << strConfigPath << std::endl;
+            if (!configFile.good()) {
+                PROF_LOGE("fail to open: %s", strConfigPath);
                 return;
             }
 
             json jsonData;
-            configFile >> jsonData;
+            try {
+                configFile >> jsonData;
+            } catch (const json::parse_error& e) {
+                configFile.close();
+                PROF_LOGE("fail to parse file content as json object, config path: %s", strConfigPath);
+                return;
+            }
             configFile.close();
+            if (jsonData.empty()) {
+                PROF_LOGE("paresd json object is empty, config path: %s", strConfigPath);
+                return;
+            }
             ReadEnable(jsonData) || ReadProfPath(jsonData) || ReadLevel(jsonData);
 
         }
@@ -233,7 +243,11 @@ namespace msServiceProfiler {
         };
 
         if (config.contains("profiler_level")) {
-            level_ = Str2Uint(config["profiler_level"]);
+            try {
+                level_ = Str2Uint(config["profiler_level"]);
+            } catch (const std::invalid_argument& e) {
+                PROF_LOGE("fail to convert profiler_level config to uint, will use default DETAILED");
+            }
             if (level_ == 0) {
                 std::string valueUpper = config["profiler_level"];
                 std::transform(valueUpper.begin(), valueUpper.end(), valueUpper.begin(), [](char const &c) {
