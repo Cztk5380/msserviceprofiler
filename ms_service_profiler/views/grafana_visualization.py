@@ -19,8 +19,8 @@ import logging
 
 from urllib.parse import urlparse
 
-from datasource import create_datasource
-from dashboard import create_dashboard
+from ms_service_profiler.views.datasource import create_datasource
+from ms_service_profiler.views.dashboard import create_dashboard
 
 logging.basicConfig(level=logging.INFO)
 
