@@ -29,8 +29,6 @@
 void write2Tx(std::vector<int> memory_info, std::string metric_name)
 {
     for (int i = 0; i < memory_info.size(); i++) {
-        std::cout << i << std::endl;
-        std::cout << memory_info[i] << std::endl;
         msServiceProfiler::Profiler<msServiceProfiler::INFO>().Domain("npu").Metric(metric_name.c_str(), memory_info[i]).MetricScope("device", i).Launch();
     }
 }
@@ -38,16 +36,10 @@ void write2Tx(std::vector<int> memory_info, std::string metric_name)
 // Function that will be executed in the new thread
 void threadFunction()
 {
-    std::cout << "Hello from the new thread!" << std::endl;
     while (true) {
         std::vector<int> memory_used;
         std::vector<int> memory_utiliza;
         int ret = GetNpuMemoryUsage(memory_used, memory_utiliza);
-
-        std::cout << "memory_used: " << memory_used[0] << std::endl;
-        std::cout << "memory_info.utiliza: " << memory_utiliza[0] << std::endl;
-        std::cout << std::endl;
-
         write2Tx(memory_used, "usage");
         write2Tx(memory_utiliza, "utiliza");
         std::this_thread::sleep_for(std::chrono::milliseconds(10000)); // sleep 10 seconds
