@@ -53,7 +53,7 @@ class PluginReqStatus(PluginBase):
             if name == "httpReq":
                 cur[0] += 1
             elif name == "ReqState":
-                for j, col_name in enumerate(data['req_status_inc_df'].columns[1:]):
+                for j, col_name in enumerate(data['req_status_inc_df'].columns[2:]):
                     if cur[j] == None:
                         continue
                     print(i, col_name)
