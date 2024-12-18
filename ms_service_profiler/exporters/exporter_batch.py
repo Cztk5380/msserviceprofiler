@@ -33,17 +33,15 @@ class ExporterBatchData(ExporterBase):
     @classmethod
     def export(cls, data) -> None:
         df = data.get('tx_data_df')
-
-
+        if df is None:
+            logging.error("The data is empty, please check")
+            return
         batch_df = df[df['name'] == 'BatchSchedule']
         modelexec_df = df[df['name'] == 'modelExec']
         batch_df['resList'] = batch_df['message'].apply(lambda x: x['rid'])
         modelexec_df['resList'] = modelexec_df['message'].apply(lambda x: x['rid'])
-        
         result_df = pd.concat([batch_df, modelexec_df], ignore_index=True)
         result_df = result_df.sort_values(by='start_time')
-        
-        
         model_df = result_df[['name', 'resList', 'start_time', 'end_time', 'batch_size', 'batch_type', 'during_time',]]
         model_df = model_df.rename(columns={
             'resList': 'res_list',
@@ -51,7 +49,6 @@ class ExporterBatchData(ExporterBase):
             'end_time': 'end_time(microsecond)',
             'during_time': 'during_time(microsecond)'
         })
-
 
         output = cls.args.output_path
         save_dataframe_to_csv(model_df, output, "batch.csv")

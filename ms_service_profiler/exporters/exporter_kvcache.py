@@ -33,7 +33,9 @@ class ExporterKVCacheData(ExporterBase):
     @classmethod
     def export(cls, data) -> None:
         df = data.get('tx_data_df')
-
+        if df is None:
+            logging.error("The data is empty, please check")
+            return
         kvcache_df = df[df['domain'] == 'KVCache']
         kvcache_df = kvcache_df.rename(columns={'deviceKvCache=': 'deviceKvCache'})
         kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'action', \
