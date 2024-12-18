@@ -33,6 +33,7 @@
 
 #include "../include/msServiceProfiler/ServiceProfilerManager.h"
 
+
 constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
 constexpr int STRING_TO_UINT_BASE = 10;
@@ -179,22 +180,17 @@ namespace msServiceProfiler {
 
         std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
         if (!strConfigPath.empty() && access(strConfigPath.c_str(), F_OK) == 0) {
-            std::ifstream configFile;
-            configFile.open(strConfigPath.c_str(), std::ios::in);
-            char lineData[256] = {0};
-            while (configFile.rdstate() != std::ios_base::eofbit) {
-                configFile.getline(lineData, sizeof(lineData) - 1);
-                if (configFile.rdstate() & std::ios_base::eofbit) {
-                    break;
-                }
-
-                auto kvPair = SplitStr(lineData, '=');
-
-                std::string key(TrimStr(kvPair.first));
-                std::string value(TrimStr(kvPair.second));
-
-                ReadEnable(key, value) || ReadProfPath(key, value) || ReadLevel(key, value);
+            std::ifstream configFile(strConfigPath);
+            if (!configFile.is_open()) {
+                std::cerr << "Fail to open: " << strConfigPath << std::endl;
+                return;
             }
+
+            json jsonData;
+            configFile >> jsonData;
+            configFile.close();
+            ReadEnable(jsonData) || ReadProfPath(jsonData) || ReadLevel(jsonData);
+
         }
         profPath_.append(std::to_string(ltm->tm_mon + 1))
                 .append(std::to_string(ltm->tm_mday))
@@ -204,24 +200,22 @@ namespace msServiceProfiler {
                 .append("/");
     }
 
-    bool ServiceProfilerManager::ReadEnable(const std::string &key, const std::string &value)
+    bool ServiceProfilerManager::ReadEnable(const json &config)
     {
-        if (key == "enable") {
-            enable_ = value == "1";
+        if (config.contains("enable")) {
+            enable_ = config["enable"] == "1";
             return true;
         } else {
             return false;
         }
     }
 
-    bool ServiceProfilerManager::ReadProfPath(const std::string &key, const std::string &value)
+    bool ServiceProfilerManager::ReadProfPath(const json &config)
     {
-        if (key == "prof_dir") {
-            if (!value.empty()) {
-                profPath_ = value;
-                if (value.back() != '/') {
-                    profPath_.append("/");
-                }
+        if (config.contains("prof_dir")) {
+            profPath_ = config["prof_dir"];
+            if (profPath_.back() != '/') {
+                profPath_.append("/");
             }
             return true;
         } else {
@@ -229,7 +223,7 @@ namespace msServiceProfiler {
         }
     }
 
-    bool ServiceProfilerManager::ReadLevel(const std::string &key, const std::string &value)
+    bool ServiceProfilerManager::ReadLevel(const json &config)
     {
         static const std::map<std::string, Level> enumMap = {
             {"ERROR", Level::ERROR},
@@ -238,10 +232,10 @@ namespace msServiceProfiler {
             {"VERBOSE", Level::VERBOSE},
         };
 
-        if (key == "profiler_level") {
-            level_ = Str2Uint(value);
+        if (config.contains("profiler_level")) {
+            level_ = Str2Uint(config["profiler_level"]);
             if (level_ == 0) {
-                std::string valueUpper = value;
+                std::string valueUpper = config["profiler_level"];
                 std::transform(valueUpper.begin(), valueUpper.end(), valueUpper.begin(), [](char const &c) {
                     return std::toupper(c);
                 });
