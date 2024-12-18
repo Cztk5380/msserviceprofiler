@@ -200,7 +200,6 @@ namespace msServiceProfiler {
                 return;
             }
             ReadEnable(jsonData) || ReadProfPath(jsonData) || ReadLevel(jsonData);
-
         }
         profPath_.append(std::to_string(ltm->tm_mon + 1))
                 .append(std::to_string(ltm->tm_mday))
