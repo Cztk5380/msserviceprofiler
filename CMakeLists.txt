@@ -58,11 +58,13 @@ add_library(ms_service_profiler
         SHARED
         src/Profiler.cpp
         src/ServiceProfilerManager.cpp
+        src/GetNpuMemoryUsage.cpp
 )
 
 add_executable(test_server_profiler test/ut/cpp_test/test.cpp
         src/Profiler.cpp
         src/ServiceProfilerManager.cpp
+        src/GetNpuMemoryUsage.cpp
 )
 
 target_compile_options(ms_service_profiler PRIVATE
