@@ -26,7 +26,7 @@ class PluginMetric(PluginBase):
         if tx_data_df is None:
             raise ValueError("tx_data_df is None")
         
-        columns = [metric for metric in tx_data_df.columns if metric.startswith('+') or metric.startswith('=')]
+        columns = [metric for metric in tx_data_df.columns if metric.endswith('+') or metric.endswith('=')]
 
         tx_data_df['metrics'] = tx_data_df[columns].apply(
             lambda row: {col: row[col] for col in columns if row[col] is not None}, axis=1).apply(
