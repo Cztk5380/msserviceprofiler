@@ -84,13 +84,13 @@ def is_req_status_metric(metric):
 
 def status_index_to_status_name(metric):
     # 验证 metric 的格式
-    if not is_req_status_metric(metric):
+    if not is_metric(metric) or not metric[:-1].isdigit():
         return metric
     
     try:
         index = int(metric[:-1])
     except ValueError as ex:
-        raise ValueError(f"Invalid status index: {metric[1:]}") from ex
+        raise ValueError(f"Invalid status index: {metric[:-1]}") from ex
     
     # 确保索引在 ReqStatus 的范围内
     if index not in [status.value for status in ReqStatus]:
