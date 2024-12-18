@@ -181,6 +181,44 @@ def create_batch_panel(datasource_uid):
     }
 
 
+def get_lantency_default_panel():
+    return {
+        "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "spanNulls": False,
+            "insertNulls": False,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "stacking": {
+            "mode": "none",
+            "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "axisBorderShow": False,
+            "scaleDistribution": {
+            "type": "linear"
+            },
+            "axisCenteredZero": False,
+            "hideFrom": {
+            "tooltip": False,
+            "viz": False,
+            "legend": False
+            },
+            "thresholdsStyle": {
+            "mode": "off"
+            }
+        }
+    }
+
+
 def create_first_token_panel(datasource_uid):
     return {
         "type": "timeseries",
@@ -192,41 +230,7 @@ def create_first_token_panel(datasource_uid):
             "w": 12
         },
         "fieldConfig": {
-            "defaults": {
-            "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "linear",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "lineWidth": 1,
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "spanNulls": False,
-                "insertNulls": False,
-                "showPoints": "auto",
-                "pointSize": 5,
-                "stacking": {
-                "mode": "none",
-                "group": "A"
-                },
-                "axisPlacement": "auto",
-                "axisLabel": "",
-                "axisColorMode": "text",
-                "axisBorderShow": False,
-                "scaleDistribution": {
-                "type": "linear"
-                },
-                "axisCenteredZero": False,
-                "hideFrom": {
-                "tooltip": False,
-                "viz": False,
-                "legend": False
-                },
-                "thresholdsStyle": {
-                "mode": "off"
-                }
-            }
-            },
+            "defaults": get_lantency_default_panel(),
             "overrides": []
         },
         "pluginVersion": "11.3.0",
@@ -260,41 +264,7 @@ def create_generate_speed_panel(datasource_uid):
             "w": 12
         },
         "fieldConfig": {
-            "defaults": {
-            "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "linear",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "lineWidth": 1,
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "spanNulls": False,
-                "insertNulls": False,
-                "showPoints": "auto",
-                "pointSize": 5,
-                "stacking": {
-                "mode": "none",
-                "group": "A"
-                },
-                "axisPlacement": "auto",
-                "axisLabel": "",
-                "axisColorMode": "text",
-                "axisBorderShow": False,
-                "scaleDistribution": {
-                "type": "linear"
-                },
-                "axisCenteredZero": False,
-                "hideFrom": {
-                "tooltip": False,
-                "viz": False,
-                "legend": False
-                },
-                "thresholdsStyle": {
-                "mode": "off"
-                }
-            }
-            },
+            "defaults": get_lantency_default_panel(),
             "overrides": []
         },
         "pluginVersion": "11.3.0",
@@ -328,41 +298,7 @@ def create_request_latency_panel(datasource_uid):
             "w": 12
         },
         "fieldConfig": {
-            "defaults": {
-            "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "linear",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "lineWidth": 1,
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "spanNulls": False,
-                "insertNulls": False,
-                "showPoints": "auto",
-                "pointSize": 5,
-                "stacking": {
-                "mode": "none",
-                "group": "A"
-                },
-                "axisPlacement": "auto",
-                "axisLabel": "",
-                "axisColorMode": "text",
-                "axisBorderShow": False,
-                "scaleDistribution": {
-                "type": "linear"
-                },
-                "axisCenteredZero": False,
-                "hideFrom": {
-                "tooltip": False,
-                "viz": False,
-                "legend": False
-                },
-                "thresholdsStyle": {
-                "mode": "off"
-                }
-            }
-            },
+            "defaults": get_lantency_default_panel(),
             "overrides": []
         },
         "pluginVersion": "11.3.0",
