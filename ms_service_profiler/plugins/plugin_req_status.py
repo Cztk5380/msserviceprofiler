@@ -44,35 +44,37 @@ class PluginReqStatus(PluginBase):
         req_status_name = [col for col in tx_data_df.columns if is_req_status_metric(col)]
         req_status_name_new = [status_index_to_status_name(metric) for metric in req_status_name]
         tx_data_df = tx_data_df.rename(columns={key: value for key, value in zip(req_status_name, req_status_name_new)})
-        data['req_status_inc_df'] = tx_data_df[['start_time'] + req_status_name_new].rename(columns={'start_time': 'time'})
+        data['req_status_inc_df'] = tx_data_df[['start_time'] + \
+            req_status_name_new].rename(columns={'start_time': 'time'})
         data['req_status_df'] = tx_data_df[['start_time'] + req_status_name_new].rename(columns={'start_time': 'time'})
-        
-        cur = [0 for _ in range(len(ReqStatus))]
-        for i, row in data['req_status_inc_df'].iterrows():
-            name = tx_data_df['name'].iloc[i]
-            if name == "httpReq":
-                cur[0] += 1
-            elif name == "ReqState":
-                for j, col_name in enumerate(data['req_status_inc_df'].columns[2:]):
-                    if cur[j] == None:
-                        continue
-                    print(i, col_name)
-                    if data['req_status_df'].iloc[i, 1+j] is not None:
-                        cur[j] += data['req_status_inc_df'].iloc[i, 1+j]
-                        data['req_status_df'].iloc[i, 1+j] = cur[j]
+        increase_value_to_real_value(data)
         return data
 
 
+def increase_value_to_real_value(data):
+    cur = [0 for _ in range(len(ReqStatus))]
+    for i, _ in data['req_status_inc_df'].iterrows():
+        name = tx_data_df['name'].iloc[i]
+        if name == "httpReq":
+            cur[0] += 1
+        elif name == "ReqState":
+            for j, col_name in enumerate(data['req_status_inc_df'].columns[2:]):
+                if cur[j] is None:
+                    continue
+                if data['req_status_df'].iloc[i, 1+j] is not None:
+                    cur[j] += data['req_status_inc_df'].iloc[i, 1+j]
+                    data['req_status_df'].iloc[i, 1+j] = cur[j]
+
+
 def is_metric(name):
-    if name[0] in ['+', '=']:
+    if name[-1] in ['+', '=']:
         return True
     return False
 
 
 def is_req_status_metric(metric):
     # 验证 metric 的格式
-    flag = is_metric(metric) and metric[1:].isdigit()
-    print(metric, flag)
+    flag = is_metric(metric) and metric[:-1].isdigit()
     return flag
 
 
@@ -82,7 +84,7 @@ def status_index_to_status_name(metric):
         return metric
     
     try:
-        index = int(metric[1:])
+        index = int(metric[:-1])
     except ValueError as ex:
         raise ValueError(f"Invalid status index: {metric[1:]}") from ex
     
@@ -90,7 +92,7 @@ def status_index_to_status_name(metric):
     if index not in [status.value for status in ReqStatus]:
         raise ValueError(f"Invalid status index: {index}")
     
-    return f"{metric[0]}{ReqStatus(index).name}"
+    return f"{ReqStatus(index).name}{metric[-1]}"
 
 
 def parse_message_state_name(message):
