@@ -37,7 +37,7 @@ def check_db_path_valid(path):
     file_stat = os.stat(path)
     if not (file_stat.st_mode & 0o664):
         raise argparse.ArgumentTypeError(
-            f"Error: The file '{path}' does not have the required read/write permissions (664).")
+            f"The file '{path}' does not have the required read/write permissions (664).")
 
     # 校验是否为合法sqlite数据库
     with open(path, 'rb') as f:
@@ -45,18 +45,18 @@ def check_db_path_valid(path):
         sqlite_header = b'SQLite format 3\x00'
 
         if header != sqlite_header:
-            raise argparse.ArgumentTypeError(f"Error: The file '{path}' is not a valid SQLite database file.")
+            raise argparse.ArgumentTypeError(f"The file '{path}' is not a valid SQLite database file.")
     return path
 
 
 def check_token_valid(token):
     # 校验是字符串
     if not isinstance(token, str):
-        raise argparse.ArgumentTypeError("Error: Grafana token should be a string.")
+        raise argparse.ArgumentTypeError("Grafana token should be a string.")
     # 校验字符串内容
     pattern = r'^[a-zA-Z0-9_]+$'
     if not re.match(pattern, token):
-        raise argparse.ArgumentTypeError("Error: Invalid Grafana token format.")
+        raise argparse.ArgumentTypeError("Invalid Grafana token format.")
     return token
 
 
@@ -88,8 +88,8 @@ def save_csv_to_sqlite(input_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Process database path.")
-    parser.add_argument('--input_path', type=check_input_path_valid, help="Path to the CSV exporter folder")
+    parser = argparse.ArgumentParser(description="Profiler data visualization.")
+    parser.add_argument('--input_path', type=check_input_path_valid, help="Path to the CSV expoter folder")
     parser.add_argument('--token', type=check_token_valid, help="Grafana token")
     parser.add_argument('--url', type=check_url_valid, default="http://localhost:3000", help="Grafana URL")
     args = parser.parse_args()
