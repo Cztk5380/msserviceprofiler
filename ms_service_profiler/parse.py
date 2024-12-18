@@ -15,12 +15,20 @@
 import os
 import json
 import sqlite3
-
+from pathlib import Path
 import pandas as pd
 
 from ms_service_profiler.constant import US_PER_SECOND
 from ms_service_profiler.plugins import buildin_plugins
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
+
+
+def save_dataframe_to_csv(filtered_df, output, file_name):
+    if output is not None:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path = output_path / file_name
+        filtered_df.to_csv(file_path, index=False)
 
 
 def find_config_files(folder_path):
