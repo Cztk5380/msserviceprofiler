@@ -41,9 +41,25 @@ class PluginReqStatus(PluginBase):
         
         tx_data_df['message'] = tx_data_df['message'].apply(parse_message_state_name)
 
-        new_columns = [status_index_to_status_name(metric) for metric in tx_data_df.columns]
-        tx_data_df.columns = new_columns
-        data['tx_data_df'] = tx_data_df
+        req_status_name = [col for col in tx_data_df.columns if is_req_status_metric(col)]
+        req_status_name_new = [status_index_to_status_name(metric) for metric in req_status_name]
+        tx_data_df = tx_data_df.rename(columns={key: value for key, value in zip(req_status_name, req_status_name_new)})
+        data['req_status_inc_df'] = tx_data_df[['start_time'] + req_status_name_new].rename(columns={'start_time': 'time'})
+        data['req_status_df'] = tx_data_df[['start_time'] + req_status_name_new].rename(columns={'start_time': 'time'})
+        
+        cur = [0 for _ in range(len(ReqStatus))]
+        for i, row in data['req_status_inc_df'].iterrows():
+            name = tx_data_df['name'].iloc[i]
+            if name == "httpReq":
+                cur[0] += 1
+            elif name == "ReqState":
+                for j, col_name in enumerate(data['req_status_inc_df'].columns[1:]):
+                    if cur[j] == None:
+                        continue
+                    print(i, col_name)
+                    if data['req_status_df'].iloc[i, 1+j] is not None:
+                        cur[j] += data['req_status_inc_df'].iloc[i, 1+j]
+                        data['req_status_df'].iloc[i, 1+j] = cur[j]
         return data
 
 
@@ -53,9 +69,16 @@ def is_metric(name):
     return False
 
 
+def is_req_status_metric(metric):
+    # 验证 metric 的格式
+    flag = is_metric(metric) and metric[1:].isdigit()
+    print(metric, flag)
+    return flag
+
+
 def status_index_to_status_name(metric):
     # 验证 metric 的格式
-    if not is_metric(metric) or not metric[1:].isdigit():
+    if not is_req_status_metric(metric):
         return metric
     
     try:
