@@ -22,10 +22,24 @@ req_map = {}
 
 
 def timestamp_converter(timestamp):
-    # timestamp 截取前13位为最终毫秒级时间戳
-    timestamp = int(str(timestamp)[:13])
-    dt_object = datetime.datetime.fromtimestamp(timestamp / 1000)
-    return dt_object.strftime('%Y-%m-%d %H:%M:%S:%f')
+    """
+    将传入的科学计数法的时间戳转换为真实时间，并在后续处理中存入kvcache.db文件中
+    :param timestamp: 科学计数法时间戳
+    :return: 真实时间
+    """
+    # 传入数据为科学计数法的时间戳数据
+    timestamp_sci = timestamp
+
+    # 将科学计数法的时间戳转换为Decimal类型
+    timestamp_normal = Decimal(timestamp_sci)
+
+    # 将Decimal类型转换为浮点数类型，以便后续能被fromtimestamp函数正确使用
+    timestamp_seconds = float(timestamp_normal / 1000000)
+
+    # 将秒数转换为datetime对象
+    date_time = datetime.datetime.fromtimestamp(timestamp_seconds)
+
+    return date_time.strftime("%Y-%m-%d %H:%M:%S:%f")
 
 
 def process_each_record(record):
