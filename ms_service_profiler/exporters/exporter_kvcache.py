@@ -45,4 +45,4 @@ class ExporterKVCacheData(ExporterBase):
             'during_time': 'during_time(microsecond)'
         })
         output = cls.args.output_path
-        save_dataframe_to_csv(filtered_df, output, "kvcache.csv")
+        save_dataframe_to_csv(kvcache_df, output, "kvcache.csv")

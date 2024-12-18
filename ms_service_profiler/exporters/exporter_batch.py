@@ -54,5 +54,5 @@ class ExporterBatchData(ExporterBase):
 
 
         output = cls.args.output_path
-        save_dataframe_to_csv(filtered_df, output, "batch.csv")
+        save_dataframe_to_csv(model_df, output, "batch.csv")
 
