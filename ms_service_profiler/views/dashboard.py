@@ -30,14 +30,8 @@ WITH numbered_data AS (
 )
 SELECT 
     batch_id, 
-    CASE 
-        WHEN batch_type = 'Prefill' THEN batch_size
-        ELSE NULL
-    END AS Prefill_batch_size,
-    CASE 
-        WHEN batch_type = 'Decode' THEN batch_size
-        ELSE NULL
-    END AS Decode_batch_size
+    batch_size, 
+    batch_type
 FROM numbered_data
 ORDER BY batch_id;
 """
@@ -129,6 +123,14 @@ ORDER BY
 """
 
 
+REQ_STATUS_QUERY_TEXT = """
+SELECT 
+    *
+FROM request_status
+ORDER BY "time/us";
+"""
+
+
 def create_dashboard(grafana_url, token, datasource_uid):
     dashboard_json = create_dashboard_json(datasource_uid)
     headers = {
@@ -157,11 +159,50 @@ def create_dashboard_json(datasource_uid):
         "dashboard": {
             "id": None,
             "title": "Profiler Visualization",
-            "panels": [create_batch_panel(datasource_uid), create_first_token_panel(datasource_uid), \
-                create_generate_speed_panel(datasource_uid), create_request_latency_panel(datasource_uid), \
-                create_kvcache_panel(datasource_uid)],
+            "panels": [
+                create_batch_panel(datasource_uid),
+                create_first_token_panel(datasource_uid),
+                create_generate_speed_panel(datasource_uid),
+                create_request_latency_panel[datasource_uid],
+                create_req_status_panel(datasource_uid),
+                create_kvcache_panel(datasource_uid)
+                ],
         },
         "overwrite": True,
+    }
+
+
+def create_req_status_panel(datasource_uid):
+    return {
+        "type": "xychart",
+        "title": "Request Status",
+        "gridPos": {
+            "x": 0,
+            "y": 0,
+            "h": 8,
+            "w": 12
+        },
+        "fieldConfig": {
+            "defaults": {
+                "custom": {
+                    "show": "lines",
+                    "pointShape": "circle",
+                },
+            },
+        },
+        "pluginVersion": "11.3.0",
+        "targets": [create_req_status_target(datasource_uid)],
+        "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": f"{datasource_uid}",
+        },
+        "options": {
+            "legend": {
+                "showLegend": True,
+                "displayMode": "list",
+                "placement": "bottom",
+            }
+        },
     }
 
 
@@ -428,5 +469,18 @@ def create_kvcache_target(datasource_uid):
         "queryText": KVCACHE_QUERY_TEXT,
         "queryType": "table",
         "rawQueryText": KVCACHE_QUERY_TEXT,
+        "refId": "A",
+    }
+
+
+def create_req_status_target(datasource_uid):
+    return {
+        "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": f"{datasource_uid}",
+        },
+        "queryText": REQ_STATUS_QUERY_TEXT,
+        "queryType": "table",
+        "rawQueryText": REQ_STATUS_QUERY_TEXT,
         "refId": "A",
     }
