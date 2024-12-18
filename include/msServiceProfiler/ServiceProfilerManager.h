@@ -19,8 +19,10 @@
 
 #include <string>
 #include <vector>
+#include <nlohmann/json.hpp>
 
 using SpanHandle = uint64_t;
+using json = nlohmann::json;
 
 #define MS_SERVICE_PROFILER_API __attribute__((visibility("default")))
 
@@ -61,12 +63,9 @@ namespace msServiceProfiler {
         ServiceProfilerManager();
 
         void ReadConfig();
-
-        bool ReadEnable(const std::string &key, const std::string &value);
-
-        bool ReadProfPath(const std::string &key, const std::string &value);
-
-        bool ReadLevel(const std::string &key, const std::string &value);
+        bool ReadEnable(const json &config);
+        bool ReadProfPath(const json &config);
+        bool ReadLevel(const json &config);
 
     private:
         bool enable_ = false;
