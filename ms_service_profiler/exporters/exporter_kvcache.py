@@ -20,7 +20,6 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from ms_service_profiler.exporters.base import ExporterBase
-from ms_service_profiler.parse import df_to_sqlite
 
 
 class ExporterKVCacheData(ExporterBase):
@@ -35,17 +34,20 @@ class ExporterKVCacheData(ExporterBase):
         df = data.get('tx_data_df')
 
         kvcache_df = df[df['domain'] == 'KVCache']
-        kvcache_df = kvcache_df.rename(columns={'=deviceKvCache': 'deviceKvCache'})
-        kvcache_df = kvcache_df[['message', 'domain', 'start_time', 'end_time', 'action', 'deviceKvCache', 'during_time']]
-        kvcache_df['message'] = kvcache_df['message'].astype(str)
+        kvcache_df = kvcache_df.rename(columns={'deviceKvCache=': 'deviceKvCache'})
+        kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'action', \
+            'deviceKvCache', 'during_time']]
+        kvcache_df = kvcache_df.rename(columns={
+            'deviceKvCache': 'device_kvcache_left',
+            'start_time': 'start_time(microsecond)',
+            'end_time': 'end_time(microsecond)',
+            'during_time': 'during_time(microsecond)'
+        })
         output = cls.args.output_path
         if output is not None:
             output_path = Path(output)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             
-            file_name = 'kvcache_output.csv'
+            file_name = 'kvcache.csv'
             file_path = output_path / file_name
             kvcache_df.to_csv(file_path, index=False)
-        if cls.args.sqlite:
-            sqlite_file = output_path / "data.db"
-            df_to_sqlite(kvcache_df, sqlite_file, 'kvcache')

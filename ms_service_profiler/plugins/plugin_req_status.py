@@ -48,26 +48,26 @@ class PluginReqStatus(PluginBase):
 
 
 def is_metric(name):
-    if name[0] in ['+', '=']:
+    if name[-1] in ['+', '=']:
         return True
     return False
 
 
 def status_index_to_status_name(metric):
     # 验证 metric 的格式
-    if not is_metric(metric) or not metric[1:].isdigit():
+    if not is_metric(metric) or not metric[:-1].isdigit():
         return metric
     
     try:
-        index = int(metric[1:])
+        index = int(metric[:-1])
     except ValueError as ex:
-        raise ValueError(f"Invalid status index: {metric[1:]}") from ex
+        raise ValueError(f"Invalid status index: {metric[:-1]}") from ex
     
     # 确保索引在 ReqStatus 的范围内
     if index not in [status.value for status in ReqStatus]:
         raise ValueError(f"Invalid status index: {index}")
     
-    return f"{metric[0]}{ReqStatus(index).name}"
+    return f"{ReqStatus(index).name}{metric[-1]}"
 
 
 def parse_message_state_name(message):

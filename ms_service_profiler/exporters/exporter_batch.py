@@ -20,7 +20,6 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from ms_service_profiler.exporters.base import ExporterBase
-from ms_service_profiler.parse import df_to_sqlite
 
 
 class ExporterBatchData(ExporterBase):
@@ -44,19 +43,20 @@ class ExporterBatchData(ExporterBase):
         result_df = result_df.sort_values(by='start_time')
         
         
-        model_df = result_df[['name', 'resList', 'start_time', 'end_time', 'batch_size', 'batch_type','during_time',]]
-        model_df['resList'] = model_df['resList'].astype(str)
+        model_df = result_df[['name', 'resList', 'start_time', 'end_time', 'batch_size', 'batch_type', 'during_time',]]
+        model_df = model_df.rename(columns={
+            'resList': 'res_list',
+            'start_time': 'start_time(microsecond)',
+            'end_time': 'end_time(microsecond)',
+            'during_time': 'during_time(microsecond)'
+        })
 
 
         output = cls.args.output_path
         if output is not None:
             output_path = Path(output)
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            file_name = 'batch_output.csv'
+            file_name = 'batch.csv'
             file_path = output_path / file_name
             model_df.to_csv(file_path, index=False)
 
-
-        if cls.args.sqlite:
-            sqlite_file = output_path / "data.db"
-            df_to_sqlite(model_df, sqlite_file, 'batch')
