@@ -62,7 +62,7 @@ def main():
         '--exporter',
         type=str,
         nargs='+',
-        default=['trace', 'req_status', 'request_data', 'batch_data', 'kvcache_data'],
+        default=['trace', 'req_status', 'request_data', 'batch_data', 'kvcache_data', 'latency'],
         help='exporter to use')
 
     args = parser.parse_args()

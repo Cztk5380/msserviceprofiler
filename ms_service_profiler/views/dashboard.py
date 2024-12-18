@@ -158,7 +158,8 @@ def create_dashboard_json(datasource_uid):
             "id": None,
             "title": "Profiler Visualization",
             "panels": [create_batch_panel(datasource_uid), create_first_token_panel(datasource_uid), \
-                create_generate_speed_panel(datasource_uid), create_request_latency_panel[datasource_uid]],
+                create_generate_speed_panel(datasource_uid), create_request_latency_panel(datasource_uid), \
+                create_kvcache_panel(datasource_uid)],
         },
         "overwrite": True,
     }
