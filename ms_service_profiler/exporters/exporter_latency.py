@@ -155,8 +155,11 @@ def gen_exporter_results(all_data_df):
 
 
 def save_to_sqlite_db(table_name, view_data):
-    db_path = os.path.join(input_path, '.' + 'profiler.db')
-    conn = sqlite3.connect(db_path)
+    current_path = os.path.dirname(os.path.abspath(__file__))
+    # 创建output文件夹
+    output_folder = os.path.join(current_path, 'output')
+    db_file = os.path.join(output_folder, 'profiler.db')
+    conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
     cursor.execute(f'DROP TABLE IF EXISTS {table_name}')  # 删除旧表
     cursor.execute(f'CREATE TABLE {table_name} (timestamp TEXT, avg REAL, \

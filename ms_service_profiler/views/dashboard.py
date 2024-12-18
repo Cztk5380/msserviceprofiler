@@ -105,6 +105,23 @@ ORDER BY
     datetime ASC;
 """
 
+KVCACHE_QUERY_TEXT = """
+WITH converted AS (
+    SELECT
+        kvcache_usage_rate * 100 AS kvcache_usage_percent,
+        substr(real_start_time, 1, 10) || 'T' || substr(real_start_time, 12, 8) || 'Z' AS datetime
+    FROM
+        kvcache
+)
+SELECT
+    datetime as time,
+    cast(kvcache_usage_percent as REAL) as "kvcacge_usage"
+FROM
+    converted
+ORDER BY
+    datetime ASC;
+"""
+
 
 REQ_STATUS_QUERY_TEXT = """
 SELECT 
@@ -148,6 +165,7 @@ def create_dashboard_json(datasource_uid):
                 create_generate_speed_panel(datasource_uid),
                 create_request_latency_panel[datasource_uid],
                 create_req_status_panel(datasource_uid),
+                create_kvcache_panel(datasource_uid)
                 ],
         },
         "overwrite": True,
@@ -217,6 +235,44 @@ def create_batch_panel(datasource_uid):
                 "showLegend": True,
                 "displayMode": "list",
                 "placement": "bottom",
+            }
+        },
+    }
+
+
+def get_kvcache_default_panel():
+    return {
+        "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "spanNulls": False,
+            "insertNulls": False,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "stacking": {
+            "mode": "none",
+            "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "axisColorMode": "text",
+            "axisBorderShow": False,
+            "scaleDistribution": {
+                "type": "linear"
+            },
+            "axisCenteredZero": False,
+            "hideFrom": {
+                "tooltip": False,
+                "viz": False,
+                "legend": False
+            },
+            "thresholdsStyle": {
+            "mode": "off"
             }
         },
     }
@@ -328,6 +384,35 @@ def create_generate_speed_panel(datasource_uid):
     }
 
 
+def create_kvcache_panel(datasource_uid):
+    return {
+        "type": "graph",
+        "title": "Kvcache usage percent",
+        "gridPos": {
+            "x": 0,
+            "y": 0,
+            "h": 8,
+            "w": 12
+        },
+        "fieldConfig": {
+            "defaults": get_kvcache_default_panel(),
+        },
+        "pluginVersion": "11.3.0",
+        "targets": [create_kvcache_target(datasource_uid)],
+        "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": f"{datasource_uid}",
+        },
+        "options": {
+            "legend": {
+                "showLegend": True,
+                "displayMode": "list",
+                "placement": "bottom",
+            }
+        },
+    }
+
+
 def create_request_latency_panel(datasource_uid):
     return {
         "type": "timeseries",
@@ -371,6 +456,19 @@ def create_batch_target(datasource_uid):
         "queryText": BATCH_QUERY_TEXT,
         "queryType": "table",
         "rawQueryText": BATCH_QUERY_TEXT,
+        "refId": "A",
+    }
+
+
+def create_kvcache_target(datasource_uid):
+    return {
+        "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": f"{datasource_uid}",
+        },
+        "queryText": KVCACHE_QUERY_TEXT,
+        "queryType": "table",
+        "rawQueryText": KVCACHE_QUERY_TEXT,
         "refId": "A",
     }
 
