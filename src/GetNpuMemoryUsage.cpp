@@ -17,7 +17,6 @@
 #include <iostream>
 #include <vector>
 #include <dlfcn.h>
-#include "dcmi_interface_api.h"
 
 #include "../include/msServiceProfiler/GetNpuMemoryUsage.h"
 
