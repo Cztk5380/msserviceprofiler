@@ -17,9 +17,9 @@ import os
 import re
 import sqlite3
 import logging
+from urllib.parse import urlparse
 
 import pandas as pd
-from urllib.parse import urlparse
 
 from ms_service_profiler.analyze import check_input_path_valid
 from ms_service_profiler.views.datasource import create_datasource
