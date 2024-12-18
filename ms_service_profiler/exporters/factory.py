@@ -24,7 +24,7 @@ from ms_service_profiler.exporters.exporter_latency import ExporterLatency
 # 插件工厂类
 class ExporterFactory:
     exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterDetail, ExporterAnalyzeData, ExporterBatchData, \
-        ExporterKVCacheData]
+        ExporterKVCacheData, ExporterLatency]
 
     @staticmethod
     def create_exporters(args):
