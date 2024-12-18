@@ -58,7 +58,7 @@ def increase_value_to_real_value(data):
         if name == "httpReq":
             cur[0] += 1
         elif name == "ReqState":
-            for j, col_name in enumerate(data['req_status_inc_df'].columns[2:]):
+            for j, _ in enumerate(data['req_status_inc_df'].columns[2:]):
                 if cur[j] is None:
                     continue
                 if data['req_status_df'].iloc[i, 1+j] is not None:
