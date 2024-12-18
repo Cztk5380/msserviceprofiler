@@ -40,7 +40,11 @@ def extract_ids_from_reslist(rid_from_message, rid_map):
     token_id = []
     if res_list:
         for req in res_list:
-            rid.append(rid_map.get(req.get('rid', None), req.get('rid', None)))
+            if isinstance(req, int):
+                rid.append(req)
+                continue
+            elif isinstance(req, dict):
+                rid.append(rid_map.get(req.get('rid', None), req.get('rid', None)))
             token_id.append(req.get('iter', None))
         return rid, token_id
     return res_list, res_list

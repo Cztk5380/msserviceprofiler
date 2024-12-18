@@ -1,0 +1,6 @@
+{
+    "PROF_CONFIG_PATH": "../test/default.config",
+    "enable": 1,
+    "prof_dir": "./server_profiler",
+    "profiler_level": "INFO"
+}
