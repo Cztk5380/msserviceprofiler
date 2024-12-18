@@ -33,7 +33,6 @@ def create_datasource(grafana_url, token, db_path):
         "type": "frser-sqlite-datasource",  # 数据源类型
         "typeName": "SQLite",
         "access": "proxy",  # 代理方式
-        "isDefault": True,  # 设置为默认数据源
         "jsonData": {
             "attachLimit": 0,
             "path": os.path.abspath(db_path),  # 使用绝对路径
