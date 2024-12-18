@@ -30,8 +30,14 @@ WITH numbered_data AS (
 )
 SELECT 
     batch_id, 
-    batch_size, 
-    batch_type
+    CASE 
+        WHEN batch_type = 'Prefill' THEN batch_size
+        ELSE NULL
+    END AS Prefill_batch_size,
+    CASE 
+        WHEN batch_type = 'Decode' THEN batch_size
+        ELSE NULL
+    END AS Decode_batch_size
 FROM numbered_data
 ORDER BY batch_id;
 """
