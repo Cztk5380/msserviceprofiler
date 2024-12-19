@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import datetime
 import psutil
 
 from ms_service_profiler.constant import US_PER_SECOND
@@ -36,10 +36,15 @@ class PluginTimeStamp(PluginBase):
         
         tx_data_df['start_time'] = convert_syscnt_to_ts(tx_data_df['start_time'], sys_start_cnt, cpu_frequency)
         tx_data_df['end_time'] = convert_syscnt_to_ts(tx_data_df['end_time'], sys_start_cnt, cpu_frequency)
+        tx_data_df['start_datatime'] = tx_data_df['start_time'].apply(timestamp_converter)
+        tx_data_df['end_datatime'] = tx_data_df['end_time'].apply(timestamp_converter)
         tx_data_df['during_time'] = tx_data_df['end_time'] - tx_data_df['start_time']
+        
 
         cpu_data_df['start_time'] = convert_syscnt_to_ts(cpu_data_df['start_time'], cpu_start_cnt, cpu_frequency)
         cpu_data_df['end_time'] = convert_syscnt_to_ts(cpu_data_df['end_time'], cpu_start_cnt, cpu_frequency)
+        cpu_data_df['start_datatime'] = cpu_data_df['start_time'].apply(timestamp_converter)
+        cpu_data_df['end_datatime'] = cpu_data_df['end_time'].apply(timestamp_converter)
         cpu_data_df['during_time'] = cpu_data_df['end_time'] - cpu_data_df['start_time']
 
         data['cpu_data_df'] = cpu_data_df
@@ -48,4 +53,12 @@ class PluginTimeStamp(PluginBase):
 
 
 def convert_syscnt_to_ts(cnt, start_cnt, cpu_frequency):
-    return (SYS_TS + ((cnt - start_cnt) / cpu_frequency)) * US_PER_SECOND
+    try:
+        return (SYS_TS + ((cnt - start_cnt) / cpu_frequency)) * US_PER_SECOND
+    except Exception as ex:
+        raise AttributeError("Timestamp format error.") from ex
+
+
+def timestamp_converter(timestamp):
+    date_time = datetime.datetime.fromtimestamp(timestamp / US_PER_SECOND)
+    return date_time.strftime("%Y-%m-%d %H:%M:%S:%f")

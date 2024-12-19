@@ -17,7 +17,6 @@ import logging
 from pathlib import Path
 import json
 import pandas as pd
-from matplotlib import pyplot as plt
 
 
 from ms_service_profiler.parse import parse
