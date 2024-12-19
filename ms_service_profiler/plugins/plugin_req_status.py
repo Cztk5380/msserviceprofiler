@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from enum import Enum
+import datetime
 
 import pandas as pd
 
@@ -65,8 +66,6 @@ class PluginReqStatus(PluginBase):
         return data
 
 
-import datetime
-
 def us_to_time(us):
     # 将毫秒转换为秒，保留微秒部分
     seconds = us / 1e6
@@ -98,7 +97,6 @@ def increase_value_to_real_value(tx_data_df, req_status_name_new):
     inc_df['time/us'] -= inc_df['time/us'].iloc[0]
     inc_df.insert(1, 'datetime', inc_df['time/us'].apply(us_to_time))
     df = inc_df.copy()
-    print(df)
     df.columns = [col[:-1] if col.endswith('+') or col.endswith('=') else col \
         for col in inc_df.columns]
 
