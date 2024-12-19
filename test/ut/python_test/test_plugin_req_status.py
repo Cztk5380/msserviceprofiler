@@ -1,10 +1,24 @@
+# Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from unittest.mock import patch
 
 import pytest
 import pandas as pd
 
 from ms_service_profiler.plugins.base import PluginBase
-from ms_service_profiler.plugins.plugin_req_status import PluginReqStatus, ReqStatus, parse_message_state_name, status_index_to_status_name, is_req_status_metric, is_metric, increase_value_to_real_value, count_req_state
+from ms_service_profiler.plugins.plugin_req_status import PluginReqStatus, ReqStatus, parse_message_state_name, \
+    status_index_to_status_name, is_req_status_metric, is_metric, increase_value_to_real_value, count_req_state
 
 
 @pytest.fixture
@@ -12,7 +26,8 @@ def sample_data():
     data = {
         'tx_data_df': pd.DataFrame({
             'name': ['httpReq', 'ReqState', 'httpReq', 'ReqState'],
-            'start_time': ['2024-10-03T07:28:13.102', '2024-10-03T07:28:13.103', '2024-10-03T07:28:13.104', '2024-10-03T07:28:13.105'],
+            'start_time': ['2024-10-03T07:28:13.102', '2024-10-03T07:28:13.103', \
+                '2024-10-03T07:28:13.104', '2024-10-03T07:28:13.105'],
             'message': [{'0': 1}, {'1': 1}, {'0': 2}, {'2': 3}],
             '0+': [1, None, 2, None],
             '1+': [None, 1, None, 2],
