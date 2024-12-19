@@ -138,8 +138,8 @@ def save_csv_to_sqlite(input_path):
     current_path = os.path.dirname(os.path.abspath(__file__))
     parent_path = os.path.dirname(current_path)  # 获取当前路径的上级路径
 
-    db_path = os.path.join(parent_path, 'exporters', 'output', 'profiler.db')
-    csv_whitelist = ['batch.csv', 'kvcache.csv', 'request.csv', "request_status.csv"]
+    db_path = os.path.join(parent_path, '../output', 'profiler.db')
+    csv_whitelist = ['batch.csv', 'kvcache.csv', 'request.csv', ".request_status.csv"]
     conn = sqlite3.connect(db_path)
 
     for filename in os.listdir(input_path):
@@ -148,6 +148,8 @@ def save_csv_to_sqlite(input_path):
             df = pd.read_csv(csv_path, encoding='utf-8')
             df = add_column_to_kvcache(filename, df)
             table_name = os.path.splitext(filename)[0]
+            if table_name.startswith('.'):
+                table_name = table_name[1:]
             df.to_sql(table_name, conn, if_exists='replace', index=False)
 
     conn.commit()

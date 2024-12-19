@@ -18,6 +18,8 @@ import pandas as pd
 
 from ms_service_profiler.plugins.base import PluginBase
 
+pd.set_option('future.no_silent_downcasting', True)
+
 
 class ReqStatus(Enum):
     WAITING = 0
@@ -63,10 +65,40 @@ class PluginReqStatus(PluginBase):
         return data
 
 
+import datetime
+
+def us_to_time(us):
+    # 将毫秒转换为秒，保留微秒部分
+    seconds = us / 1e6
+    time_obj = datetime.timedelta(seconds=seconds)
+
+    # 将 timedelta 转换为格式为 HH:MM:SS.mmmmmm
+    formatted_time = str(time_obj)
+    
+    # 如果 formatted_time 中包含 "day"，表示时间超过一天
+    if "day" in formatted_time:
+        formatted_time = formatted_time.split()[2]  # 只取 HH:MM:SS 部分
+    elif len(formatted_time.split(":")[0]) < 2:
+        # 不足 1 小时，手动补充为 00:00:00
+        formatted_time = "00:" + ":".join(formatted_time.split(":")[1:])
+
+    # 如果没有微秒部分，补充 0
+    if '.' not in formatted_time:
+        formatted_time += '.000000'
+    else:
+        # 如果已经有微秒部分，确保微秒是 6 位
+        formatted_time = formatted_time.ljust(15, '0')[:15]  # 补充至6位
+    
+    return formatted_time
+
+
 def increase_value_to_real_value(tx_data_df, req_status_name_new):
     inc_df = tx_data_df[['start_time'] + \
             req_status_name_new].rename(columns={'start_time': 'time/us'})
+    inc_df['time/us'] -= inc_df['time/us'].iloc[0]
+    inc_df.insert(1, 'datetime', inc_df['time/us'].apply(us_to_time))
     df = inc_df.copy()
+    print(df)
     df.columns = [col[:-1] if col.endswith('+') or col.endswith('=') else col \
         for col in inc_df.columns]
 
@@ -77,17 +109,17 @@ def increase_value_to_real_value(tx_data_df, req_status_name_new):
             cur[0] += 1
             df.iloc[i, 1] = cur[0]
         elif name == "ReqState":
-            count_req_state(inc_df, df, cur, i)
+            count_req_state(inc_df, df, cur, i, 2)
     return df
 
 
-def count_req_state(inc_df, df, cur, index):
-    for j, _ in enumerate(inc_df.columns[1:]):
-        inc_value = inc_df.iloc[index, 1+j]
+def count_req_state(inc_df, df, cur, index, col_start_index):
+    for j, _ in enumerate(inc_df.columns[col_start_index:]):
+        inc_value = inc_df.iloc[index, col_start_index+j]
         if inc_value is None:
             continue
         cur[j] += inc_value
-        df.iloc[index, 1+j] = cur[j]
+        df.iloc[index, col_start_index+j] = cur[j]
 
 
 def is_metric(name):
