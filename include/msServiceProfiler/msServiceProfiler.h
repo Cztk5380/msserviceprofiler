@@ -27,6 +27,7 @@
 #define PROF(...) 0
 #define MONITOR(...) 0
 #else
+#pragma GCC diagnostic ignored "-Wunused-value"
 #define PROF(...) PRIVATE_MACRO_CHOOSE_HELPER(PRIVATE_PROF, PRIVATE_COUNT_MACRO_VAR_ARGS(__VA_ARGS__))(__VA_ARGS__)
 #define MONITOR(...) PROF(__VA_ARGS__)
 #endif

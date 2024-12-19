@@ -135,10 +135,7 @@ def add_column_to_kvcache(file_name, df):
 
 
 def save_csv_to_sqlite(input_path):
-    current_path = os.path.dirname(os.path.abspath(__file__))
-    parent_path = os.path.dirname(current_path)  # 获取当前路径的上级路径
-
-    db_path = os.path.join(parent_path, 'exporters', 'output', 'profiler.db')
+    db_path = os.path.join(input_path, '.profiler.db')
     csv_whitelist = ['batch.csv', 'kvcache.csv', 'request.csv', ".request_status.csv"]
     conn = sqlite3.connect(db_path)
 
