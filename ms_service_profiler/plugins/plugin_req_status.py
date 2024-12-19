@@ -50,8 +50,6 @@ class PluginReqStatus(PluginBase):
             req_status_name_new].rename(columns={'start_time': 'time/us'})
 
         data['req_status_df'] = increase_value_to_real_value(data)
-        data['req_status_df'].columns = [col[:-1] if col.endswith('+') or col.endswith('=') else col \
-            for col in data['req_status_df'].columns]
         data['req_status_df']['time/us'] = data['req_status_df']['time/us'] - data['req_status_df']['time/us'].iloc[0]
         return data
 
@@ -59,25 +57,28 @@ class PluginReqStatus(PluginBase):
 def increase_value_to_real_value(data):
     inc_df = data['req_status_inc_df']
     df = inc_df.copy()
+    df.columns = [col[:-1] if col.endswith('+') or col.endswith('=') else col \
+        for col in inc_df.columns]
+
     cur = [0 for _ in range(len(ReqStatus))]
     for i, _ in inc_df.iterrows():
         name = data['tx_data_df']['name'].iloc[i]
         if name == "httpReq":
             cur[0] += 1
-            inc_df.iloc[i, 1]
+            df.iloc[i, 1] = cur[0]
         elif name == "ReqState":
             count_req_state(inc_df, df, cur, i)
     return df
 
 
 def count_req_state(inc_df, df, cur, index):
-    for j, _ in enumerate(inc_df.columns[2:]):
+    for j, _ in enumerate(inc_df.columns[1:]):
         inc_value = inc_df.iloc[index, 1+j]
         if inc_value is None:
-            return
+            continue
         cur[j] += inc_value
         df.iloc[index, 1+j] = cur[j]
-            
+
 
 def is_metric(name):
     if name[-1] in ['+', '=']:
