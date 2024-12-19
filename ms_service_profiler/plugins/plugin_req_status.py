@@ -14,6 +14,8 @@
 
 from enum import Enum
 
+import pandas as pd
+
 from ms_service_profiler.plugins.base import PluginBase
 
 
@@ -45,24 +47,32 @@ class PluginReqStatus(PluginBase):
         req_status_name_new = [status_index_to_status_name(metric) for metric in req_status_name]
         tx_data_df = tx_data_df.rename(columns={key: value for key, value in zip(req_status_name, req_status_name_new)})
         data['tx_data_df'] = tx_data_df
+        
 
-        data['req_status_inc_df'] = tx_data_df[['start_time'] + \
-            req_status_name_new].rename(columns={'start_time': 'time/us'})
-
-        data['req_status_df'] = increase_value_to_real_value(data)
-        data['req_status_df']['time/us'] = data['req_status_df']['time/us'] - data['req_status_df']['time/us'].iloc[0]
+        data['req_status_df'] = increase_value_to_real_value(tx_data_df, req_status_name_new)
+        
+        for column in data['req_status_df'].columns:
+            if pd.isna(data['req_status_df'][column].iloc[0]): 
+                data['req_status_df'][column] = data['req_status_df'][column].fillna(0)        
+        subset = data['req_status_df'].iloc[:, 2:]
+        condition = subset.isna().all(axis=1)
+        data['req_status_df'] = data['req_status_df'][~condition] 
+        data['req_status_df'] = data['req_status_df'].infer_objects()
+        data['req_status_df'] = data['req_status_df'].ffill()
+        
         return data
 
 
-def increase_value_to_real_value(data):
-    inc_df = data['req_status_inc_df']
+def increase_value_to_real_value(tx_data_df, req_status_name_new):
+    inc_df = tx_data_df[['start_time'] + \
+            req_status_name_new].rename(columns={'start_time': 'time/us'})
     df = inc_df.copy()
     df.columns = [col[:-1] if col.endswith('+') or col.endswith('=') else col \
         for col in inc_df.columns]
 
     cur = [0 for _ in range(len(ReqStatus))]
     for i, _ in inc_df.iterrows():
-        name = data['tx_data_df']['name'].iloc[i]
+        name = tx_data_df['name'].iloc[i]
         if name == "httpReq":
             cur[0] += 1
             df.iloc[i, 1] = cur[0]
