@@ -42,4 +42,4 @@ class ExporterReqStatus(ExporterBase):
     def export(cls, data) -> None:
         metrics = data.get('req_status_df')
 
-        metrics.to_csv(Path(cls.args.output_path) / 'request_status.csv', index=False)
+        metrics.to_csv(Path(cls.args.output_path) / '.request_status.csv', index=False)

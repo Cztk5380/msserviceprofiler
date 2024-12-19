@@ -17,7 +17,6 @@ from enum import Enum
 from pathlib import Path
 import json
 import pandas as pd
-from matplotlib import pyplot as plt
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.parse import save_dataframe_to_csv

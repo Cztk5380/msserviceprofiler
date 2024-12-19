@@ -159,7 +159,7 @@ def get_cpu_freq(folder_path):
     return cpu_frequency
 
 
-def read_origin_db(db_path: str):    
+def read_origin_db(db_path: str):
     tx_data_df = concat_data_from_folder(db_path)
     cpu_data_df = find_cpu_data_from_folder(db_path)
     sys_start_cnt, cpu_start_cnt = get_start_cnt(db_path)
