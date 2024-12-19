@@ -13,12 +13,12 @@
 # limitations under the License.
 
 import unittest
-import pandas as pd
 import logging
 import os
 import io
 import pathlib
 from unittest.mock import patch
+import pandas as pd
 from ms_service_profiler.parse import save_dataframe_to_csv
 from ms_service_profiler.exporters.exporter_batch import ExporterBatchData
 
