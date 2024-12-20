@@ -158,13 +158,12 @@ class TestTimestampConverter(unittest.TestCase):
     @patch('os.makedirs')
     @patch('sqlite3.connect')
     def test_create_sqlite_db(self, mock_connect, mock_makedirs, mock_exists):
-            # Test when the output directory does not exist
-            mock_exists.return_value = False
-            output = '/path/to/output'
-            db_file = create_sqlite_db(output)
-            mock_makedirs.assert_called_once_with(output)
-            mock_connect.assert_called_once_with(os.path.join(output, '.profiler.db'))
-            self.assertEqual(db_file, os.path.join(output, '.profiler.db'))
+        mock_exists.return_value = False
+        output = '/path/to/output'
+        db_file = create_sqlite_db(output)
+        mock_makedirs.assert_called_once_with(output)
+        mock_connect.assert_called_once_with(os.path.join(output, '.profiler.db'))
+        self.assertEqual(db_file, os.path.join(output, '.profiler.db'))
 
     @patch('sqlite3.connect')
     def test_save_to_sqlite_db(self, mock_connect):

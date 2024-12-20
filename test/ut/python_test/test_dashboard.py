@@ -19,6 +19,7 @@ from ms_service_profiler.views.dashboard import (
     FIRST_TOKEN_LATENCY_SQL, GEN_SPEED_LATENCY_SQL, REQ_LATENCY_SQL
 )
 
+
 class TestCreateFirstTokenPanel(unittest.TestCase):
     def test_create_lantency_default_panel(self):
         result = get_lantency_default_panel()
