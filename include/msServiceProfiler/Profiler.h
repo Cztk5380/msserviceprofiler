@@ -188,6 +188,11 @@ namespace msServiceProfiler {
             return *this;
         }
 
+        inline Profiler &Resource(const ResID &rid)
+        {
+            return this->Res(rid);
+        }
+
         inline Profiler &Domain(const char *domainName)
         {
             if (IsEnable(level)) {
