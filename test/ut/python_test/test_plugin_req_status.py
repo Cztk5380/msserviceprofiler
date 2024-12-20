@@ -26,8 +26,7 @@ def sample_data():
     data = {
         'tx_data_df': pd.DataFrame({
             'name': ['httpReq', 'ReqState', 'httpReq', 'ReqState'],
-            'start_time': ['2024-10-03T07:28:13.102', '2024-10-03T07:28:13.103', \
-                '2024-10-03T07:28:13.104', '2024-10-03T07:28:13.105'],
+            'start_time': [1696321692, 1696321693, 1696321694, 169632165],
             'message': [{'0': 1}, {'1': 1}, {'0': 2}, {'2': 3}],
             '0+': [1, None, 2, None],
             '1+': [None, 1, None, 2],
@@ -103,7 +102,7 @@ def test_count_req_state():
     cur = [0, 0, 0]
     
     # Call the function
-    count_req_state(inc_df, df, cur, 1)
+    count_req_state(inc_df, df, cur, 1, 2)
     
     # Check if the correct values have been updated
     assert pd.isna(df.iloc[1, 1])

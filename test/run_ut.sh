@@ -5,6 +5,7 @@ CUR_DIR=$(dirname $(readlink -f $0))
 TOP_DIR=$(readlink -f ${CUR_DIR}/..)
 TEST_DIR=${TOP_DIR}/"test"
 SRC_DIR=${TOP_DIR}/"src"
+ret=1
 
 clean() {
   cd ${TEST_DIR}
@@ -24,8 +25,9 @@ run_test_python() {
   pip3 install pytest "pandas>=2.2"
   export PYTHONPATH=${TOP_DIR}:${PYTHONPATH}
   python3 -m coverage run --branch --source ${TOP_DIR}/'ms_service_profiler' -m pytest ${TEST_DIR}/ut/python_test
-  python3 -m coverage report
-  python3 -m coverage xml -o ${TEST_DIR}/coverage.xml
+  ret=$(($ret + $?))
+  python3 -m coverage report -m
+  python3 -m coverage xml -o ${TEST_DIR}/coverage.xml  
 }
 
 run_test() {
@@ -36,12 +38,12 @@ run_test() {
 main() {
   cd ${TEST_DIR}
   clean
-  local ret=1
   run_test
-  ret=$?
   if [ "x"$ret == "x"0 ]; then
+    echo "UT Success"
     exit 0
   else
+    echo "UT Failure"
     exit 1;
   fi
 }
