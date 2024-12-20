@@ -1,8 +1,21 @@
+# Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import os
 import argparse
 import unittest
-import pandas as pd
 from unittest.mock import patch
+import pandas as pd
 from ms_service_profiler.exporters.exporter_latency import (
     timestamp_converter,
     process_each_record,
@@ -24,35 +37,47 @@ class TestTimestampConverter(unittest.TestCase):
         result = timestamp_converter(timestamp)
         self.assertIn('2020-01-01', result)
 
-    def test_process_each_record_httpReq(self):
+    def test_process_each_record_request(self):
         req_map = {}
         record = {'name': 'httpReq', 'rid': '1', 'start_time': '1577836800000000', \
             'rid_list': None, 'token_id_list': None}
         process_each_record(req_map, record)
-        self.assertEqual(req_map['1']['start_time'], '1577836800000000')
+        if '1' in req_map and 'start_time' in req_map['1']:
+            self.assertEqual(req_map['1']['start_time'], '1577836800000000')
+        else:
+            raise KeyError("Key '1' or 'start_time' does not exist in req_map.")
 
-    def test_process_each_record_httpRes(self):
+    def test_process_each_record_response(self):
         req_map = {'1': {'start_time': '1577836800000000'}}
         record = {'name': 'httpRes', 'rid': '1', 'end_time': '1577836800001000', \
             'rid_list': None, 'token_id_list': None}
         process_each_record(req_map, record)
-        self.assertEqual(req_map['1']['end_time'], '1577836800001000')
-        self.assertEqual(req_map['1']['gen_last_token_time'], '1577836800001000')
+        if 'end_time' in req_map['1'] and 'gen_last_token_time' in req_map['1']:
+            self.assertEqual(req_map['1']['end_time'], '1577836800001000')
+            self.assertEqual(req_map['1']['gen_last_token_time'], '1577836800001000')
+        else:
+            raise KeyError("Key 'end_time' or 'gen_last_token_time' does not exist in req_map.")
 
     def test_process_each_record_first_token_latency(self):
         req_map = {'1': {'start_time': '1577836800000000'}}
         record = {'name': 'modeExec', 'rid': '1', 'end_time': '1577836800001000', 'during_time': 10, \
             'rid_list': ['1'], 'token_id_list': [0]}
         process_each_record(req_map, record)
-        self.assertEqual(req_map['1']['first_token_latency'], 10)
+        if 'first_token_latency' in req_map['1']:
+            self.assertEqual(req_map['1']['first_token_latency'], 10)
+        else:
+            raise KeyError("Key 'end_time' or 'gen_last_token_time' does not exist in req_map.")
 
     def test_process_each_record_gen_token_num(self):
         req_map = {'1': {'start_time': '1577836800000000'}}
         record = {'name': 'modeExec', 'rid': '1', 'end_time': '1577836800001000', 'during_time': 10, \
             'rid_list': ['1'], 'token_id_list': [0]}
         process_each_record(req_map, record)
-        self.assertEqual(req_map['1']['gen_token_num'], 1)
-        self.assertEqual(req_map['1']['gen_last_token_time'], '1577836800001000')
+        if 'gen_token_num' in req_map['1'] and 'gen_last_token_time' in req_map['1']:
+            self.assertEqual(req_map['1']['gen_token_num'], 1)
+            self.assertEqual(req_map['1']['gen_last_token_time'], '1577836800001000')
+        else:
+            raise KeyError("Key 'gen_token_num' or 'gen_last_token_time' does not exist in req_map.")
 
     def test_get_empty_metric_percentile_results(self):
         self.assertEqual(get_percentile_results([]), {})
@@ -121,10 +146,8 @@ class TestTimestampConverter(unittest.TestCase):
         }
         mock_df = pd.DataFrame(mock_data)
 
-        # 调用测试的函数
         first_token_latency_view_data, req_latency_view_data, gen_token_speed_view_data = gen_exporter_results(mock_df)
 
-        # 检查模拟函数是否被正确调用
         mock_process_each_record.assert_called()
         mock_calculate_first_token_latency.assert_called()
         mock_calculate_req_latency.assert_called()
