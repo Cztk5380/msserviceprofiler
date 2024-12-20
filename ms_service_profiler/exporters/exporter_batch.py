@@ -37,9 +37,12 @@ class ExporterBatchData(ExporterBase):
             return
         batch_df = df[df['name'] == 'BatchSchedule']
         modelexec_df = df[df['name'] == 'modelExec']
-        batch_df['resList'] = batch_df['message'].apply(lambda x: x['rid'])
-        modelexec_df['resList'] = modelexec_df['message'].apply(lambda x: x['rid'])
-        result_df = pd.concat([batch_df, modelexec_df], ignore_index=True)
+        batch_df_copy = batch_df.copy()
+        modelexec_df_copy = modelexec_df.copy()
+        # 在副本上进行操作
+        batch_df_copy.loc[:, 'resList'] = batch_df_copy['message'].apply(lambda x: x['rid'])
+        modelexec_df_copy.loc[:, 'resList'] = modelexec_df_copy['message'].apply(lambda x: x['rid'])
+        result_df = pd.concat([batch_df_copy, modelexec_df_copy], ignore_index=True)
         result_df = result_df.sort_values(by='start_time')
         model_df = result_df[['name', 'resList', 'start_time', 'end_time', 'batch_size', 'batch_type', 'during_time',]]
         model_df = model_df.rename(columns={
