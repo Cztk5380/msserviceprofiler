@@ -41,7 +41,7 @@ def process_each_record(req_map, record):
 
     rid_list = record['rid_list']
     token_id_list = record['token_id_list']
-    if rid_list is None or token_id_list is None:
+    if rid_list is None or token_id_list is None or len(rid_list) != len(token_id_list):
         return
 
     for i, value in enumerate(rid_list):
