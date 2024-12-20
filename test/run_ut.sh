@@ -5,7 +5,7 @@ CUR_DIR=$(dirname $(readlink -f $0))
 TOP_DIR=$(readlink -f ${CUR_DIR}/..)
 TEST_DIR=${TOP_DIR}/"test"
 SRC_DIR=${TOP_DIR}/"src"
-ret=1
+ret=0
 
 clean() {
   cd ${TEST_DIR}
