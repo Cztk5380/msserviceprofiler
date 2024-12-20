@@ -45,15 +45,17 @@ class TestExporterBatchData(unittest.TestCase):
         return pd.DataFrame(data)
 
     def test_export(self):
-        # 初始化args
-        ExporterKVCacheData.initialize(self.args)
-        # 调用export方法
-        ExporterKVCacheData.export(self.data)
-        # 验证CSV文件是否生成
-        file_path = Path(os.path.join(os.getcwd(), 'kvcache.csv'))
-        self.assertTrue(file_path.is_file())
-        # 清理
-        file_path.unlink()
+        try:
+            # 初始化args
+            ExporterKVCacheData.initialize(self.args)
+            # 调用export方法
+            ExporterKVCacheData.export(self.data)
+            # 验证CSV文件是否生成
+            file_path = Path(os.path.join(os.getcwd(), 'kvcache.csv'))
+            self.assertTrue(file_path.is_file())
+        finally:
+            # 清理
+            file_path.unlink()
 
     @patch('ms_service_profiler.exporters.exporter_kvcache.ExporterKVCacheData.export')
     def test_export_with_missing_tx_data_df(self, mock_export):

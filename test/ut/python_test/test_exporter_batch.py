@@ -50,17 +50,19 @@ class TestExporterBatchData(unittest.TestCase):
         return pd.DataFrame(data)
 
     def test_export(self):
-        # 设置日志记录
-        logging.basicConfig(level=logging.ERROR)
-        # 初始化args
-        ExporterBatchData.initialize(self.args)
-        # 调用export方法
-        ExporterBatchData.export(self.data)
-        # 验证CSV文件是否生成
-        file_path = Path(os.path.join(os.getcwd(), 'batch.csv'))
-        self.assertTrue(file_path.is_file())
-        # 清理
-        file_path.unlink()
+        try:
+            # 设置日志记录
+            logging.basicConfig(level=logging.ERROR)
+            # 初始化args
+            ExporterBatchData.initialize(self.args)
+            # 调用export方法
+            ExporterBatchData.export(self.data)
+            # 验证CSV文件是否生成
+            file_path = Path(os.path.join(os.getcwd(), 'batch.csv'))
+            self.assertTrue(file_path.is_file())
+        finally:
+            # 清理
+            file_path.unlink()
 
     @patch('ms_service_profiler.exporters.exporter_batch.ExporterBatchData.export')
     def test_export_with_missing_tx_data_df(self, mock_export):

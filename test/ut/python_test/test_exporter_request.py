@@ -54,13 +54,6 @@ class TestProcessData(unittest.TestCase):
             'name': ['RUNNING', 'PENDING', 'reqstate']
         })
 
-    def test_process_data_inconsistent_rows(self):
-        # 测试当pending_df和req_running_df的行数不一致时
-        self.req_running_df = self.req_running_df.iloc[:2]
-        result = process_data(self.req_en_queue_df, self.req_running_df, self.pending_df)
-        self.assertIsNone(result)
-
-
     def test_process_data_equal_rows(self):
         # 测试当req_en_queue_df和req_running_df的行数一致时
         result = process_data(self.req_en_queue_df, self.req_running_df, self.pending_df)
@@ -69,6 +62,14 @@ class TestProcessData(unittest.TestCase):
             'queue_wait_time': [11]
         })
         pd.testing.assert_frame_equal(result, expected)
+
+
+    def test_process_data_inconsistent_rows(self):
+        # 测试当pending_df和req_running_df的行数不一致时
+        self.req_running_df = self.req_running_df.iloc[:2]
+        result = process_data(self.req_en_queue_df, self.req_running_df, self.pending_df)
+        self.assertIsNone(result)
+
 
     def test_update_name(self):
         # 应用函数
@@ -117,15 +118,17 @@ class TestExporterAnalyzeData(unittest.TestCase):
         return pd.DataFrame(data)
 
     def test_export(self):
-        # 初始化args
-        ExporterAnalyzeData.initialize(self.args)
-        # 调用export方法
-        ExporterAnalyzeData.export(self.data)
-        # 验证CSV文件是否生成
-        file_path = Path(os.path.join(os.getcwd(), 'request.csv'))
-        self.assertTrue(file_path.is_file())
-        # 清理
-        file_path.unlink()
+        try:
+            # 初始化args
+            ExporterAnalyzeData.initialize(self.args)
+            # 调用export方法
+            ExporterAnalyzeData.export(self.data)
+            # 验证CSV文件是否生成
+            file_path = Path(os.path.join(os.getcwd(), 'request.csv'))
+            self.assertTrue(file_path.is_file())
+        finally:
+            # 清理
+            file_path.unlink()
 
     @patch('ms_service_profiler.exporters.exporter_request.ExporterAnalyzeData.export')
     def test_export_with_missing_tx_data_df(self, mock_export):
