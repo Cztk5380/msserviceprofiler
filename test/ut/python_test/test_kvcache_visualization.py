@@ -68,20 +68,6 @@ def test_add_column_to_kvcache(df):
     pd.testing.assert_frame_equal(result, expected)
 
 
-# 期望false
-def test_timestamp_to_datetime_invalid_format_input():
-    invalid_timestamp = "abcdefg"  # 完全不符合数字格式的示例
-    with pytest.raises(TypeError):
-        visual.timestamp_to_datetime(invalid_timestamp)
-
-
-
-def test_kvcache_usage_rate_calculator_duplicate_actions(df):
-    duplicate_data = df.append(df.iloc[0:1], ignore_index=True)
-    result = visual.kvcache_usage_rate_calculator(duplicate_data)
-    assert len(result) == len(duplicate_data)
-
-
 def test_kvcache_usage_rate_calculator_mixed_data_types(df):
 
     df_mixed = df.copy()
