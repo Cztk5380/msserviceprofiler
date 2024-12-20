@@ -19,32 +19,17 @@ import numpy as np
 from ms_service_profiler.exporters.base import ExporterBase
 
 
-req_map = {}
-
-
 def timestamp_converter(timestamp):
-    """
-    将传入的科学计数法的时间戳转换为真实时间，并在后续处理中存入kvcache.db文件中
-    :param timestamp: 科学计数法时间戳
-    :return: 真实时间
-    """
-    # 传入数据为科学计数法的时间戳数据
     timestamp_sci = timestamp
-
-    # 将科学计数法的时间戳转换为Decimal类型
     timestamp_normal = Decimal(timestamp_sci)
 
-    # 将Decimal类型转换为浮点数类型，以便后续能被fromtimestamp函数正确使用
+    # 1000000: 将Decimal类型转换为浮点数类型，以便后续能被fromtimestamp函数正确使用
     timestamp_seconds = float(timestamp_normal / 1000000)
-
-    # 将秒数转换为datetime对象
     date_time = datetime.datetime.fromtimestamp(timestamp_seconds)
-
     return date_time.strftime("%Y-%m-%d %H:%M:%S:%f")
 
 
-def process_each_record(record):
-    global req_map
+def process_each_record(req_map, record):
     name = record['name']
     rid = record['rid']
     if name == 'httpReq':
@@ -86,7 +71,7 @@ def get_percentile_results(metric):
     return metric_results
 
 
-def calculate_first_token_latency():
+def calculate_first_token_latency(req_map):
     first_token_latency = []
     for rid in req_map:
         # 计算首token时延，µs级
@@ -96,7 +81,7 @@ def calculate_first_token_latency():
     return get_percentile_results(first_token_latency)
 
 
-def calculate_req_latency():
+def calculate_req_latency(req_map):
     req_latency = []
     for rid in req_map:
         cur_req_start_time = req_map[rid]['start_time']
@@ -109,7 +94,7 @@ def calculate_req_latency():
     return get_percentile_results(req_latency)
 
 
-def calculate_gen_token_speed_latency():
+def calculate_gen_token_speed_latency(req_map):
     gen_token_speed = []
     min_start_time = float('inf')
     for rid in req_map:
@@ -120,6 +105,8 @@ def calculate_gen_token_speed_latency():
         cur_req_gen_token_num = req_map[rid]['gen_token_num']
         gen_last_token_time = req_map[rid]['gen_last_token_time']
         diff_time = gen_last_token_time - min_start_time
+        if diff_time <= 0:
+            raise ValueError("The execution time for generating the token is a negative number.")
         cur_gen_speed = round(cur_req_gen_token_num / (diff_time / 1000000), 4) # 1000000:换算为秒级
         gen_token_speed.append(cur_gen_speed)
 
@@ -127,41 +114,40 @@ def calculate_gen_token_speed_latency():
 
 
 def gen_exporter_results(all_data_df):
+    req_map = {}
     first_token_latency_view_data = {}
     req_latency_view_data = {}
     gen_token_speed_view_data = {}
 
     for _, record in all_data_df.iterrows():
-        process_each_record(record)
+        process_each_record(req_map, record)
 
         # 生成首token时延
         if record['batch_type'] == 'Prefill':
-            first_token_latency_results = calculate_first_token_latency()
+            first_token_latency_results = calculate_first_token_latency(req_map)
             cur_timestamp = timestamp_converter(record['end_time'])
             first_token_latency_view_data[cur_timestamp] = first_token_latency_results
 
         # 生成请求端到端时延
         if record['name'] == 'httpRes':
-            req_latency_results = calculate_req_latency()
+            req_latency_results = calculate_req_latency(req_map)
             cur_timestamp = timestamp_converter(record['end_time'])
             req_latency_view_data[cur_timestamp] = req_latency_results
 
         # 生成token平均时延
         if record['rid_list'] is not None:
-            gen_token_speed_results = calculate_gen_token_speed_latency()
+            gen_token_speed_results = calculate_gen_token_speed_latency(req_map)
             cur_timestamp = timestamp_converter(record['end_time'])
             gen_token_speed_view_data[cur_timestamp] = gen_token_speed_results
 
     return first_token_latency_view_data, req_latency_view_data, gen_token_speed_view_data
 
 
-def create_sqlite_db():
-    current_path = os.path.dirname(os.path.abspath(__file__))
-    output_path = os.path.join(current_path, 'output')
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
+def create_sqlite_db(output):
+    if not os.path.exists(output):
+        os.makedirs(output)
 
-    db_file = os.path.join(output_path, 'profiler.db')
+    db_file = os.path.join(output, '.profiler.db')
     conn = sqlite3.connect(db_file)
     conn.isolation_level = None
     cursor = conn.cursor()
@@ -196,11 +182,12 @@ class ExporterLatency(ExporterBase):
     @classmethod
     def export(cls, data) -> None:
         all_data_df = data['tx_data_df']
+        output = cls.args.output_path
 
         first_token_latency_view_data, req_latency_view_data, gen_token_speed_view_data = \
             gen_exporter_results(all_data_df)
 
-        db_file_path = create_sqlite_db()
+        db_file_path = create_sqlite_db(output)
         save_to_sqlite_db(db_file_path, 'first_token_latency', first_token_latency_view_data)
         save_to_sqlite_db(db_file_path, 'req_latency', req_latency_view_data)
         save_to_sqlite_db(db_file_path, 'gen_speed', gen_token_speed_view_data)
