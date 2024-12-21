@@ -178,7 +178,7 @@ namespace msServiceProfiler {
             return *this;
         }
 
-        inline Profiler &Res(const ResID &rid)
+        inline Profiler &Resource(const ResID &rid)
         {
             if (IsEnable(level)) {
                 if (!rid.IsIllegal()) {
@@ -188,9 +188,11 @@ namespace msServiceProfiler {
             return *this;
         }
 
-        inline Profiler &Resource(const ResID &rid)
+        template <typename T>
+        inline Profiler &ArrayResource(const T &startIter, const T &endIter,
+                                       typename ArrayCollectorHelper<Profiler<level>, T>::AttrCollectCallback callback)
         {
-            return this->Res(rid);
+            return this->ArrayAttr("rid", startIter, endIter, callback);
         }
 
         inline Profiler &Domain(const char *domainName)
