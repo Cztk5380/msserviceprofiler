@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 
 from ms_service_profiler.parse import parse
 from ms_service_profiler.exporters.factory import ExporterFactory
+from ms_service_profiler.exporters.utils import create_sqlite_db
 from ms_service_profiler.plugins import custom_plugins
 
 
@@ -72,6 +73,7 @@ def main():
     
     # 创建output目录
     Path(args.output_path).mkdir(parents=True, exist_ok=True)
+    create_sqlite_db(args.output_path)
 
     # 解析数据并导出
     parse(args.input_path, custom_plugins, exporters)
