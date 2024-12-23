@@ -14,6 +14,7 @@
 
 import os
 import json
+import re
 import sqlite3
 from pathlib import Path
 import pandas as pd
@@ -78,34 +79,34 @@ def load_data_from_database(db_path):
 
 def extract_span_info_from_message(message, mark_id):
     span_id = str(mark_id)
-    if message.startswith('span') and '|' in message and '=' in message:
-        span_part = message.split("|")[0]
-        span_id = span_part.split("=")[1]
-        message = message.split("|")[1]
-        return span_id, message
+    groups = re.match("span=(\\d+)[|*](.*)", message)
+    if groups:
+        span_id = groups[1]
+        message = groups[2]
     return span_id, message
 
 
 def concat_data_from_folder(folder_path):
     full_df = pd.DataFrame()
-    
+
     def merge_message(series):
         series_merge = series.sort_values("mark_id")
-        series_merge.iloc[0, series_merge.columns.get_loc("message")] = "".join(series_merge["message"])
+        all_msg = "".join(series_merge["message"]).replace("#", "\"")
+        series_merge.iloc[0, series_merge.columns.get_loc("message")] = all_msg
         return series_merge.iloc[0]
-    
+
     for root, _, files in os.walk(folder_path):
         for filename in files:
             if filename == 'msproftx.db':
                 db_path = os.path.join(root, filename)
                 data_df = load_data_from_database(db_path)
-                
+
                 span_info = data_df[["mark_id", "message"]].apply(
                     lambda x: extract_span_info_from_message(x["message"], x["mark_id"]), axis=1
                 )
                 data_df[["span_id", "message"]] = pd.DataFrame(span_info.tolist())
                 data_df = data_df.groupby("span_id").apply(merge_message, include_groups=False)
-                
+
                 full_df = pd.concat([full_df, data_df], ignore_index=True)
     if full_df.empty:
         raise ValueError(f"No valid database found in {folder_path}, please check.")
@@ -171,7 +172,7 @@ def read_origin_db(db_path: str):
         sys_start_cnt=sys_start_cnt,
         cpu_start_cnt=cpu_start_cnt,
         cpu_frequency=cpu_frequency
-        )
+    )
 
 
 def parse(input_path, custom_plugins, exporters):
@@ -185,4 +186,3 @@ def parse(input_path, custom_plugins, exporters):
     # 导出数据
     for exporter in exporters:
         exporter.export(data)
-
