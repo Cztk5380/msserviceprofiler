@@ -26,19 +26,28 @@ class PluginMetric(PluginBase):
         if tx_data_df is None:
             raise ValueError("tx_data_df is None")
         
-        columns = [metric for metric in tx_data_df.columns if metric.endswith('+') or metric.endswith('=')]
+        metric_cols = [col for col in tx_data_df.columns if is_metric(col)]
+        
+        metric_data_df = tx_data_df[['start_time'] + metric_cols].copy()
+        metric_data_df.loc[tx_data_df['name'] == 'httpReq', 'WAITING+'] = 1.0
 
-        tx_data_df['metrics'] = tx_data_df[columns].apply(
-            lambda row: {col: row[col] for col in columns if row[col] is not None}, axis=1).apply(
-            lambda x: None if x == {} else x)        
-        
-        metric_data_df = pd.concat([tx_data_df[['start_time', 'metrics'] + columns]], axis=1)
-        metric_data_df = metric_data_df.query("metrics == metrics")
-        metric_data_df = metric_data_df.rename(columns={'start_time': 'time'})
-        
+        increase_metric_cols = [col for col in metric_cols if col[-1] == "+"]
+        metric_data_df[increase_metric_cols] = cal_increase_value(metric_data_df[increase_metric_cols])   
+
+        metric_data_df = metric_data_df.rename(columns={col: col[:-1] for col in metric_cols})
         data['tx_data_df'] = tx_data_df
-        data['metric_data_df'] = metric_data_df[['time', 'metrics']]
-        data['metric_data_details_df'] = metric_data_df
+        data['metric_data_df'] = metric_data_df
         return data
 
 
+def is_metric(name):
+    if isinstance(name, str) and name and name[-1] in ['+', '=']:
+        return True
+    return False
+
+
+def cal_increase_value(df):
+    df = df.apply(pd.to_numeric, errors='coerce')
+    df = df.fillna(0)
+    df = df.cumsum(axis=0)
+    return df

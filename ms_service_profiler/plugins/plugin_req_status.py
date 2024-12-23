@@ -18,8 +18,7 @@ import datetime
 import pandas as pd
 
 from ms_service_profiler.plugins.base import PluginBase
-
-pd.set_option('future.no_silent_downcasting', True)
+from ms_service_profiler.plugins.plugin_metric import is_metric
 
 
 class ReqStatus(Enum):
@@ -46,84 +45,15 @@ class PluginReqStatus(PluginBase):
         
         tx_data_df['message'] = tx_data_df['message'].apply(parse_message_state_name)
 
-        req_status_name = [col for col in tx_data_df.columns if is_req_status_metric(col)]
-        req_status_name_new = [status_index_to_status_name(metric) for metric in req_status_name]
-        tx_data_df = tx_data_df.rename(columns={key: value for key, value in zip(req_status_name, req_status_name_new)})
+        rename_mapping = {
+            col: status_index_to_status_name(col) 
+            for col in tx_data_df.columns
+            if is_req_status_metric(col)
+        }
+        tx_data_df = tx_data_df.rename(columns=rename_mapping)
+
         data['tx_data_df'] = tx_data_df
-        
-
-        data['req_status_df'] = increase_value_to_real_value(tx_data_df, req_status_name_new)
-        
-        for column in data['req_status_df'].columns:
-            if pd.isna(data['req_status_df'][column].iloc[0]): 
-                data['req_status_df'][column] = data['req_status_df'][column].fillna(0)        
-        subset = data['req_status_df'].iloc[:, 2:]
-        condition = subset.isna().all(axis=1)
-        data['req_status_df'] = data['req_status_df'][~condition] 
-        data['req_status_df'] = data['req_status_df'].infer_objects()
-        data['req_status_df'] = data['req_status_df'].ffill()
-        
         return data
-
-
-def us_to_time(us):
-    # 将毫秒转换为秒，保留微秒部分
-    seconds = us / 1e6
-    time_obj = datetime.timedelta(seconds=seconds)
-
-    # 将 timedelta 转换为格式为 HH:MM:SS.mmmmmm
-    formatted_time = str(time_obj)
-    
-    # 如果 formatted_time 中包含 "day"，表示时间超过一天
-    if "day" in formatted_time:
-        formatted_time = formatted_time.split()[2]  # 只取 HH:MM:SS 部分
-    elif len(formatted_time.split(":")[0]) < 2:
-        # 不足 1 小时，手动补充为 00:00:00
-        formatted_time = "00:" + ":".join(formatted_time.split(":")[1:])
-
-    # 如果没有微秒部分，补充 0
-    if '.' not in formatted_time:
-        formatted_time += '.000000'
-    else:
-        # 如果已经有微秒部分，确保微秒是 6 位
-        formatted_time = formatted_time.ljust(15, '0')[:15]  # 补充至6位
-    
-    return formatted_time
-
-
-def increase_value_to_real_value(tx_data_df, req_status_name_new):
-    inc_df = tx_data_df[['start_time'] + \
-            req_status_name_new].rename(columns={'start_time': 'time/us'})
-    inc_df['time/us'] -= inc_df['time/us'].iloc[0]
-    inc_df.insert(1, 'datetime', inc_df['time/us'].apply(us_to_time))
-    df = inc_df.copy()
-    df.columns = [col[:-1] if col.endswith('+') or col.endswith('=') else col \
-        for col in inc_df.columns]
-
-    cur = [0 for _ in range(len(ReqStatus))]
-    for i, _ in inc_df.iterrows():
-        name = tx_data_df['name'].iloc[i]
-        if name == "httpReq":
-            cur[0] += 1
-            df.iloc[i, 1] = cur[0]
-        elif name == "ReqState":
-            count_req_state(inc_df, df, cur, i, 2)
-    return df
-
-
-def count_req_state(inc_df, df, cur, index, col_start_index):
-    for j, _ in enumerate(inc_df.columns[col_start_index:]):
-        inc_value = inc_df.iloc[index, col_start_index+j]
-        if inc_value is None:
-            continue
-        cur[j] += inc_value
-        df.iloc[index, col_start_index+j] = cur[j]
-
-
-def is_metric(name):
-    if name[-1] in ['+', '=']:
-        return True
-    return False
 
 
 def is_req_status_metric(metric):
@@ -134,7 +64,7 @@ def is_req_status_metric(metric):
 
 def status_index_to_status_name(metric):
     # 验证 metric 的格式
-    if not is_metric(metric) or not metric[:-1].isdigit():
+    if not is_req_status_metric(metric):
         return metric
     
     try:

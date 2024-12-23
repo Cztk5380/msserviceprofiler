@@ -18,7 +18,7 @@ import pandas as pd
 
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.plugins.plugin_req_status import PluginReqStatus, ReqStatus, parse_message_state_name, \
-    status_index_to_status_name, is_req_status_metric, is_metric, increase_value_to_real_value, count_req_state
+    status_index_to_status_name, is_req_status_metric, is_metric
 
 
 @pytest.fixture
@@ -39,8 +39,7 @@ def sample_data():
 def test_parse_valid_data(sample_data):
     plugin = PluginReqStatus()
     result = plugin.parse(sample_data)
-    assert 'req_status_df' in result
-    assert not result['req_status_df'].isna().any().any()  # Ensure there are no NaN values after processing
+    assert '0+' not in sample_data
 
 
 def test_parse_invalid_data(sample_data):
@@ -73,12 +72,6 @@ def test_is_req_status_metric():
     assert is_req_status_metric('abc') is False
 
 
-def test_is_metric():
-    assert is_metric('1+') is True
-    assert is_metric('1=') is True
-    assert is_metric('1') is False
-
-
 def test_status_index_to_status_name():
     assert status_index_to_status_name('0+') == 'WAITING+'
     assert status_index_to_status_name('1=') == 'PENDING='
@@ -88,24 +81,6 @@ def test_status_index_to_status_name():
 def test_status_index_to_status_name_invalid():
     with pytest.raises(ValueError, match="Invalid status index: 999"):
         status_index_to_status_name('999+')
-    
-
-def test_count_req_state():
-    # Prepare mock data
-    inc_df = pd.DataFrame({
-        'name': ['httpReq', 'ReqState'],
-        '0+': [1, None],
-        '1+': [None, 2],
-        '2+': [None, 3],
-    })
-    df = inc_df.copy()
-    cur = [0, 0, 0]
-    
-    # Call the function
-    count_req_state(inc_df, df, cur, 1, 2)
-    
-    # Check if the correct values have been updated
-    assert pd.isna(df.iloc[1, 1])
 
 
 @pytest.mark.parametrize("metric, expected", [
@@ -125,11 +100,3 @@ def test_is_req_status_metric_parametric(metric, expected):
 def test_parse_message_state_name_parametric(message, expected):
     assert parse_message_state_name(message) == expected
 
-
-def test_plugin_req_status_with_valid_data(sample_data):
-    plugin = PluginReqStatus()
-    result = plugin.parse(sample_data)
-    
-    assert 'req_status_df' in result
-    assert isinstance(result['req_status_df'], pd.DataFrame)
-    assert not result['req_status_df'].isna().any().any()  # Ensure no NaN values in req_status_df

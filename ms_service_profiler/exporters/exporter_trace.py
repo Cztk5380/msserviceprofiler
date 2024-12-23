@@ -91,7 +91,7 @@ def create_trace_events(all_data_df, cpu_data_df):
                     "pid": data['pid'],
                     "tid": data['name'],
                     "cat": "Request Status",
-                    "args": {**{'rid': data['rid']}, **add_args_for_state_type(data['message'])}
+                    "args": {**{'rid': data['rid']}, **data['message']}
                 },
             )
         if data['event_type'] == "start/end" and data['name'] is not None:
@@ -173,25 +173,3 @@ def add_cpu_events(cpu_data_df, trace_events):
             }
         )
     return trace_events
-
-
-def add_args_for_state_type(message):
-    args = {}
-    name = message.get('name', None)
-    if name == 'httpReq':
-        args['recvTokenSize'] = message.get('recvTokenSize', None)
-    if name == 'ReqEnQueue':
-        args['queueID'] = message.get('queue', None)
-        args['queueSize'] = message.get('size', None)
-    if name == 'deviceKvCache':
-        args['kvCacheValue'] = message.get('value', None)
-        args['name'] = message.get('event', None)
-    if name == 'hostKvCache':
-        args['kvCacheValue'] = message.get('value', None)
-        args['name'] = message.get('event', None)
-    if name == 'ReqDeQueue':
-        args['queueID'] = message.get('queue', None)
-        args['queueSize'] = message.get('size', None)
-    if name == 'httpRes':
-        args['replyTokenSize'] = message.get('replyTokenSize', None)
-    return args
