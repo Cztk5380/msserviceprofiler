@@ -91,7 +91,7 @@ def concat_data_from_folder(folder_path):
 
     def merge_message(series):
         series_merge = series.sort_values("mark_id")
-        all_msg = "".join(series_merge["message"]).replace("#", "\"")
+        all_msg = "".join(series_merge["message"]).replace("^", "\"")
         series_merge.iloc[0, series_merge.columns.get_loc("message")] = all_msg
         return series_merge.iloc[0]
 

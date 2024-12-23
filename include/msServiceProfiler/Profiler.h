@@ -97,7 +97,7 @@ namespace msServiceProfiler {
             if (!IsEnable(levelAttr)) {
                 return *this;
             }
-            msg_.append("#").append(attrName).append("#:[");
+            msg_.append("^").append(attrName).append("^:[");
             for (T iter = startIter; iter != endIter; ++iter) {
                 msg_.append(std::to_string(*iter)).append(",");
             }
@@ -118,7 +118,7 @@ namespace msServiceProfiler {
                 return *this;
             }
 
-            msg_.append("#").append(attrName).append("#:[");
+            msg_.append("^").append(attrName).append("^:[");
             for (T iter = startIter; iter != endIter; ++iter) {
                 msg_.append("{");
                 callback(this, iter);
@@ -142,7 +142,7 @@ namespace msServiceProfiler {
         inline Profiler &Attr(const char *attrName, const char *value)
         {
             if (IsEnable(levelAttr)) {
-                msg_.append("#").append(attrName).append("#:#").append(value).append("#,");
+                msg_.append("^").append(attrName).append("^:^").append(value).append("^,");
             }
             return *this;
         }
@@ -151,7 +151,7 @@ namespace msServiceProfiler {
         inline Profiler &Attr(const char *attrName, const std::string &value)
         {
             if (IsEnable(levelAttr)) {
-                msg_.append("#").append(attrName).append("#:#").append(value).append("#,");
+                msg_.append("^").append(attrName).append("^:^").append(value).append("^,");
             }
             return *this;
         }
@@ -173,7 +173,7 @@ namespace msServiceProfiler {
         inline Profiler &Attr(const char *attrName, const T value)
         {
             if (IsEnable(levelAttr)) {
-                msg_.append("#").append(attrName).append("#:").append(std::to_string(value)).append(",");
+                msg_.append("^").append(attrName).append("^:").append(std::to_string(value)).append(",");
             }
             return *this;
         }
@@ -250,7 +250,7 @@ namespace msServiceProfiler {
         inline Profiler &Metric(const char *metricName, T value)
         {
             if (this->IsEnable(level)) {
-                msg_.append("#").append(metricName).append("=#:").append(std::to_string(value)).append(",");
+                msg_.append("^").append(metricName).append("=^:").append(std::to_string(value)).append(",");
             }
             return *this;
         }
@@ -259,7 +259,7 @@ namespace msServiceProfiler {
         inline Profiler &MetricInc(const char *metricName, T value)
         {
             if (this->IsEnable(level)) {
-                msg_.append("#").append(metricName).append("+#:").append(std::to_string(value)).append(",");
+                msg_.append("^").append(metricName).append("+^:").append(std::to_string(value)).append(",");
             }
             return *this;
         }
@@ -268,7 +268,7 @@ namespace msServiceProfiler {
         inline Profiler &MetricScope(const char *scopeName, T value)
         {
             if (this->IsEnable(level)) {
-                msg_.append("#scope#").append(scopeName).append("#:").append(std::to_string(value)).append(",");
+                msg_.append("^scope#").append(scopeName).append("^:").append(std::to_string(value)).append(",");
             }
             return *this;
         }
@@ -277,7 +277,7 @@ namespace msServiceProfiler {
         inline Profiler &MetricScopeAsReqID()
         {
             if (this->IsEnable(level)) {
-                msg_.append("#scope##:#req#,");
+                msg_.append("^scope#^:^req^,");
             }
             return *this;
         }

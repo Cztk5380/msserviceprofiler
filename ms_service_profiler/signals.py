@@ -70,7 +70,7 @@ class Profiler:
             service_profiler.mark_event(self.get_msg())
 
     def get_msg(self):
-        return json.dumps(self._attr)
+        return json.dumps(self._attr).replace("\"", "^")
 
     def link(self, from_rid, to_rid):
         if self._enable:
