@@ -45,8 +45,11 @@ class PluginReqStatus(PluginBase):
         
         tx_data_df['message'] = tx_data_df['message'].apply(parse_message_state_name)
 
-        rename_mapping = {col: status_index_to_status_name(col) for col in tx_data_df.columns \
-            if is_req_status_metric(col)}
+        rename_mapping = {
+            col: status_index_to_status_name(col) 
+            for col in tx_data_df.columns
+            if is_req_status_metric(col)
+        }
         tx_data_df = tx_data_df.rename(columns=rename_mapping)
 
         data['tx_data_df'] = tx_data_df
