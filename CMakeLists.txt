@@ -103,6 +103,7 @@ target_link_libraries(ms_service_profiler
 target_link_libraries(test_server_profiler
         ascendcl
         msprofiler
+        ms_tools_ext
         dl
         pthread
 )
