@@ -13,22 +13,13 @@
 # limitations under the License.
 
 from enum import Enum
-
 from pathlib import Path
 
+import pandas as pd
+
 from ms_service_profiler.exporters.base import ExporterBase
-
-
-class ReqStatus(Enum):
-    WAITING = 0
-    PENDING = 1
-    RUNNING = 2
-    SWAPPED = 3
-    RECOMPUTE = 4
-    SUSPENDED = 5
-    END = 6
-    STOP = 7
-    PREFILL_HOLD = 8
+from ms_service_profiler.plugins.plugin_req_status import ReqStatus
+from ms_service_profiler.exporters.utils import add_table_into_visual_db
 
 
 class ExporterReqStatus(ExporterBase):
@@ -40,6 +31,11 @@ class ExporterReqStatus(ExporterBase):
 
     @classmethod
     def export(cls, data) -> None:
-        metrics = data.get('req_status_df')
+        metrics = data.get('metric_data_df')
+        req_status_cols = [col for col in metrics.columns if col in ReqStatus.__members__]
 
-        metrics.to_csv(Path(cls.args.output_path) / '.request_status.csv', index=False)
+        df = metrics[req_status_cols]
+        df.insert(0, 'time/us', metrics['start_time'] - metrics['start_time'].iloc[0])
+        df = df.astype(int)
+
+        add_table_into_visual_db(df, 'request_status')
