@@ -13,13 +13,14 @@
 # limitations under the License.
 
 from enum import Enum   
-
+import logging
 from pathlib import Path
 import json
 import pandas as pd
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.parse import save_dataframe_to_csv
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class ExporterBatchData(ExporterBase):
@@ -36,7 +37,9 @@ class ExporterBatchData(ExporterBase):
             logging.error("The data is empty, please check")
             return
         batch_df = df[(df['name'] == 'BatchSchedule') | (df['name'] == 'modelExec')]
-
+        if batch_df is None:
+            logging.error("The data is empty, please check")
+            return
         model_df = batch_df[['name', 'res_list', 'start_time', 'end_time', 'batch_size', 'batch_type', 'during_time',]]
         model_df = model_df.rename(columns={
             'start_time': 'start_time(microsecond)',
