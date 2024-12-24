@@ -65,7 +65,7 @@ ORDER BY
     datetime ASC;
 """
 
-GEN_SPEED_LATENCY_SQL = """
+PREFILL_GEN_SPEED_LATENCY_SQL = """
 WITH converted AS (
     SELECT
         substr(timestamp, 1, 10) || 'T' || substr(timestamp, 12, 8) || 'Z' AS datetime,
@@ -74,7 +74,30 @@ WITH converted AS (
         p90,
         p50
     FROM
-        gen_speed
+        prefill_gen_speed
+)
+SELECT
+    datetime as time,
+    cast(avg as REAL) as "avg",
+    cast(p99 as REAL) as "p99",
+    cast(p90 as REAL) as "p90",
+    cast(p50 as REAL) as "p50"
+FROM
+    converted
+ORDER BY
+    datetime ASC;
+"""
+
+DECODE_GEN_SPEED_LATENCY_SQL = """
+WITH converted AS (
+    SELECT
+        substr(timestamp, 1, 10) || 'T' || substr(timestamp, 12, 8) || 'Z' AS datetime,
+        avg,
+        p99,
+        p90,
+        p50
+    FROM
+        decode_gen_speed
 )
 SELECT
     datetime as time,
@@ -168,7 +191,8 @@ def create_dashboard_json(datasource_uid):
             "panels": [
                 create_batch_panel(datasource_uid),
                 create_first_token_panel(datasource_uid),
-                create_generate_speed_panel(datasource_uid),
+                create_prefill_gen_speed_panel(datasource_uid),
+                create_decode_gen_speed_panel(datasource_uid),
                 create_request_latency_panel(datasource_uid),
                 create_req_status_panel(datasource_uid),
                 create_kvcache_panel(datasource_uid)
@@ -356,10 +380,10 @@ def create_first_token_panel(datasource_uid):
     }
 
 
-def create_generate_speed_panel(datasource_uid):
+def create_prefill_gen_speed_panel(datasource_uid):
     return {
         "type": "timeseries",
-        "title": "generate_speed_latency",
+        "title": "prefill_generate_speed_latency",
         "gridPos": {
             "x": 0,
             "y": 16,
@@ -373,9 +397,43 @@ def create_generate_speed_panel(datasource_uid):
         "pluginVersion": "11.3.0",
         "targets": [
             {
-            "queryText": GEN_SPEED_LATENCY_SQL,
+            "queryText": PREFILL_GEN_SPEED_LATENCY_SQL,
             "queryType": "time series",
-            "rawQueryText": GEN_SPEED_LATENCY_SQL,
+            "rawQueryText": PREFILL_GEN_SPEED_LATENCY_SQL,
+            "refId": "A",
+            "timeColumns": [
+                "time",
+                "ts"
+            ]
+            }
+        ],
+        "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": f"{datasource_uid}"
+        }
+    }
+
+
+def create_decode_gen_speed_panel(datasource_uid):
+    return {
+        "type": "timeseries",
+        "title": "decode_generate_speed_latency",
+        "gridPos": {
+            "x": 0,
+            "y": 16,
+            "h": 8,
+            "w": 12
+        },
+        "fieldConfig": {
+            "defaults": get_lantency_default_panel(),
+            "overrides": []
+        },
+        "pluginVersion": "11.3.0",
+        "targets": [
+            {
+            "queryText": DECODE_GEN_SPEED_LATENCY_SQL,
+            "queryType": "time series",
+            "rawQueryText": DECODE_GEN_SPEED_LATENCY_SQL,
             "refId": "A",
             "timeColumns": [
                 "time",
