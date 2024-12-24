@@ -67,7 +67,7 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
 {
     std::string spanTag;
     spanTag.reserve(MAX_TX_MSG_LEN);
-    spanTag.append("span=").append(std::to_string(spanHandle)).append("|");
+    spanTag.append("span=").append(std::to_string(spanHandle)).append("*");
     auto spanTagSize = spanTag.size();
     auto msgLen = strlen(msg);
     auto maxMarkSize = MAX_TX_MSG_LEN - spanTagSize - 1;

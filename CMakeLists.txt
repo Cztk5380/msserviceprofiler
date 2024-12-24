@@ -7,6 +7,7 @@ project(ms_service_profiler)
 # make
 # cmake --install . --prefix ../../ms_service_profiler
 
+set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_SKIP_RPATH TRUE)
 set(CMAKE_CXX_STANDARD 11)
 add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
@@ -103,10 +104,11 @@ target_link_libraries(ms_service_profiler
 target_link_libraries(test_server_profiler
         ascendcl
         msprofiler
-        ms_tools_ext
         dl
         pthread
 )
+
+target_compile_definitions(test_server_profiler PUBLIC -DENABLE_PROF)
 
 install(TARGETS ms_service_profiler
         LIBRARY DESTINATION lib
