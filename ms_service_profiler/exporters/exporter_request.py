@@ -27,9 +27,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 
 def update_name(row):
-    if row['RUNNING+'] == 1:
+    if row['RUNNING'] == 1:
         row['name'] = 'RUNNING'
-    elif row['PENDING+'] == 1:
+    elif row['PENDING'] == 1:
         row['name'] = 'PENDING'
     return row
 

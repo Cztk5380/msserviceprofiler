@@ -18,7 +18,7 @@ from ms_service_profiler.plugins.base import PluginBase
 
 class PluginMetric(PluginBase):
     name = "plugin_metric"
-    depends = ["plugin_common", "plugin_req_status", "plugin_timestamp"]
+    depends = ["plugin_common", "plugin_req_status"]
 
     @classmethod
     def parse(cls, data):

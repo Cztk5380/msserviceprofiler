@@ -18,16 +18,31 @@ import psutil
 from ms_service_profiler.constant import US_PER_SECOND
 from ms_service_profiler.plugins.base import PluginBase
 
-
-SYS_TS = psutil.boot_time()
+SYS_TS = 1733229954.552243
 
 
 class PluginTimeStamp(PluginBase):
     name = "plugin_timestamp"
     depends = []
+    helper = PluginTimeStampHelper()
+
+    @classmethod
+    def parse(cls, data_list):
+        res = []
+        for data in data_list:
+            res.append(helper.parse(data))
+        return res
+
+
+class PluginTimeStampHelper(PluginBase):
+    name = "plugin_timestamp_helper"
+    depends = []
 
     @classmethod
     def parse(cls, data):
+        global SYS_TS
+        SYS_TS = data.get('sys_start_time')
+
         tx_data_df = data.get('tx_data_df')
         cpu_data_df = data.get('cpu_data_df')
         cpu_start_cnt = data.get('cpu_start_cnt')
@@ -38,8 +53,7 @@ class PluginTimeStamp(PluginBase):
         tx_data_df['end_time'] = convert_syscnt_to_ts(tx_data_df['end_time'], sys_start_cnt, cpu_frequency)
         tx_data_df['start_datatime'] = tx_data_df['start_time'].apply(timestamp_converter)
         tx_data_df['end_datatime'] = tx_data_df['end_time'].apply(timestamp_converter)
-        tx_data_df['during_time'] = tx_data_df['end_time'] - tx_data_df['start_time']
-        
+        tx_data_df['during_time'] = tx_data_df['end_time'] - tx_data_df['start_time']        
 
         cpu_data_df['start_time'] = convert_syscnt_to_ts(cpu_data_df['start_time'], cpu_start_cnt, cpu_frequency)
         cpu_data_df['end_time'] = convert_syscnt_to_ts(cpu_data_df['end_time'], cpu_start_cnt, cpu_frequency)
@@ -47,8 +61,10 @@ class PluginTimeStamp(PluginBase):
         cpu_data_df['end_datatime'] = cpu_data_df['end_time'].apply(timestamp_converter)
         cpu_data_df['during_time'] = cpu_data_df['end_time'] - cpu_data_df['start_time']
 
-        data['cpu_data_df'] = cpu_data_df
-        data['tx_data_df'] = tx_data_df
+        data = {
+            'cpu_data_df': cpu_data_df,
+            'tx_data_df': tx_data_df,
+        }
         return data
 
 
