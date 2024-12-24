@@ -233,6 +233,15 @@ namespace msServiceProfiler {
         {
         }
 
+        Profiler& operator =(Profiler &obj)
+        {
+            autoEnd_ = obj.autoEnd_;
+            spanHandle_ = obj.spanHandle_;
+            msg_ = std::move(obj.msg_);
+            obj.autoEnd_ = false;
+            return *this;
+        }
+
         Profiler(Profiler &obj):autoEnd_(obj.autoEnd_), spanHandle_(obj.spanHandle_), msg_(std::move(obj.msg_))
         {
             obj.autoEnd_ = false;
