@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
 SHELL_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
