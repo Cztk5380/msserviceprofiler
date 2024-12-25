@@ -1,24 +1,11 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import json
-import logging
 import os
 
 import requests
 
-logging.basicConfig(level=logging.INFO)
+from ms_service_profiler.utils.log import logger
 
 
 def create_datasource(grafana_url, token, db_path):
@@ -62,16 +49,16 @@ def update_or_create_datasource(url, datasource_json, headers, is_update=False):
 
         if response.status_code == 200:
             datasource_uid = response.json()['datasource']['uid']
-            logging.info(f"Datasource {'updated' if is_update else 'created'} successfully. UID: {datasource_uid}")
+            logger.info(f"Datasource {'updated' if is_update else 'created'} successfully. UID: {datasource_uid}")
             return datasource_uid
         else:
             raise ValueError(f"Failed to configure datasource: {response.status_code}, {response.text}")
 
     except requests.RequestException as e:
-        logging.error(f"An error occurred during the request: {e}")
+        logger.error(f"An error occurred during the request: {e}")
         raise
     except Exception as e:
-        logging.error(f"An unknown error occurred: {e}")
+        logger.error(f"An unknown error occurred: {e}")
         raise
 
 
@@ -89,10 +76,10 @@ def is_datasource_exists(grafana_url, token):
             raise ValueError(f"Failed to fetch datasources: {response.status_code}, {response.text}")
 
     except requests.RequestException as e:
-        logging.error(f"An error occurred while checking the datasource: {e}")
+        logger.error(f"An error occurred while checking the datasource: {e}")
         raise
     except Exception as e:
-        logging.error(f"An unknown error occurred: {e}")
+        logger.error(f"An unknown error occurred: {e}")
         raise
 
 
@@ -101,7 +88,7 @@ def get_datasource_id(data_sources):
     for datasource in data_sources:
         if datasource['name'] == "Profiler SQLite Datasource":
             datasource_id = datasource['id']
-            logging.info(f"Datasource 'Profiler SQLite Datasource' exists, UID is {datasource_id}")
+            logger.info(f"Datasource 'Profiler SQLite Datasource' exists, UID is {datasource_id}")
             return datasource_id
-    logging.info("Datasource 'Profiler SQLite Datasource' not found, create a new datasource.")
+    logger.info("Datasource 'Profiler SQLite Datasource' not found, create a new datasource.")
     return datasource_id

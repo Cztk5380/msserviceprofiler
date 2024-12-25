@@ -1,22 +1,11 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+
 import unittest
 from unittest.mock import patch
 from ms_service_profiler.views.dashboard import (
     create_first_token_panel, get_lantency_default_panel, 
-    create_generate_speed_panel, create_request_latency_panel, 
-    FIRST_TOKEN_LATENCY_SQL, GEN_SPEED_LATENCY_SQL, REQ_LATENCY_SQL
+    create_prefill_gen_speed_panel, create_request_latency_panel, 
+    FIRST_TOKEN_LATENCY_SQL, PREFILL_GEN_SPEED_LATENCY_SQL, REQ_LATENCY_SQL
 )
 
 
@@ -49,14 +38,14 @@ class TestCreateFirstTokenPanel(unittest.TestCase):
 
 
     @patch('ms_service_profiler.views.dashboard.get_lantency_default_panel')
-    def test_create_generate_speed_panel(self, mock_get_lantency_default_panel):
+    def test_create_prefill_gen_speed_panel(self, mock_get_lantency_default_panel):
         mock_get_lantency_default_panel.return_value = {"mock": "mock"}
 
-        result = create_generate_speed_panel('0123')
+        result = create_prefill_gen_speed_panel('0123')
 
         self.assertEqual(result['type'], 'timeseries')
-        self.assertEqual(result['title'], 'generate_speed_latency')
-        self.assertEqual(result['targets'][0]['queryText'], GEN_SPEED_LATENCY_SQL)
+        self.assertEqual(result['title'], 'prefill_generate_speed_latency')
+        self.assertEqual(result['targets'][0]['queryText'], PREFILL_GEN_SPEED_LATENCY_SQL)
         self.assertEqual(result['targets'][0]['queryType'], 'time series')
         self.assertEqual(result['targets'][0]['timeColumns'], ['time', 'ts'])
         self.assertEqual(result['datasource']['type'], 'frser-sqlite-datasource')
