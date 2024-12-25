@@ -8,6 +8,7 @@ import pandas as pd
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.parse import save_dataframe_to_csv
+from ms_service_profiler.utils.log import logger
 
 
 class ExporterKVCacheData(ExporterBase):
@@ -21,7 +22,7 @@ class ExporterKVCacheData(ExporterBase):
     def export(cls, data) -> None:
         df = data.get('tx_data_df')
         if df is None:
-            logging.error("The data is empty, please check")
+            logger.error("The data is empty, please check")
             return
         kvcache_df = df[df['domain'] == 'KVCache']
         kvcache_df = kvcache_df.rename(columns={'deviceKvCache=': 'deviceKvCache'})

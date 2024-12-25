@@ -1,11 +1,10 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
 import json
-import logging
 
 import requests
 
-logging.basicConfig(level=logging.INFO)
+from ms_service_profiler.utils.log import logger
 
 BATCH_QUERY_TEXT = """
 WITH numbered_data AS (
@@ -164,10 +163,10 @@ def create_dashboard(grafana_url, token, datasource_uid):
         else:
             raise ValueError(f"Failed to configure dashboard: {response.status_code}, {response.text}")
     except requests.RequestException as e:
-        logging.error(f"An error occurred during the request: {e}")
+        logger.error(f"An error occurred during the request: {e}")
         raise
     except Exception as e:
-        logging.error(f"An unknown error occurred: {e}")
+        logger.error(f"An unknown error occurred: {e}")
         raise
 
 

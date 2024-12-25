@@ -4,7 +4,6 @@ import argparse
 import os
 import re
 import sqlite3
-import logging
 from urllib.parse import urlparse
 import datetime
 from decimal import Decimal
@@ -14,8 +13,7 @@ import pandas as pd
 from ms_service_profiler.analyze import check_input_path_valid
 from ms_service_profiler.views.datasource import create_datasource
 from ms_service_profiler.views.dashboard import create_dashboard
-
-logging.basicConfig(level=logging.INFO)
+from ms_service_profiler.utils.log import set_log_level, logger
 
 
 def check_db_path_valid(path):
@@ -147,11 +145,14 @@ def main():
     parser.add_argument('--input_path', type=check_input_path_valid, help="Path to the CSV expoter folder")
     parser.add_argument('--token', type=check_token_valid, help="Grafana token")
     parser.add_argument('--url', type=check_url_valid, default="http://localhost:3000", help="Grafana URL")
+    parser.add_argument('--log_level', type=str, default='info', \
+        choices=['debug', 'info', 'warning', 'error', 'fatal', 'critical'], help='Log level to print')
     args = parser.parse_args()
+    set_log_level(args.log_level)
     db_path = save_csv_to_sqlite(args.input_path)
     datasource_uid = create_datasource(args.url, args.token, db_path)
     grafana_url = create_dashboard(args.url, args.token, datasource_uid)
-    logging.info(f"Please log in {grafana_url} to view the dashboard 'Profiler Visualization'")
+    logger.info(f"Please log in {grafana_url} to view the dashboard 'Profiler Visualization'")
 
 
 if __name__ == "__main__":

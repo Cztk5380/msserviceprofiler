@@ -1,7 +1,6 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
 import ctypes
-import logging
 
 
 class LibServiceProfiler:

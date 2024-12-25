@@ -9,6 +9,7 @@ from ms_service_profiler.parse import parse
 from ms_service_profiler.exporters.factory import ExporterFactory
 from ms_service_profiler.exporters.utils import create_sqlite_db
 from ms_service_profiler.plugins import custom_plugins
+from ms_service_profiler.utils.log import set_log_level
 
 
 def check_input_path_valid(path):
@@ -53,8 +54,17 @@ def main():
         nargs='+',
         default=['trace', 'req_status', 'request_data', 'batch_data', 'kvcache_data', 'latency'],
         help='exporter to use')
+    parser.add_argument(
+        '--log_level',
+        type=str,
+        default='info',
+        choices=['debug', 'info', 'warning', 'error', 'fatal', 'critical'],
+        help='Log level to print')
 
     args = parser.parse_args()
+
+    # 初始化日志等级
+    set_log_level(args.log_level)
 
     # 初始化Exporter
     exporters = ExporterFactory.create_exporters(args)
