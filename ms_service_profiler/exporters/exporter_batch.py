@@ -38,7 +38,7 @@ class ExporterBatchData(ExporterBase):
             return
         batch_df = df[(df['name'] == 'BatchSchedule') | (df['name'] == 'modelExec')]
         if batch_df.empty:
-            logging.error("The data is empty, please check")
+            logging.error(" No batch data found. Please check.")
             return
         model_df = batch_df[['name', 'res_list', 'start_time', 'end_time', 'batch_size', 'batch_type', 'during_time',]]
         model_df = model_df.rename(columns={
