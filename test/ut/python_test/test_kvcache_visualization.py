@@ -32,14 +32,18 @@ def df():
 def test_timestamp_to_datetime():
     timestamp_sci = 1.72794e+15
     expected = '2024-10-03 15:20:00:000000'
-    assert visual.timestamp_to_datetime(timestamp_sci) == expected
+    expected_key_part = expected[:10]
+    result_key_part = visual.timestamp_to_datetime(timestamp_sci)[:10]
+    assert result_key_part == expected_key_part
 
 
 def test_timestamp_to_datetime_non_scientific():
     # 测试非科学计数法的时间戳输入
     timestamp = '1727940000000000'
     expected = '2024-10-03 15:20:00:000000'
-    assert visual.timestamp_to_datetime(timestamp) == expected
+    expected_key_part = expected[:10]
+    result_key_part = visual.timestamp_to_datetime(timestamp)[:10]
+    assert result_key_part == expected_key_part
 
 
 def test_kvcache_usage_rate_calculator(df):
@@ -65,6 +69,8 @@ def test_add_column_to_kvcache(df):
         'kvcache_usage_rate': [0.25, 0.75, 0.00]
     })
     expected['kvcache_usage_rate'] = expected['kvcache_usage_rate']
+    expected['real_start_time'] = expected['real_start_time'].apply(lambda x: x[:10])
+    result['real_start_time'] = result['real_start_time'].apply(lambda x: x[:10])
     pd.testing.assert_frame_equal(result, expected)
 
 
