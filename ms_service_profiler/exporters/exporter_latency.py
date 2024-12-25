@@ -31,38 +31,35 @@ def timestamp_converter(timestamp):
 
 def set_generate_token_info(req_map, req_rid, record):
     if req_map[req_rid].get('gen_token_num') is None or req_map[req_rid]['gen_token_num'] < gen_token_num:
-        if record['batch_type'] == 'Prefill':
+        if record.get('batch_type') == 'Prefill':
             req_map[req_rid]['prefill_token_num'] = gen_token_num
-            req_map[req_rid]['prefill_last_token_time'] = record['end_time']
+            req_map[req_rid]['prefill_last_token_time'] = record.get('end_time')
 
 
 def is_contained_vaild_iter_info(rid_list, token_id_list):
-    if rid_list is None:
+    if rid_list is None or token_id_list is None or len(rid_list) != len(token_id_list):
         return False
-    if token_id_list is None:
-        return False
-    if len(rid_list) != len(token_id_list):
-        return False
+
     return True
 
 
 def process_each_record(req_map, record):
-    name = record['name']
-    rid = record['rid']
+    name = record.get('name')
+    rid = record.get('rid')
     if rid is None or name is None:
         return
 
     if name == 'httpReq':
         req_map[rid] = {}
-        req_map[rid]['start_time'] = record['start_time']
+        req_map[rid]['start_time'] = record.get('start_time')
 
     if req_map.get(rid) is not None:
         if name == 'httpRes':
-            req_map[rid]['end_time'] = record['end_time']
-        req_map[rid]['req_exec_time'] = record['end_time']
+            req_map[rid]['end_time'] = record.get('end_time')
+        req_map[rid]['req_exec_time'] = record.get('end_time')
 
-    rid_list = record['rid_list']
-    token_id_list = record['token_id_list']
+    rid_list = record.get('rid_list')
+    token_id_list = record.get('token_id_list')
     if not is_contained_vaild_iter_info(rid_list, token_id_list):
         return
 
@@ -71,23 +68,23 @@ def process_each_record(req_map, record):
         if req_map.get(req_rid) is None:
             continue
 
-        req_map[req_rid]['req_exec_time'] = record['end_time']
+        req_map[req_rid]['req_exec_time'] = record.get('end_time')
 
         # 更新请求首token时延
         cur_iter = token_id_list[i]
         if cur_iter == 0:
             if req_map[req_rid].get('first_token_latency') is None:
-                req_map[req_rid]['first_token_latency'] = record['during_time']
+                req_map[req_rid]['first_token_latency'] = record.get('during_time')
             else:
-                req_map[req_rid]['first_token_latency'] += record['during_time']
+                req_map[req_rid]['first_token_latency'] += record.get('during_time')
 
         # 更新请求生成token数量
         gen_token_num = cur_iter + 1
-        if record['batch_type'] == 'Prefill':
+        if record.get('batch_type') == 'Prefill':
             if req_map[req_rid].get('prefill_token_num') is None or \
                 req_map[req_rid]['prefill_token_num'] < gen_token_num:
                 req_map[req_rid]['prefill_token_num'] = gen_token_num
-        elif record['batch_type'] == 'Decode':
+        elif record.get('batch_type') == 'Decode':
             if req_map[req_rid].get('decode_token_num') is None or \
                 req_map[req_rid]['decode_token_num'] < gen_token_num:
                 req_map[req_rid]['decode_token_num'] = gen_token_num
@@ -164,23 +161,23 @@ def gen_exporter_results(all_data_df):
         process_each_record(req_map, record)
 
         # 生成首token时延
-        if record['batch_type'] == 'Prefill':
+        if record.get('batch_type') == 'Prefill':
             first_token_latency_results = calculate_first_token_latency(req_map)
-            cur_timestamp = timestamp_converter(record['end_time'])
+            cur_timestamp = timestamp_converter(record.get('end_time'))
             first_token_latency_views[cur_timestamp] = first_token_latency_results
 
         # 生成请求端到端时延
-        if record['name'] == 'httpRes':
+        if record.get('name') == 'httpRes':
             req_latency_results = calculate_req_latency(req_map)
-            cur_timestamp = timestamp_converter(record['end_time'])
+            cur_timestamp = timestamp_converter(record.get('end_time'))
             req_latency_views[cur_timestamp] = req_latency_results
 
         # 生成token平均时延
-        if is_contained_vaild_iter_info(record['rid_list'], record['token_id_list']):
-            cur_timestamp = timestamp_converter(record['end_time'])
-            if record['batch_type'] == 'Prefill':
+        if is_contained_vaild_iter_info(record.get('rid_list'), record.get('token_id_list')):
+            cur_timestamp = timestamp_converter(record.get('end_time'))
+            if record.get('batch_type') == 'Prefill':
                 prefill_gen_token_speed_views[cur_timestamp] = calculate_gen_token_speed_latency(req_map, True)
-            if record['batch_type'] == 'Decode':
+            if record.get('batch_type') == 'Decode':
                 decode_gen_token_speed_views[cur_timestamp] = calculate_gen_token_speed_latency(req_map, False)
 
     return first_token_latency_views, req_latency_views, prefill_gen_token_speed_views, decode_gen_token_speed_views
