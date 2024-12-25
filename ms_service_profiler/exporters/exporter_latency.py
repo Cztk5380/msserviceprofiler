@@ -29,35 +29,65 @@ def timestamp_converter(timestamp):
     return date_time.strftime("%Y-%m-%d %H:%M:%S:%f")
 
 
+def set_generate_token_info(req_map, req_rid, record):
+    if req_map[req_rid].get('gen_token_num') is None or req_map[req_rid]['gen_token_num'] < gen_token_num:
+        if record.get('batch_type') == 'Prefill':
+            req_map[req_rid]['prefill_token_num'] = gen_token_num
+            req_map[req_rid]['prefill_last_token_time'] = record.get('end_time')
+
+
+def is_contained_vaild_iter_info(rid_list, token_id_list):
+    if rid_list is None or token_id_list is None or len(rid_list) != len(token_id_list):
+        return False
+
+    return True
+
+
 def process_each_record(req_map, record):
-    name = record['name']
-    rid = record['rid']
+    name = record.get('name')
+    rid = record.get('rid')
+    if rid is None or name is None:
+        return
+
     if name == 'httpReq':
         req_map[rid] = {}
-        req_map[rid]['start_time'] = record['start_time']
-    elif name == 'httpRes':
-        req_map[rid]['end_time'] = record['end_time']
-        req_map[rid]['gen_last_token_time'] = record['end_time']
+        req_map[rid]['start_time'] = record.get('start_time')
 
-    rid_list = record['rid_list']
-    token_id_list = record['token_id_list']
-    if rid_list is None or token_id_list is None or len(rid_list) != len(token_id_list):
+    if req_map.get(rid) is not None:
+        if name == 'httpRes':
+            req_map[rid]['end_time'] = record.get('end_time')
+        req_map[rid]['req_exec_time'] = record.get('end_time')
+
+    rid_list = record.get('rid_list')
+    token_id_list = record.get('token_id_list')
+    if not is_contained_vaild_iter_info(rid_list, token_id_list):
         return
 
     for i, value in enumerate(rid_list):
         req_rid = str(int(value))
-        cur_iter = token_id_list[i]
+        if req_map.get(req_rid) is None:
+            continue
 
+        req_map[req_rid]['req_exec_time'] = record.get('end_time')
+
+        # 更新请求首token时延
+        cur_iter = token_id_list[i]
         if cur_iter == 0:
             if req_map[req_rid].get('first_token_latency') is None:
-                req_map[req_rid]['first_token_latency'] = record['during_time']
+                req_map[req_rid]['first_token_latency'] = record.get('during_time')
             else:
-                req_map[req_rid]['first_token_latency'] += record['during_time']
+                req_map[req_rid]['first_token_latency'] += record.get('during_time')
 
+        # 更新请求生成token数量
         gen_token_num = cur_iter + 1
-        if req_map[req_rid].get('gen_token_num') is None or req_map[req_rid]['gen_token_num'] < gen_token_num:
-            req_map[req_rid]['gen_token_num'] = gen_token_num
-            req_map[req_rid]['gen_last_token_time'] = record['end_time']
+        if record.get('batch_type') == 'Prefill':
+            if req_map[req_rid].get('prefill_token_num') is None or \
+                req_map[req_rid]['prefill_token_num'] < gen_token_num:
+                req_map[req_rid]['prefill_token_num'] = gen_token_num
+        elif record.get('batch_type') == 'Decode':
+            if req_map[req_rid].get('decode_token_num') is None or \
+                req_map[req_rid]['decode_token_num'] < gen_token_num:
+                req_map[req_rid]['decode_token_num'] = gen_token_num
 
 
 def get_percentile_results(metric):
@@ -94,19 +124,26 @@ def calculate_req_latency(req_map):
     return get_percentile_results(req_latency)
 
 
-def calculate_gen_token_speed_latency(req_map):
+def calculate_gen_token_speed_latency(req_map, is_prefill):
     gen_token_speed = []
-    min_start_time = float('inf')
     for rid in req_map:
         cur_req_start_time = req_map[rid]['start_time']
-        min_start_time = min([min_start_time, cur_req_start_time])
 
-        # 计算token平均时延，s级
-        cur_req_gen_token_num = req_map[rid]['gen_token_num']
-        gen_last_token_time = req_map[rid]['gen_last_token_time']
-        diff_time = gen_last_token_time - min_start_time
-        if diff_time <= 0:
+        cur_req_gen_token_num = 0
+        if is_prefill:
+            # 计算prefill token平均时延
+            cur_req_gen_token_num = req_map[rid]['prefill_token_num']
+        else:
+            # 计算decode token平均时延
+            cur_req_gen_token_num = req_map[rid]['decode_token_num']
+
+        # 计算生成token执行时间
+        gen_last_token_time = req_map[rid]['req_exec_time']
+        if gen_last_token_time <= cur_req_start_time:
             raise ValueError("The execution time for generating the token is a negative number.")
+        diff_time = gen_last_token_time - cur_req_start_time
+
+        # 计算生成token平均时延，s级
         cur_gen_speed = round(cur_req_gen_token_num / (diff_time / 1000000), 4) # 1000000:换算为秒级
         gen_token_speed.append(cur_gen_speed)
 
@@ -115,32 +152,35 @@ def calculate_gen_token_speed_latency(req_map):
 
 def gen_exporter_results(all_data_df):
     req_map = {}
-    first_token_latency_view_data = {}
-    req_latency_view_data = {}
-    gen_token_speed_view_data = {}
+    first_token_latency_views = {}
+    req_latency_views = {}
+    prefill_gen_token_speed_views = {}
+    decode_gen_token_speed_views = {}
 
     for _, record in all_data_df.iterrows():
         process_each_record(req_map, record)
 
         # 生成首token时延
-        if record['batch_type'] == 'Prefill':
+        if record.get('batch_type') == 'Prefill':
             first_token_latency_results = calculate_first_token_latency(req_map)
-            cur_timestamp = timestamp_converter(record['end_time'])
-            first_token_latency_view_data[cur_timestamp] = first_token_latency_results
+            cur_timestamp = timestamp_converter(record.get('end_time'))
+            first_token_latency_views[cur_timestamp] = first_token_latency_results
 
         # 生成请求端到端时延
-        if record['name'] == 'httpRes':
+        if record.get('name') == 'httpRes':
             req_latency_results = calculate_req_latency(req_map)
-            cur_timestamp = timestamp_converter(record['end_time'])
-            req_latency_view_data[cur_timestamp] = req_latency_results
+            cur_timestamp = timestamp_converter(record.get('end_time'))
+            req_latency_views[cur_timestamp] = req_latency_results
 
         # 生成token平均时延
-        if record['rid_list'] is not None:
-            gen_token_speed_results = calculate_gen_token_speed_latency(req_map)
-            cur_timestamp = timestamp_converter(record['end_time'])
-            gen_token_speed_view_data[cur_timestamp] = gen_token_speed_results
+        if is_contained_vaild_iter_info(record.get('rid_list'), record.get('token_id_list')):
+            cur_timestamp = timestamp_converter(record.get('end_time'))
+            if record.get('batch_type') == 'Prefill':
+                prefill_gen_token_speed_views[cur_timestamp] = calculate_gen_token_speed_latency(req_map, True)
+            if record.get('batch_type') == 'Decode':
+                decode_gen_token_speed_views[cur_timestamp] = calculate_gen_token_speed_latency(req_map, False)
 
-    return first_token_latency_view_data, req_latency_view_data, gen_token_speed_view_data
+    return first_token_latency_views, req_latency_views, prefill_gen_token_speed_views, decode_gen_token_speed_views
 
 
 def create_sqlite_db(output):
@@ -184,10 +224,11 @@ class ExporterLatency(ExporterBase):
         all_data_df = data['tx_data_df']
         output = cls.args.output_path
 
-        first_token_latency_view_data, req_latency_view_data, gen_token_speed_view_data = \
+        first_token_latency_views, req_latency_views, prefill_gen_speed_views, decode_gen_speed_views = \
             gen_exporter_results(all_data_df)
 
         db_file_path = create_sqlite_db(output)
-        save_to_sqlite_db(db_file_path, 'first_token_latency', first_token_latency_view_data)
-        save_to_sqlite_db(db_file_path, 'req_latency', req_latency_view_data)
-        save_to_sqlite_db(db_file_path, 'gen_speed', gen_token_speed_view_data)
+        save_to_sqlite_db(db_file_path, 'first_token_latency', first_token_latency_views)
+        save_to_sqlite_db(db_file_path, 'req_latency', req_latency_views)
+        save_to_sqlite_db(db_file_path, 'prefill_gen_speed', prefill_gen_speed_views)
+        save_to_sqlite_db(db_file_path, 'decode_gen_speed', decode_gen_speed_views)
