@@ -73,6 +73,7 @@ def extract_rid(rid_from_message, rid_map):
 
 def parse_rid(all_data_df):
     rid_link_map = {x.get("from"): x.get("to") for x in all_data_df[all_data_df["type"] == 3]["message"]}
+    all_data_df['res_list'] = all_data_df['rid']
     all_data_df[['rid', 'rid_list', 'token_id_list', 'batch_size']] = all_data_df['rid'].apply(
         lambda x: extract_rid(x, rid_link_map)).apply(pd.Series)
     all_data_df = all_data_df.replace(to_replace=np.nan, value=None)

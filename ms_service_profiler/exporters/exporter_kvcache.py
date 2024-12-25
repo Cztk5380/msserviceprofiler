@@ -4,6 +4,7 @@ from enum import Enum
 
 from pathlib import Path
 import json
+import logging
 import pandas as pd
 
 from ms_service_profiler.exporters.base import ExporterBase

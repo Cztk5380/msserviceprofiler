@@ -33,6 +33,12 @@ class TestExporterBatchData(unittest.TestCase):
             'end_time': [1.5, 2.5, 3.5, 4.5],
             'batch_size':[1, 1, 1, 1],
             'batch_type':['Prefill', 'Prefill', 'Decode', 'Decode'],
+            'res_list':[
+                {'rid': [{'rid': 0, 'iter': 0}]},
+                {'rid': [{'rid': 0, 'iter': 0}]},
+                {'rid': [{'rid': 0, 'iter': 1}]},
+                {'rid': [{'rid': 0, 'iter': 1}]}
+            ],
             'during_time':[0.5, 0.5, 0.5, 0.5]
         }
         return pd.DataFrame(data)
