@@ -19,7 +19,7 @@ import pandas as pd
 
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.plugins.plugin_timestamp import \
-    PluginTimeStamp, convert_syscnt_to_ts, timestamp_converter, SYS_TS
+    PluginTimeStamp, convert_syscnt_to_ts, timestamp_converter
 
 
 # Test Data Setup
@@ -35,22 +35,32 @@ def sample_data():
             'start_time': [500000, 600000, 700000],
             'end_time': [550000, 650000, 750000]
         }),
-        'cpu_start_cnt': 1000,
-        'cpu_frequency': 2.5,
-        'sys_start_cnt': 2000
+        'time_info':{
+            'cpu_start_cnt': 1000,
+            'cpu_frequency': 2.5,
+            'sys_start_cnt': 2000,
+            'sys_start_time': 124657,
+        }
     }
 
-
-def test_convert_syscnt_to_ts():
-    """Test convert_syscnt_to_ts function."""
-    cnt = 500000
-    start_cnt = 1000
-    cpu_frequency = 2.5
-
-    result = convert_syscnt_to_ts(cnt, start_cnt, cpu_frequency)
-    expected = (SYS_TS + ((cnt - start_cnt) / cpu_frequency)) * 1000000  # US_PER_SECOND = 1000000
-    assert result == expected
-
+@pytest.fixture
+def edge_case_data():
+    return {
+        'tx_data_df': pd.DataFrame({
+            'start_time': [],
+            'end_time': []
+        }),
+        'cpu_data_df': pd.DataFrame({
+            'start_time': [],
+            'end_time': []
+        }),
+        'time_info':{
+            'cpu_start_cnt': 1000,
+            'cpu_frequency': 2.5,
+            'sys_start_cnt': 2000,
+            'sys_start_time': 124657,
+        }
+    }
 
 def test_timestamp_converter():
     """Test timestamp_converter function."""
@@ -66,7 +76,7 @@ def test_plugin_timestamp_parse(sample_data):
     plugin = PluginTimeStamp()
 
     # Run the parse method
-    result = plugin.parse(sample_data)
+    result = plugin.parse([sample_data])[0]
 
     # Assertions
     assert 'tx_data_df' in result
@@ -76,36 +86,36 @@ def test_plugin_timestamp_parse(sample_data):
     tx_data_df = result['tx_data_df']
     assert 'start_time' in tx_data_df.columns
     assert 'end_time' in tx_data_df.columns
-    assert 'start_datatime' in tx_data_df.columns
-    assert 'end_datatime' in tx_data_df.columns
+    assert 'start_datetime' in tx_data_df.columns
+    assert 'end_datetime' in tx_data_df.columns
     assert 'during_time' in tx_data_df.columns
 
-    # Validate that the start_time, end_time, start_datatime, and end_datatime are correctly processed
-    assert isinstance(tx_data_df['start_datatime'].iloc[0], str)
-    assert isinstance(tx_data_df['end_datatime'].iloc[0], str)
+    # Validate that the start_time, end_time, start_datetime, and end_datetime are correctly processed
+    assert isinstance(tx_data_df['start_datetime'].iloc[0], str)
+    assert isinstance(tx_data_df['end_datetime'].iloc[0], str)
     assert isinstance(tx_data_df['during_time'].iloc[0], (int, float))
 
     # Validate the `cpu_data_df` DataFrame columns
     cpu_data_df = result['cpu_data_df']
     assert 'start_time' in cpu_data_df.columns
     assert 'end_time' in cpu_data_df.columns
-    assert 'start_datatime' in cpu_data_df.columns
-    assert 'end_datatime' in cpu_data_df.columns
+    assert 'start_datetime' in cpu_data_df.columns
+    assert 'end_datetime' in cpu_data_df.columns
     assert 'during_time' in cpu_data_df.columns
 
-    assert isinstance(cpu_data_df['start_datatime'].iloc[0], str)
-    assert isinstance(cpu_data_df['end_datatime'].iloc[0], str)
+    assert isinstance(cpu_data_df['start_datetime'].iloc[0], str)
+    assert isinstance(cpu_data_df['end_datetime'].iloc[0], str)
     assert isinstance(cpu_data_df['during_time'].iloc[0], (int, float))
 
 
-@pytest.mark.parametrize("cnt, start_cnt, cpu_frequency, expected_result", [
-    (1000000, 0, 2.5, (SYS_TS + (1000000 / 2.5)) * 1000000),
-    (2000000, 1000, 1.5, (SYS_TS + ((2000000 - 1000) / 1.5)) * 1000000),
-    (3000000, 1000, 3.0, (SYS_TS + ((3000000 - 1000) / 3.0)) * 1000000),
+@pytest.mark.parametrize("cnt, start_cnt, time_info, expected_result", [
+    (1000000, 0, {"sys_start_time": 10, "cpu_frequency": 2.5}, (10 + ((1000000 - 0) / 2.5)) * 1000000),
+    (2000000, 1000, {"sys_start_time": 20, "cpu_frequency": 1.5}, (20 + ((2000000 - 1000) / 1.5)) * 1000000),
+    (3000000, 1000, {"sys_start_time": 20, "cpu_frequency": 3.0}, (20 + ((3000000 - 1000) / 3.0)) * 1000000),
 ])
-def test_convert_syscnt_to_ts_parametric(cnt, start_cnt, cpu_frequency, expected_result):
+def test_convert_syscnt_to_ts_parametric(cnt, start_cnt, time_info, expected_result):
     """Test convert_syscnt_to_ts with parameterized values."""
-    result = convert_syscnt_to_ts(cnt, start_cnt, cpu_frequency)
+    result = convert_syscnt_to_ts(cnt, start_cnt, time_info)
     assert result == expected_result
 
 
@@ -119,26 +129,12 @@ def test_timestamp_converter_parametric(timestamp, expected):
     assert len(result) == len(expected)
 
 
-def test_plugin_timestamp_with_edge_cases():
+def test_plugin_timestamp_with_edge_cases(edge_case_data):
     """Test PluginTimeStamp with edge cases (e.g., empty DataFrames)."""
     plugin = PluginTimeStamp()
 
-    edge_case_data = {
-        'tx_data_df': pd.DataFrame({
-            'start_time': [],
-            'end_time': []
-        }),
-        'cpu_data_df': pd.DataFrame({
-            'start_time': [],
-            'end_time': []
-        }),
-        'cpu_start_cnt': 1000,
-        'cpu_frequency': 2.5,
-        'sys_start_cnt': 2000
-    }
-
     # Run parse method on edge case data
-    result = plugin.parse(edge_case_data)
+    result = plugin.parse([edge_case_data])[0]
 
     # Assert the result is empty DataFrames
     assert result['tx_data_df'].empty
@@ -164,4 +160,4 @@ def test_plugin_timestamp_missing_data():
     }
 
     with pytest.raises(AttributeError):
-        plugin.parse(missing_data)
+        plugin.parse([missing_data])

@@ -52,6 +52,7 @@ def main():
     parser = argparse.ArgumentParser(description='MS Server Profiler')
     parser.add_argument(
         '--input_path',
+        required=True,
         type=check_input_path_valid,
         help='Path to the folder containing profile data.')
     parser.add_argument(
@@ -59,12 +60,6 @@ def main():
         type=check_output_path_valid,
         default=os.path.join(os.getcwd(), 'output'),
         help='Output file path to save results.')
-    parser.add_argument(
-        '--exporter',
-        type=str,
-        nargs='+',
-        default=['trace', 'req_status', 'request_data', 'batch_data', 'kvcache_data', 'latency'],
-        help='exporter to use')
 
     args = parser.parse_args()
 

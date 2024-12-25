@@ -20,7 +20,7 @@ from ms_service_profiler.plugins.base import PluginBase
 
 class PluginCommon(PluginBase):
     name = "plugin_common"
-    depends = []
+    depends = ["plugin_concat"]
 
     @classmethod
     def parse(cls, data):

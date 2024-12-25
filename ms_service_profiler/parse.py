@@ -86,6 +86,8 @@ def extract_span_info_from_message(message, mark_id):
 
 
 def load_cpu_data(db_path):
+    if db_path is None:
+        return None
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
@@ -99,16 +101,6 @@ def load_cpu_data(db_path):
     columns = [description[0] for description in cursor.description]
     cpu_data_df = pd.DataFrame(cpu_data, columns=columns)
     conn.close()
-    return cpu_data_df
-
-
-def find_cpu_data_from_folder(files):
-    cpu_data_df = pd.DataFrame()
-    for db_path in files:
-        cpu_data_df = load_cpu_data(db_path)
-    if cpu_data_df.empty:
-        raise ValueError(f"No valid cpu database found in {folder_path}, please check.")
-    cpu_data_df = cpu_data_df.sort_values(by='start_time', ascending=True).reset_index(drop=True)
     return cpu_data_df
 
 
@@ -152,20 +144,27 @@ def parse_span(data_df):
     return data_df
 
 
-def load_prof(filepaths):
-    tx_data_df = load_tx_data(filepaths.get("tx"))
-    cpu_data_df = load_cpu_data(filepaths.get("cpu"))
+def load_time_info(filepaths):
     sys_start_cnt, cpu_start_cnt = load_start_cnt(filepaths.get("host_start"))
     cpu_frequency = load_cpu_freq(filepaths.get("info"))
     sys_start_time = load_start_time(filepaths.get("start_info"))
-
     return dict(
-        tx_data_df=tx_data_df,
-        cpu_data_df=cpu_data_df,
         sys_start_cnt=sys_start_cnt,
         cpu_start_cnt=cpu_start_cnt,
         sys_start_time=sys_start_time,
         cpu_frequency=cpu_frequency
+    )
+
+
+def load_prof(filepaths):
+    tx_data_df = load_tx_data(filepaths.get("tx"))
+    cpu_data_df = load_cpu_data(filepaths.get("cpu"))
+    time_info = load_time_info(filepaths)
+
+    return dict(
+        tx_data_df=tx_data_df,
+        cpu_data_df=cpu_data_df,
+        time_info=time_info,
     )
 
 
@@ -180,11 +179,10 @@ def read_origin_db(db_path: str):
 
     data_list = []
 
-    for dp in Path(db_path).glob("*/PROF_*"):
-        filepaths = get_filepaths(db_path, file_filter)
+    for dp in Path(db_path).glob("**/PROF_*"):
+        filepaths = get_filepaths(dp, file_filter)
         data = load_prof(filepaths)
         data_list.append(data)
-
     return data_list
 
 
@@ -193,6 +191,7 @@ def parse(input_path, custom_plugins, exporters):
     data = read_origin_db(input_path)
 
     all_plugins = sort_plugins(buildin_plugins + custom_plugins)
+    print(all_plugins)
     for plugin in all_plugins:
         data = plugin.parse(data)
 

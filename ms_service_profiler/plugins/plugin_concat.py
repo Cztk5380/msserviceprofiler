@@ -11,8 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from collections import defaultdict
 
 import pandas as pd
+
 from ms_service_profiler.plugins.base import PluginBase
 
 
@@ -27,7 +29,8 @@ class PluginConcat(PluginBase):
             for key, value in data.items():
                 if isinstance(value, pd.DataFrame):
                     merged_data[key] = pd.concat([merged_data[key], value], ignore_index=True)
-
-            for key, value in merged_data.items():
-                merged_data[key] = merged_data[key].sort_values(by='start_time', ascending=True).reset_index(drop=True)
+                print(key, len((merged_data[key])))
+        for key, value in merged_data.items():
+            merged_data[key] = merged_data[key].sort_values(by='start_time', ascending=True).reset_index(drop=True)
+            merged_data[key].to_csv(key + ".csv")
         return merged_data
