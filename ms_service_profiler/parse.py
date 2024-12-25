@@ -1,16 +1,4 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import os
 import json
@@ -22,6 +10,7 @@ import pandas as pd
 from ms_service_profiler.constant import US_PER_SECOND
 from ms_service_profiler.plugins import buildin_plugins
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
+from ms_service_profiler.utils.log import logger
 
 
 def save_dataframe_to_csv(filtered_df, output, file_name):
@@ -176,13 +165,17 @@ def read_origin_db(db_path: str):
 
 
 def parse(input_path, custom_plugins, exporters):
+    logger.info('Start to parse.')
     # 解析数据
     data = read_origin_db(input_path)
+    logger.info('Read origin db success.')
 
     all_plugins = sort_plugins(buildin_plugins + custom_plugins)
     for plugin in all_plugins:
         data = plugin.parse(data)
+        logger.info(f'{plugin.name} success.')
 
     # 导出数据
     for exporter in exporters:
         exporter.export(data)
+        logger.info(f'exporter {exporter.name} success.')
