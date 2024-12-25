@@ -168,14 +168,14 @@ def parse(input_path, custom_plugins, exporters):
     logger.info('Start to parse.')
     # 解析数据
     data = read_origin_db(input_path)
-    logger.info('Reading origin db is finished.')
+    logger.info('Read origin db success.')
 
     all_plugins = sort_plugins(buildin_plugins + custom_plugins)
     for plugin in all_plugins:
         data = plugin.parse(data)
-        logger.info(f'plugin {plugin.name} is finished.')
+        logger.info(f'{plugin.name} success.')
 
     # 导出数据
     for exporter in exporters:
         exporter.export(data)
-        logger.info(f'exporter {exporter.name} is finished.')
+        logger.info(f'exporter {exporter.name} success.')

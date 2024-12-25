@@ -20,14 +20,14 @@ def set_log_level(level="info"):
         logger.warning("Set %s log level failed.", level)
 
 
-def set_logger(msit_logger):
-    msit_logger.propagate = False
-    msit_logger.setLevel(logging.INFO)
-    if not msit_logger.handlers:
+def set_logger(profiler_logger):
+    profiler_logger.propagate = False
+    profiler_logger.setLevel(logging.INFO)
+    if not profiler_logger.handlers:
         stream_handler = logging.StreamHandler()
         formatter = logging.Formatter('%(asctime)s - %(process)s - %(name)s - %(levelname)s - %(message)s')
         stream_handler.setFormatter(formatter)
-        msit_logger.addHandler(stream_handler)
+        profiler_logger.addHandler(stream_handler)
 
 
 logger = logging.getLogger("msServiceProfiler")
