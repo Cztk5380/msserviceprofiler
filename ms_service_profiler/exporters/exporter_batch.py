@@ -29,7 +29,8 @@ class ExporterBatchData(ExporterBase):
             logger.warning("No batch data found. Please check msproftx.db.")
             return
         try:
-            model_df = batch_df[['name', 'res_list', 'start_time', 'end_time', 'batch_size', 'batch_type', 'during_time',]]
+            model_df = batch_df[['name', 'res_list', 'start_time', 'end_time', 'batch_size', \
+                'batch_type', 'during_time',]]
             model_df = model_df.rename(columns={
             'start_time': 'start_time(microsecond)',
             'end_time': 'end_time(microsecond)',
