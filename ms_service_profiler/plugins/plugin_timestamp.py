@@ -53,10 +53,10 @@ class PluginTimeStamp(PluginBase):
     helper = PluginTimeStampHelper()
 
     @classmethod
-    def parse(cls, data_list):
+    def parse(cls, data):
         res = []
-        for data in data_list:
-            res.append(cls.helper.parse(data))
+        for data_single in data:
+            res.append(cls.helper.parse(data_single))
         return res
 
 

@@ -23,14 +23,13 @@ class PluginConcat(PluginBase):
     depends = ["plugin_timestamp"]
 
     @classmethod
-    def parse(cls, data_list):
+    def parse(cls, data):
         merged_data = defaultdict(pd.DataFrame)
-        for data in data_list:
-            for key, value in data.items():
+        for data_single in data:
+            for key, value in data_single.items():
                 if isinstance(value, pd.DataFrame):
                     merged_data[key] = pd.concat([merged_data[key], value], ignore_index=True)
-                print(key, len((merged_data[key])))
         for key, value in merged_data.items():
-            merged_data[key] = merged_data[key].sort_values(by='start_time', ascending=True).reset_index(drop=True)
+            merged_data[key] = value.sort_values(by='start_time', ascending=True).reset_index(drop=True)
             merged_data[key].to_csv(key + ".csv")
         return merged_data

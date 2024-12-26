@@ -182,12 +182,17 @@ def parse(input_path, custom_plugins, exporters):
     logger.info('Read origin db success.')
 
     all_plugins = sort_plugins(buildin_plugins + custom_plugins)
-    print(all_plugins)
     for plugin in all_plugins:
-        data = plugin.parse(data)
-        logger.info(f'{plugin.name} success.')
+        try:
+            data = plugin.parse(data)
+            logger.info(f'{plugin.name} success.')
+        except Exception as ex:
+            logger.error(f'{plugin.name} failure. {ex}')
 
     # 导出数据
     for exporter in exporters:
-        exporter.export(data)
-        logger.info(f'exporter {exporter.name} success.')
+        try:
+            exporter.export(data)
+            logger.info(f'exporter {exporter.name} success.')
+        except Exception as ex:
+            logger.error(f'{exporter.name} failure. {ex}')
