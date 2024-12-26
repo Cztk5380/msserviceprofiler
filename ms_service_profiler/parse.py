@@ -191,8 +191,8 @@ def parse(input_path, custom_plugins, exporters):
             logger.info(f'{plugin.name} success.')
         except Exception as ex:
             if plugin.name in ['plugin_timestamp', 'plugin_concat']:
-                logger.error(f'{plugin.name} failure. Program will stop. {ex}')
-                exit()
+                logger.error(f'{plugin.name} failure. Program stopped. {ex}')
+                return
             else:
                 logger.error(f'{plugin.name} failure. Skip it. {ex}')
     
