@@ -23,7 +23,7 @@ class TestExporterBatchData(unittest.TestCase):
         # 创建一个示例DataFrame
         data = {
             'domain': ['KVCache', 'KVCache', 'KVCache'],
-            'name': ['KVCacheAlloc', 'AppendSlot', 'Free'],
+            'name': ['Allocate', 'AppendSlot', 'Free'],
             'start_time': [1, 2, 3],
             'end_time': [1.5, 2.5, 3.5],
             'deviceBlock=':[512, 511, 513],
