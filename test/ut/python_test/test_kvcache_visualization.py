@@ -1,21 +1,9 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import pandas as pd
 import pytest
 
-import ms_service_profiler.views.grafana_visualization as visual
+import ms_service_profiler.visualization as visual
 
 
 @pytest.fixture
@@ -32,18 +20,14 @@ def df():
 def test_timestamp_to_datetime():
     timestamp_sci = 1.72794e+15
     expected = '2024-10-03 15:20:00:000000'
-    expected_key_part = expected[:10]
-    result_key_part = visual.timestamp_to_datetime(timestamp_sci)[:10]
-    assert result_key_part == expected_key_part
+    assert visual.timestamp_to_datetime(timestamp_sci) == expected
 
 
 def test_timestamp_to_datetime_non_scientific():
     # 测试非科学计数法的时间戳输入
     timestamp = '1727940000000000'
     expected = '2024-10-03 15:20:00:000000'
-    expected_key_part = expected[:10]
-    result_key_part = visual.timestamp_to_datetime(timestamp)[:10]
-    assert result_key_part == expected_key_part
+    assert visual.timestamp_to_datetime(timestamp) == expected
 
 
 def test_kvcache_usage_rate_calculator(df):
@@ -69,8 +53,6 @@ def test_add_column_to_kvcache(df):
         'kvcache_usage_rate': [0.25, 0.75, 0.00]
     })
     expected['kvcache_usage_rate'] = expected['kvcache_usage_rate']
-    expected['real_start_time'] = expected['real_start_time'].apply(lambda x: x[:10])
-    result['real_start_time'] = result['real_start_time'].apply(lambda x: x[:10])
     pd.testing.assert_frame_equal(result, expected)
 
 
