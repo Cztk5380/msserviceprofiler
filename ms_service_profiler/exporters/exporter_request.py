@@ -70,6 +70,19 @@ def process_data(req_en_queue_df, req_running_df, pending_df):
     return wait_df
 
 
+def filter_data(df):
+    # 过滤数据的函数
+    http_req_df = df[df['name'] == 'httpReq'].drop(columns=['name'])
+    http_res_df = df[df['name'] == 'httpRes'].drop(columns=['name'])
+    http_rectoken_df = df[df['name'] == 'encode'].drop(columns=['name'])
+    http_restoken_df = df[df['name'] == 'DecodeEnd'].drop(columns=['name'])
+    req_en_queue_df = df[df['name'] == 'Enqueue'].drop(columns=['name'])
+    req_running_df = df[df['name'] == 'RUNNING'].drop(columns=['name'])
+    pending_df = df[df['name'] == 'PENDING'].drop(columns=['name'])
+    wait_df = process_data(req_en_queue_df, req_running_df, pending_df)
+    return http_req_df, http_res_df, http_rectoken_df, http_restoken_df, wait_df
+
+
 class ExporterAnalyzeData(ExporterBase):
     name = "request_data"
 
@@ -86,14 +99,7 @@ class ExporterAnalyzeData(ExporterBase):
         output = cls.args.output_path
         try:
             df = df.apply(update_name, axis=1)
-            http_req_df = df[df['name'] == 'httpReq'].drop(columns=['name'])
-            http_res_df = df[df['name'] == 'httpRes'].drop(columns=['name'])
-            http_rectoken_df = df[df['name'] == 'encode'].drop(columns=['name'])
-            http_restoken_df = df[df['name'] == 'DecodeEnd'].drop(columns=['name'])
-            req_en_queue_df = df[df['name'] == 'Enqueue'].drop(columns=['name'])
-            req_running_df = df[df['name'] == 'RUNNING'].drop(columns=['name'])
-            pending_df = df[df['name'] == 'PENDING'].drop(columns=['name'])
-            wait_df = process_data(req_en_queue_df, req_running_df, pending_df)
+            http_req_df, http_res_df, http_rectoken_df, http_restoken_df, wait_df = filter_data(df)
         except Exception as e:
             logger.error(f"An error occurred: {e}")
             return
@@ -103,7 +109,6 @@ class ExporterAnalyzeData(ExporterBase):
         else:
             logger.error("The data is wrong, please check")
             return
-        # 计算execution_time
         if df_merged.shape[0] == wait_df.shape[0]:
             df_merged['rid'] = pd.to_numeric(df_merged['rid'], errors='coerce')
             df_merged = pd.merge(df_merged, wait_df, on='rid')
