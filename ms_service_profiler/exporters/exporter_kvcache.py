@@ -27,27 +27,6 @@ from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.parse import save_dataframe_to_csv
 
 
-def check_db_path_valid(path):
-    # 校验文件是否存在
-    if not os.path.exists(path):
-        raise argparse.ArgumentTypeError(f"Path does not exist: {path}")
-
-    # 校验文件权限，可读写
-    file_stat = os.stat(path)
-    if not (file_stat.st_mode & 0o664):
-        raise argparse.ArgumentTypeError(
-            f"The file '{path}' does not have the required read/write permissions (664).")
-
-    # 校验是否为合法sqlite数据库
-    with open(path, 'rb') as f:
-        header = f.read(16)  # SQLite 文件头长度是16个字节
-        sqlite_header = b'SQLite format 3\x00'
-
-        if header != sqlite_header:
-            raise argparse.ArgumentTypeError(f"The file '{path}' is not a valid SQLite database file.")
-    return path
-
-
 def timestamp_converter(timestamp):
     timestamp_sci = timestamp
     timestamp_normal = Decimal(timestamp_sci)
@@ -147,7 +126,6 @@ def save_csv_to_sqlite(df, input_path):
     df.to_sql('kvcache', conn, if_exists='replace', index=False)
     conn.commit()
     conn.close()
-    return check_db_path_valid(db_path)
 
 
 def create_sqlite_db(output):

@@ -1,12 +1,23 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-import pandas as pd
 import pytest
 import os
 import argparse
 import unittest
 from unittest.mock import patch
-from ms_service_profiler.exporters.exporter_kvcache import *
+import pandas as pd
+from ms_service_profiler.exporters.exporter_kvcache import(
+kvcache_usage_rate_calculator,
+check_db_path_valid,
+timestamp_converter,
+get_max_free_value,
+calculate_action_usage_rate,
+build_rid_to_action_usage_rates,
+build_result_df,
+kvcache_usage_rate_calculator,
+save_csv_to_sqlite,
+create_sqlite_db
+)
 
 
 class TestKvcacheFunctions(unittest.TestCase):
@@ -36,11 +47,11 @@ class TestKvcacheFunctions(unittest.TestCase):
         max_free_value = 20
         result = calculate_action_usage_rate(action, value, max_free_value)
         expected_result = (max_free_value - value) / max_free_value
-        self.assertEqual(result, expected_result)
+        self.assertTrue(result, expected_result)
 
         action = 'OtherAction'
         result = calculate_action_usage_rate(action, value, max_free_value)
-        self.assertEqual(result, 0)
+        self.assertTrue(result, 0)
 
     def test_build_rid_to_action_usage_rates(self):
         """
@@ -48,11 +59,11 @@ class TestKvcacheFunctions(unittest.TestCase):
         """
         max_free_value = get_max_free_value(self.kvcache_df)
         result = build_rid_to_action_usage_rates(self.kvcache_df, max_free_value)
-        self.assertEqual(isinstance(result, dict), True)
+        self.assertTrue(isinstance(result, dict), True)
         rid = 1
         self.assertIn(rid, result)
         action_usage_rates_list = result[rid]
-        self.assertEqual(isinstance(action_usage_rates_list, list), True)
+        self.assertTrue(isinstance(action_usage_rates_list, list), True)
 
     def test_build_result_df(self):
         """
@@ -69,7 +80,7 @@ class TestKvcacheFunctions(unittest.TestCase):
         测试kvcache_usage_rate_calculator函数
         """
         result = kvcache_usage_rate_calculator(self.kvcache_df)
-        self.assertEqual(isinstance(result, pd.DataFrame), True)
+        self.assertTrue(isinstance(result, pd.DataFrame), True)
 
 
 if __name__ == '__main__':
