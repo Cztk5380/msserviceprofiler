@@ -75,68 +75,6 @@ def check_url_valid(url):
     return url
 
 
-def timestamp_to_datetime(timestamp):
-    """
-    将传入的科学计数法的时间戳转换为真实时间，并在后续处理中存入kvcache.db文件中
-    :param timestamp: 科学计数法时间戳
-    :return: 真实时间
-    """
-    # 传入数据为科学计数法的时间戳数据
-    timestamp_sci = timestamp
-
-    # 将科学计数法的时间戳转换为Decimal类型
-    timestamp_normal = Decimal(timestamp_sci)
-
-    # 将Decimal类型转换为浮点数类型，以便后续能被fromtimestamp函数正确使用
-    timestamp_seconds = float(timestamp_normal / 1000000)
-
-    # 将秒数转换为datetime对象
-    date_time = datetime.datetime.fromtimestamp(timestamp_seconds)
-
-    return date_time.strftime("%Y-%m-%d %H:%M:%S:%f")
-
-
-def kvcache_usage_rate_calculator(kvcache_df):
-    """
-    根据不同的action计算kvcache_usage_rate列的值，并添加到传入的DataFrame中
-    """
-    # 创建一个空的列表，用于存储计算得到的使用率值
-    usage_rate_list = []
-    for _, row in kvcache_df.iterrows():
-        action = row['action']
-        if action == 'KVCacheAlloc':
-            alloc_value = row['device_kvcache_left']
-            free_value = kvcache_df[kvcache_df['action'] == 'Free']['device_kvcache_left'].values
-            if len(free_value) > 0:
-                usage_rate = (free_value[0] - alloc_value) / free_value[0]
-            else:
-                usage_rate = 0  # 如果没有Free的对应值，默认使用率为0
-        elif action == 'AppendSlot':
-            append_value = row['device_kvcache_left']
-            free_value = kvcache_df[kvcache_df['action'] == 'Free']['device_kvcache_left'].values
-            if len(free_value) > 0:
-                usage_rate = (free_value[0] - append_value) / free_value[0]
-            else:
-                usage_rate = 0  # 如果没有Free的对应值，默认使用率为0
-        elif action == 'Free':
-            usage_rate = 0
-        else:
-            usage_rate = None  # 对于其他action情况，使用率设为None，可根据需求调整
-        usage_rate_list.append(usage_rate)
-
-    kvcache_df['kvcache_usage_rate'] = usage_rate_list
-    return kvcache_df
-
-
-def add_column_to_kvcache(file_name, df):
-    """在kvcache表中新增real_time和使用率"""
-    file_name = file_name
-    if file_name == 'kvcache.csv':
-        df['real_start_time'] = df['start_time(microsecond)'].apply(timestamp_to_datetime)
-        df = kvcache_usage_rate_calculator(df)
-    return df
-
-
 def save_csv_to_sqlite(input_path):
     db_path = os.path.join(input_path, '.profiler.db')
     csv_whitelist = ['batch.csv', 'kvcache.csv', 'request.csv', ".request_status.csv"]
@@ -146,7 +84,6 @@ def save_csv_to_sqlite(input_path):
         if filename.endswith('.csv') and filename in csv_whitelist:
             csv_path = os.path.join(input_path, filename)
             df = pd.read_csv(csv_path, encoding='utf-8')
-            df = add_column_to_kvcache(filename, df)
             table_name = os.path.splitext(filename)[0]
             if table_name.startswith('.'):
                 table_name = table_name[1:]
