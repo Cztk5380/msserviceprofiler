@@ -1,14 +1,12 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-import pytest
 import os
 import argparse
 import unittest
 from unittest.mock import patch
 import pandas as pd
-from ms_service_profiler.exporters.exporter_kvcache import(
+from ms_service_profiler.exporters.exporter_kvcache import (
 kvcache_usage_rate_calculator,
-check_db_path_valid,
 timestamp_converter,
 get_max_free_value,
 calculate_action_usage_rate,
@@ -59,11 +57,11 @@ class TestKvcacheFunctions(unittest.TestCase):
         """
         max_free_value = get_max_free_value(self.kvcache_df)
         result = build_rid_to_action_usage_rates(self.kvcache_df, max_free_value)
-        self.assertTrue(isinstance(result, dict), True)
+        self.assertIsInstance(result, dict)
         rid = 1
         self.assertIn(rid, result)
         action_usage_rates_list = result[rid]
-        self.assertTrue(isinstance(action_usage_rates_list, list), True)
+        self.assertIsInstance(action_usage_rates_list, list)
 
     def test_build_result_df(self):
         """
@@ -72,15 +70,22 @@ class TestKvcacheFunctions(unittest.TestCase):
         max_free_value = get_max_free_value(self.kvcache_df)
         rid_to_action_usage_rates = build_rid_to_action_usage_rates(self.kvcache_df, max_free_value)
         result = build_result_df(self.kvcache_df, rid_to_action_usage_rates)
-        self.assertEqual(isinstance(result, pd.DataFrame), True)
-        self.assertEqual(list(result.columns), ['rid', 'name', 'real_start_time', 'device_kvcache_left', 'kvcache_usage_rate'])
+        self.assertIsInstance(result, pd.DataFrame)
+        expected_columns = [
+            'rid',
+            'name',
+            'real_start_time',
+            'device_kvcache_left',
+            'kvcache_usage_rate'
+        ]
+        self.assertEqual(list(result.columns), expected_columns)
 
     def test_kvcache_usage_rate_calculator(self):
         """
         测试kvcache_usage_rate_calculator函数
         """
         result = kvcache_usage_rate_calculator(self.kvcache_df)
-        self.assertTrue(isinstance(result, pd.DataFrame), True)
+        self.assertIsInstance(result, pd.DataFrame)
 
 
 if __name__ == '__main__':
