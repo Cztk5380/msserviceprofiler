@@ -10,6 +10,7 @@ import pandas as pd
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.parse import save_dataframe_to_csv
+from ms_service_profiler.exporters.utils import create_sqlite_db, add_table_into_visual_db
 
 
 def get_max_free_value(kvcache_df):
@@ -94,25 +95,6 @@ def kvcache_usage_rate_calculator(kvcache_df):
     return result_df
 
 
-def save_csv_to_sqlite(df, input_path):
-    db_path = input_path
-    conn = sqlite3.connect(db_path)
-    df.to_sql('kvcache', conn, if_exists='replace', index=False)
-    conn.commit()
-    conn.close()
-
-
-def create_sqlite_db(output):
-    if not os.path.exists(output):
-        os.makedirs(output)
-    db_file = os.path.join(output, '.profiler.db')
-    conn = sqlite3.connect(db_file)
-    conn.isolation_level = None
-    cursor = conn.cursor()
-    conn.close()
-    return db_file
-
-
 class ExporterKVCacheData(ExporterBase):
     name = "kvcache_data"
 
@@ -139,16 +121,6 @@ class ExporterKVCacheData(ExporterBase):
             })
         except KeyError as e:
             logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
-        kvcache_df = df[df['domain'] == 'KVCache']
-        kvcache_df = kvcache_df.rename(columns={'deviceBlock=': 'deviceKvCache'})
-        kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'name', \
-            'deviceKvCache', 'during_time']]
-        kvcache_df = kvcache_df.rename(columns={
-            'deviceKvCache': 'device_kvcache_left',
-            'start_time': 'start_time(microsecond)',
-            'end_time': 'end_time(microsecond)',
-            'during_time': 'during_time(microsecond)'
-        })
         output = cls.args.output_path
         save_dataframe_to_csv(kvcache_df, output, "kvcache.csv")
         kvcache_df['start_datatime'] = start_datatime_data
@@ -157,4 +129,4 @@ class ExporterKVCacheData(ExporterBase):
         })
         kvcache_df = kvcache_usage_rate_calculator(kvcache_df)
         db_file_path = create_sqlite_db(output)
-        save_csv_to_sqlite(kvcache_df, db_file_path)
+        add_table_into_visual_db(kvcache_df, 'kvcache')
