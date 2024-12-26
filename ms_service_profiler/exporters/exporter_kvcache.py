@@ -47,7 +47,7 @@ def build_rid_to_action_usage_rates(kvcache_df, max_free_value):
             value = row['device_kvcache_left']
             usage_rate = calculate_action_usage_rate(action, value, max_free_value)
             if usage_rate is not None:
-                action_usage_rate_dict[action] = usage_rate
+                action_usage_rate_dict['usage'] = usage_rate
             action_usage_rate_dict['timestamp'] = timestamp
             action_usage_rates_list.append(action_usage_rate_dict)
         rid_to_action_usage_rates[rid] = action_usage_rates_list
@@ -68,7 +68,7 @@ def build_result_df(kvcache_df, rid_to_action_usage_rates):
         if rid in rid_to_action_usage_rates:
             relevant_data_list = [d for d in rid_to_action_usage_rates[rid] if d['original_index'] == index]
             if relevant_data_list:
-                usage_rate = relevant_data_list[0][action] if relevant_data_list[0][action] is not None else None
+                usage_rate = relevant_data_list[0]['usage'] if relevant_data_list[0]['usage'] is not None else None
             else:
                 usage_rate = None
         else:
