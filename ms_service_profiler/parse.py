@@ -170,8 +170,11 @@ def read_origin_db(db_path: str):
 
     for dp in Path(db_path).glob("**/PROF_*"):
         filepaths = get_filepaths(dp, file_filter)
-        data = load_prof(filepaths)
-        data_list.append(data)
+        try:
+            data = load_prof(filepaths)
+            data_list.append(data)
+        except Exception as ex:
+            raise ValueError(f'Read data error, please check {dp}')
     return data_list
 
 
