@@ -1,22 +1,9 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import argparse
 import os
 import re
 import sqlite3
-import logging
 from urllib.parse import urlparse
 import datetime
 from decimal import Decimal
@@ -26,8 +13,7 @@ import pandas as pd
 from ms_service_profiler.analyze import check_input_path_valid
 from ms_service_profiler.views.datasource import create_datasource
 from ms_service_profiler.views.dashboard import create_dashboard
-
-logging.basicConfig(level=logging.INFO)
+from ms_service_profiler.utils.log import set_log_level, logger
 
 
 def check_db_path_valid(path):
@@ -60,6 +46,23 @@ def check_token_valid(token):
     if not re.match(pattern, token):
         raise argparse.ArgumentTypeError("Invalid Grafana token format.")
     return token
+
+
+def check_host_valid(host):
+    # 校验是否为字符串
+    if not isinstance(host, str):
+        raise argparse.ArgumentTypeError("Grafana host should be a string.")
+    # 校验字符串内容
+    pattern = r'^[a-zA-Z0-9.-]+$'
+    if not re.match(pattern, host):
+        raise argparse.ArgumentTypeError("Invalid Grafana host format.")
+    return host
+
+
+def check_port_valid(port):
+    if int(port) < 1 or int(port) > 65535:
+        raise argparse.ArgumentTypeError("Grafana port should be in the range of 1-65535.")
+    return port
 
 
 def check_url_valid(url):
@@ -95,12 +98,17 @@ def main():
     parser = argparse.ArgumentParser(description="Process database path.")
     parser.add_argument('--input_path', type=check_input_path_valid, help="Path to the CSV expoter folder")
     parser.add_argument('--token', type=check_token_valid, help="Grafana token")
-    parser.add_argument('--url', type=check_url_valid, default="http://localhost:3000", help="Grafana URL")
+    parser.add_argument('--host', type=check_host_valid, default="localhost", help="Grafana host")
+    parser.add_argument('--port', type=check_port_valid, default=3000, help="Grafana port")
+    parser.add_argument('--log_level', type=str, default='info', \
+        choices=['debug', 'info', 'warning', 'error', 'fatal', 'critical'], help='Log level to print')
     args = parser.parse_args()
+    set_log_level(args.log_level)
     db_path = save_csv_to_sqlite(args.input_path)
-    datasource_uid = create_datasource(args.url, args.token, db_path)
-    grafana_url = create_dashboard(args.url, args.token, datasource_uid)
-    logging.info(f"Please log in {grafana_url} to view the dashboard 'Profiler Visualization'")
+    url = check_url_valid(f"http://{args.host}:{args.port}")
+    datasource_uid = create_datasource(url, args.token, db_path)
+    grafana_url = create_dashboard(url, args.token, datasource_uid)
+    logger.info(f"Please log in {grafana_url} to view the dashboard 'Profiler Visualization'")
 
 
 if __name__ == "__main__":

@@ -1,23 +1,10 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import json
-import logging
 
 import requests
 
-logging.basicConfig(level=logging.INFO)
+from ms_service_profiler.utils.log import logger
 
 BATCH_QUERY_TEXT = """
 WITH numbered_data AS (
@@ -65,7 +52,7 @@ ORDER BY
     datetime ASC;
 """
 
-GEN_SPEED_LATENCY_SQL = """
+PREFILL_GEN_SPEED_LATENCY_SQL = """
 WITH converted AS (
     SELECT
         substr(timestamp, 1, 10) || 'T' || substr(timestamp, 12, 8) || 'Z' AS datetime,
@@ -74,7 +61,30 @@ WITH converted AS (
         p90,
         p50
     FROM
-        gen_speed
+        prefill_gen_speed
+)
+SELECT
+    datetime as time,
+    cast(avg as REAL) as "avg",
+    cast(p99 as REAL) as "p99",
+    cast(p90 as REAL) as "p90",
+    cast(p50 as REAL) as "p50"
+FROM
+    converted
+ORDER BY
+    datetime ASC;
+"""
+
+DECODE_GEN_SPEED_LATENCY_SQL = """
+WITH converted AS (
+    SELECT
+        substr(timestamp, 1, 10) || 'T' || substr(timestamp, 12, 8) || 'Z' AS datetime,
+        avg,
+        p99,
+        p90,
+        p50
+    FROM
+        decode_gen_speed
 )
 SELECT
     datetime as time,
@@ -153,10 +163,10 @@ def create_dashboard(grafana_url, token, datasource_uid):
         else:
             raise ValueError(f"Failed to configure dashboard: {response.status_code}, {response.text}")
     except requests.RequestException as e:
-        logging.error(f"An error occurred during the request: {e}")
+        logger.error(f"An error occurred during the request: {e}")
         raise
     except Exception as e:
-        logging.error(f"An unknown error occurred: {e}")
+        logger.error(f"An unknown error occurred: {e}")
         raise
 
 
@@ -168,7 +178,8 @@ def create_dashboard_json(datasource_uid):
             "panels": [
                 create_batch_panel(datasource_uid),
                 create_first_token_panel(datasource_uid),
-                create_generate_speed_panel(datasource_uid),
+                create_prefill_gen_speed_panel(datasource_uid),
+                create_decode_gen_speed_panel(datasource_uid),
                 create_request_latency_panel(datasource_uid),
                 create_req_status_panel(datasource_uid),
                 create_kvcache_panel(datasource_uid)
@@ -356,10 +367,10 @@ def create_first_token_panel(datasource_uid):
     }
 
 
-def create_generate_speed_panel(datasource_uid):
+def create_prefill_gen_speed_panel(datasource_uid):
     return {
         "type": "timeseries",
-        "title": "generate_speed_latency",
+        "title": "prefill_generate_speed_latency",
         "gridPos": {
             "x": 0,
             "y": 16,
@@ -373,9 +384,43 @@ def create_generate_speed_panel(datasource_uid):
         "pluginVersion": "11.3.0",
         "targets": [
             {
-            "queryText": GEN_SPEED_LATENCY_SQL,
+            "queryText": PREFILL_GEN_SPEED_LATENCY_SQL,
             "queryType": "time series",
-            "rawQueryText": GEN_SPEED_LATENCY_SQL,
+            "rawQueryText": PREFILL_GEN_SPEED_LATENCY_SQL,
+            "refId": "A",
+            "timeColumns": [
+                "time",
+                "ts"
+            ]
+            }
+        ],
+        "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": f"{datasource_uid}"
+        }
+    }
+
+
+def create_decode_gen_speed_panel(datasource_uid):
+    return {
+        "type": "timeseries",
+        "title": "decode_generate_speed_latency",
+        "gridPos": {
+            "x": 0,
+            "y": 16,
+            "h": 8,
+            "w": 12
+        },
+        "fieldConfig": {
+            "defaults": get_lantency_default_panel(),
+            "overrides": []
+        },
+        "pluginVersion": "11.3.0",
+        "targets": [
+            {
+            "queryText": DECODE_GEN_SPEED_LATENCY_SQL,
+            "queryType": "time series",
+            "rawQueryText": DECODE_GEN_SPEED_LATENCY_SQL,
             "refId": "A",
             "timeColumns": [
                 "time",

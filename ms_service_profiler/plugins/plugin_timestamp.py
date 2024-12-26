@@ -1,16 +1,4 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import datetime
 import psutil
@@ -19,42 +7,64 @@ from ms_service_profiler.constant import US_PER_SECOND
 from ms_service_profiler.plugins.base import PluginBase
 
 
-SYS_TS = psutil.boot_time()
-
-
-class PluginTimeStamp(PluginBase):
-    name = "plugin_timestamp"
+class PluginTimeStampHelper(PluginBase):
+    name = "plugin_timestamp_helper"
     depends = []
 
     @classmethod
     def parse(cls, data):
         tx_data_df = data.get('tx_data_df')
         cpu_data_df = data.get('cpu_data_df')
-        cpu_start_cnt = data.get('cpu_start_cnt')
-        cpu_frequency = data.get('cpu_frequency')
-        sys_start_cnt = data.get('sys_start_cnt')
+        time_info = data.get('time_info')
+        sys_start_cnt = time_info.get('sys_start_cnt')
+        cpu_start_cnt = time_info.get('cpu_start_cnt')
         
-        tx_data_df['start_time'] = convert_syscnt_to_ts(tx_data_df['start_time'], sys_start_cnt, cpu_frequency)
-        tx_data_df['end_time'] = convert_syscnt_to_ts(tx_data_df['end_time'], sys_start_cnt, cpu_frequency)
-        tx_data_df['start_datatime'] = tx_data_df['start_time'].apply(timestamp_converter)
-        tx_data_df['end_datatime'] = tx_data_df['end_time'].apply(timestamp_converter)
-        tx_data_df['during_time'] = tx_data_df['end_time'] - tx_data_df['start_time']
+        if time_info is None:
+            raise ValueError("time_info is None")
+        if sys_start_cnt is None:
+            raise ValueError("sys_start_cnt is None")
+        if cpu_start_cnt is None:
+            raise ValueError("cpu_start_cnt is None")
         
+        if tx_data_df is not None:
+            tx_data_df['start_time'] = convert_syscnt_to_ts(tx_data_df['start_time'], sys_start_cnt, time_info)
+            tx_data_df['end_time'] = convert_syscnt_to_ts(tx_data_df['end_time'], sys_start_cnt, time_info)
+            tx_data_df['during_time'] = tx_data_df['end_time'] - tx_data_df['start_time']
+            tx_data_df['start_datetime'] = tx_data_df['start_time'].apply(timestamp_converter)
+            tx_data_df['end_datetime'] = tx_data_df['end_time'].apply(timestamp_converter)
 
-        cpu_data_df['start_time'] = convert_syscnt_to_ts(cpu_data_df['start_time'], cpu_start_cnt, cpu_frequency)
-        cpu_data_df['end_time'] = convert_syscnt_to_ts(cpu_data_df['end_time'], cpu_start_cnt, cpu_frequency)
-        cpu_data_df['start_datatime'] = cpu_data_df['start_time'].apply(timestamp_converter)
-        cpu_data_df['end_datatime'] = cpu_data_df['end_time'].apply(timestamp_converter)
-        cpu_data_df['during_time'] = cpu_data_df['end_time'] - cpu_data_df['start_time']
+        if cpu_data_df is not None:
+            cpu_data_df['start_time'] = convert_syscnt_to_ts(cpu_data_df['start_time'], cpu_start_cnt, time_info)
+            cpu_data_df['end_time'] = convert_syscnt_to_ts(cpu_data_df['end_time'], cpu_start_cnt, time_info)
+            cpu_data_df['during_time'] = cpu_data_df['end_time'] - cpu_data_df['start_time']
+            cpu_data_df['start_datetime'] = cpu_data_df['start_time'].apply(timestamp_converter)
+            cpu_data_df['end_datetime'] = cpu_data_df['end_time'].apply(timestamp_converter)
 
-        data['cpu_data_df'] = cpu_data_df
-        data['tx_data_df'] = tx_data_df
+        data = {
+            'tx_data_df': tx_data_df,
+            'cpu_data_df': cpu_data_df,
+        }
         return data
 
 
-def convert_syscnt_to_ts(cnt, start_cnt, cpu_frequency):
+class PluginTimeStamp(PluginBase):
+    name = "plugin_timestamp"
+    depends = []
+    helper = PluginTimeStampHelper()
+
+    @classmethod
+    def parse(cls, data):
+        res = []
+        for data_single in data:
+            res.append(cls.helper.parse(data_single))
+        return res
+
+
+def convert_syscnt_to_ts(cnt, start_cnt, time_info):
+    cpu_frequency = time_info.get('cpu_frequency')
+    sys_start_time = time_info.get('sys_start_time')
     try:
-        return (SYS_TS + ((cnt - start_cnt) / cpu_frequency)) * US_PER_SECOND
+        return (sys_start_time + ((cnt - start_cnt) / cpu_frequency)) * US_PER_SECOND
     except Exception as ex:
         raise AttributeError("Timestamp format error.") from ex
 

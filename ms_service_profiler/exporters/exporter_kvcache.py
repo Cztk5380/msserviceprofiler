@@ -1,16 +1,4 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 from enum import Enum   
 
@@ -21,10 +9,12 @@ from decimal import Decimal
 import os
 import sqlite3
 import json
+import logging
 import pandas as pd
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.parse import save_dataframe_to_csv
+from ms_service_profiler.utils.log import logger
 
 
 def timestamp_converter(timestamp):
@@ -150,7 +140,7 @@ class ExporterKVCacheData(ExporterBase):
     def export(cls, data) -> None:
         df = data.get('tx_data_df')
         if df is None:
-            logging.error("The data is empty, please check")
+            logger.error("The data is empty, please check")
             return
         kvcache_df = df[df['domain'] == 'KVCache']
         kvcache_df = kvcache_df.rename(columns={'deviceBlock=': 'deviceKvCache'})
