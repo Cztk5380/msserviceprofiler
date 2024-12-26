@@ -7,7 +7,6 @@ from unittest.mock import patch
 import pandas as pd
 from ms_service_profiler.exporters.exporter_kvcache import (
 kvcache_usage_rate_calculator,
-timestamp_converter,
 get_max_free_value,
 calculate_action_usage_rate,
 build_rid_to_action_usage_rates,
