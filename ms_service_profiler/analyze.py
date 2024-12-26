@@ -1,16 +1,4 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import os
 import argparse
@@ -21,6 +9,7 @@ from ms_service_profiler.parse import parse
 from ms_service_profiler.exporters.factory import ExporterFactory
 from ms_service_profiler.exporters.utils import create_sqlite_db
 from ms_service_profiler.plugins import custom_plugins
+from ms_service_profiler.utils.log import set_log_level
 
 
 def check_input_path_valid(path):
@@ -52,6 +41,7 @@ def main():
     parser = argparse.ArgumentParser(description='MS Server Profiler')
     parser.add_argument(
         '--input_path',
+        required=True,
         type=check_input_path_valid,
         help='Path to the folder containing profile data.')
     parser.add_argument(
@@ -60,13 +50,16 @@ def main():
         default=os.path.join(os.getcwd(), 'output'),
         help='Output file path to save results.')
     parser.add_argument(
-        '--exporter',
+        '--log_level',
         type=str,
-        nargs='+',
-        default=['trace', 'req_status', 'request_data', 'batch_data', 'kvcache_data', 'latency'],
-        help='exporter to use')
+        default='info',
+        choices=['debug', 'info', 'warning', 'error', 'fatal', 'critical'],
+        help='Log level to print')
 
     args = parser.parse_args()
+
+    # 初始化日志等级
+    set_log_level(args.log_level)
 
     # 初始化Exporter
     exporters = ExporterFactory.create_exporters(args)

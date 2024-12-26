@@ -1,19 +1,6 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
-from enum import Enum   
-import logging
+from enum import Enum
 from pathlib import Path
 import json
 import pandas as pd
@@ -23,7 +10,7 @@ from ms_service_profiler.parse import parse
 from ms_service_profiler.parse import save_dataframe_to_csv
 from ms_service_profiler.exporters.base import ExporterBase
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+from ms_service_profiler.utils.log import logger
 
 
 def update_name(row):
@@ -53,7 +40,7 @@ def process_data(req_en_queue_df, req_running_df, pending_df):
     if decode_first_df.shape[0] == running_first_df.shape[0]:
         prefill_df = pd.merge(decode_first_df, running_first_df, on=['rid'], suffixes=('_enque', '_running'))
     else:
-        logging.error("The data is wrong, please check")
+        logger.error("The data is wrong, please check")
         return None
     prefill_df['waiting_time'] = prefill_df["start_time_running"] - prefill_df["end_time_enque"]
     decode_running_df = req_running_df.groupby('rid').apply(lambda x: x.iloc[1:]).reset_index(drop=True)
@@ -65,7 +52,7 @@ def process_data(req_en_queue_df, req_running_df, pending_df):
     if rows_pending == rows_running:
         decode_merge = pd.concat([pending_df, decode_running_df], ignore_index=True, axis=1)
     else:
-        logging.error("The data is wrong, please check")
+        logger.error("The data is wrong, please check")
         return None
     decode_merge.columns = ['start_time_pending', 'end_time_pending', 'rid', 'start_time_running', \
         'end_time_running', 'rid_running']
@@ -75,7 +62,7 @@ def process_data(req_en_queue_df, req_running_df, pending_df):
     if prefill_df.shape[0] == pending_time_sum.shape[0]:
         wait_df = pd.merge(prefill_df, pending_time_sum, on='rid')
     else:
-        logging.error("The data is wrong, please check")
+        logger.error("The data is wrong, please check")
         return None
     wait_df['queue_wait_time'] = wait_df['waiting_time'] + wait_df['pending_time']
     wait_df['rid'] = pd.to_numeric(wait_df['rid'], errors='coerce')
@@ -94,7 +81,7 @@ class ExporterAnalyzeData(ExporterBase):
     def export(cls, data) -> None:
         df = data.get('tx_data_df')
         if df is None:
-            logging.error("The data is empty, please check")
+            logger.error("The data is empty, please check")
             return
         output = cls.args.output_path
         df = df.apply(update_name, axis=1)
@@ -110,27 +97,27 @@ class ExporterAnalyzeData(ExporterBase):
         if http_req_df.shape[0] == http_res_df.shape[0]:
             df_merged = pd.merge(http_req_df, http_res_df, on='rid', suffixes=('_httpReq', '_httpRes'))
         else:
-            logging.error("The data is wrong, please check")
+            logger.error("The data is wrong, please check")
             return
         # 计算execution_time
         if df_merged.shape[0] == wait_df.shape[0]:
             df_merged['rid'] = pd.to_numeric(df_merged['rid'], errors='coerce')
             df_merged = pd.merge(df_merged, wait_df, on='rid')
         else:
-            logging.error("The data is wrong, please check")
+            logger.error("The data is wrong, please check")
             return
         http_rectoken_df = http_rectoken_df[['rid', 'recvTokenSize=']]
         http_restoken_df = http_restoken_df[['rid', 'replyTokenSize=']]
         if http_rectoken_df.shape[0] == http_restoken_df.shape[0]:
             df_token = pd.merge(http_rectoken_df, http_restoken_df, on='rid')
         else:
-            logging.error("The data is wrong, please check")
+            logger.error("The data is wrong, please check")
             return
         if df_merged.shape[0] == df_token.shape[0]:
             df_token['rid'] = pd.to_numeric(df_token['rid'], errors='coerce')
             df_merged = pd.merge(df_merged, df_token, on='rid')
         else:
-            logging.error("The data is wrong, please check")
+            logger.error("The data is wrong, please check")
             return
         
         df_merged['execution_time'] = df_merged['end_time_httpRes'] - df_merged['start_time_httpReq']
