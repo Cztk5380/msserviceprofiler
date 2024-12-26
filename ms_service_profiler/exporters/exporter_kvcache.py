@@ -1,6 +1,18 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-from enum import Enum   
+from enum import Enum
 
 from pathlib import Path
 import argparse
@@ -9,22 +21,10 @@ from decimal import Decimal
 import os
 import sqlite3
 import json
-import logging
 import pandas as pd
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.parse import save_dataframe_to_csv
-from ms_service_profiler.utils.log import logger
-
-
-def timestamp_converter(timestamp):
-    timestamp_sci = timestamp
-    timestamp_normal = Decimal(timestamp_sci)
-
-    # 1000000: 将Decimal类型转换为浮点数类型，以便后续能被fromtimestamp函数正确使用
-    timestamp_seconds = float(timestamp_normal / 1000000)
-    date_time = datetime.datetime.fromtimestamp(timestamp_seconds)
-    return date_time.strftime("%Y-%m-%d %H:%M:%S:%f")
 
 
 def get_max_free_value(kvcache_df):
@@ -61,9 +61,8 @@ def build_rid_to_action_usage_rates(kvcache_df, max_free_value):
             action_usage_rate_dict['original_index'] = index
             value = row['device_kvcache_left']
             usage_rate = calculate_action_usage_rate(action, value, max_free_value)
-            action_usage_rate_dict['Allocate'] = usage_rate if action == 'Allocate' else None
-            action_usage_rate_dict['AppendSlot'] = usage_rate if action == 'AppendSlot' else None
-            action_usage_rate_dict['Free'] = usage_rate if action == 'Free' else None
+            if usage_rate is not None:
+                action_usage_rate_dict[action] = usage_rate
             action_usage_rate_dict['timestamp'] = timestamp
             action_usage_rates_list.append(action_usage_rate_dict)
         rid_to_action_usage_rates[rid] = action_usage_rates_list
@@ -140,8 +139,9 @@ class ExporterKVCacheData(ExporterBase):
     def export(cls, data) -> None:
         df = data.get('tx_data_df')
         if df is None:
-            logger.error("The data is empty, please check")
+            logging.error("The data is empty, please check")
             return
+        start_datatime_data = df['start_datatime'].copy()
         kvcache_df = df[df['domain'] == 'KVCache']
         kvcache_df = kvcache_df.rename(columns={'deviceBlock=': 'deviceKvCache'})
         kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'name', \
@@ -154,7 +154,10 @@ class ExporterKVCacheData(ExporterBase):
         })
         output = cls.args.output_path
         save_dataframe_to_csv(kvcache_df, output, "kvcache.csv")
-        kvcache_df['real_start_time'] = kvcache_df['start_time(microsecond)'].apply(timestamp_converter)
+        kvcache_df['start_datatime'] = start_datatime_data
+        kvcache_df = kvcache_df.rename(columns={
+        'start_datatime': 'real_start_time'
+        })
         kvcache_df = kvcache_usage_rate_calculator(kvcache_df)
         db_file_path = create_sqlite_db(output)
         save_csv_to_sqlite(kvcache_df, db_file_path)
