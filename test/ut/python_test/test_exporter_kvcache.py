@@ -28,7 +28,8 @@ class TestExporterBatchData(unittest.TestCase):
             'end_time': [1.5, 2.5, 3.5],
             'deviceBlock=':[512, 511, 513],
             'rid':[0, 0, 0],
-            'during_time':[0.5, 0.5, 0.5]
+            'during_time':[0.5, 0.5, 0.5],
+            'start_datatime': ['2024-10-03', '2024-10-03', '2024-10-03']
         }
         return pd.DataFrame(data)
 
