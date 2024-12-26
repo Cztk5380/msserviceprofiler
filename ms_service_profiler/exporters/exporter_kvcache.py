@@ -127,6 +127,18 @@ class ExporterKVCacheData(ExporterBase):
             logging.error("The data is empty, please check")
             return
         start_datatime_data = df['start_datatime'].copy()
+        try:
+            kvcache_df = df[df['domain'] == 'KVCache']
+            kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'name', \
+                                     'deviceBlock=', 'during_time']]
+            kvcache_df = kvcache_df.rename(columns={
+                'deviceBlock=': 'device_kvcache_left',
+                'start_time': 'start_time(microsecond)',
+                'end_time': 'end_time(microsecond)',
+                'during_time': 'during_time(microsecond)'
+            })
+        except KeyError as e:
+            logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
         kvcache_df = df[df['domain'] == 'KVCache']
         kvcache_df = kvcache_df.rename(columns={'deviceBlock=': 'deviceKvCache'})
         kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'name', \
