@@ -25,15 +25,18 @@ class ExporterKVCacheData(ExporterBase):
         if df is None:
             logger.error("The data is empty, please check")
             return
-        kvcache_df = df[df['domain'] == 'KVCache']
-        kvcache_df = kvcache_df.rename(columns={'deviceKvCache=': 'deviceKvCache'})
-        kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'action', \
-            'deviceKvCache', 'during_time']]
-        kvcache_df = kvcache_df.rename(columns={
-            'deviceKvCache': 'device_kvcache_left',
-            'start_time': 'start_time(microsecond)',
-            'end_time': 'end_time(microsecond)',
-            'during_time': 'during_time(microsecond)'
-        })
+        try:
+            kvcache_df = df[df['domain'] == 'KVCache']
+            kvcache_df = kvcache_df.rename(columns={'deviceBlock=': 'deviceKvCache'})
+            kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'name', \
+                'deviceKvCache', 'during_time']]
+            kvcache_df = kvcache_df.rename(columns={
+                'deviceKvCache': 'device_kvcache_left',
+                'start_time': 'start_time(microsecond)',
+                'end_time': 'end_time(microsecond)',
+                'during_time': 'during_time(microsecond)'
+            })
+        except KeyError as e:
+            logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
         output = cls.args.output_path
         save_dataframe_to_csv(kvcache_df, output, "kvcache.csv")

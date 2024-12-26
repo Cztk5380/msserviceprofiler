@@ -83,11 +83,11 @@ class TestExporterAnalyzeData(unittest.TestCase):
     def create_df(self):
         # 创建一个示例DataFrame
         data = {
-            'name': ['httpReq', 'encode', 'ReqEnQueue', 'ReqState', 'ReqState', 'ReqState', 'DecodeEnd', 'httpRes'],
+            'name': ['httpReq', 'encode', 'Enqueue', 'ReqState', 'ReqState', 'ReqState', 'DecodeEnd', 'httpRes'],
             'message': [
                 {'domain': 'http', 'rid': 'endpoint_common_1', 'name': 'httpReq', 'type': 0},
                 {'domain': 'http', 'rid': 'endpoint_common_1', 'name': 'encode', 'type': 2, '=recvTokenSize': 4},
-                {'domain': 'Queue', 'rid': 0, '=QueueSize': 1, 'queue': 20, 'name': 'ReqEnQueue', 'type': 0},
+                {'domain': 'Queue', 'rid': 0, '=QueueSize': 1, 'queue': 20, 'name': 'Enqueue', 'type': 0},
                 {'rid': 0, '+WAITING': -1, '+RUNNING': 1, 'name': 'ReqState', 'type': 0},
                 {'rid': 0, '+RUNNING': -1, '+PENDING': 1, 'name': 'ReqState', 'type': 0},
                 {'rid': 0, '+PENDING': -1, '+RUNNING': 1, 'name': 'ReqState', 'type': 0},

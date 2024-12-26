@@ -22,19 +22,21 @@ class ExporterBatchData(ExporterBase):
     def export(cls, data) -> None:
         df = data.get('tx_data_df')
         if df is None:
-            logger.error("The data is empty, please check")
+            logger.warning("The data is empty, please check")
             return
         batch_df = df[(df['name'] == 'BatchSchedule') | (df['name'] == 'modelExec')]
         if batch_df.empty:
-            logging.warning("No batch data found. Please check msproftx.db.")
+            logger.warning("No batch data found. Please check msproftx.db.")
             return
-        model_df = batch_df[['name', 'res_list', 'start_time', 'end_time', 'batch_size', 'batch_type', 'during_time',]]
-        model_df = model_df.rename(columns={
+        try:
+            model_df = batch_df[['name', 'res_list', 'start_time', 'end_time', 'batch_size', 'batch_type', 'during_time',]]
+            model_df = model_df.rename(columns={
             'start_time': 'start_time(microsecond)',
             'end_time': 'end_time(microsecond)',
             'during_time': 'during_time(microsecond)'
         })
-
+        except KeyError as e:
+            logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
         output = cls.args.output_path
 
         save_dataframe_to_csv(model_df, output, "batch.csv")
