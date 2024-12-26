@@ -1,10 +1,13 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
 import os
+from pathlib import Path
 import json
 import re
 import sqlite3
 from pathlib import Path
+from collections import defaultdict
+
 import pandas as pd
 
 from ms_service_profiler.constant import US_PER_SECOND
@@ -21,24 +24,9 @@ def save_dataframe_to_csv(filtered_df, output, file_name):
         filtered_df.to_csv(file_path, index=False)
 
 
-def find_config_files(folder_path):
-    config_path = None
-    info_path = None
-    for root, _, files in os.walk(folder_path):
-        for filename in files:
-            if filename == 'host_start.log':
-                config_path = os.path.join(root, filename)
-            if filename == 'info.json':
-                info_path = os.path.join(root, filename)
-    if config_path is None or info_path is None:
-        raise ValueError(f"Failed to get 'host_start.log' or 'info.json' from {folder_path}, please check.")
-    return config_path, info_path
-
-
-def get_start_cnt(folder_path):
+def load_start_cnt(config_path):
     sys_start_cnt = 0
     cpu_start_cnt = 0
-    config_path, _ = find_config_files(folder_path)
     with open(config_path, 'r') as f:
         for line in f:
             if "cntvct:" in line:
@@ -50,7 +38,17 @@ def get_start_cnt(folder_path):
     return sys_start_cnt, cpu_start_cnt
 
 
-def load_data_from_database(db_path):
+def load_start_time(start_info_path):
+    file_description = os.open(start_info_path, os.O_RDONLY)
+    with os.fdopen(file_description, 'r') as info:
+        data = json.load(info)
+        if 'collectionTimeBegin' not in data:
+            raise ValueError(f"Invalid or missing 'CPU' data in {start_info_path}.")
+        sys_start_time = float(data['collectionTimeBegin']) / 1e6
+    return sys_start_time
+
+
+def load_tx_data(db_path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
@@ -62,6 +60,7 @@ def load_data_from_database(db_path):
     all_data = cursor.fetchall()
     columns = [description[0] for description in cursor.description]
     all_data_df = pd.DataFrame(all_data, columns=columns)
+    all_data_df = parse_span(all_data_df)
     conn.close()
     return all_data_df
 
@@ -75,35 +74,9 @@ def extract_span_info_from_message(message, mark_id):
     return span_id, message
 
 
-def concat_data_from_folder(folder_path):
-    full_df = pd.DataFrame()
-
-    def merge_message(series):
-        series_merge = series.sort_values("mark_id")
-        all_msg = "".join(series_merge["message"]).replace("^", "\"")
-        series_merge.iloc[0, series_merge.columns.get_loc("message")] = all_msg
-        return series_merge.iloc[0]
-
-    for root, _, files in os.walk(folder_path):
-        for filename in files:
-            if filename == 'msproftx.db':
-                db_path = os.path.join(root, filename)
-                data_df = load_data_from_database(db_path)
-
-                span_info = data_df[["mark_id", "message"]].apply(
-                    lambda x: extract_span_info_from_message(x["message"], x["mark_id"]), axis=1
-                )
-                data_df[["span_id", "message"]] = pd.DataFrame(span_info.tolist())
-                data_df = data_df.groupby("span_id").apply(merge_message, include_groups=False)
-
-                full_df = pd.concat([full_df, data_df], ignore_index=True)
-    if full_df.empty:
-        raise ValueError(f"No valid database found in {folder_path}, please check.")
-    full_df = full_df.sort_values(by='start_time', ascending=True).reset_index(drop=True)
-    return full_df
-
-
-def load_cpu_data_from_database(db_path):
+def load_cpu_data(db_path):
+    if db_path is None:
+        return None
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
@@ -120,22 +93,8 @@ def load_cpu_data_from_database(db_path):
     return cpu_data_df
 
 
-def find_cpu_data_from_folder(folder_path):
-    cpu_data_df = pd.DataFrame()
-    for root, _, files in os.walk(folder_path):
-        for filename in files:
-            if filename == 'host_cpu_usage.db':
-                db_path = os.path.join(root, filename)
-                cpu_data_df = load_cpu_data_from_database(db_path)
-    if cpu_data_df.empty:
-        raise ValueError(f"No valid cpu database found in {folder_path}, please check.")
-    cpu_data_df = cpu_data_df.sort_values(by='start_time', ascending=True).reset_index(drop=True)
-    return cpu_data_df
-
-
-def get_cpu_freq(folder_path):
+def load_cpu_freq(info_path):
     cpu_frequency = None
-    _, info_path = find_config_files(folder_path)
     file_description = os.open(info_path, os.O_RDONLY)
     with os.fdopen(file_description, 'r') as info:
         data = json.load(info)
@@ -149,19 +108,71 @@ def get_cpu_freq(folder_path):
     return cpu_frequency
 
 
-def read_origin_db(db_path: str):
-    tx_data_df = concat_data_from_folder(db_path)
-    cpu_data_df = find_cpu_data_from_folder(db_path)
-    sys_start_cnt, cpu_start_cnt = get_start_cnt(db_path)
-    cpu_frequency = get_cpu_freq(db_path)
+def get_filepaths(folder_path, file_filter):
+    filepaths = {}
+    reverse_d = {value: key for key, value in file_filter.items()}
+    for fp in Path(folder_path).rglob('*'):
+        if fp.name in reverse_d:
+            filepaths[reverse_d[fp.name]] = str(fp)
+    return filepaths
+
+
+def merge_message(series):
+    series_merge = series.sort_values("mark_id")
+    all_msg = "".join(series_merge["message"]).replace("^", "\"")
+    series_merge.iloc[0, series_merge.columns.get_loc("message")] = all_msg
+    return series_merge.iloc[0]
+
+
+def parse_span(data_df):
+    span_info = data_df[["mark_id", "message"]].apply(
+        lambda x: extract_span_info_from_message(x["message"], x["mark_id"]), axis=1
+    )
+    data_df[["span_id", "message"]] = pd.DataFrame(span_info.tolist())
+    data_df = data_df.groupby("span_id").apply(merge_message, include_groups=False)
+    return data_df
+
+
+def load_time_info(filepaths):
+    sys_start_cnt, cpu_start_cnt = load_start_cnt(filepaths.get("host_start"))
+    cpu_frequency = load_cpu_freq(filepaths.get("info"))
+    sys_start_time = load_start_time(filepaths.get("start_info"))
+    return dict(
+        sys_start_cnt=sys_start_cnt,
+        cpu_start_cnt=cpu_start_cnt,
+        sys_start_time=sys_start_time,
+        cpu_frequency=cpu_frequency
+    )
+
+
+def load_prof(filepaths):
+    tx_data_df = load_tx_data(filepaths.get("tx"))
+    cpu_data_df = load_cpu_data(filepaths.get("cpu"))
+    time_info = load_time_info(filepaths)
 
     return dict(
         tx_data_df=tx_data_df,
         cpu_data_df=cpu_data_df,
-        sys_start_cnt=sys_start_cnt,
-        cpu_start_cnt=cpu_start_cnt,
-        cpu_frequency=cpu_frequency
+        time_info=time_info,
     )
+
+
+def read_origin_db(db_path: str):
+    file_filter = {
+        "tx": "msproftx.db",
+        "cpu": "host_cpu_usage.db",
+        "host_start": "host_start.log",
+        "info": "info.json",
+        "start_info": "start_info",
+    }
+
+    data_list = []
+
+    for dp in Path(db_path).glob("**/PROF_*"):
+        filepaths = get_filepaths(dp, file_filter)
+        data = load_prof(filepaths)
+        data_list.append(data)
+    return data_list
 
 
 def parse(input_path, custom_plugins, exporters):
@@ -172,10 +183,16 @@ def parse(input_path, custom_plugins, exporters):
 
     all_plugins = sort_plugins(buildin_plugins + custom_plugins)
     for plugin in all_plugins:
-        data = plugin.parse(data)
-        logger.info(f'{plugin.name} success.')
+        try:
+            data = plugin.parse(data)
+            logger.info(f'{plugin.name} success.')
+        except Exception as ex:
+            logger.error(f'{plugin.name} failure. {ex}')
 
     # 导出数据
     for exporter in exporters:
-        exporter.export(data)
-        logger.info(f'exporter {exporter.name} success.')
+        try:
+            exporter.export(data)
+            logger.info(f'exporter {exporter.name} success.')
+        except Exception as ex:
+            logger.error(f'{exporter.name} failure. {ex}')

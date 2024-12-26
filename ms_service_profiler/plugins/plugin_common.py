@@ -8,7 +8,7 @@ from ms_service_profiler.plugins.base import PluginBase
 
 class PluginCommon(PluginBase):
     name = "plugin_common"
-    depends = []
+    depends = ["plugin_concat"]
 
     @classmethod
     def parse(cls, data):
@@ -85,4 +85,5 @@ def parse_message(all_data_df):
     all_data_df['message'] = all_data_df['message'].apply(lambda x: convert_message_to_json(x))
     all_data_df = all_data_df.join(all_data_df['message'].apply(pd.Series))
     all_data_df = parse_rid(all_data_df)
+    
     return all_data_df
