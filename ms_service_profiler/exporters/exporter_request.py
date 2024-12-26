@@ -72,13 +72,13 @@ def process_data(req_en_queue_df, req_running_df, pending_df):
 
 def filter_data(df):
     # 过滤数据的函数
-    http_req_df = df[df['name'] == 'httpReq'].drop(columns=['name'])
-    http_res_df = df[df['name'] == 'httpRes'].drop(columns=['name'])
-    http_rectoken_df = df[df['name'] == 'encode'].drop(columns=['name'])
-    http_restoken_df = df[df['name'] == 'DecodeEnd'].drop(columns=['name'])
-    req_en_queue_df = df[df['name'] == 'Enqueue'].drop(columns=['name'])
-    req_running_df = df[df['name'] == 'RUNNING'].drop(columns=['name'])
-    pending_df = df[df['name'] == 'PENDING'].drop(columns=['name'])
+    http_req_df = df[df['name'] == 'httpReq']
+    http_res_df = df[df['name'] == 'httpRes']
+    http_rectoken_df = df[df['name'] == 'encode']
+    http_restoken_df = df[df['name'] == 'DecodeEnd']
+    req_en_queue_df = df[df['name'] == 'Enqueue']
+    req_running_df = df[df['name'] == 'RUNNING']
+    pending_df = df[df['name'] == 'PENDING']
     wait_df = process_data(req_en_queue_df, req_running_df, pending_df)
     return http_req_df, http_res_df, http_rectoken_df, http_restoken_df, wait_df
 
