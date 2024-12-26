@@ -85,6 +85,5 @@ def parse_message(all_data_df):
     all_data_df['message'] = all_data_df['message'].apply(lambda x: convert_message_to_json(x))
     all_data_df = all_data_df.join(all_data_df['message'].apply(pd.Series))
     all_data_df = parse_rid(all_data_df)
-    all_data_df.to_csv('1.csv')
     
     return all_data_df
