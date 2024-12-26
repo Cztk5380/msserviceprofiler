@@ -45,11 +45,11 @@ class TestKvcacheFunctions(unittest.TestCase):
         max_free_value = 20
         result = calculate_action_usage_rate(action, value, max_free_value)
         expected_result = (max_free_value - value) / max_free_value
-        self.assertTrue(result, expected_result)
+        self.assertEqual(result, expected_result)
 
         action = 'OtherAction'
         result = calculate_action_usage_rate(action, value, max_free_value)
-        self.assertTrue(result, 0)
+        self.assertEqual(result, 0)
 
     def test_build_rid_to_action_usage_rates(self):
         """
