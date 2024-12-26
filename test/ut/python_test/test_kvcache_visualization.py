@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-import ms_service_profiler.views.grafana_visualization as visual
+import ms_service_profiler.visualization as visual
 
 
 @pytest.fixture

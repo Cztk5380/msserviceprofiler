@@ -1,11 +1,10 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
 from unittest.mock import patch, MagicMock
-import os
 import argparse
 import pytest
 
-import ms_service_profiler.views.grafana_visualization as visual
+import ms_service_profiler.visualization as visual
 
 
 @patch("os.path.exists")
