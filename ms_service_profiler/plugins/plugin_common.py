@@ -4,6 +4,8 @@ import json
 import pandas as pd
 import numpy as np
 from ms_service_profiler.plugins.base import PluginBase
+from ms_service_profiler.utils.log import logger
+from ms_service_profiler.utils.error import ParseError, DataFrameMissingError
 
 
 class PluginCommon(PluginBase):
@@ -14,7 +16,7 @@ class PluginCommon(PluginBase):
     def parse(cls, data):
         tx_data_df = data.get("tx_data_df")
         if tx_data_df is None:
-            raise ValueError("tx_data_df is None")
+            raise DataFrameMissingError("tx_data_df")
 
         tx_data_df = parse_message(tx_data_df)
 
@@ -43,7 +45,7 @@ def convert_message_to_json(message):
         return json.loads(message)
     else:
         message = '{' + message[:-1] + '}'
-        return json.loads(message)   
+        return json.loads(message)
 
 
 def extract_batch_type(token_list):
@@ -72,12 +74,15 @@ def extract_rid(rid_from_message, rid_map):
 
 
 def parse_rid(all_data_df):
-    rid_link_map = {x.get("from"): x.get("to") for x in all_data_df[all_data_df["type"] == 3]["message"]}
-    all_data_df['res_list'] = all_data_df['rid']
-    all_data_df[['rid', 'rid_list', 'token_id_list', 'batch_size']] = all_data_df['rid'].apply(
-        lambda x: extract_rid(x, rid_link_map)).apply(pd.Series)
-    all_data_df = all_data_df.replace(to_replace=np.nan, value=None)
-    all_data_df['batch_type'] = all_data_df['token_id_list'].apply(lambda x: extract_batch_type(x))
+    try:    
+        rid_link_map = {x.get("from"): x.get("to") for x in all_data_df[all_data_df["type"] == 3]["message"]}
+        all_data_df['res_list'] = all_data_df['rid']
+        all_data_df[['rid', 'rid_list', 'token_id_list', 'batch_size']] = all_data_df['rid'].apply(
+            lambda x: extract_rid(x, rid_link_map)).apply(pd.Series)
+        all_data_df = all_data_df.replace(to_replace=np.nan, value=None)
+        all_data_df['batch_type'] = all_data_df['token_id_list'].apply(lambda x: extract_batch_type(x))
+    except Exception as ex:
+        logger.error(f'Cannot parse rid. Skip it. {ex}')
     return all_data_df
 
 
