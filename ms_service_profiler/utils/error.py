@@ -26,15 +26,16 @@ class DataFrameMissingError(ParseError):
         self.message = message 
 
     def __str__(self):
-        
         return f"{self.message}: {self.key} not exists."
 
 
 class MessageError(ParseError):
     pass
 
+
 class DatabaseError(Exception):
     pass
+
 
 class ValidationError(ParseError):
     def __init__(self, key, message="Failed to parse data"):

@@ -95,8 +95,8 @@ def parse_rid(all_data_df):
     rid_link_map = {x.get("from"): x.get("to") for x in all_data_df[all_data_df["type"] == 3]["message"]}
     all_data_df['res_list'] = all_data_df['rid']
     
-    x = all_data_df['rid'].apply(lambda x: extract_rid(x, rid_link_map))
-    all_data_df[['rid', 'rid_list', 'token_id_list', 'batch_size']] = pd.DataFrame(x.tolist(), index=all_data_df.index) 
+    df = all_data_df['rid'].apply(lambda x: extract_rid(x, rid_link_map))
+    all_data_df[['rid', 'rid_list', 'token_id_list', 'batch_size']] = pd.DataFrame(df.tolist(), index=all_data_df.index) 
     all_data_df['batch_type'] = all_data_df['token_id_list'].apply(lambda x: extract_batch_type(x))
 
     all_data_df = all_data_df.replace(to_replace=np.nan, value=None)
