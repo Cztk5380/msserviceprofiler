@@ -87,25 +87,25 @@ def get_percentile_results(metric):
 
 def calculate_first_token_latency(req_map):
     first_token_latency = []
-    for rid in req_map:
+    for _, req_info in req_map.items():
         # 计算首token时延，µs级
-        if req_map[rid].get('first_token_latency') is not None:
-            first_token_latency.append(round(req_map[rid]['first_token_latency'], 4))
+        if req_info.get('first_token_latency') is not None:
+            first_token_latency.append(round(req_info['first_token_latency'], 4))
     
     return get_percentile_results(first_token_latency)
 
 
 def calculate_req_latency(req_map):
     req_latency = []
-    for rid in req_map:
-        if req_map[rid].get('start_time') is None:
-            logger.warning(f"The start_time info of request {req_rid} is missing.")
+    for rid, req_info in req_map.items():
+        if req_info.get('start_time') is None:
+            logger.warning(f"The start_time info of request {rid} is missing.")
             continue
-        cur_req_start_time = req_map[rid]['start_time']
+        cur_req_start_time = req_info['start_time']
 
         # 计算请求端到端时延，µs级
-        if req_map[rid].get('end_time') is not None:
-            cur_req_end_time = req_map[rid]['end_time']
+        if req_info.get('end_time') is not None:
+            cur_req_end_time = req_info['end_time']
             cur_req_latency = cur_req_end_time - cur_req_start_time
             req_latency.append(round(cur_req_latency, 4))
     return get_percentile_results(req_latency)
@@ -113,23 +113,23 @@ def calculate_req_latency(req_map):
 
 def calculate_gen_token_speed_latency(req_map, is_prefill):
     gen_token_speed = []
-    for rid in req_map:
-        if req_map[rid].get('start_time') is None:
+    for _, req_info in req_map.items():
+        if req_info.get('start_time') is None:
             logger.warning(f"The start_time info of request {req_rid} is missing.")
             continue
-        cur_req_start_time = req_map[rid]['start_time']
+        cur_req_start_time = req_info['start_time']
 
         cur_req_gen_token_num = 0
         try:
             if is_prefill:
                 # 计算prefill token平均时延
-                cur_req_gen_token_num = req_map[rid]['prefill_token_num']
+                cur_req_gen_token_num = req_info['prefill_token_num']
             else:
                 # 计算decode token平均时延
-                cur_req_gen_token_num = req_map[rid]['decode_token_num']
+                cur_req_gen_token_num = req_info['decode_token_num']
 
             # 计算生成token执行时间
-            gen_last_token_time = req_map[rid]['req_exec_time']
+            gen_last_token_time = req_info['req_exec_time']
             if gen_last_token_time <= cur_req_start_time:
                 raise ValueError("The execution time for generating the token is a negative number.")
             diff_time = gen_last_token_time - cur_req_start_time
@@ -142,13 +142,6 @@ def calculate_gen_token_speed_latency(req_map, is_prefill):
             continue
 
     return get_percentile_results(gen_token_speed)
-
-
-def print_req_map_info(req_map):
-    for req_id, req_info in req_map.items():
-        logger.debug(f'request {req_id}:')
-        for key, value in req_info.items():
-            logger.debug(f'{key}:{value}')
 
 
 def gen_exporter_results(all_data_df):
@@ -181,7 +174,6 @@ def gen_exporter_results(all_data_df):
             if record.get('batch_type') == 'Decode':
                 decode_gen_token_speed_views[cur_timestamp] = calculate_gen_token_speed_latency(req_map, False)
 
-    print_req_map_info(req_map)
     return first_token_latency_views, req_latency_views, prefill_gen_token_speed_views, decode_gen_token_speed_views
 
 
