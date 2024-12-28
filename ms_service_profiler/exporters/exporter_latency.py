@@ -44,11 +44,13 @@ def process_each_record(req_map, record):
     if name == 'httpReq':
         req_map[rid] = {}
         req_map[rid]['start_time'] = record.get('start_time')
+        return
 
     if req_map.get(rid) is not None:
         if name == 'httpRes':
             req_map[rid]['end_time'] = record.get('end_time')
         req_map[rid]['req_exec_time'] = record.get('end_time')
+        return
 
     rid_list = record.get('rid_list')
     token_id_list = record.get('token_id_list')
