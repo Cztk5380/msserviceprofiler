@@ -60,28 +60,17 @@ def build_result_df(kvcache_df, rid_to_action_usage_rates):
     创建新的DataFrame并填充数据
     """
     new_columns = ['rid', 'name', 'real_start_time', 'device_kvcache_left', 'kvcache_usage_rate']
-    result_df = pd.DataFrame(columns=new_columns)
-    for index, row in kvcache_df.iterrows():
+
+    def process_row(row):
         rid = row['rid']
-        action = row['name']
-        timestamp = row['real_start_time']
-        device_kvcache_left = row['device_kvcache_left']
-        if rid in rid_to_action_usage_rates:
-            relevant_data_list = [d for d in rid_to_action_usage_rates[rid] if d['original_index'] == index]
-            if relevant_data_list:
-                usage_rate = relevant_data_list[0]['usage'] if relevant_data_list[0]['usage'] is not None else None
-            else:
-                usage_rate = None
-        else:
-            usage_rate = None
-        new_row = pd.Series({
-            'rid': rid,
-            'name': action,
-            'real_start_time': timestamp,
-            'device_kvcache_left': device_kvcache_left,
-            'kvcache_usage_rate': usage_rate
-        })
-        result_df = pd.concat([result_df, new_row.to_frame().T], ignore_index=True)
+        relevant_data_list = rid_to_action_usage_rates.get(rid, [])
+        relevant_data = next((d for d in relevant_data_list if d['original_index'] == row.name), None)
+        usage_rate = relevant_data['usage'] if relevant_data and relevant_data['usage'] is not None else None
+        return [rid, row['name'], row['real_start_time'], row['device_kvcache_left'], usage_rate]
+
+    data = kvcache_df.apply(process_row, axis=1).tolist()
+
+    result_df = pd.DataFrame(data, columns=new_columns)
     return result_df
 
 
