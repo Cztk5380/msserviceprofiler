@@ -82,15 +82,14 @@ def extract_rid(rid_from_message, rid_map):
     return rid, rid_list, token_id_list, batch_size
 
 
-def check_columns_exist(df, columns_required):
-    for key in columns_required:
-        if key not in df.columns:
-            raise KeyMissingError(key)
+def check_columns_exist(df, *columns_required):
+    missing = [key for key in columns_required if key not in df.columns]
+    if missing:
+        raise KeyMissingError(key=",".join(missing))
 
 
 def parse_rid_map(all_data_df):
-    if "type" not in all_data_df.columns:
-        raise KeyMissingError("type")
+    check_columns_exist(all_data_df, "type")
 
     df = all_data_df[all_data_df["type"] == 3]
 
@@ -110,7 +109,7 @@ def parse_rid_map(all_data_df):
 
 def parse_rid(all_data_df, rid_link_map=None):
     try:
-        check_columns_exist(all_data_df, ["type", "message", "rid"])
+        check_columns_exist(all_data_df, "type", "message", "rid")
         if not isinstance(all_data_df['message'].iloc[0], dict):
             raise ValidationError("Message must be a dict.")
     except Exception as ex:

@@ -19,16 +19,6 @@ class ParseError(Exception):
         return f"ParseError: {self.message}"
 
 
-class DataFrameMissingError(ParseError):
-    def __init__(self, key, message="Failed to read dataframe"):
-        super().__init__(message)
-        self.key = key  
-        self.message = message 
-
-    def __str__(self):
-        return f"{self.message}: {self.key} not exists."
-
-
 class MessageError(ParseError):
     pass
 
@@ -50,11 +40,15 @@ class ValidationError(ParseError):
 class KeyMissingError(ParseError):
     def __init__(self, key, message="Failed to parse data"):
         super().__init__(message)
-        self.key = key  
-        self.message = message 
+        self.key = key
 
     def __str__(self):
         return f"{self.message}: {self.key} not exists."
+
+
+class DataFrameMissingError(KeyMissingError):
+    def __init__(self, key, message="Failed to read dataframe"):
+        super().__init__(key, message)
 
 
 class LoadDataError(ParseError):
