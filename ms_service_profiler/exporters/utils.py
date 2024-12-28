@@ -2,6 +2,8 @@
 import os
 import sqlite3
 
+from ms_service_profiler.utils.error import DatabaseError
+
 visual_db_fp = ''
 
 
@@ -14,14 +16,20 @@ def create_sqlite_db(output):
     if not os.path.exists(output):
         os.makedirs(output)
     visual_db_fp = os.path.join(output, 'profiler.db')
-    conn = sqlite3.connect(visual_db_fp)
-    conn.isolation_level = None
-    cursor = conn.cursor()
-    conn.close()
+    try:
+        conn = sqlite3.connect(visual_db_fp)
+        conn.isolation_level = None
+        cursor = conn.cursor()
+        conn.close()
+    except Exception as ex:
+        raise DatabaseError("Cannot create sqlite database.") from ex
 
 
 def add_table_into_visual_db(df, table_name):
-    conn = sqlite3.connect(visual_db_fp)
-    df.to_sql(table_name, conn, if_exists='replace', index=False)
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(visual_db_fp)
+        df.to_sql(table_name, conn, if_exists='replace', index=False)
+        conn.commit()
+        conn.close()
+    except Exception as ex:
+        raise DatabaseError("Cannot update sqlite database.") from ex
