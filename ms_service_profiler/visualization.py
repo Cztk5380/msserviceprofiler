@@ -14,6 +14,7 @@ from ms_service_profiler.analyze import check_input_path_valid
 from ms_service_profiler.views.datasource import create_datasource
 from ms_service_profiler.views.dashboard import create_dashboard
 from ms_service_profiler.utils.log import set_log_level, logger
+from ms_service_profiler.utils.file_open_check import ms_open
 
 
 def check_db_path_valid(path):
@@ -77,17 +78,19 @@ def check_url_valid(url):
 
 def save_csv_to_sqlite(input_path):
     db_path = os.path.join(input_path, '.profiler.db')
-    csv_whitelist = ['batch.csv', 'kvcache.csv', 'request.csv', ".request_status.csv"]
+    csv_whitelist = ['batch.csv', 'request.csv', ".request_status.csv"]
     conn = sqlite3.connect(db_path)
 
     for filename in os.listdir(input_path):
         if filename.endswith('.csv') and filename in csv_whitelist:
             csv_path = os.path.join(input_path, filename)
-            df = pd.read_csv(csv_path, encoding='utf-8')
+            file_obj = ms_open(csv_path, mode="r")
+            df = pd.read_csv(file_obj, encoding='utf-8')
             table_name = os.path.splitext(filename)[0]
             if table_name.startswith('.'):
                 table_name = table_name[1:]
             df.to_sql(table_name, conn, if_exists='replace', index=False)
+            file_obj.close()
 
     conn.commit()
     conn.close()
