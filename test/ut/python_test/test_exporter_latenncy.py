@@ -4,6 +4,7 @@ import os
 import argparse
 import unittest
 from unittest.mock import patch
+import numpy as np
 import pandas as pd
 from ms_service_profiler.exporters.exporter_latency import (
     timestamp_converter,
@@ -67,28 +68,48 @@ class TestTimestampConverter(unittest.TestCase):
             raise KeyError("Key 'prefill_token_num' or 'req_exec_time' does not exist in req_map.")
 
     def test_get_empty_metric_percentile_results(self):
-        self.assertEqual(get_percentile_results([]), {})
+        self.assertEqual(get_percentile_results([]), (np.nan, np.nan, np.nan, np.nan))
 
     def test_get_single_metric_percentile_results(self):
         metric = [10]
-        self.assertEqual(get_percentile_results(metric), {'avg': 10.0, 'p99': 10.0, 'p90': 10.0, 'p50': 10.0})
+        avg, p50, p90, p99 = get_percentile_results(metric)
+        self.assertEqual(avg, 10.0)
+        self.assertEqual(p50, 10.0)
+        self.assertEqual(p90, 10.0)
+        self.assertEqual(p99, 10.0)
 
     def test_get_multiple_metrics_percentile_results(self):
         metric = [10, 20, 30, 40, 50]
-        self.assertEqual(get_percentile_results(metric), {'avg': 30.0, 'p99': 49.6, 'p90': 46.0, 'p50': 30.0})
+        avg, p50, p90, p99 = get_percentile_results(metric)
+        self.assertEqual(avg, 30.0)
+        self.assertEqual(p50, 30.0)
+        self.assertEqual(p90, 46.0)
+        self.assertEqual(p99, 49.6)
 
     def test_calculate_first_token_latency_single_value(self):
         req_map = {'1': {'first_token_latency': 10}}
-        self.assertEqual(calculate_first_token_latency(req_map), {'avg': 10.0, 'p99': 10.0, 'p90': 10.0, 'p50': 10.0})
+        avg, p50, p90, p99 = calculate_first_token_latency(req_map)
+        self.assertEqual(avg, 10.0)
+        self.assertEqual(p50, 10.0)
+        self.assertEqual(p90, 10.0)
+        self.assertEqual(p99, 10.0)
 
     def test_calculate_first_token_latency_multiple_values(self):
         req_map = {'1': {'first_token_latency': 10}, '2': {'first_token_latency': 20}, \
             '3': {'first_token_latency': 30}, '4': {'first_token_latency': 40}, '5': {'first_token_latency': 50}}
-        self.assertEqual(calculate_first_token_latency(req_map), {'avg': 30.0, 'p99': 49.6, 'p90': 46.0, 'p50': 30.0})
+        avg, p50, p90, p99 = calculate_first_token_latency(req_map)
+        self.assertEqual(avg, 30.0)
+        self.assertEqual(p50, 30.0)
+        self.assertEqual(p90, 46.0)
+        self.assertEqual(p99, 49.6)
 
     def test_calculate_req_latency_single_req(self):
         req_map = {'1': {'start_time': 10, 'end_time': 20}}
-        self.assertEqual(calculate_req_latency(req_map), {'avg': 10.0, 'p99': 10.0, 'p90': 10.0, 'p50': 10.0})
+        avg, p50, p90, p99 = calculate_req_latency(req_map)
+        self.assertEqual(avg, 10.0)
+        self.assertEqual(p50, 10.0)
+        self.assertEqual(p90, 10.0)
+        self.assertEqual(p99, 10.0)
 
     def test_calculate_req_latency_multiple_reqs(self):
         req_map = {
@@ -98,7 +119,11 @@ class TestTimestampConverter(unittest.TestCase):
             '4': {'start_time': 25, 'end_time': 35},
             '5': {'start_time': 30, 'end_time': 40}
         }
-        self.assertEqual(calculate_req_latency(req_map), {'avg': 10.0, 'p99': 10.0, 'p90': 10.0, 'p50': 10.0})
+        avg, p50, p90, p99 = calculate_req_latency(req_map)
+        self.assertEqual(avg, 10.0)
+        self.assertEqual(p50, 10.0)
+        self.assertEqual(p90, 10.0)
+        self.assertEqual(p99, 10.0)
 
     def test_calculate_prefill_gen_token_speed_latency(self):
         # 测试prefill情况下的token生成速度和延迟
@@ -106,8 +131,11 @@ class TestTimestampConverter(unittest.TestCase):
             '1': {'start_time': 100000000, 'prefill_token_num': 100, 'req_exec_time': 200000000},
             '2': {'start_time': 100000000, 'prefill_token_num': 200, 'req_exec_time': 300000000},
         }
-        result = calculate_gen_token_speed_latency(req_map, True)
-        self.assertEqual(result, {'avg': 1, 'p99': 1, 'p90': 1, 'p50': 1})
+        avg, p50, p90, p99 = calculate_gen_token_speed_latency(req_map, True)
+        self.assertEqual(avg, 1)
+        self.assertEqual(p50, 1)
+        self.assertEqual(p90, 1)
+        self.assertEqual(p99, 1)
 
     def test_calculate_decode_gen_token_speed_latency(self):
         # 测试decode情况下的token生成速度和延迟
@@ -115,8 +143,11 @@ class TestTimestampConverter(unittest.TestCase):
             '1': {'start_time': 100000000, 'decode_token_num': 100, 'req_exec_time': 200000000},
             '2': {'start_time': 100000000, 'decode_token_num': 200, 'req_exec_time': 300000000},
         }
-        result = calculate_gen_token_speed_latency(req_map, False)
-        self.assertEqual(result, {'avg': 1, 'p99': 1, 'p90': 1, 'p50': 1})
+        avg, p50, p90, p99 = calculate_gen_token_speed_latency(req_map, False)
+        self.assertEqual(avg, 1)
+        self.assertEqual(p50, 1)
+        self.assertEqual(p90, 1)
+        self.assertEqual(p99, 1)
 
 
     @patch('ms_service_profiler.exporters.exporter_latency.timestamp_converter')
@@ -135,6 +166,13 @@ class TestTimestampConverter(unittest.TestCase):
             '1577836800004000', '1577836800005000']
         }
         all_data_df = pd.DataFrame(mock_data)
+
+        # 设置模拟函数的返回值
+        mock_timestamp_converter.return_value = '2020-01-01'
+        mock_process_each_record.return_value = None
+        mock_calculate_first_token_latency.return_value = (1, 2, 3, 4)
+        mock_calculate_req_latency.return_value = (1, 2, 3, 4)
+        mock_calculate_gen_token_speed_latency.return_value = (1, 2, 3, 4)
 
         first_token_latency_views, req_latency_views, prefill_gen_speed_views, decode_gen_speed_views = \
             gen_exporter_results(all_data_df)
