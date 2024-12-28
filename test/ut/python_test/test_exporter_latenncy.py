@@ -13,8 +13,6 @@ from ms_service_profiler.exporters.exporter_latency import (
     calculate_first_token_latency,
     calculate_req_latency,
     gen_exporter_results,
-    create_sqlite_db,
-    save_to_sqlite_db,
     ExporterLatency
 )
 
@@ -146,27 +144,6 @@ class TestTimestampConverter(unittest.TestCase):
         mock_calculate_req_latency.assert_called()
         mock_calculate_gen_token_speed_latency.assert_called()
         mock_timestamp_converter.assert_called()
-
-    @patch('sqlite3.connect')
-    def test_save_to_sqlite_db(self, mock_connect):
-        db_file_path = 'test.db'
-        table_name = 'test_table'
-        view_data = {
-            '2020-01-01 00:00:00': {
-                'avg': 1.0,
-                'p99': 2.0,
-                'p90': 3.0,
-                'p50': 4.0
-            },
-            '2020-01-01 01:00:00': {
-                'avg': 5.0,
-                'p99': 6.0,
-                'p90': 7.0,
-                'p50': 8.0
-            }
-        }
-        save_to_sqlite_db(db_file_path, table_name, view_data)
-        mock_connect.assert_called_once_with(db_file_path)
 
 
 if __name__ == '__main__':
