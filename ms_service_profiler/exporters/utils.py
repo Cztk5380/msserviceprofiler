@@ -13,7 +13,7 @@ def create_sqlite_db(output):
 
     if not os.path.exists(output):
         os.makedirs(output)
-    visual_db_fp = os.path.join(output, '.profiler.db')
+    visual_db_fp = os.path.join(output, 'profiler.db')
     conn = sqlite3.connect(visual_db_fp)
     conn.isolation_level = None
     cursor = conn.cursor()

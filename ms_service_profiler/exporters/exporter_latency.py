@@ -5,8 +5,10 @@ import datetime
 from decimal import Decimal
 import sqlite3
 import numpy as np
+import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.exporters.utils import add_table_into_visual_db
 
 
 def timestamp_converter(timestamp):
@@ -26,10 +28,17 @@ def is_contained_vaild_iter_info(rid_list, token_id_list):
     return True
 
 
+def print_warning_log(log_name, req_rid):
+    if not ExporterLatency.get_err_log_flag(log_name):
+        logger.warning(f"The '{log_name}' field info is missing, please check.")
+        ExporterLatency.set_err_log_flag(log_name, True)
+
+
 def process_each_record(req_map, record):
     name = record.get('name')
     rid = record.get('rid')
     if rid is None or name is None:
+        print_warning_log('rid or name', rid)
         return
 
     if name == 'httpReq':
@@ -49,7 +58,7 @@ def process_each_record(req_map, record):
     for i, value in enumerate(rid_list):
         req_rid = str(int(value))
         if req_map.get(req_rid) is None:
-            logger.warning(f"The info of request {req_rid} is missing.")
+            print_warning_log('httpReq', req_rid)
             continue
 
         req_map[req_rid]['req_exec_time'] = record.get('end_time')
@@ -75,14 +84,11 @@ def process_each_record(req_map, record):
 
 
 def get_percentile_results(metric):
-    if len(metric) == 0:
-        return {}
+    if not metric or any(not isinstance(value, (int, float)) for value in metric):
+        return np.nan, np.nan, np.nan, np.nan
     avg = round(np.average(metric), 4)
-    p99 = round(np.percentile(metric, 99), 4)
-    p90 = round(np.percentile(metric, 90), 4)
-    p50 = round(np.percentile(metric, 50), 4)
-    metric_results = {'avg': avg, 'p99': p99, 'p90': p90, 'p50': p50}
-    return metric_results
+    p50, p90, p99 = np.round(np.percentile(metric, [50, 90, 99]), 4)
+    return avg, p50, p90, p99
 
 
 def calculate_first_token_latency(req_map):
@@ -99,7 +105,7 @@ def calculate_req_latency(req_map):
     req_latency = []
     for rid, req_info in req_map.items():
         if req_info.get('start_time') is None:
-            logger.warning(f"The start_time info of request {rid} is missing.")
+            print_warning_log('start_time', rid)
             continue
         cur_req_start_time = req_info['start_time']
 
@@ -113,9 +119,9 @@ def calculate_req_latency(req_map):
 
 def calculate_gen_token_speed_latency(req_map, is_prefill):
     gen_token_speed = []
-    for _, req_info in req_map.items():
+    for req_rid, req_info in req_map.items():
         if req_info.get('start_time') is None:
-            logger.warning(f"The start_time info of request {req_rid} is missing.")
+            print_warning_log('start_time', req_rid)
             continue
         cur_req_start_time = req_info['start_time']
 
@@ -146,72 +152,59 @@ def calculate_gen_token_speed_latency(req_map, is_prefill):
 
 def gen_exporter_results(all_data_df):
     req_map = {}
-    first_token_latency_views = {}
-    req_latency_views = {}
-    prefill_gen_token_speed_views = {}
-    decode_gen_token_speed_views = {}
+    first_token_latency_views = []
+    req_latency_views = []
+    prefill_gen_speed_views = []
+    decode_gen_speed_views = []
 
     for _, record in all_data_df.iterrows():
         process_each_record(req_map, record)
 
         # 生成首token时延
         if record.get('batch_type') == 'Prefill':
-            first_token_latency_results = calculate_first_token_latency(req_map)
+            avg, p50, p90, p99 = calculate_first_token_latency(req_map)
             cur_timestamp = timestamp_converter(record.get('end_time'))
-            first_token_latency_views[cur_timestamp] = first_token_latency_results
+            first_token_latency_views.append({'timestamp': cur_timestamp, \
+                'avg': avg, 'p99': p99, 'p90': p90, 'p50': p50})
 
         # 生成请求端到端时延
         if record.get('name') == 'httpRes':
-            req_latency_results = calculate_req_latency(req_map)
+            avg, p50, p90, p99 = calculate_req_latency(req_map)
             cur_timestamp = timestamp_converter(record.get('end_time'))
-            req_latency_views[cur_timestamp] = req_latency_results
+            req_latency_views.append({'timestamp': cur_timestamp, \
+                'avg': avg, 'p99': p99, 'p90': p90, 'p50': p50})
 
         # 生成token平均时延
         if is_contained_vaild_iter_info(record.get('rid_list'), record.get('token_id_list')):
             cur_timestamp = timestamp_converter(record.get('end_time'))
             if record.get('batch_type') == 'Prefill':
-                prefill_gen_token_speed_views[cur_timestamp] = calculate_gen_token_speed_latency(req_map, True)
+                avg, p50, p90, p99 = calculate_gen_token_speed_latency(req_map, True)
+                prefill_gen_speed_views.append({'timestamp': cur_timestamp, \
+                    'avg': avg, 'p99': p99, 'p90': p90, 'p50': p50})
             if record.get('batch_type') == 'Decode':
-                decode_gen_token_speed_views[cur_timestamp] = calculate_gen_token_speed_latency(req_map, False)
+                avg, p50, p90, p99 = calculate_gen_token_speed_latency(req_map, False)
+                decode_gen_speed_views.append({'timestamp': cur_timestamp, \
+                    'avg': avg, 'p99': p99, 'p90': p90, 'p50': p50})
 
-    return first_token_latency_views, req_latency_views, prefill_gen_token_speed_views, decode_gen_token_speed_views
-
-
-def create_sqlite_db(output):
-    if not os.path.exists(output):
-        os.makedirs(output)
-
-    db_file = os.path.join(output, '.profiler.db')
-    conn = sqlite3.connect(db_file)
-    conn.isolation_level = None
-    cursor = conn.cursor()
-    conn.close()
-    return db_file
-
-
-def save_to_sqlite_db(db_file_path, table_name, view_data):
-    conn = sqlite3.connect(db_file_path)
-    cursor = conn.cursor()
-    cursor.execute(f'DROP TABLE IF EXISTS {table_name}')  # 删除旧表
-    cursor.execute(f'CREATE TABLE {table_name} (timestamp TEXT, avg REAL, \
-        p99 REAL, p90 REAL, p50 REAL)')
-    for timestamp, data in view_data.items():
-        avg = data.get('avg')
-        p99 = data.get('p99')
-        p90 = data.get('p90')
-        p50 = data.get('p50')
-        cursor.execute(f'INSERT INTO {table_name} VALUES (?, ?, ?, ?, ?)', \
-                       (timestamp, avg, p99, p90, p50))
-    conn.commit()
-    conn.close()
+    return first_token_latency_views, req_latency_views, prefill_gen_speed_views, decode_gen_speed_views
 
 
 class ExporterLatency(ExporterBase):
     name = "latency"
+    err_log = {'rid or name': False, 'start_time': False, 'httpReq': False}
 
     @classmethod
     def initialize(cls, args):
         cls.args = args
+        cls.err_log = {'rid or name': False, 'start_time': False, 'httpReq': False}
+
+    @classmethod
+    def set_err_log_flag(cls, index, value):
+        cls.err_log[index] = value
+
+    @classmethod
+    def get_err_log_flag(cls, index):
+        return cls.err_log[index]
 
     @classmethod
     def export(cls, data) -> None:
@@ -221,8 +214,7 @@ class ExporterLatency(ExporterBase):
         first_token_latency_views, req_latency_views, prefill_gen_speed_views, decode_gen_speed_views = \
             gen_exporter_results(all_data_df)
 
-        db_file_path = create_sqlite_db(output)
-        save_to_sqlite_db(db_file_path, 'first_token_latency', first_token_latency_views)
-        save_to_sqlite_db(db_file_path, 'req_latency', req_latency_views)
-        save_to_sqlite_db(db_file_path, 'prefill_gen_speed', prefill_gen_speed_views)
-        save_to_sqlite_db(db_file_path, 'decode_gen_speed', decode_gen_speed_views)
+        add_table_into_visual_db(pd.DataFrame(first_token_latency_views), 'first_token_latency')
+        add_table_into_visual_db(pd.DataFrame(req_latency_views), 'req_latency')
+        add_table_into_visual_db(pd.DataFrame(prefill_gen_speed_views), 'prefill_gen_speed')
+        add_table_into_visual_db(pd.DataFrame(decode_gen_speed_views), 'decode_gen_speed')

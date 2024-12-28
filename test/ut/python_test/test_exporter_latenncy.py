@@ -147,17 +147,6 @@ class TestTimestampConverter(unittest.TestCase):
         mock_calculate_gen_token_speed_latency.assert_called()
         mock_timestamp_converter.assert_called()
 
-    @patch('os.path.exists')
-    @patch('os.makedirs')
-    @patch('sqlite3.connect')
-    def test_create_sqlite_db(self, mock_connect, mock_makedirs, mock_exists):
-        mock_exists.return_value = False
-        output = '/path/to/output'
-        db_file = create_sqlite_db(output)
-        mock_makedirs.assert_called_once_with(output)
-        mock_connect.assert_called_once_with(os.path.join(output, '.profiler.db'))
-        self.assertEqual(db_file, os.path.join(output, '.profiler.db'))
-
     @patch('sqlite3.connect')
     def test_save_to_sqlite_db(self, mock_connect):
         db_file_path = 'test.db'

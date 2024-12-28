@@ -195,7 +195,7 @@ def parse(input_path, custom_plugins, exporters):
                 return
             else:
                 logger.error(f'{plugin.name} failure. Skip it. {ex}')
-    
+
     # 导出数据
     for exporter in exporters:
         try:
