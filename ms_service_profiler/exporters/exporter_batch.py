@@ -45,4 +45,7 @@ class ExporterBatchData(ExporterBase):
         for col in model_df:
             if model_df[col].dtype == 'object':
                 model_df[col] = model_df[col].astype(str)
+            if col == 'batch_size':
+                model_df[col] = model_df[col].astype(float)
+
         add_table_into_visual_db(model_df, 'batch')
