@@ -282,36 +282,96 @@ class FileStat:
         return False
 
 
+# def ms_open(file, mode="r", max_size=CONFIG_FILE_MAX_SIZE, softlink=False, write_permission=PERMISSION_NORMAL,
+#             **kwargs):
+#     file_stat = FileStat(file)
+#
+#     if file_stat.is_exists and file_stat.is_dir:
+#         raise OpenException(f"Expecting a file, but it's a folder. {file}")
+#
+#     if "r" in mode:
+#         if not file_stat.is_exists:
+#             raise OpenException(f"No such file or directory {file}")
+#         if max_size is None:
+#             raise OpenException(f"Reading files must have a size limit control. {file}")
+#         if max_size != MAX_SIZE_UNLIMITE and max_size < file_stat.file_size:
+#             raise OpenException(f"The file size has exceeded the specifications and cannot be read. {file}")
+#
+#     if "w" in mode and file_stat.is_exists:
+#         if not file_stat.is_owner:
+#             raise OpenException(
+#                 f"The file owner is inconsistent with the current process user and is not allowed to write. {file}"
+#             )
+#         os.remove(file)
+#
+#     if not softlink and file_stat.is_softlink:
+#         raise OpenException(f"Softlink is not allowed to be opened. {file}")
+#
+#     if "a" in mode and file_stat.is_exists:
+#         if not file_stat.is_owner:
+#             raise OpenException(
+#                 f"The file owner is inconsistent with the current process user and is not allowed to write. {file}"
+#             )
+#         if file_stat.permission != (file_stat.permission & write_permission):
+#             os.chmod(file, file_stat.permission & write_permission)
+#
+#     safe_parent_msg = Rule.path().is_safe_parent_dir().check(file)
+#     if not safe_parent_msg:
+#         raise OpenException(f"parent dir of {os.path.realpath(file)} is not safe. {str(safe_parent_msg)}")
+#
+#     if "+" in mode:
+#         flags = os.O_RDONLY | os.O_RDWR
+#     elif "w" in mode or "a" in mode or "x" in mode:
+#         flags = os.O_RDONLY | os.O_WRONLY
+#     else:
+#         flags = os.O_RDONLY
+#
+#     if "w" in mode or "x" in mode:
+#         flags = flags | os.O_TRUNC | os.O_CREAT
+#     if "a" in mode:
+#         flags = flags | os.O_APPEND | os.O_CREAT
+#     return os.fdopen(os.open(file, flags, mode=write_permission), mode, **kwargs)
+
+
+def check_file_exists_and_type(file_stat, file):
+    if file_stat.is_exists and file_stat.is_dir:
+        raise OpenException(f"Expecting a file, but it's a folder. {file}")
+
+
+def check_file_size(file_stat, file, max_size):
+    if max_size is None:
+        raise OpenException(f"Reading files must have a size limit control. {file}")
+    if max_size != MAX_SIZE_UNLIMITE and max_size < file_stat.file_size:
+        raise OpenException(f"The file size has exceeded the specifications and cannot be read. {file}")
+
+
+def check_file_owner(file_stat, file):
+    if not file_stat.is_owner:
+        raise OpenException(
+            f"The file owner is inconsistent with the current process user and is not allowed to write. {file}"
+        )
+
+
 def ms_open(file, mode="r", max_size=CONFIG_FILE_MAX_SIZE, softlink=False, write_permission=PERMISSION_NORMAL,
             **kwargs):
     file_stat = FileStat(file)
 
-    if file_stat.is_exists and file_stat.is_dir:
-        raise OpenException(f"Expecting a file, but it's a folder. {file}")
+    check_file_exists_and_type(file_stat, file)
 
     if "r" in mode:
         if not file_stat.is_exists:
             raise OpenException(f"No such file or directory {file}")
-        if max_size is None:
-            raise OpenException(f"Reading files must have a size limit control. {file}")
-        if max_size != MAX_SIZE_UNLIMITE and max_size < file_stat.file_size:
-            raise OpenException(f"The file size has exceeded the specifications and cannot be read. {file}")
+        check_file_size(file_stat, file, max_size)
 
     if "w" in mode and file_stat.is_exists:
-        if not file_stat.is_owner:
-            raise OpenException(
-                f"The file owner is inconsistent with the current process user and is not allowed to write. {file}"
-            )
+        check_file_owner(file_stat, file)
         os.remove(file)
 
     if not softlink and file_stat.is_softlink:
         raise OpenException(f"Softlink is not allowed to be opened. {file}")
 
     if "a" in mode and file_stat.is_exists:
-        if not file_stat.is_owner:
-            raise OpenException(
-                f"The file owner is inconsistent with the current process user and is not allowed to write. {file}"
-            )
+        check_file_owner(file_stat, file)
         if file_stat.permission != (file_stat.permission & write_permission):
             os.chmod(file, file_stat.permission & write_permission)
 
