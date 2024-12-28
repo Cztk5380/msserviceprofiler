@@ -12,16 +12,21 @@ from ms_service_profiler.utils.error import ParseError, DataFrameMissingError, \
 class PluginCommon(PluginBase):
     name = "plugin_common"
     depends = ["plugin_concat"]
-
+    
     @classmethod
     def parse(cls, data):
         tx_data_df = data.get("tx_data_df")
         if tx_data_df is None:
             raise DataFrameMissingError("tx_data_df")
 
-        tx_data_df = parse_message(tx_data_df)
+        tx_data_df['message'] = tx_data_df['message'].apply(lambda x: convert_message_to_json(x))
+        tx_data_df = tx_data_df.join(tx_data_df['message'].apply(pd.Series))
+        
+        rid_link_map = parse_rid_map(tx_data_df)
+        tx_data_df = parse_rid(tx_data_df, rid_link_map)
 
         data["tx_data_df"] = tx_data_df
+        data["rid_link_map"] = rid_link_map
         return data
 
 
@@ -83,29 +88,44 @@ def check_columns_exist(df, columns_required):
             raise KeyMissingError(key)
 
 
-def parse_rid(all_data_df):
+def parse_rid_map(all_data_df):
+    if "type" not in all_data_df.columns:
+        raise KeyMissingError("type")
+
+    df = all_data_df[all_data_df["type"] == 3]
+
+    if "from" in df.columns and "to" in df.columns:
+        rid_link_map = dict(zip(df['from'], df['to']))
+    else:
+        rid_link_map = {}
+    
+    try:
+        rid_link_map = {k: int(v) for k, v in rid_link_map.items()}
+    except Exception:
+        raise
+
+    return rid_link_map
+
+
+def parse_rid(all_data_df, rid_link_map=None):
     try:
         check_columns_exist(all_data_df, ["type", "message", "rid"])
         if not isinstance(all_data_df['message'].iloc[0], dict):
-            raise ValidationError("Message must be a dict")
+            raise ValidationError("Message must be a dict.")
     except Exception as ex:
         logger.error(f'Cannot parse rid. Skip it. {ex}')
         return all_data_df
     
-    rid_link_map = {x.get("from"): x.get("to") for x in all_data_df[all_data_df["type"] == 3]["message"]}
     all_data_df['res_list'] = all_data_df['rid']
-    
+
+    if rid_link_map is None:
+        rid_link_map = parse_rid_map(tx_data_df)
+
     df = all_data_df['rid'].apply(lambda x: extract_rid(x, rid_link_map))
     all_data_df[['rid', 'rid_list', 'token_id_list', 'batch_size']] = pd.DataFrame(df.tolist(), index=all_data_df.index) 
+
     all_data_df['batch_type'] = all_data_df['token_id_list'].apply(lambda x: extract_batch_type(x))
 
     all_data_df = all_data_df.replace(to_replace=np.nan, value=None)
 
-    return all_data_df
-
-
-def parse_message(all_data_df):
-    all_data_df['message'] = all_data_df['message'].apply(lambda x: convert_message_to_json(x))
-    all_data_df = all_data_df.join(all_data_df['message'].apply(pd.Series))
-    all_data_df = parse_rid(all_data_df)    
     return all_data_df

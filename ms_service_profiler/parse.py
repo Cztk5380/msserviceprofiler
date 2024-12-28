@@ -192,10 +192,10 @@ def parse(input_path, custom_plugins, exporters):
             logger.info(f'{plugin.name} success.')
         except ParseError as ex:
             if plugin.name in ['plugin_timestamp', 'plugin_concat']:
-                logger.error(f'{plugin.name} failure. Program stopped. {ex}')
+                logger.exception(f'{plugin.name} failure. Program stopped.')
                 return
             else:
-                logger.error(f'{plugin.name} failure. Skip it. {ex}')
+                logger.exception(f'{plugin.name} failure. Skip it.')
     
     # 导出数据
     for exporter in exporters:
@@ -203,4 +203,4 @@ def parse(input_path, custom_plugins, exporters):
             exporter.export(data)
             logger.info(f'exporter {exporter.name} success.')
         except ExportError as ex:
-            logger.error(f'exporter {exporter.name} failure. Skip it. {ex}')
+            logger.exception(f'exporter {exporter.name} failure. Skip it.')
