@@ -47,6 +47,7 @@ def load_start_time(start_info_path):
         sys_start_time = float(data['collectionTimeBegin']) / 1e6
     return sys_start_time
 
+
 def create_span_message_dict(data):
     span_msg_dict = {}
     for cur in data:
@@ -66,6 +67,7 @@ def create_span_message_dict(data):
         cur_msg.sort(key=lambda xx: xx[0][3])  # Sort by cur, guaranteed longer than 6
         message_dict[span_id] = "".join((xx[1] for xx in cur_msg))
     return message_dict
+
 
 def load_tx_data(db_path):
     conn = sqlite3.connect(db_path)
