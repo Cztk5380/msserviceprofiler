@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.utils.error import ParseError, DataFrameMissingError KeyMissingError, ValidationError
+from ms_service_profiler.utils.error import ParseError, DataFrameMissingError, KeyMissingError, ValidationError
 
 
 class PluginCommon(PluginBase):
