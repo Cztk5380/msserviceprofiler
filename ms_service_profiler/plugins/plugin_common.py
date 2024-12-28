@@ -107,7 +107,7 @@ def parse_rid(all_data_df, rid_link_map=None):
     all_data_df['res_list'] = all_data_df['rid']
 
     if rid_link_map is None:
-        rid_link_map = parse_rid_map(tx_data_df)
+        rid_link_map = parse_rid_map(all_data_df)
 
     df = all_data_df['rid'].apply(lambda x: extract_rid(x, rid_link_map))
     all_data_df[['rid', 'rid_list', 'token_id_list', 'batch_size']] = pd.DataFrame(df.tolist(), index=all_data_df.index)
