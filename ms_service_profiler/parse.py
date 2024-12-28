@@ -170,8 +170,11 @@ def read_origin_db(db_path: str):
 
     for dp in Path(db_path).glob("**/PROF_*"):
         filepaths = get_filepaths(dp, file_filter)
-        data = load_prof(filepaths)
-        data_list.append(data)
+        try:
+            data = load_prof(filepaths)
+            data_list.append(data)
+        except Exception as ex:
+            raise ValueError(f'Read data error, please check {dp}') from ex
     return data_list
 
 
@@ -187,12 +190,16 @@ def parse(input_path, custom_plugins, exporters):
             data = plugin.parse(data)
             logger.info(f'{plugin.name} success.')
         except Exception as ex:
-            logger.error(f'{plugin.name} failure. {ex}')
-
+            if plugin.name in ['plugin_timestamp', 'plugin_concat']:
+                logger.error(f'{plugin.name} failure. Program stopped. {ex}')
+                return
+            else:
+                logger.error(f'{plugin.name} failure. Skip it. {ex}')
+    
     # 导出数据
     for exporter in exporters:
         try:
             exporter.export(data)
             logger.info(f'exporter {exporter.name} success.')
         except Exception as ex:
-            logger.error(f'{exporter.name} failure. {ex}')
+            logger.error(f'exporter {exporter.name} failure. Skip it. {ex}')
