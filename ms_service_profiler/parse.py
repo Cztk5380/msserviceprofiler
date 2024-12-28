@@ -14,6 +14,7 @@ from ms_service_profiler.constant import US_PER_SECOND
 from ms_service_profiler.plugins import buildin_plugins
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.utils.error import ParseError, ExportError, LoadDataError
 
 
 def save_dataframe_to_csv(filtered_df, output, file_name):
@@ -174,7 +175,7 @@ def read_origin_db(db_path: str):
             data = load_prof(filepaths)
             data_list.append(data)
         except Exception as ex:
-            raise ValueError(f'Read data error, please check {dp}') from ex
+            raise LoadDataError(str(dp)) from ex
     return data_list
 
 
@@ -189,17 +190,17 @@ def parse(input_path, custom_plugins, exporters):
         try:
             data = plugin.parse(data)
             logger.info(f'{plugin.name} success.')
-        except Exception as ex:
+        except ParseError as ex:
             if plugin.name in ['plugin_timestamp', 'plugin_concat']:
-                logger.error(f'{plugin.name} failure. Program stopped. {ex}')
+                logger.exception(f'{plugin.name} failure. Program stopped.')
                 return
             else:
-                logger.error(f'{plugin.name} failure. Skip it. {ex}')
+                logger.exception(f'{plugin.name} failure. Skip it.')
     
     # 导出数据
     for exporter in exporters:
         try:
             exporter.export(data)
             logger.info(f'exporter {exporter.name} success.')
-        except Exception as ex:
-            logger.error(f'exporter {exporter.name} failure. Skip it. {ex}')
+        except ExportError as ex:
+            logger.exception(f'exporter {exporter.name} failure. Skip it.')
