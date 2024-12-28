@@ -14,7 +14,6 @@ from ms_service_profiler.constant import US_PER_SECOND
 from ms_service_profiler.plugins import buildin_plugins
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.utils.error import ParseError, ExportError, LoadDataError
 
 
 def save_dataframe_to_csv(filtered_df, output, file_name):
@@ -48,31 +47,57 @@ def load_start_time(start_info_path):
         sys_start_time = float(data['collectionTimeBegin']) / 1e6
     return sys_start_time
 
+def create_span_message_dict(data):
+    span_msg_dict = {}
+    for cur in data:
+        if len(cur) < 6:
+            continue
+
+        msg = cur[6]
+        if not (msg.startswith("span=") and "*" in msg):
+            continue
+
+        span_msg, msg = msg.split("*", 1)
+        span_id = span_msg.split("=", 1)[-1]  # "=" is within "span="
+        span_msg_dict.setdefault(span_id, []).append((cur, msg))
+
+    message_dict = {}
+    for span_id, cur_msg in span_msg_dict.items():
+        cur_msg.sort(key=lambda xx: xx[0][3])  # Sort by cur, guaranteed longer than 6
+        message_dict[span_id] = "".join((xx[1] for xx in cur_msg))
+    return message_dict
 
 def load_tx_data(db_path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT *
-        FROM MsprofTxEx
-    """)
-
+    cursor.execute("SELECT * FROM MsprofTxEx")
     all_data = cursor.fetchall()
-    columns = [description[0] for description in cursor.description]
-    all_data_df = pd.DataFrame(all_data, columns=columns)
-    all_data_df = parse_span(all_data_df)
+
+    columns = [description[0] if description[0] != "message" else "ori_msg" for description in cursor.description]
+    if "mark_id" not in columns:
+        raise ValueError(f'"mark_id" not exists in database: {db_path}, All columns: {columns}')
+    columns += ["message"]
+    message_dict = create_span_message_dict(all_data)
+
+    basic_df_list, message_df_list = [], []
+    for cur in all_data:
+        if len(cur) < 6 or cur[6].startswith("span="):
+            continue
+        msg = cur[6]
+        msg_combined = (msg + message_dict.get(str(cur[5]), "")).replace("^", "\"")
+        if not (msg_combined.startswith('{') and msg_combined.endswith('}')):
+            msg_combined = '{' + msg_combined[:-1] + '}'  # -1 is ,
+        msg_combined_json = json.loads(msg_combined)
+
+        basic_df_list.append(cur + (msg_combined_json,))  # also append raw dict message
+        message_df_list.append(msg_combined_json)
+
+    basic_df = pd.DataFrame(basic_df_list, columns=columns)
+    message_df = pd.DataFrame(message_df_list)
+    all_data_df = pd.concat([basic_df, message_df], axis=1)
+    all_data_df["span_id"] = all_data_df["mark_id"]
     conn.close()
     return all_data_df
-
-
-def extract_span_info_from_message(message, mark_id):
-    span_id = str(mark_id)
-    groups = re.match("span=(\\d+)[|*](.*)", message)
-    if groups:
-        span_id = groups[1]
-        message = groups[2]
-    return span_id, message
 
 
 def load_cpu_data(db_path):
@@ -116,22 +141,6 @@ def get_filepaths(folder_path, file_filter):
         if fp.name in reverse_d:
             filepaths[reverse_d[fp.name]] = str(fp)
     return filepaths
-
-
-def merge_message(series):
-    series_merge = series.sort_values("mark_id")
-    all_msg = "".join(series_merge["message"]).replace("^", "\"")
-    series_merge.iloc[0, series_merge.columns.get_loc("message")] = all_msg
-    return series_merge.iloc[0]
-
-
-def parse_span(data_df):
-    span_info = data_df[["mark_id", "message"]].apply(
-        lambda x: extract_span_info_from_message(x["message"], x["mark_id"]), axis=1
-    )
-    data_df[["span_id", "message"]] = pd.DataFrame(span_info.tolist())
-    data_df = data_df.groupby("span_id").apply(merge_message, include_groups=False)
-    return data_df
 
 
 def load_time_info(filepaths):
@@ -196,7 +205,7 @@ def parse(input_path, custom_plugins, exporters):
                 return
             else:
                 logger.exception(f'{plugin.name} failure. Skip it.')
-    
+
     # 导出数据
     for exporter in exporters:
         try:
