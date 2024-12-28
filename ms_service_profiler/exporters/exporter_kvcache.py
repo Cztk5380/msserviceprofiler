@@ -108,7 +108,7 @@ class ExporterKVCacheData(ExporterBase):
         if df is None:
             logging.error("The data is empty, please check")
             return
-        start_datatime_data = df['start_datatime'].copy()
+        start_datetime_data = df['start_datetime'].copy()
         try:
             kvcache_df = df[df['domain'] == 'KVCache']
             kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'name', \
@@ -123,9 +123,9 @@ class ExporterKVCacheData(ExporterBase):
             logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
         output = cls.args.output_path
         save_dataframe_to_csv(kvcache_df, output, "kvcache.csv")
-        kvcache_df['start_datatime'] = start_datatime_data
+        kvcache_df['start_datetime'] = start_datetime_data
         kvcache_df = kvcache_df.rename(columns={
-        'start_datatime': 'real_start_time'
+        'start_datetime': 'real_start_time'
         })
         kvcache_df = kvcache_usage_rate_calculator(kvcache_df)
         db_file_path = create_sqlite_db(output)

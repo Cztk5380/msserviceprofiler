@@ -26,6 +26,7 @@ def check_output_path_valid(path):
     path = os.path.abspath(path)
     if not os.path.exists(path):
         os.makedirs(path)
+        os.chmod(path, 0o755)
     if not os.access(path, os.W_OK):
         raise argparse.ArgumentTypeError(f"Output path is not writable: {path}")
     return path
