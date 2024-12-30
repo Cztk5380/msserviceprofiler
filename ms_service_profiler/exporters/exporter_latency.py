@@ -50,7 +50,6 @@ def process_each_record(req_map, record):
         if name == 'httpRes':
             req_map[rid]['end_time'] = record.get('end_time')
         req_map[rid]['req_exec_time'] = record.get('end_time')
-        return
 
     rid_list = record.get('rid_list')
     token_id_list = record.get('token_id_list')
