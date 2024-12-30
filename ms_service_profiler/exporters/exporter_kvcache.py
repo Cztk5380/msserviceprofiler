@@ -84,8 +84,12 @@ def build_result_df(kvcache_df, rid_to_action_usage_rates, num_threads=4):
         return [process_row(row) for row in chunk]
 
     # 分块大小 num_threads默认为4
-    chunk_size = len(data_with_index) // num_threads
-    chunks = [data_with_index[i:i + chunk_size] for i in range(0, len(data_with_index), chunk_size)]
+    num_threads = max(1, num_threads)
+    chunk_size = max(1, len(data_with_index) // num_threads)
+    chunks = [
+        data_with_index[i:i + chunk_size]
+        for i in range(0, len(data_with_index), chunk_size)
+    ]
 
     # 使用线程池并行处理
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
