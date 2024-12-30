@@ -1,7 +1,6 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-from enum import Enum   
-import logging
+from enum import Enum
 from pathlib import Path
 import json
 import pandas as pd
@@ -9,6 +8,7 @@ import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.parse import save_dataframe_to_csv
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.exporters.utils import add_table_into_visual_db
 
 
 class ExporterBatchData(ExporterBase):
@@ -41,3 +41,11 @@ class ExporterBatchData(ExporterBase):
         output = cls.args.output_path
 
         save_dataframe_to_csv(model_df, output, "batch.csv")
+
+        for col in model_df:
+            if model_df[col].dtype == 'object':
+                model_df[col] = model_df[col].astype(str)
+            if col == 'batch_size':
+                model_df[col] = model_df[col].astype(float)
+
+        add_table_into_visual_db(model_df, 'batch')

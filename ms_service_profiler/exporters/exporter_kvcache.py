@@ -11,6 +11,7 @@ import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.parse import save_dataframe_to_csv
 from ms_service_profiler.exporters.utils import create_sqlite_db, add_table_into_visual_db
+from ms_service_profiler.utils.log import logger
 
 
 def get_max_free_value(kvcache_df):
@@ -95,7 +96,7 @@ class ExporterKVCacheData(ExporterBase):
     def export(cls, data) -> None:
         df = data.get('tx_data_df')
         if df is None:
-            logging.error("The data is empty, please check")
+            logger.error("The data is empty, please check")
             return
         start_datetime_data = df['start_datetime'].copy()
         try:
