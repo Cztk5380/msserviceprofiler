@@ -6,6 +6,7 @@ import threading
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
+from ms_service_profiler.utils.log import logger
 
 
 class ExporterTrace(ExporterBase):
@@ -23,18 +24,22 @@ class ExporterTrace(ExporterBase):
         save_trace_data_into_json(trace_data, output)
 
 
-# 定义一个函数用于写文件
 def write_trace_data_to_file(trace_data, output):
     with ms_open(output, "w") as f:
         json.dump(trace_data, f, ensure_ascii=False, indent=2)
+    logger.info("Written trace data successfully.")
 
 
 def save_trace_data_into_json(trace_data, output):
     file_path = os.path.join(output, 'chrome_tracing.json')
 
     # 创建并启动新线程来执行写文件操作
-    write_thread = threading.Thread(target=write_trace_data_to_file, args=(trace_data, file_path))
-    write_thread.start()
+    try:
+        write_thread = threading.Thread(target=write_trace_data_to_file, args=(trace_data, file_path))
+        write_thread.start()
+        logger.info("Start to write trace data...")
+    except Exception as e:
+        logger.error(f"Failed to write trace data to file: {e}")
 
 
 def add_flow_event(flow_event_df):
@@ -57,31 +62,10 @@ def add_flow_event(flow_event_df):
 
 def create_trace_events(all_data_df, cpu_data_df):
     metric_event = ['npu', 'KVCache']
-    valid_name_df = all_data_df[all_data_df['name'].notna() & (~all_data_df['domain'].isin(metric_event))]
-    trace_event_df = valid_name_df.copy()
 
-    # trace事件
-    trace_event_df['ph'] = ['I' if during_time == 0 else 'X' for during_time in valid_name_df['during_time']]
-    trace_event_df['ts'] = valid_name_df['start_time']
-    trace_event_df['tid'] = valid_name_df['domain']
-    trace_event_df['dur'] = valid_name_df['during_time']
-    trace_event_df['args'] = [
-        {
-            'start_datetime': start,
-            'end_datetime': end,
-            'batch_type': batch_type,
-            'batch_size': batch_size,
-            'batch_info': res_list
-        }
-        for start, end, batch_type, batch_size, res_list in zip(
-            valid_name_df['start_datetime'],
-            valid_name_df['end_datetime'],
-            valid_name_df['batch_type'],
-            valid_name_df['batch_size'],
-            valid_name_df['res_list']
-        )
-    ]
-    trace_events = trace_event_df[['name', 'ph', 'ts', 'dur', 'pid', 'tid', 'args']].to_dict(orient='records')
+    # 普通事件
+    valid_name_df = all_data_df[all_data_df['name'].notna() & (~all_data_df['domain'].isin(metric_event))]
+    trace_events = add_trace_events(valid_name_df)
 
     # metric事件
     cpu_trace_events = add_cpu_events(cpu_data_df)
@@ -92,7 +76,7 @@ def create_trace_events(all_data_df, cpu_data_df):
     trace_events.extend(kv_trace_events)
 
     # flow事件
-    flow_event_df = trace_event_df[trace_event_df['rid'].notna()]
+    flow_event_df = valid_name_df[valid_name_df['rid'].notna()]
     flow_trace_events = add_flow_event(flow_event_df)
     trace_events.extend(flow_trace_events)
     trace_events = sort_trace_events_by_tid(trace_events)
@@ -129,6 +113,35 @@ def sort_trace_events_by_tid(trace_events):
     return sorted_trace_events
 
 
+def add_trace_events(valid_name_df):
+    trace_event_df = valid_name_df.copy()
+
+    # trace事件
+    trace_event_df['ph'] = ['I' if during_time == 0 else 'X' for during_time in valid_name_df['during_time']]
+    trace_event_df['ts'] = valid_name_df['start_time']
+    trace_event_df['tid'] = valid_name_df['domain']
+    trace_event_df['dur'] = valid_name_df['during_time']
+    args_list = []
+    for start, end, batch_type, batch_size, res_list in zip(
+            valid_name_df['start_datetime'],
+            valid_name_df['end_datetime'],
+            valid_name_df['batch_type'],
+            valid_name_df['batch_size'],
+            valid_name_df['res_list']
+    ):
+        args_dict = {
+            'start_datetime': start,
+            'end_datetime': end,
+            'batch_type': batch_type,
+            'batch_size': batch_size,
+            'batch_info': res_list
+        }
+        args_list.append(args_dict)
+    trace_event_df['args'] = args_list
+    trace_events = trace_event_df[['name', 'ph', 'ts', 'dur', 'pid', 'tid', 'args']].to_dict(orient='records')
+    return trace_events
+
+
 def add_cpu_events(cpu_data_df):
     cpu_trace_df = cpu_data_df.copy()
     cpu_trace_df['name'] = 'CPU Usage'
@@ -146,6 +159,7 @@ def add_npu_events(npu_data_df):
     npu_trace_df['name'] = 'NPU Usage'
     npu_trace_df['ph'] = 'C'
     npu_trace_df['ts'] = npu_data_df['start_time']
+    npu_trace_df['pid'] = 1
     npu_trace_df['tid'] = 'NPU Usage'
     npu_trace_df['args'] = [{'Usage': usage} for usage in npu_data_df['usage=']]
     npu_trace_events = npu_trace_df[['name', 'ph', 'ts', 'pid', 'tid', 'args']].to_dict(orient='records')
