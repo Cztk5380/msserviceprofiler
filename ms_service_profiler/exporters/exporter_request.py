@@ -57,13 +57,16 @@ def process_data(req_en_queue_df, req_running_df, pending_df):
     decode_merge.columns = ['start_time_pending', 'end_time_pending', 'rid', 'start_time_running', \
         'end_time_running', 'rid_running']
     decode_merge["pending_time"] = decode_merge['start_time_running'] - decode_merge['start_time_pending']
+
     decode_merge = decode_merge.drop(columns=['start_time_running', 'end_time_running'])
     pending_time_sum = decode_merge.groupby('rid')['pending_time'].sum().reset_index()
-    if prefill_df.shape[0] == pending_time_sum.shape[0]:
-        wait_df = pd.merge(prefill_df, pending_time_sum, on='rid')
-    else:
-        logger.error("The data is wrong, please check")
-        return None
+
+    if prefill_df.shape[0] != pending_time_sum.shape[0]:
+        logger.warning("Some requests don't have pending time.")
+
+    pending_time_sum.set_index('rid', inplace=True)
+    wait_df = pd.merge(prefill_df, pending_time_sum, on='rid', how='left')
+
     wait_df['queue_wait_time'] = wait_df['waiting_time'] + wait_df['pending_time']
     wait_df['rid'] = pd.to_numeric(wait_df['rid'], errors='coerce')
     wait_df = wait_df[['rid', 'queue_wait_time']]
@@ -109,25 +112,21 @@ class ExporterAnalyzeData(ExporterBase):
         else:
             logger.error("The data is wrong, please check")
             return
-        if df_merged.shape[0] == wait_df.shape[0]:
-            df_merged['rid'] = pd.to_numeric(df_merged['rid'], errors='coerce')
-            df_merged = pd.merge(df_merged, wait_df, on='rid')
-        else:
-            logger.error("The data is wrong, please check")
-            return
+
+        df_merged['rid'] = pd.to_numeric(df_merged['rid'], errors='coerce')
+        df_merged = pd.merge(df_merged, wait_df, on='rid', how='left')
+
         http_rectoken_df = http_rectoken_df[['rid', 'recvTokenSize=']]
         http_restoken_df = http_restoken_df[['rid', 'replyTokenSize=']]
-        if http_rectoken_df.shape[0] == http_restoken_df.shape[0]:
-            df_token = pd.merge(http_rectoken_df, http_restoken_df, on='rid')
-        else:
-            logger.error("The data is wrong, please check")
-            return
-        if df_merged.shape[0] == df_token.shape[0]:
-            df_token['rid'] = pd.to_numeric(df_token['rid'], errors='coerce')
-            df_merged = pd.merge(df_merged, df_token, on='rid')
-        else:
-            logger.error("The data is wrong, please check")
-            return
+        if http_rectoken_df.shape[0] != http_restoken_df.shape[0]:
+            logger.warning("The lengths of the 'DecodeEnd' and 'encode' fields are different.")
+        df_token = pd.merge(http_rectoken_df, http_restoken_df, on='rid', how='left')
+
+        df_token['rid'] = pd.to_numeric(df_token['rid'], errors='coerce')
+        if df_merged.shape[0] != df_token.shape[0]:
+            logger.warning("""The number of records between the 'httpReq' and 'httpRes' fields is different from that 
+                between the 'DecodeEnd' and 'encode' fields.""")
+        df_merged = pd.merge(df_merged, df_token, on='rid', how='left')
         
         df_merged['execution_time'] = df_merged['end_time_httpRes'] - df_merged['start_time_httpReq']
         df_merged['http_rid'] = df_merged['message_httpReq'].apply(lambda x: x['rid'])
@@ -142,5 +141,3 @@ class ExporterAnalyzeData(ExporterBase):
         })
         
         save_dataframe_to_csv(filtered_df, output, "request.csv")
-
-
