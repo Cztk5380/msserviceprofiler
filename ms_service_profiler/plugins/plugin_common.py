@@ -18,6 +18,7 @@ class PluginCommon(PluginBase):
         if tx_data_df is None:
             raise DataFrameMissingError("tx_data_df")
 
+        tx_data_df = tx_data_df.replace(to_replace=np.nan, value=None)
         rid_link_map = parse_rid_map(tx_data_df)
         tx_data_df = parse_rid(tx_data_df, rid_link_map)
 
@@ -44,30 +45,18 @@ def extract_ids_from_reslist(rid_from_message, rid_map):
     return rid, token_id
 
 
-def extract_batch_type(token_list):
-    if token_list is None:
-        return None
-    if all(token == 0 for token in token_list):
-        return 'Prefill'
-    elif 0 in token_list and len(set(token_list)) > 1:
-        return 'Prefill, Decode'
-    else:
-        return 'Decode'
-
-
 def extract_rid(rid_from_message, rid_map):
-    rid, rid_list, token_id_list, batch_size = None, None, None, None
+    rid, rid_list, token_id_list = None, None, None
     if rid_from_message is not None:
         if isinstance(rid_from_message, str):
             rid = str(rid_map.get(rid_from_message, rid_from_message))
         elif isinstance(rid_from_message, list):
             rid_list, token_id_list = extract_ids_from_reslist(rid_from_message, rid_map)
             rid = ','.join(map(str, rid_list))
-            batch_size = len(rid_list)
         else:
             rid = str(rid_from_message)
 
-    return rid, rid_list, token_id_list, batch_size
+    return rid, rid_list, token_id_list
 
 
 def check_columns_exist(df, *columns_required):
@@ -110,10 +99,6 @@ def parse_rid(all_data_df, rid_link_map=None):
         rid_link_map = parse_rid_map(all_data_df)
 
     df = all_data_df['rid'].apply(lambda x: extract_rid(x, rid_link_map))
-    all_data_df[['rid', 'rid_list', 'token_id_list', 'batch_size']] = pd.DataFrame(df.tolist(), index=all_data_df.index)
-
-    all_data_df['batch_type'] = all_data_df['token_id_list'].apply(lambda x: extract_batch_type(x))
-
-    all_data_df = all_data_df.replace(to_replace=np.nan, value=None)
+    all_data_df[['rid', 'rid_list', 'token_id_list']] = pd.DataFrame(df.tolist(), index=all_data_df.index)
 
     return all_data_df

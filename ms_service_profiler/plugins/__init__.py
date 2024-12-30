@@ -5,8 +5,9 @@ from ms_service_profiler.plugins.plugin_timestamp import PluginTimeStamp
 from ms_service_profiler.plugins.plugin_metric import PluginMetric
 from ms_service_profiler.plugins.plugin_req_status import PluginReqStatus
 from ms_service_profiler.plugins.plugin_concat import PluginConcat
+from ms_service_profiler.plugins.plugin_trace import PluginTrace
 
-buildin_plugins = [PluginTimeStamp, PluginConcat, PluginCommon, PluginMetric]
+buildin_plugins = [PluginTimeStamp, PluginConcat, PluginCommon, PluginMetric, PluginTrace]
 
 custom_plugins = [PluginReqStatus]
 
