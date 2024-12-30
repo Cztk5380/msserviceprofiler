@@ -11,7 +11,7 @@ from collections import defaultdict
 import pandas as pd
 
 from ms_service_profiler.constant import US_PER_SECOND
-from ms_service_profiler.plugins import buildin_plugins
+from ms_service_profiler.plugins import builtin_plugins
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import ParseError, ExportError, LoadDataError
@@ -197,7 +197,7 @@ def parse(input_path, custom_plugins, exporters):
     data = read_origin_db(input_path)
     logger.info('Read origin db success.')
 
-    all_plugins = sort_plugins(buildin_plugins + custom_plugins)
+    all_plugins = sort_plugins(builtin_plugins + custom_plugins)
     for plugin in all_plugins:
         try:
             data = plugin.parse(data)
