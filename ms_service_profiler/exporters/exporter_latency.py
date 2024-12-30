@@ -108,7 +108,7 @@ def calculate_first_token_latency(req_map):
 
 def calculate_req_latency(req_map):
     req_latency = []
-    for rid, req_info in req_map.items():
+    for _, req_info in req_map.items():
         if req_info.get('start_time') is None:
             print_warning_log('start_time')
             continue
@@ -124,7 +124,7 @@ def calculate_req_latency(req_map):
 
 def calculate_gen_token_speed_latency(req_map, is_prefill):
     gen_token_speed = []
-    for req_rid, req_info in req_map.items():
+    for _, req_info in req_map.items():
         if req_info.get('start_time') is None:
             print_warning_log('start_time')
             continue
