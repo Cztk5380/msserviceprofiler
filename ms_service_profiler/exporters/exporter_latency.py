@@ -28,7 +28,7 @@ def is_contained_vaild_iter_info(rid_list, token_id_list):
     return True
 
 
-def print_warning_log(log_name, req_rid):
+def print_warning_log(log_name):
     if not ExporterLatency.get_err_log_flag(log_name):
         logger.warning(f"The '{log_name}' field info is missing, please check.")
         ExporterLatency.set_err_log_flag(log_name, True)
@@ -38,7 +38,7 @@ def process_each_record(req_map, record):
     name = record.get('name')
     rid = record.get('rid')
     if rid is None or name is None:
-        print_warning_log('rid or name', rid)
+        print_warning_log('rid or name')
         return
 
     if name == 'httpReq':
@@ -59,13 +59,17 @@ def process_each_record(req_map, record):
     for i, value in enumerate(rid_list):
         req_rid = str(int(value))
         if req_map.get(req_rid) is None:
-            print_warning_log('httpReq', req_rid)
+            print_warning_log('httpReq')
             continue
 
         req_map[req_rid]['req_exec_time'] = record.get('end_time')
 
         # 更新请求首token时延
         cur_iter = token_id_list[i]
+        if cur_iter is None:
+            print_warning_log('token_id_list')
+            continue
+
         if cur_iter == 0:
             if req_map[req_rid].get('first_token_latency') is None:
                 req_map[req_rid]['first_token_latency'] = record.get('during_time')
@@ -106,7 +110,7 @@ def calculate_req_latency(req_map):
     req_latency = []
     for rid, req_info in req_map.items():
         if req_info.get('start_time') is None:
-            print_warning_log('start_time', rid)
+            print_warning_log('start_time')
             continue
         cur_req_start_time = req_info['start_time']
 
@@ -122,7 +126,7 @@ def calculate_gen_token_speed_latency(req_map, is_prefill):
     gen_token_speed = []
     for req_rid, req_info in req_map.items():
         if req_info.get('start_time') is None:
-            print_warning_log('start_time', req_rid)
+            print_warning_log('start_time')
             continue
         cur_req_start_time = req_info['start_time']
 
@@ -192,12 +196,12 @@ def gen_exporter_results(all_data_df):
 
 class ExporterLatency(ExporterBase):
     name = "latency"
-    err_log = {'rid or name': False, 'start_time': False, 'httpReq': False}
+    err_log = {'rid or name': False, 'start_time': False, 'httpReq': False, 'token_id_list': False}
 
     @classmethod
     def initialize(cls, args):
         cls.args = args
-        cls.err_log = {'rid or name': False, 'start_time': False, 'httpReq': False}
+        cls.err_log = {'rid or name': False, 'start_time': False, 'httpReq': False, 'token_id_list': False}
 
     @classmethod
     def set_err_log_flag(cls, index, value):

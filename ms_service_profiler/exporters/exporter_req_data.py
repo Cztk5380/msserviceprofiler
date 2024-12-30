@@ -107,11 +107,9 @@ class ExporterReqData(ExporterBase):
             logger.error(f"An error occurred: {e}")
             return
         # 使用merge操作将httpReq和httpRes的数据进行匹配
-        if http_req_df.shape[0] == http_res_df.shape[0]:
-            df_merged = pd.merge(http_req_df, http_res_df, on='rid', suffixes=('_httpReq', '_httpRes'))
-        else:
+        if http_req_df.shape[0] != http_res_df.shape[0]:
             logger.error("The data is wrong, please check")
-            return
+        df_merged = pd.merge(http_req_df, http_res_df, on='rid', suffixes=('_httpReq', '_httpRes'), how='left')
 
         df_merged['rid'] = pd.to_numeric(df_merged['rid'], errors='coerce')
         df_merged = pd.merge(df_merged, wait_df, on='rid', how='left')
