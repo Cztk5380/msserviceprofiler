@@ -41,8 +41,10 @@ def add_flow_event(flow_event_df):
     flow_event_df.loc[:, 'rid'] = flow_event_df['rid'].str.split(',')
     exploded_df = flow_event_df.explode('rid')
     exploded_df['tid'] = exploded_df['domain']
-    exploded_df['ph'] = ['s' if 'httpReq' in name else ('f' if 'httpRes' in name else 't') for name in
-                         exploded_df['name']]
+    exploded_df['ph'] = [
+        's' if 'httpReq' in name else ('f' if 'httpRes' in name else 't')
+        for name in exploded_df['name']
+    ]
     exploded_df['bp'] = ['b' if 'httpRes' in name else '' for name in exploded_df['name']]
     exploded_df['name'] = 'flow_' + exploded_df['rid']
     exploded_df['ts'] = exploded_df['start_time']
@@ -71,9 +73,13 @@ def create_trace_events(all_data_df, cpu_data_df):
             'batch_size': batch_size,
             'batch_info': res_list
         }
-        for start, end, batch_type, batch_size, res_list in
-        zip(valid_name_df['start_datetime'], valid_name_df['end_datetime'], valid_name_df['batch_type'],
-            valid_name_df['batch_size'], valid_name_df['res_list'])
+        for start, end, batch_type, batch_size, res_list in zip(
+            valid_name_df['start_datetime'],
+            valid_name_df['end_datetime'],
+            valid_name_df['batch_type'],
+            valid_name_df['batch_size'],
+            valid_name_df['res_list']
+        )
     ]
     trace_events = trace_event_df[['name', 'ph', 'ts', 'dur', 'pid', 'tid', 'args']].to_dict(orient='records')
 
