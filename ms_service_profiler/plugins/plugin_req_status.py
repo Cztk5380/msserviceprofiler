@@ -32,10 +32,6 @@ class PluginReqStatus(PluginBase):
             raise ValueError("tx_data_df is None")
 
         tx_data_df['message'] = tx_data_df['message'].apply(parse_message_state_name)
-        # 填充domain和name
-        if 'domain' in tx_data_df.columns:
-            tx_data_df['name'] = tx_data_df['name'].fillna(tx_data_df['domain'])
-            tx_data_df['domain'] = tx_data_df['domain'].fillna(tx_data_df['name'])
         rename_mapping = {
             col: status_index_to_status_name(col)
             for col in tx_data_df.columns
@@ -44,6 +40,11 @@ class PluginReqStatus(PluginBase):
         tx_data_df = tx_data_df.rename(columns=rename_mapping)
         req_status = list(rename_mapping.values())
         tx_data_df = rename_req_status(tx_data_df, req_status)
+
+        # 填充domain和name
+        if 'domain' in tx_data_df.columns:
+            tx_data_df['name'] = tx_data_df['name'].fillna(tx_data_df['domain'])
+            tx_data_df['domain'] = tx_data_df['domain'].fillna(tx_data_df['name'])
 
         data['tx_data_df'] = tx_data_df
         return data
