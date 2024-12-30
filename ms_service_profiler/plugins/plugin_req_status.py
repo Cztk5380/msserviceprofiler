@@ -33,8 +33,9 @@ class PluginReqStatus(PluginBase):
 
         tx_data_df['message'] = tx_data_df['message'].apply(parse_message_state_name)
         # 填充domain和name
-        tx_data_df['name'] = tx_data_df['name'].fillna(tx_data_df['domain'])
-        tx_data_df['domain'] = tx_data_df['domain'].fillna(tx_data_df['name'])
+        if 'domain' in tx_data_df.columns:
+            tx_data_df['name'] = tx_data_df['name'].fillna(tx_data_df['domain'])
+            tx_data_df['domain'] = tx_data_df['domain'].fillna(tx_data_df['name'])
         rename_mapping = {
             col: status_index_to_status_name(col)
             for col in tx_data_df.columns
