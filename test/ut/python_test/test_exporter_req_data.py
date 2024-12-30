@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pandas as pd
 from ms_service_profiler.parse import parse
 from ms_service_profiler.exporters.base import ExporterBase
-from ms_service_profiler.exporters.exporter_request import process_data, update_name, ExporterAnalyzeData
+from ms_service_profiler.exporters.exporter_req_data import process_data, update_name, ExporterReqData
 
 
 class TestProcessData(unittest.TestCase):
@@ -72,7 +72,7 @@ class TestProcessData(unittest.TestCase):
         self.assertEqual(result['name'], self.expected_results.iloc[2]['name'])
 
 
-class TestExporterAnalyzeData(unittest.TestCase):
+class TestExporterReqData(unittest.TestCase):
     def setUp(self):
         current_dir = os.getcwd()
         self.args = type('Args', (object,), {'output_path': current_dir})
@@ -109,9 +109,9 @@ class TestExporterAnalyzeData(unittest.TestCase):
     def test_export(self):
         try:
             # 初始化args
-            ExporterAnalyzeData.initialize(self.args)
+            ExporterReqData.initialize(self.args)
             # 调用export方法
-            ExporterAnalyzeData.export(self.data)
+            ExporterReqData.export(self.data)
             # 验证CSV文件是否生成
             file_path = Path(os.path.join(os.getcwd(), 'request.csv'))
             self.assertTrue(file_path.is_file())
@@ -119,13 +119,13 @@ class TestExporterAnalyzeData(unittest.TestCase):
             # 清理
             file_path.unlink()
 
-    @patch('ms_service_profiler.exporters.exporter_request.ExporterAnalyzeData.export')
+    @patch('ms_service_profiler.exporters.exporter_req_data.ExporterReqData.export')
     def test_export_with_missing_tx_data_df(self, mock_export):
         # 初始化args
-        ExporterAnalyzeData.initialize(self.args)
+        ExporterReqData.initialize(self.args)
         # 调用export方法，但模拟tx_data_df不存在的情况
         self.data['tx_data_df'] = None
-        ExporterAnalyzeData.export(self.data)
+        ExporterReqData.export(self.data)
         # 验证方法是否正确处理了tx_data_df不存在的情况
         mock_export.assert_called_once_with(self.data)
         # 验证CSV文件是否生成

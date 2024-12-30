@@ -86,8 +86,8 @@ def filter_data(df):
     return http_req_df, http_res_df, http_rectoken_df, http_restoken_df, wait_df
 
 
-class ExporterAnalyzeData(ExporterBase):
-    name = "request_data"
+class ExporterReqData(ExporterBase):
+    name = "req_data"
 
     @classmethod
     def initialize(cls, args):
@@ -124,8 +124,8 @@ class ExporterAnalyzeData(ExporterBase):
 
         df_token['rid'] = pd.to_numeric(df_token['rid'], errors='coerce')
         if df_merged.shape[0] != df_token.shape[0]:
-            logger.warning("""The number of records between the 'httpReq' and 'httpRes' fields is different from that 
-                between the 'DecodeEnd' and 'encode' fields.""")
+            logger.warning("The number of records between the 'httpReq' and 'httpRes' fields is different from that "
+                "between the 'DecodeEnd' and 'encode' fields.")
         df_merged = pd.merge(df_merged, df_token, on='rid', how='left')
         
         df_merged['execution_time'] = df_merged['end_time_httpRes'] - df_merged['start_time_httpReq']
