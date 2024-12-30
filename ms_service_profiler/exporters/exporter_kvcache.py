@@ -6,9 +6,9 @@ import argparse
 import os
 import sqlite3
 import json
+from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.parse import save_dataframe_to_csv
@@ -92,7 +92,11 @@ def build_result_df(kvcache_df, rid_to_action_usage_rates, num_threads=4):
         results = list(executor.map(process_chunk, chunks))
 
     # 合并结果
-    data = [item for sublist in results for item in sublist]
+    data = [
+        item
+        for sublist in results
+        for item in sublist
+    ]
 
     # 创建新的 DataFrame
     result_df = pd.DataFrame(data, columns=new_columns)
