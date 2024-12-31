@@ -1,3 +1,4 @@
+import glob
 import os
 from unittest import TestCase
 
@@ -6,7 +7,7 @@ from test.st.utils import execute_cmd
 
 
 
-class TestCompareToolsCmdPytorchNpuVsNpuEnableApiCompare(TestCase):
+class TestAnalyzeCmd(TestCase):
     ST_DATA_PATH = os.getenv("MS_SERVICE_PROFILER",
                              "/home/xujintao")
     INPUT_PATH = os.path.join(ST_DATA_PATH, "1230-1148-100Req")
@@ -25,4 +26,12 @@ class TestCompareToolsCmdPytorchNpuVsNpuEnableApiCompare(TestCase):
         PathManager.remove_path_safety(self.OUTPUT_PATH)
 
     def test_profiler(self):
-        assert 1==1
+        # 校验输出文件是否存在
+        db_file = glob.glob(f"{self.OUTPUT_PATH}/*.db")
+        csv_file = glob.glob(f"{self.OUTPUT_PATH}/*.csv")
+        trace_view_json = glob.glob(f"{self.OUTPUT_PATH}/chrome_tracing.json")[0]
+
+        self.assertEqual(len(db_file), 1, msg="The number of db files is incorrect.")
+        self.assertEqual(len(csv_file), 3, msg="The number of csv files is incorrect.")
+        if not os.path.exists(trace_view_json):
+            self.fail("trace_view.json does not exist")
