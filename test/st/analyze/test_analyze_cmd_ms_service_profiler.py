@@ -1,3 +1,5 @@
+# Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
+
 import glob
 import os
 from unittest import TestCase
@@ -20,7 +22,7 @@ class TestAnalyzeCmd(TestCase):
         PathManager.make_dir_safety(self.OUTPUT_PATH)
         cmd = ["python", self.ANALYZE_PROFILER, "--input_path", self.INPUT_PATH, "--output_path", self.OUTPUT_PATH]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
-            self.assertEqual(False, True, msg="enable ms service profiler analyze task failed.")
+            self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
 
     def teardown_class(self):
         PathManager.remove_path_safety(self.OUTPUT_PATH)

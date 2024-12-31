@@ -1,3 +1,5 @@
+# Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
+
 import datetime
 import logging
 import os
