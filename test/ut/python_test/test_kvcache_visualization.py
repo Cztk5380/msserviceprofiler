@@ -18,10 +18,14 @@ kvcache_usage_rate_calculator,
 class TestKvcacheFunctions(unittest.TestCase):
     def setUp(self):
         data = {
-            'rid': [1, 1, 2, 2],
-            'name': ['Allocate', 'Free', 'AppendSlot', 'Free'],
-            'real_start_time': ['2024-01-01', '2024-01-02', '2024-01-03', '2024-01-04'],
-            'device_kvcache_left': [10, 20, 15, 25]
+            'domain': ['KVCache', 'KVCache', 'KVCache', 'KVCache'],
+            'rid': [0, 1, 2, 3],
+            'start_time(microsecond)': ['1735124796367194', '1735124796367220', '1735124796367233', '1735124796367242'],
+            'end_time(microsecond)': ['1735124796367194', '1735124796367220', '1735124796367233', '1735124796367242'],
+            'name': ['Allocate', 'Free', 'AppendSlot', 'AppendSlot'],
+            'device_kvcache_left': [1978, 1977, 1976, 1975],
+            'during_time(microsecond)': ['0', '0', '0', '0'],
+            'real_start_time': ['2024-12-25', '2024-12-25', '2024-12-25', '2024-12-25']
         }
         self.kvcache_df = pd.DataFrame(data)
 

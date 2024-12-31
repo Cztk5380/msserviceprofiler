@@ -6,7 +6,9 @@ import argparse
 import os
 import sqlite3
 import json
+from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
+import numpy as np
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.parse import save_dataframe_to_csv
@@ -56,21 +58,51 @@ def build_rid_to_action_usage_rates(kvcache_df, max_free_value):
     return rid_to_action_usage_rates
 
 
-def build_result_df(kvcache_df, rid_to_action_usage_rates):
+def build_result_df(kvcache_df, rid_to_action_usage_rates, num_threads=4):
     """
     创建新的DataFrame并填充数据
     """
     new_columns = ['rid', 'name', 'real_start_time', 'device_kvcache_left', 'kvcache_usage_rate']
 
+    # 将 DataFrame 转换为 NumPy 数组，并添加原始索引作为最后一列
+    data_with_index = np.column_stack((kvcache_df.to_numpy(), kvcache_df.index))
+
+    # 处理单行数据的函数
     def process_row(row):
-        rid = row['rid']
+        rid = row[1]
+        original_index = row[8]
+
         relevant_data_list = rid_to_action_usage_rates.get(rid, [])
-        relevant_data = next((d for d in relevant_data_list if d['original_index'] == row.name), None)
+        relevant_data = next((d for d in relevant_data_list if d['original_index'] == original_index), None)
         usage_rate = relevant_data['usage'] if relevant_data and relevant_data['usage'] is not None else None
-        return [rid, row['name'], row['real_start_time'], row['device_kvcache_left'], usage_rate]
+        result = [rid, row[4], row[7], row[5], usage_rate]
 
-    data = kvcache_df.apply(process_row, axis=1).tolist()
+        return result
 
+    # 分块处理函数
+    def process_chunk(chunk):
+        return [process_row(row) for row in chunk]
+
+    # 分块大小 num_threads默认为4
+    num_threads = max(1, num_threads)
+    chunk_size = max(1, len(data_with_index) // num_threads)
+    chunks = [
+        data_with_index[i:i + chunk_size]
+        for i in range(0, len(data_with_index), chunk_size)
+    ]
+
+    # 使用线程池并行处理
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        results = list(executor.map(process_chunk, chunks))
+
+    # 合并结果
+    data = [
+        item
+        for sublist in results
+        for item in sublist
+    ]
+
+    # 创建新的 DataFrame
     result_df = pd.DataFrame(data, columns=new_columns)
     return result_df
 

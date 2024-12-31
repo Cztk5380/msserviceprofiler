@@ -22,14 +22,14 @@ class TestExporterBatchData(unittest.TestCase):
     def create_df(self):
         # 创建一个示例DataFrame
         data = {
-            'domain': ['KVCache', 'KVCache', 'KVCache'],
-            'name': ['Allocate', 'AppendSlot', 'Free'],
-            'start_time': [1, 2, 3],
-            'end_time': [1.5, 2.5, 3.5],
-            'deviceBlock=':[512, 511, 513],
-            'rid':[0, 0, 0],
-            'during_time':[0.5, 0.5, 0.5],
-            'start_datetime': ['2024-10-03', '2024-10-03', '2024-10-03']
+            'domain': ['KVCache', 'KVCache', 'KVCache', 'KVCache'],
+            'rid': [0, 1, 2, 3],
+            'start_time': ['1735124796367194', '1735124796367220', '1735124796367233', '1735124796367242'],
+            'end_time': ['1735124796367194', '1735124796367220', '1735124796367233', '1735124796367242'],
+            'name': ['Allocate', 'Free', 'AppendSlot', 'AppendSlot'],
+            'deviceBlock=': [1978, 1977, 1976, 1975],
+            'during_time': ['0', '0', '0', '0'],
+            'start_datetime': ['2024-12-25', '2024-12-25', '2024-12-25', '2024-12-25']
         }
         return pd.DataFrame(data)
 
