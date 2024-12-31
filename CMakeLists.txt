@@ -7,7 +7,6 @@ project(ms_service_profiler)
 # make
 # cmake --install . --prefix ../../ms_service_profiler
 
-set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_SKIP_RPATH TRUE)
 set(CMAKE_CXX_STANDARD 11)
 add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
