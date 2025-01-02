@@ -10,19 +10,17 @@ import pandas as pd
 from ms_service_profiler.exporters.exporter_kvcache import ExporterKVCacheData
 
 
-
 class TestExporterKVCacheData(unittest.TestCase):
     OUTPUT_PATH = "test_output"  # 测试输出目录
     CSV_FILE_NAME = "kvcache.csv"
     DB_FILE_NAME = "profiler.db"
 
-    @classmethod
-    def setUpClass(cls):
+    def setup_class(self):
         # 创建输出目录
-        Path(cls.OUTPUT_PATH).mkdir(parents=True, exist_ok=True)
+        Path(self.OUTPUT_PATH).mkdir(parents=True, exist_ok=True)
 
         # 初始化 ExporterKVCacheData
-        args = argparse.Namespace(output_path=cls.OUTPUT_PATH)
+        args = argparse.Namespace(output_path=self.OUTPUT_PATH)
         ExporterKVCacheData.initialize(args)
 
         # 模拟输入数据
@@ -42,12 +40,11 @@ class TestExporterKVCacheData(unittest.TestCase):
         # 执行导出操作
         ExporterKVCacheData.export(data)
 
-    @classmethod
-    def tearDownClass(cls):
+    def teardown_class(self):
         # 清理测试输出目录
-        for file in glob.glob(f"{cls.OUTPUT_PATH}/*"):
+        for file in glob.glob(f"{self.OUTPUT_PATH}/*"):
             os.remove(file)
-        os.rmdir(cls.OUTPUT_PATH)
+        os.rmdir(self.OUTPUT_PATH)
 
     def test_csv_file_generated(self):
         # 检查 CSV 文件是否生成
