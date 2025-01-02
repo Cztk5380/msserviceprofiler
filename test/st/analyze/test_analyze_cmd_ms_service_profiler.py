@@ -35,3 +35,34 @@ class TestAnalyzeCmd(TestCase):
         self.assertEqual(len(csv_file), 3, msg="The number of csv files is incorrect.")
         if not os.path.exists(trace_view_json):
             self.fail("trace_view.json does not exist")
+
+    def test_req_status(self):
+        """Check req_status output. Make sure this testcase after test_profiler."""
+        db_filelist = glob.glob(f"{self.OUTPUT_PATH}/*.db")
+        if not db_filelist:
+            return 
+        fp = db_filelist[0]
+        
+        import pandas as pd
+        cnx = sqlite3.connect(fp)
+        df = pd.read_sql_query("SELECT * FROM request_status", cnx)
+
+        
+        for col in ['start_datetime']:
+            self.assertIn(col, df.columns, msg=f"{col} should be found in request_status.")
+
+        from enum import Enum
+
+        class ReqStatus(Enum):
+            WAITING = 0
+            PENDING = 1
+            RUNNING = 2
+            SWAPPED = 3
+            RECOMPUTE = 4
+            SUSPENDED = 5
+            END = 6
+            STOP = 7
+            PREFILL_HOLD = 8
+
+        for col in df.columns:
+            self.assertIn(col, ReqStatus.__members__, msg=f"{col} should not be found in request_status.")
