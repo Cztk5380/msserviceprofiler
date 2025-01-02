@@ -2,9 +2,9 @@
 
 import glob
 import os
+import shutil
 from unittest import TestCase
 
-from test.path_manager import PathManager
 from test.st.utils import execute_cmd
 
 
@@ -19,15 +19,15 @@ class TestAnalyzeCmd(TestCase):
                                          "ms_service_profiler/analyze.py")
 
     def setup_class(self):
-        PathManager.make_dir_safety(self.OUTPUT_PATH)
+        os.makedirs(self.OUTPUT_PATH, mode=0o750)
+
+    def teardown_class(self):
+        shutil.rmtree(self.OUTPUT_PATH)
+
+    def test_profiler(self):
         cmd = ["python", self.ANALYZE_PROFILER, "--input_path", self.INPUT_PATH, "--output_path", self.OUTPUT_PATH]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
             self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
-
-    def teardown_class(self):
-        PathManager.remove_path_safety(self.OUTPUT_PATH)
-
-    def test_profiler(self):
         # 校验输出文件是否存在
         db_file = glob.glob(f"{self.OUTPUT_PATH}/*.db")
         csv_file = glob.glob(f"{self.OUTPUT_PATH}/*.csv")
