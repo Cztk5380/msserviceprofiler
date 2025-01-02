@@ -11,7 +11,7 @@ from test.st.utils import execute_cmd
 
 class TestAnalyzeCmd(TestCase):
     ST_DATA_PATH = os.getenv("MS_SERVICE_PROFILER",
-                             "/home/xujintao")
+                             "/data/ms_service_profiler")
     INPUT_PATH = os.path.join(ST_DATA_PATH, "1230-1148-100Req")
     OUTPUT_PATH = os.path.join(ST_DATA_PATH, "test")
     COMMAND_SUCCESS = 0
