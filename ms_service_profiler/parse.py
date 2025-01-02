@@ -7,6 +7,7 @@ import re
 import sqlite3
 from pathlib import Path
 from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor
 
 import pandas as pd
 
@@ -198,10 +199,11 @@ def parse(input_path, custom_plugins, exporters):
     logger.info('Read origin db success.')
 
     all_plugins = sort_plugins(builtin_plugins + custom_plugins)
-    for plugin in all_plugins:
+    total_plugins = len(all_plugins)
+    for cur_id, plugin in enumerate(all_plugins):
         try:
             data = plugin.parse(data)
-            logger.info(f'{plugin.name} success.')
+            logger.info(f'[{cur_id + 1}/{total_plugins}] {plugin.name} success.')
         except ParseError as ex:
             if plugin.name in ['plugin_timestamp', 'plugin_concat']:
                 logger.exception(f'{plugin.name} failure. Program stopped.')
@@ -209,10 +211,12 @@ def parse(input_path, custom_plugins, exporters):
             else:
                 logger.exception(f'{plugin.name} failure. Skip it.')
 
-    # 导出数据
-    for exporter in exporters:
-        try:
-            exporter.export(data)
-            logger.info(f'exporter {exporter.name} success.')
-        except ExportError as ex:
-            logger.exception(f'exporter {exporter.name} failure. Skip it.')
+    logger.info('Starting exporter processes.')
+    with ProcessPoolExecutor() as executor:
+        futures = [executor.submit(exporter.export, data) for exporter in exporters]
+        for future in futures:
+            try:
+                future.result()
+            except Exception as e:
+                pass  # Do nothing
+    logger.info('Exporter done.')
