@@ -1,7 +1,9 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
 import pandas as pd
+
 from ms_service_profiler.plugins.base import PluginBase
+from ms_service_profiler.utils.log import logger
 
 
 class PluginMetric(PluginBase):
@@ -18,6 +20,14 @@ class PluginMetric(PluginBase):
         
         metric_cols = [col for col in tx_data_df.columns if is_metric(col)]
         
+        for col in ['name', 'start_time', 'start_datetime']:
+            if col in tx_data_df.columns:
+                continue
+            else:
+                logger.error(f'Missing columns "{col}".')
+            logger.error(f'Skip parsing.')
+            return tx_data_df
+
         metric_data_df = tx_data_df[['start_time', 'start_datetime'] + metric_cols].copy()
         metric_data_df.loc[tx_data_df['name'] == 'httpReq', 'WAITING+'] = 1.0
 
