@@ -1,11 +1,13 @@
+# Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
+
 import sqlite3
 import unittest
 import os
 import glob
 import argparse
-import pandas as pd
 from pathlib import Path
 from ms_service_profiler.exporters.exporter_kvcache import ExporterKVCacheData
+import pandas as pd
 
 
 class TestExporterKVCacheData(unittest.TestCase):
