@@ -44,10 +44,11 @@ def stop_st_process(process_list):
             process.wait()
 
 
-def run_st():
+def run_st(module_choice):
     timeout = 3600
-
     modules = ["analyze"]
+    if module_choice != "all":
+        modules = [module_choice]
     process_list = []
     thread_list = []
     for module in modules:
@@ -79,7 +80,12 @@ def run_st():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-    st_success = run_st()
+    if '--module' in sys.argv:
+        module_index = sys.argv.index("--module") + 1
+        module = sys.argv[module_index]
+    else:
+        module = "all"
+    st_success = run_st(module)
     if st_success:
         logging.info("run st successfully.")
         sys.exit(0)

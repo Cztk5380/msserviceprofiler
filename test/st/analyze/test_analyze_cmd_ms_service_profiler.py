@@ -10,8 +10,8 @@ from test.st.utils import execute_cmd
 
 class TestAnalyzeCmd(TestCase):
     ST_DATA_PATH = os.getenv("MS_SERVICE_PROFILER", "/data/ms_service_profiler")
-    INPUT_PATH = os.path.join(ST_DATA_PATH, "analyze/1230-1148-100Req")
-    OUTPUT_PATH = os.path.join(ST_DATA_PATH, "analyze")
+    INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/1230-1148-100Req")
+    OUTPUT_PATH = os.path.join(ST_DATA_PATH, "output/analyze")
     COMMAND_SUCCESS = 0
     ANALYZE_PROFILER = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")),
                                          "ms_service_profiler/analyze.py")
