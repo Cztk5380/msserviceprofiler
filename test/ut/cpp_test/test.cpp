@@ -4,7 +4,8 @@
 
 #include <chrono>
 #include <thread>
-#include "../../../include/msServiceProfiler/msServiceProfiler.h"
+#include "msServiceProfiler/msServiceProfiler.h"
+#include "msServiceProfiler/NpuMemoryUsage.h"
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
 
@@ -81,6 +82,26 @@ void TestLinker()
     std::cout << "Test Linker" << std::endl;
 }
 
+void TestNpuMemoryUsage()
+{
+    NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
+    npuMemoryUsage.InitDcmiCardAndDevices();
+    std::vector<int> memoryUsed;
+    std::vector<int> memoryUtiliza;
+    int ret = npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
+    std::cout << "Usage: ";
+    for (long unsigned int i = 0; i < memoryUsed.size(); i++) {
+        std::cout << memoryUsed[i] << ", ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "Rate: ";
+    for (long unsigned int i = 0; i < memoryUtiliza.size(); i++) {
+        std::cout << memoryUtiliza[i] << ", ";
+    }
+    std::cout << "Test NpuMemoryUsage" << std::endl;
+}
+
 void TestSpan100NumAttr()
 {
     int nums[TEST_VALUE_100];
@@ -108,6 +129,7 @@ void SmokeTest()
     TestSmoke("TestMetric", TestMetric);
     TestSmoke("TestEvent", TestEvent);
     TestSmoke("TestLinker", TestLinker);
+    TestSmoke("TestNpuMemoryUsage", TestNpuMemoryUsage);
 }
 
 void SpeedTest()

@@ -1,5 +1,17 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include <sys/stat.h>
@@ -22,7 +34,7 @@
 #include "acl/acl.h"
 #include "mstx/ms_tools_ext.h"
 
-#include "../include/msServiceProfiler/GetNpuMemoryUsage.h"
+#include "../include/msServiceProfiler/NpuMemoryUsage.h"
 #include "../include/msServiceProfiler/Profiler.h"
 #include "../include/msServiceProfiler/ServiceProfilerManager.h"
 
@@ -277,12 +289,14 @@ namespace msServiceProfiler {
     // 线程函数：npu usage
     void ThreadFunction()
     {
+        msServiceProfiler::NpuMemoryUsage npuMemoryUsage = msServiceProfiler::NpuMemoryUsage();
+        npuMemoryUsage.InitDcmiCardAndDevices();
         while (g_threadRunFlag) {
             std::vector<int> memoryUsed;
             std::vector<int> memoryUtiliza;
 
             try {
-                int ret = GetNpuMemoryUsage(memoryUsed, memoryUtiliza);
+                int ret = npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
                 Write2Tx(memoryUsed, "usage");
                 Write2Tx(memoryUtiliza, "utiliza");
             } catch (std::exception& e) {

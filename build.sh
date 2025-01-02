@@ -22,11 +22,7 @@ make_msserviceprofiler() {
     cd $CUR_DIR
     fn_build_nlohmann_json
     rm -rf build
-    mkdir build
-    cd build
-    cmake ..
-    make -j
-    cmake --install . --prefix output
+    mkdir -p build && cd build && cmake .. && make -j 4 && cmake --install . --prefix output
     cd -
 }
 
