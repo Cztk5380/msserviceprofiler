@@ -5,6 +5,8 @@ from ms_service_profiler.plugins.base import PluginBase
 
 
 class PluginMetric(PluginBase):
+    """Create a new metric table with timestamp and all metric."""
+
     name = "plugin_metric"
     depends = ["plugin_common", "plugin_req_status"]
 
@@ -16,14 +18,14 @@ class PluginMetric(PluginBase):
         
         metric_cols = [col for col in tx_data_df.columns if is_metric(col)]
         
-        metric_data_df = tx_data_df[['start_time'] + metric_cols].copy()
+        metric_data_df = tx_data_df[['start_time', 'start_datetime'] + metric_cols].copy()
         metric_data_df.loc[tx_data_df['name'] == 'httpReq', 'WAITING+'] = 1.0
 
         increase_metric_cols = [col for col in metric_cols if col[-1] == "+"]
         metric_data_df[increase_metric_cols] = cal_increase_value(metric_data_df[increase_metric_cols])   
 
         metric_data_df = metric_data_df.rename(columns={col: col[:-1] for col in metric_cols})
-        data['tx_data_df'] = tx_data_df
+        
         data['metric_data_df'] = metric_data_df
         return data
 
