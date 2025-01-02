@@ -47,8 +47,7 @@ def extract_rid(rid_from_message, rid_map):
         if isinstance(rid_from_message, str):
             rid = str(rid_map.get(rid_from_message, rid_from_message))
         elif isinstance(rid_from_message, list):
-            rid_list, token_id_list = extract_ids_from_reslist(
-                rid_from_message, rid_map)
+            rid_list, token_id_list = extract_ids_from_reslist(rid_from_message, rid_map)
             rid = ','.join(map(str, rid_list))
         else:
             rid = str(rid_from_message)
