@@ -195,9 +195,9 @@
               "type": "frser-sqlite-datasource",
               "uid": "ee89zxajzxgcgf"
             },
-            "queryText": "\nSELECT\n            substr(timestamp, 1, 10) || 'T' || substr(timestamp, 12, 8) || 'Z' AS time,            WAITING,\n            PENDING,\n            RUNNING\n        FROM\n            request_status\n        ORDER BY\n            time ASC;",
+            "queryText": "\nSELECT\n    substr(timestamp, 1, 10) || 'T' || substr(timestamp, 12, 8) || 'Z' AS time,\n    WAITING,\n    PENDING,\n    RUNNING\nFROM\n    request_status\nORDER BY\n    time ASC;",
             "queryType": "time series",
-            "rawQueryText": "\nSELECT\n            substr(timestamp, 1, 10) || 'T' || substr(timestamp, 12, 8) || 'Z' AS time,            WAITING,\n            PENDING,\n            RUNNING\n        FROM\n            request_status\n        ORDER BY\n            time ASC;",
+            "rawQueryText": "\nSELECT\n    substr(timestamp, 1, 10) || 'T' || substr(timestamp, 12, 8) || 'Z' AS time,\n    WAITING,\n    PENDING,\n    RUNNING\nFROM\n    request_status\nORDER BY\n    time ASC;",
             "refId": "A",
             "timeColumns": [
               "time",
