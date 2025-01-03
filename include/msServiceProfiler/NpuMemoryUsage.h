@@ -21,18 +21,18 @@ struct dcmi_get_memory_info_stru {
     unsigned long long memory_size;      /* unit:MB */
     unsigned long long memory_available; /* free + hugepages_free * hugepagesize */
     unsigned int freq;
-    unsigned long hugepagesize; /* unit:KB */
+    unsigned long hugepagesize;          /* unit:KB */
     unsigned long hugepages_total;
     unsigned long hugepages_free;
-    unsigned int utiliza;      /* ddr memory info usages */
-    unsigned char reserve[60]; /* the size of dcmi_memory_info is 96 */
+    unsigned int utiliza;                /* ddr memory info usages */
+    unsigned char reserve[60];           /* the size of dcmi_memory_info is 96 */
 };
 
 struct dsmi_hbm_info_stru {
-    unsigned long long memory_size; /**< HBM total size, MB */
-    unsigned int freq; /**< HBM freq, MHz */
+    unsigned long long memory_size;  /**< HBM total size, MB */
+    unsigned int freq;               /**< HBM freq, MHz */
     unsigned long long memory_usage; /**< HBM memory_usage, MB */
-    int temp; /**< HBM temperature */
+    int temp;                        /**< HBM temperature */
     unsigned int bandwith_util_rate;
 };
 

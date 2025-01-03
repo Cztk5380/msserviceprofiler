@@ -22,14 +22,14 @@ constexpr int NANO_TO_MICRO_SECOND = 1e6;
 constexpr int NANO_TO_MILLI_SECOND = 1e3;
 constexpr int TEST_SPEED_5_US = 5;
 
-int64_t Now()
+int64_t now()
 {
     auto now = std::chrono::high_resolution_clock::now();
     std::chrono::nanoseconds ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
     return ns.count();
 }
 
-void TestSmoke(const std::string funcName, void (*func)())
+void testSmoke(const std::string funcName, void (*func)())
 {
     try {
         std::cout << "====================" << std::endl;
@@ -42,13 +42,13 @@ void TestSmoke(const std::string funcName, void (*func)())
     }
 }
 
-void TestSpeed(const std::string funcName, void (*func)(), int target_duration_us)
+void testSpeed(const std::string funcName, void (*func)(), int target_duration_us)
 {
     std::cout << "====================" << std::endl;
     std::cout << funcName << " start" << std::endl;
-    auto startTime = Now();  // ns
+    auto startTime = now();  // ns
     func();
-    auto duration = (Now() - startTime) / NANO_TO_MILLI_SECOND;
+    auto duration = (now() - startTime) / NANO_TO_MILLI_SECOND;
     std::cout << funcName << " end" << std::endl;
     if (duration > target_duration_us) {
         std::cerr << funcName << " speed FAILED. " << duration << " > " << target_duration_us << " (μs)" << std::endl;
@@ -57,7 +57,7 @@ void TestSpeed(const std::string funcName, void (*func)(), int target_duration_u
     }
 }
 
-void TestSpan()
+void testSpan()
 {
     PROF(INFO,
          Domain("test_span")
@@ -67,34 +67,34 @@ void TestSpan()
                  .SpanStart("test"));
 }
 
-void TestMetric()
+void testMetric()
 {
     PROF(INFO, Domain(__func__).Metric("attr3", TEST_VALUE_66).SpanStart("test_metric_66"));
 }
 
-void TestEvent()
+void testEvent()
 {
     PROF(INFO, Domain(__func__).Attr("attr3", TEST_VALUE_66).Event("test_event_66"));
     PROF(INFO, Domain(__func__).Attr("attr3", TEST_VALUE_56).Event("test_event_66"));
 }
 
-void TestLinker()
+void testLinker()
 {
     PROF(INFO, Domain(__func__).Link(TEST_VALUE_1234, "test_event_66"));
     PROF(INFO, Domain(__func__).Link(TEST_VALUE_56, "str56"));
 }
 
-void TestNpuMemoryUsage()
+void testNpuMemoryUsage()
 {
     NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
     npuMemoryUsage.InitDcmiCardAndDevices();
 
     for (int ii = 0; ii < 2; ii++) {  // repeat 2 times
-        auto startTime = Now();
+        auto startTime = now();
         std::vector<int> memoryUsed;
         std::vector<int> memoryUtiliza;
         int ret = npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
-        auto du = Now() - startTime;
+        auto du = now() - startTime;
         std::cout << "Duration: " << (du / NANO_TO_MICRO_SECOND) << "ms" << std::endl;
 
         std::cout << "Usage: ";
@@ -111,14 +111,14 @@ void TestNpuMemoryUsage()
     }
 }
 
-void TestSpan100NumAttr()
+void testSpan100NumAttr()
 {
     int nums[TEST_VALUE_100];
     auto prof = PROF(INFO, Domain(__func__).SpanStart("test_span_100_Num"));
     PROF(prof.NumArrayAttr("attr", nums + TEST_VALUE_0, nums + TEST_VALUE_100));
 }
 
-void TestSpan100ObjAttr()
+void testSpan100ObjAttr()
 {
     int nums[TEST_VALUE_100];
     auto prof = PROF(ERROR, Domain(__func__).SpanStart("test_span_100_Obj"));
@@ -130,23 +130,23 @@ void TestSpan100ObjAttr()
     }));
 }
 
-void SmokeTest()
+void smokeTest()
 {
-    TestSmoke("TestSpan", TestSpan);
-    TestSmoke("TestMetric", TestMetric);
-    TestSmoke("TestEvent", TestEvent);
-    TestSmoke("TestLinker", TestLinker);
-    TestSmoke("TestNpuMemoryUsage", TestNpuMemoryUsage);
+    testSmoke("TestSpan", testSpan);
+    testSmoke("TestMetric", testMetric);
+    testSmoke("TestEvent", testEvent);
+    testSmoke("TestLinker", testLinker);
+    testSmoke("TestNpuMemoryUsage", testNpuMemoryUsage);
 }
 
-void SpeedTest()
+void speedTest()
 {
-    TestSpeed("TestSpan", TestSpan, TEST_SPEED_5_US);
-    TestSpeed("TestMetric", TestMetric, TEST_SPEED_5_US);
-    TestSpeed("TestEvent", TestEvent, TEST_SPEED_5_US);
-    TestSpeed("TestLinker", TestLinker, TEST_SPEED_5_US);
-    TestSpeed("TestSpan100NumAttr", TestSpan100NumAttr, TEST_SPEED_5_US);
-    TestSpeed("TestSpan100ObjAttr", TestSpan100ObjAttr, TEST_SPEED_5_US);
+    testSpeed("TestSpan", testSpan, TEST_SPEED_5_US);
+    testSpeed("TestMetric", testMetric, TEST_SPEED_5_US);
+    testSpeed("TestEvent", testEvent, TEST_SPEED_5_US);
+    testSpeed("TestLinker", testLinker, TEST_SPEED_5_US);
+    testSpeed("TestSpan100NumAttr", testSpan100NumAttr, TEST_SPEED_5_US);
+    testSpeed("TestSpan100ObjAttr", testSpan100ObjAttr, TEST_SPEED_5_US);
 }
 
 int main()
@@ -173,8 +173,8 @@ int main()
         return -1;
     }
 
-    SmokeTest();
-    SpeedTest();
+    smokeTest();
+    speedTest();
     const int sleepTime = 10 * NANO_TO_MILLI_SECOND;
     std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 10 seconds
     StopServerProfiler();
