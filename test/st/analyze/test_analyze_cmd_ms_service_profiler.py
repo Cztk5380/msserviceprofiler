@@ -50,6 +50,34 @@ def check_latency_data(output_path):
     conn.close()
 
 
+def check_req_status(output_path):
+    from enum import Enum
+    import pandas as pd
+
+    class ReqStatus(Enum):
+        WAITING = 0
+        PENDING = 1
+        RUNNING = 2
+        SWAPPED = 3
+        RECOMPUTE = 4
+        SUSPENDED = 5
+        END = 6
+        STOP = 7
+        PREFILL_HOLD = 8
+
+    # 校验db文件正常生成
+    db_path = os.path.join(output_path, 'profiler.db')
+    assert os.path.exists(db_path)
+
+    # 校验数据表
+    conn = sqlite3.connect(db_path)
+    df = pd.read_sql_query("SELECT * FROM request_status", conn)
+    conn.close()
+
+    for col in ['start_datetime', 'WAITING', 'PENDING', 'RUNNING']:
+        assert col in df.columns
+
+
 class TestAnalyzeCmd(TestCase):
     ST_DATA_PATH = os.getenv("MS_SERVICE_PROFILER", "/data/ms_service_profiler")
     INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/1230-1148-100Req")
@@ -76,3 +104,7 @@ class TestAnalyzeCmd(TestCase):
         # 校验时延数据生成
         with self.subTest():
             check_latency_data(self.OUTPUT_PATH)
+
+        # 校验请求状态数的数据生成
+        with self.subTest():
+            check_req_status(self.OUTPUT_PATH)
