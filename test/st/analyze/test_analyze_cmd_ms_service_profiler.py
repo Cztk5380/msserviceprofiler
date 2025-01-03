@@ -16,8 +16,7 @@ def check_has_vaild_table(cursor, table_name, columns_to_check):
     # 校验存在数据表
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name, ))
     table_exists = cursor.fetchone()
-    if table_exists is None:
-        pytest.fail(f"{table_name} does not exists.")
+    assert table_exists is not None
 
     # 校验生成的列
     cursor.execute(f"PRAGMA table_info({table_name})")
@@ -36,8 +35,7 @@ def check_has_vaild_table(cursor, table_name, columns_to_check):
 def check_latency_data(output_path):
     # 校验db文件正常生成
     db_path = os.path.join(output_path, 'profiler.db')
-    if not os.path.exists(db_path):
-        pytest.fail(f"{db_path} does not exists.")
+    assert os.path.exists(db_path)
 
     # 校验时延数据表
     conn = sqlite3.connect(db_path)
