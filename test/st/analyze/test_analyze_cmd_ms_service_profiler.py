@@ -4,15 +4,17 @@ import glob
 import os
 import shutil
 import sqlite3
+
 from unittest import TestCase
 
 import pytest
+
 from test.st.utils import execute_cmd
 
 
 def check_has_vaild_table(cursor, table_name, columns_to_check):
     # 校验存在数据表
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?",(table_name, ))
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name, ))
     table_exists = cursor.fetchone()
     if table_exists is None:
         pytest.fail(f"{table_name} does not exists.")
