@@ -109,5 +109,7 @@ class TestAnalyzeCmd(TestCase):
         cmd = ["python", self.ANALYZE_PROFILER, "--input_path", self.INPUT_PATH, "--output_path", self.OUTPUT_PATH]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
             self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
-        check_req_data_csv_integrity(self.OUTPUT_PATH, self)
-        check_batch_data_csv_integrity(self.OUTPUT_PATH, self)
+        with self.subTest():
+            check_req_data_csv_integrity(self.OUTPUT_PATH, self)
+        with self.subTest():
+            check_batch_data_csv_integrity(self.OUTPUT_PATH, self)
