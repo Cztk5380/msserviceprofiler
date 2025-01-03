@@ -5,8 +5,8 @@ import os
 import shutil
 from unittest import TestCase
 from test.st.utils import execute_cmd
-import pytest
 import ast
+import pytest
 import pandas as pd
 
 
