@@ -10,7 +10,7 @@ from unittest import TestCase
 import pytest
 from jsonschema import validate, ValidationError
 
-from test.st.utils import execute_cmd
+from ...st.utils import execute_cmd
 
 
 def check_chrome_tracing_valid(trace_view_json):
