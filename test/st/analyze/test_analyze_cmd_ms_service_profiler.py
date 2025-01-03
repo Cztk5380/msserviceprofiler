@@ -6,8 +6,9 @@ import os
 import shutil
 from unittest import TestCase
 import argparse
-import pytest
 from pathlib import Path
+from test.st.utils import execute_cmd
+import pytest
 import pandas as pd
 from ms_service_profiler.exporters.exporter_kvcache import ExporterKVCacheData
 from ms_service_profiler.parse import parse
@@ -16,7 +17,7 @@ from ms_service_profiler.plugins.plugin_req_status import PluginReqStatus
 from ms_service_profiler.plugins import builtin_plugins
 from ms_service_profiler.exporters.factory import ExporterFactory
 
-from test.st.utils import execute_cmd
+
 
 
 class TestAnalyzeCmd(TestCase):
@@ -99,7 +100,8 @@ class TestAnalyzeCmd(TestCase):
             # 检查是否有额外的列
             extra_columns = set(actual_columns) - set(expected_columns)
             if extra_columns:
-                print(f"提示: 表中存在额外的列: {extra_columns}")
+                with self.subTest():
+                    pytest.assume(f"表中存在额外的列: {extra_columns}")
 
             # 检查是否有缺失的列
             missing_columns = set(expected_columns) - set(actual_columns)
