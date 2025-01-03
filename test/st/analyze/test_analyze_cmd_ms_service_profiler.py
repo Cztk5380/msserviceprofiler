@@ -9,7 +9,6 @@ import pytest
 import pandas as pd
 
 
-
 def check_req_data(path):
     csv_file_path = f"{path}/request.csv"
     if not os.path.isfile(csv_file_path):
