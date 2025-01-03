@@ -20,7 +20,6 @@
 #include "msServiceProfiler/NpuMemoryUsage.h"
 
 namespace msServiceProfiler {
-
 NpuMemoryUsage::NpuMemoryUsage()
 {
     handleDcmi = dlopen("libdcmiaa.so", RTLD_LAZY | RTLD_LOCAL);
@@ -40,7 +39,7 @@ int NpuMemoryUsage::DcmiInit()
 {
     using DcmiInitFunc = int (*)();
     if (handleDcmi == nullptr) {
-        return 1;
+        return EXITCODE_EMPTY_DCMI_HANDLER;
     }
 
     DcmiInitFunc dcmiInit = (DcmiInitFunc)dlsym(handleDcmi, "dcmi_init");
@@ -52,7 +51,7 @@ int NpuMemoryUsage::DcmiGetCardList(int *cardNum, int *cardList, int listLen)
 {
     using DcmiGetCardListFunc = int (*)(int *, int *, int);
     if (handleDcmi == nullptr) {
-        return 1;
+        return EXITCODE_EMPTY_DCMI_HANDLER;
     }
     DcmiGetCardListFunc dcmiGetCardList = (DcmiGetCardListFunc)dlsym(handleDcmi, "dcmi_get_card_list");
     int ret = dcmiGetCardList(cardNum, cardList, listLen);
@@ -63,7 +62,7 @@ int NpuMemoryUsage::DcmiGetDeviceIdInCard(int cardId, int *deviceIdMax)
 {
     using DcmiGetDeviceIdInCardFunc = int (*)(int, int *, int *, int *);
     if (handleDcmi == nullptr) {
-        return 1;
+        return EXITCODE_EMPTY_DCMI_HANDLER;
     }
     DcmiGetDeviceIdInCardFunc dcmiGetDeviceIdInCard =
         (DcmiGetDeviceIdInCardFunc)dlsym(handleDcmi, "dcmi_get_device_id_in_card");
@@ -77,7 +76,7 @@ int NpuMemoryUsage::DcmiGetDeviceMemoryInfoV3(int cardId, int deviceId, struct d
 {
     using DcmiGetDeviceMemoryInfoV3Func = int (*)(int, int, dcmi_get_memory_info_stru *);
     if (handleDcmi == nullptr) {
-        return 1;
+        return EXITCODE_EMPTY_DCMI_HANDLER;
     }
     DcmiGetDeviceMemoryInfoV3Func dcmiGetDeviceMemoryInfoV3 =
         (DcmiGetDeviceMemoryInfoV3Func)dlsym(handleDcmi, "dcmi_get_device_memory_info_v3");
@@ -89,7 +88,7 @@ int NpuMemoryUsage::DcmiGetDeviceHbmInfo(int cardId, int deviceId, struct dsmi_h
 {
     using DcmiGetDeviceHbmInfoFunc = int(*)(int, int, dsmi_hbm_info_stru *);
     if (handleDcmi == nullptr) {
-        return 1;
+        return EXITCODE_EMPTY_DCMI_HANDLER;
     }
     DcmiGetDeviceHbmInfoFunc dcmiGetDeviceHbmInfo =
         (DcmiGetDeviceHbmInfoFunc) dlsym(handleDcmi, "dcmi_get_device_hbm_info");
@@ -100,7 +99,7 @@ int NpuMemoryUsage::DcmiGetDeviceHbmInfo(int cardId, int deviceId, struct dsmi_h
 int NpuMemoryUsage::InitDcmiCardAndDevices()
 {
     int ret = DcmiInit();
-    if (ret != 0) {
+    if (ret != EXITCODE_SUCCESS) {
         return ret;
     }
 
@@ -109,14 +108,14 @@ int NpuMemoryUsage::InitDcmiCardAndDevices()
     int listLen = 64;
 
     ret = DcmiGetCardList(&cardNum, cardList, listLen);
-    if (ret != 0) {
+    if (ret != EXITCODE_SUCCESS) {
         return ret;
     }
 
     for (int cardId = 0; cardId < cardNum; cardId++) {
         int deviceIdMax = 0;
         int curRet = DcmiGetDeviceIdInCard(cardList[cardId], &deviceIdMax);
-        if (curRet != 0) {
+        if (curRet != EXITCODE_SUCCESS) {
             ret = ret + curRet;
             continue;
         }
@@ -130,13 +129,14 @@ int NpuMemoryUsage::InitDcmiCardAndDevices()
 
 int NpuMemoryUsage::GetByDcmi(std::vector<int> &memoryUsed, std::vector<int> &memoryUtiliza)
 {
-    int ret = 0;
+    int ret = EXITCODE_SUCCESS;
     for (const auto &cardDevice : cardDevices) {
-        int curRet = 0;  // Could either be getting by DcmiGetDeviceMemoryInfoV3 or DcmiGetDeviceHbmInfo
+        int curRet = EXITCODE_SUCCESS;
+        // Could either be getting by DcmiGetDeviceMemoryInfoV3 or DcmiGetDeviceHbmInfo
         if (not isHbmDevice) { // Global value
             struct dcmi_get_memory_info_stru memoryInfo;
             curRet = DcmiGetDeviceMemoryInfoV3(cardDevice.cardId, cardDevice.deviceId, &memoryInfo);
-            if (curRet != 0) {
+            if (curRet != EXITCODE_SUCCESS) {
                 isHbmDevice = true;  // Will try DcmiGetDeviceHbmInfo later, and skip this next time
             } else {
                 memoryUsed.push_back(memoryInfo.memory_size - memoryInfo.memory_available);
@@ -147,7 +147,7 @@ int NpuMemoryUsage::GetByDcmi(std::vector<int> &memoryUsed, std::vector<int> &me
         if (isHbmDevice) {
             struct dsmi_hbm_info_stru hbmInfo;
             curRet = DcmiGetDeviceHbmInfo(cardDevice.cardId, cardDevice.deviceId, &hbmInfo);
-            if (curRet != 0) {
+            if (curRet != EXITCODE_SUCCESS) {
                 ret = ret + curRet;
                 continue;
             } else {

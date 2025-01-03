@@ -36,12 +36,14 @@ struct dsmi_hbm_info_stru {
     unsigned int bandwith_util_rate;
 };
 
+const int EXITCODE_SUCCESS = 0;
+const int EXITCODE_EMPTY_DCMI_HANDLER = 1;
+const int PERCENTAGE_SCALE = 100;
+
 struct CardDevice {
     int cardId;
     int deviceId;
 };
-
-const int PERCENTAGE_SCALE = 100;
 
 class NpuMemoryUsage {
 public:
