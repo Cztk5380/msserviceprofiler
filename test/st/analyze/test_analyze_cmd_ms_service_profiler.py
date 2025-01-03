@@ -9,7 +9,7 @@ from unittest import TestCase
 
 import pytest
 
-from ...test.st.utils import execute_cmd
+from ...st.utils import execute_cmd
 
 
 def check_has_vaild_table(cursor, table_name, columns_to_check):
