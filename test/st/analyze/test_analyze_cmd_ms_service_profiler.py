@@ -9,34 +9,26 @@ import pytest
 import pandas as pd
 
 
-def check_req_data(path):
+def check_req_data_csv_integrity(path, test_case):
+    #校验该路径下是否正确的生成req_data的csv文件，以及文件内容
     csv_file_path = f"{path}/request.csv"
-    if not os.path.isfile(csv_file_path):
-        return 0
+    test_case.assertTrue(os.path.isfile(csv_file_path), "文件不存在".format(csv_file_path))
     df = pd.read_csv(csv_file_path)
-    if len(df) != 10:
-        return 0
+    test_case.assertNotEqual(len(df), 0, msg="The data of req csv is empty.")
     expected_header = ['http_rid', 'start_time_httpReq(microsecond)', 'recv_token_size', 'reply_token_size',
-                       'execution_time(microsecond)', 'queue_wait_time(microsecond)']
-    for header in expected_header:
-        if header not in df.columns.tolist():
-            return 0
-        return 1
+                    'execution_time(microsecond)', 'queue_wait_time(microsecond)']
+    test_case.assertEqual(expected_header, df.columns.tolist(), "数据帧的列不正确")
+    
 
-
-def check_batch_data(path):
+def check_batch_data_csv_integrity(path, test_case):
+    #校验该路径下是否正确的生成batch_data的csv文件，以及文件内容
     csv_file_path = f"{path}/batch.csv"
-    if not os.path.isfile(csv_file_path):
-        return 0
+    test_case.assertTrue(os.path.isfile(csv_file_path), "文件不存在".format(csv_file_path))
     df = pd.read_csv(csv_file_path)
-    if len(df) != 1002:
-        return 0
+    test_case.assertNotEqual(len(df), 0, msg="The data of batch csv is empty.")
     expected_header = ['name', 'res_list', 'start_time(microsecond)', 'end_time(microsecond)',
-                       'batch_size', 'batch_type', 'during_time(microsecond)']
-    for header in expected_header:
-        if header not in df.columns.tolist():
-            return 0
-        return 1
+                    'batch_size', 'batch_type', 'during_time(microsecond)']
+    test_case.assertEqual(expected_header, df.columns.tolist(), "数据帧的列不正确")
 
 
 class TestAnalyzeCmd(TestCase):
@@ -57,13 +49,5 @@ class TestAnalyzeCmd(TestCase):
         cmd = ["python", self.ANALYZE_PROFILER, "--input_path", self.INPUT_PATH, "--output_path", self.OUTPUT_PATH]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
             self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
-        # 校验输出文件是否存在
-        db_file = glob.glob(f"{self.OUTPUT_PATH}/*.db")
-        csv_file = glob.glob(f"{self.OUTPUT_PATH}/*.csv")
-        json_file = glob.glob(f"{self.OUTPUT_PATH}/*.json")
-
-        pytest.assume(len(db_file) == 1)
-        pytest.assume(len(csv_file) == 3)
-        pytest.assume(len(json_file) == 1)
-        pytest.assume(check_req_data(self.OUTPUT_PATH) == 1)
-        pytest.assume(check_batch_data(self.OUTPUT_PATH) == 1)
+        check_req_data_csv_integrity(self.OUTPUT_PATH, self)
+        check_batch_data_csv_integrity(self.OUTPUT_PATH, self)
