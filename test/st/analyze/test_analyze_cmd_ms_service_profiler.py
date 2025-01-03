@@ -69,13 +69,14 @@ def check_req_status(output_path):
     db_path = os.path.join(output_path, 'profiler.db')
     assert os.path.exists(db_path)
 
-    # 校验数据表
+    # 获取数据表
     conn = sqlite3.connect(db_path)
     df = pd.read_sql_query("SELECT * FROM request_status", conn)
     conn.close()
 
-    for col in ['start_datetime', 'WAITING', 'PENDING', 'RUNNING']:
-        assert col in df.columns
+    # 校验列存在
+    for col in ['timestamp', 'WAITING', 'PENDING', 'RUNNING']:
+        assert col in df.columns.tolist()
 
 
 class TestAnalyzeCmd(TestCase):
