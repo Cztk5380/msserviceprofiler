@@ -25,7 +25,8 @@ NpuMemoryUsage::NpuMemoryUsage()
 {
     handleDcmi = dlopen("libdcmiaa.so", RTLD_LAZY | RTLD_LOCAL);
     if (handleDcmi == nullptr) {
-        std::cerr << "[ERROR] failed to dlopen libdcmi.so" << std::endl;
+        std::cerr << "[WARNING] failed to dlopen libdcmi.so. Will be not able to get MPU usage data. " <<
+            "Check whether a NPU server or if NPU driver installed." << std::endl;
     }
 }
 NpuMemoryUsage::~NpuMemoryUsage()
