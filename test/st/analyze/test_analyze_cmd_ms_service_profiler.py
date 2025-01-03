@@ -81,7 +81,7 @@ class TestAnalyzeCmd(TestCase):
             for column in columns_to_check:
                 check_row(df, row_index, [column])
 
-    def test_prase_msserviceprofiler_data(self):
+    def test_prase_ms_service_profiler_data(self):
         #校验msserviceprofiler打点采集数据解析功能是否正常解析，校验输出文件及内容
         cmd = ["python", self.ANALYZE_PROFILER, "--input_path", self.INPUT_PATH, "--output_path", self.OUTPUT_PATH]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
