@@ -18,22 +18,13 @@ from ms_service_profiler.plugins import builtin_plugins
 from ms_service_profiler.exporters.factory import ExporterFactory
 
 
-def check_kvcache_csv_generated(output_path, csv_file_name):
-    csv_file = os.path.join(output_path, csv_file_name)
-    pytest.assume(os.path.exists(csv_file), f"{csv_file_name} 文件未生成")
-
-
-def check_kvcache_db_generated(output_path, db_file_name):
-    db_file = os.path.join(output_path, db_file_name)
-    pytest.assume(os.path.exists(db_file), f"{db_file_name} 文件未生成")
-
-
 def check_kvcache_csv_content(output_path, csv_file_name):
     expected_csv_columns = [
         'domain', 'rid', 'start_time(microsecond)', 'end_time(microsecond)',
         'name', 'device_kvcache_left', 'during_time(microsecond)'
     ]
     csv_file = os.path.join(output_path, csv_file_name)
+    # 检查文件是否存在
     if not os.path.isfile(csv_file):
         assert False, f"{csv_file_name} 文件未生成"
 
@@ -106,10 +97,10 @@ class TestAnalyzeCmd(TestCase):
         trace_view_json = glob.glob(f"{self.OUTPUT_PATH}/chrome_tracing.json")[0]
 
         # kvcache校验
-        check_kvcache_csv_generated(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME)
-        check_kvcache_db_generated(self.OUTPUT_PATH, self.DB_FILE_NAME)
-        check_kvcache_csv_content(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME)
-        check_kvcache_db_content(self.OUTPUT_PATH, self.DB_FILE_NAME)
+        with self.subTest("Check kvcache CSV content"):
+            check_kvcache_csv_content(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME)
+        with self.subTest("Check kvcache CSV content"):
+            check_kvcache_db_content(self.OUTPUT_PATH, self.DB_FILE_NAME)
 
         # 其他断言
         self.assertEqual(len(db_file), 1, msg="The number of db files is incorrect.")
