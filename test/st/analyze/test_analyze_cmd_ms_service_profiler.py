@@ -7,8 +7,8 @@ import json
 import shutil
 from unittest import TestCase
 
-from jsonschema import validate, ValidationError
 import pytest
+from jsonschema import validate, ValidationError
 
 from test.st.utils import execute_cmd
 
