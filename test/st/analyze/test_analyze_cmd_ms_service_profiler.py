@@ -2,10 +2,12 @@
 
 import glob
 import os
+import logging
 import json
-from jsonschema import validate, ValidationError
 import shutil
 from unittest import TestCase
+
+from jsonschema import validate, ValidationError
 import pytest
 
 from test.st.utils import execute_cmd
@@ -51,7 +53,7 @@ def check_chrome_tracing_valid(trace_view_json):
         validate(instance=data, schema=schema)
         return True
     except ValidationError as e:
-        print(f"JSON validation failed: {e.message}")
+        logging.error(f"JSON validation failed: {e.message}")
         return False
 
 
