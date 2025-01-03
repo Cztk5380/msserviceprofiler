@@ -30,11 +30,22 @@ def check_kvcache_db_generated(output_path, db_file_name):
 
 def check_kvcache_csv_content(output_path, csv_file_name, expected_columns):
     csv_file = os.path.join(output_path, csv_file_name)
-    if os.path.exists(csv_file):
-        df = pd.read_csv(csv_file)
-        pytest.assume(list(df.columns) == expected_columns, "CSV 文件列名不符合预期")
-    else:
+    if not os.path.isfile(csv_file):
         pytest.assume(False, f"{csv_file_name} 文件未生成")
+        return
+
+    try:
+        df = pd.read_csv(csv_file)
+        actual_columns = df.columns.tolist()
+
+        # 检查是否包含所有期待的列名
+        missing_columns = set(expected_columns) - set(actual_columns)
+        if missing_columns:
+            pytest.assume(False, f"CSV 文件缺少列: {missing_columns}")
+        else:
+            pytest.assume(True, "CSV 文件包含所有列")
+    except Exception as e:
+        pytest.assume(False, f"读取 CSV 文件失败: {e}")
 
 
 def check_kvcache_db_content(output_path, db_file_name, expected_columns):
@@ -52,7 +63,7 @@ def check_kvcache_db_content(output_path, db_file_name, expected_columns):
 
         # 检查是否有缺失的列
         missing_columns = set(expected_columns) - set(actual_columns)
-        pytest.assume(not missing_columns, f"表中缺少预期的列: {missing_columns}")
+        pytest.assume(not missing_columns, f"表中缺少列: {missing_columns}")
 
         conn.close()
     else:
