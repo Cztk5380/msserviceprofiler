@@ -114,7 +114,6 @@ def check_latency_data(output_path):
 
 def check_req_status(output_path):
     from enum import Enum
-    import pandas as pd
 
     class ReqStatus(Enum):
         WAITING = 0
