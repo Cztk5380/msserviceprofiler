@@ -49,10 +49,11 @@ def check_latency_data(output_path):
     # 关闭连接
     conn.close()
 
+
 def check_column(actual_columns, expected_columns, context=""):
-        # 检查是否有缺失的列
-        missing_columns = set(expected_columns) - set(actual_columns)
-        pytest.assume(not missing_columns, f"{context} 表中缺少列: {missing_columns}")
+    # 检查是否有缺失的列
+    missing_columns = set(expected_columns) - set(actual_columns)
+    pytest.assume(not missing_columns, f"{context} 表中缺少列: {missing_columns}")
 
 
 class TestAnalyzeCmd(TestCase):
