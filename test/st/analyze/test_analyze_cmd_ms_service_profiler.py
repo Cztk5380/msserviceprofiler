@@ -3,9 +3,48 @@
 import glob
 import os
 import shutil
+import sqlite3
+import pytest
 from unittest import TestCase
 
 from test.st.utils import execute_cmd
+
+
+def check_has_latency_table(cursor, table_name):
+    # 校验存在时延数据表
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?",(table_name,))
+    table_exists = cursor.fetchone()
+    pytest.assume(table_exists is not None)
+
+    # 校验时延数据表中数据正常生成
+    cursor.execute(f"SELECT * FROM {table_name}")
+    data = cursor.fetchall()
+    # 断言存在至少有一行所有列都不为空
+    for row in data:
+        if all(row):
+            return
+    pytest.assume(False)
+
+
+# 校验时延数据生成
+def check_latency_data(output_path):
+    # 校验db文件正常生成
+    db_path = os.path.join(output_path, 'profiler.db')
+    if not os.path.exists(db_path):
+        pytest.assume(False)
+        logging.error(f"{db_path} does not exists.")
+        return
+
+    # 校验时延数据表
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    check_has_latency_table(cursor, 'decode_gen_speed')
+    check_has_latency_table(cursor, 'first_token_latency')
+    check_has_latency_table(cursor, 'prefill_gen_speed')
+    check_has_latency_table(cursor, 'req_latency')
+
+    # 关闭连接
+    conn.close()
 
 
 class TestAnalyzeCmd(TestCase):
@@ -31,7 +70,4 @@ class TestAnalyzeCmd(TestCase):
         csv_file = glob.glob(f"{self.OUTPUT_PATH}/*.csv")
         trace_view_json = glob.glob(f"{self.OUTPUT_PATH}/chrome_tracing.json")[0]
 
-        self.assertEqual(len(db_file), 1, msg="The number of db files is incorrect.")
-        self.assertEqual(len(csv_file), 3, msg="The number of csv files is incorrect.")
-        if not os.path.exists(trace_view_json):
-            self.fail("trace_view.json does not exist")
+        check_latency_data(self.OUTPUT_PATH)
