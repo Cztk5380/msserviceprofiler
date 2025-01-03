@@ -4,6 +4,7 @@ import sqlite3
 import glob
 import os
 import shutil
+import ast
 from unittest import TestCase
 from test.st.utils import execute_cmd
 import pytest
@@ -23,12 +24,31 @@ def check_kvcache_csv_content(output_path, csv_file_name):
     ]
     csv_file = os.path.join(output_path, csv_file_name)
     # 检查文件是否存在
-    if not os.path.isfile(csv_file):
-        assert os.path.exists(csv_file)
+    assert os.path.exists(csv_file)
+    assert os.path.isfile(csv_file)
 
     df = pd.read_csv(csv_file)
     actual_columns = df.columns.tolist()
     check_column(actual_columns, expected_csv_columns, context=csv_file_name)
+
+    def is_whole_number(n):
+        if n == int(n):
+            return True
+        else:
+            return False
+
+    # 定义一个函数，用于检查res_list的格式
+    def check_row(df, row_index, columns):
+        for column in columns:
+            if not is_whole_number(df.iloc[row_index][column]):
+                raise AssertionError(f"{row_index}行的{column}不是整数")
+
+    # 检查数据框的第一行和最后一行的特定列
+    rows_to_check = [0, -1]
+    columns_to_check = ['device_kvcache_left']
+    for row_index in rows_to_check:
+        for column in columns_to_check:
+            check_row(df, row_index, [column])
 
 
 def check_kvcache_db_content(output_path, db_file_name):
@@ -40,18 +60,17 @@ def check_kvcache_db_content(output_path, db_file_name):
         'device_kvcache_left',
         'kvcache_usage_rate'
     ]
-    if os.path.exists(db_file):
-        conn = sqlite3.connect(db_file)
-        cursor = conn.cursor()
-        cursor.execute('PRAGMA table_info("kvcache")')
-        columns = cursor.fetchall()
-        actual_columns = [column[1] for column in columns]
+    assert os.path.exists(db_file)
 
-        check_column(actual_columns, expected_db_columns, context=db_file_name)
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+    cursor.execute('PRAGMA table_info("kvcache")')
+    columns = cursor.fetchall()
+    actual_columns = [column[1] for column in columns]
 
-        conn.close()
-    else:
-        assert os.path.exists(db_file)
+    check_column(actual_columns, expected_db_columns, context=db_file_name)
+
+    conn.close()
 
 
 class TestAnalyzeCmd(TestCase):
@@ -65,7 +84,7 @@ class TestAnalyzeCmd(TestCase):
                                          "ms_service_profiler/analyze.py")
 
     def setup_class(self):
-        os.makedirs(self.OUTPUT_PATH, mode=0o755, exist_ok=True)
+        os.makedirs(self.OUTPUT_PATH, mode=0o750)
 
     def teardown_class(self):
         shutil.rmtree(self.OUTPUT_PATH)
