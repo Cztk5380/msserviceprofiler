@@ -6,7 +6,6 @@ import os
 import shutil
 from unittest import TestCase
 from test.st.utils import execute_cmd
-from os.path import exists
 import pytest
 import pandas as pd
 
@@ -29,7 +28,7 @@ def check_kvcache_csv_content(output_path, csv_file_name):
     csv_file = os.path.join(output_path, csv_file_name)
     # 检查文件是否存在
     if not os.path.isfile(csv_file):
-        assert exists(csv_file)
+        assert os.path.exists(csv_file)
 
     df = pd.read_csv(csv_file)
     actual_columns = df.columns.tolist()
@@ -56,7 +55,7 @@ def check_kvcache_db_content(output_path, db_file_name):
 
         conn.close()
     else:
-        assert exists(db_file)
+        assert os.path.exists(db_file)
 
 
 class TestAnalyzeCmd(TestCase):
