@@ -5,8 +5,8 @@ import os
 import shutil
 from unittest import TestCase
 from test.st.utils import execute_cmd
-import ast
 import pytest
+import ast
 import pandas as pd
 
 
@@ -26,10 +26,27 @@ def check_req_data_csv_integrity(path, test_case):
     last_row = df.iloc[-1]
 
     # 检查recv_token_size和reply_token_size是否为整数
-    test_case.assertIsInstance(first_row['recv_token_size'], (int, float), "第一行的recv_token_size不是整数")
-    test_case.assertIsInstance(last_row['recv_token_size'], (int, float), "最后一行的recv_token_size不是整数")
-    test_case.assertIsInstance(first_row['reply_token_size'], (int, float), "第一行的reply_token_size不是整数")
-    test_case.assertIsInstance(last_row['reply_token_size'], (int, float), "最后一行的reply_token_size不是整数")
+    def is_whole_number(n):
+        if n == int(n):
+            return True
+        else:
+            return False
+
+    # 检查第一行的recv_token_size
+    if not is_whole_number(first_row['recv_token_size']):
+        raise AssertionError("第一行的recv_token_size不是整数")
+
+    # 检查最后一行的recv_token_size
+    if not is_whole_number(last_row['recv_token_size']):
+        raise AssertionError("最后一行的recv_token_size不是整数")
+
+    # 检查第一行的reply_token_size
+    if not is_whole_number(first_row['reply_token_size']):
+        raise AssertionError("第一行的reply_token_size不是整数")
+
+    # 检查最后一行的reply_token_size
+    if not is_whole_number(last_row['reply_token_size']):
+        raise AssertionError("最后一行的reply_token_size不是整数")
 
     # 检查execution_time(microsecond)和queue_wait_time(microsecond)是否大于0
     test_case.assertGreater(first_row['execution_time(microsecond)'], 0, "第一行的execution_time(microsecond)不是大于0的数")
@@ -41,13 +58,23 @@ def check_req_data_csv_integrity(path, test_case):
 def check_batch_data_csv_integrity(path, test_case):
     # 校验该路径下是否正确生成batch_data的csv文件，以及文件内容
     csv_file_path = os.path.join(path, "batch.csv")
+    
+    # 检查文件是否存在
     test_case.assertTrue(os.path.isfile(csv_file_path), f"文件不存在: {csv_file_path}")
+    
+    # 读取csv文件内容
     df = pd.read_csv(csv_file_path)
+    
+    # 检查文件是否为空
     test_case.assertNotEqual(len(df), 0, "The data of batch csv is empty.")
+    
+    # 预期的列名
     expected_header = ['name', 'res_list', 'start_time(microsecond)', 'end_time(microsecond)',
                     'batch_size', 'batch_type', 'during_time(microsecond)']
+    
     # 检查列名是否正确
     test_case.assertEqual(expected_header, df.columns.tolist(), "数据帧的列不正确")
+    
     # 检查第一行和最后一行数据
     first_row = df.iloc[0]
     last_row = df.iloc[-1]
