@@ -10,6 +10,7 @@ import sqlite3
 from unittest import TestCase
 
 import pytest
+import pandas as pd
 from jsonschema import validate, ValidationError
 
 from ...st.utils import execute_cmd
@@ -88,13 +89,7 @@ def check_chrome_tracing_valid(trace_view_json):
         data = json.load(f)
 
     # 校验 JSON 数据
-    try:
-        # 校验 JSON 数据是否符合 schema
-        validate(instance=data, schema=schema)
-        return True
-    except ValidationError as e:
-        logging.error(f"JSON validation failed: {e.message}")
-        return False
+    validate(instance=data, schema=schema)
 
 
 class TestAnalyzeCmd(TestCase):
@@ -123,5 +118,4 @@ class TestAnalyzeCmd(TestCase):
         # 校验时延数据生成
         with self.subTest():
             check_latency_data(self.OUTPUT_PATH)
-        pytest.assume(check_chrome_tracing_valid(trace_view_json) is True)
-        
+            check_chrome_tracing_valid(trace_view_json)
