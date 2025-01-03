@@ -22,8 +22,7 @@ class ExporterReqStatus(ExporterBase):
         metrics = data.get('metric_data_df')
         req_status_cols = [col for col in metrics.columns if col in ReqStatus.__members__]
 
-        df = metrics[req_status_cols]
-        df.insert(0, 'time/us', metrics['start_time'] - metrics['start_time'].iloc[0])
-        df = df.astype(int)
+        df = metrics[req_status_cols].astype(int)
+        df.insert(0, 'timestamp', metrics['start_datetime'])
 
         add_table_into_visual_db(df, 'request_status')

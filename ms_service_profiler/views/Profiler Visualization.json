@@ -125,21 +125,32 @@
               "axisColorMode": "text",
               "axisLabel": "",
               "axisPlacement": "auto",
-              "fillOpacity": 50,
+              "barAlignment": 0,
+              "barWidthFactor": 0.6,
+              "drawStyle": "line",
+              "fillOpacity": 0,
+              "gradientMode": "none",
               "hideFrom": {
                 "legend": false,
                 "tooltip": false,
                 "viz": false
               },
-              "pointShape": "circle",
-              "pointSize": {
-                "fixed": 5
-              },
-              "pointStrokeWidth": 1,
+              "insertNulls": false,
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
               "scaleDistribution": {
                 "type": "linear"
               },
-              "show": "lines"
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
             },
             "mappings": [],
             "thresholds": {
@@ -162,7 +173,7 @@
           "h": 8,
           "w": 12,
           "x": 0,
-          "y": 8
+          "y": 16
         },
         "id": 6,
         "options": {
@@ -172,10 +183,6 @@
             "placement": "bottom",
             "showLegend": true
           },
-          "mapping": "auto",
-          "series": [
-            {}
-          ],
           "tooltip": {
             "mode": "single",
             "sort": "none"
@@ -188,14 +195,18 @@
               "type": "frser-sqlite-datasource",
               "uid": "ee89zxajzxgcgf"
             },
-            "queryText": "\nSELECT \n    *\nFROM request_status\nORDER BY \"time/us\";\n",
-            "queryType": "table",
-            "rawQueryText": "\nSELECT \n    *\nFROM request_status\nORDER BY \"time/us\";\n",
-            "refId": "A"
+            "queryText": "\nSELECT\n    substr(timestamp, 1, 10) || 'T' || substr(timestamp, 12, 8) || 'Z' AS time,\n    WAITING,\n    PENDING,\n    RUNNING\nFROM\n    request_status\nORDER BY\n    time ASC;",
+            "queryType": "time series",
+            "rawQueryText": "\nSELECT\n    substr(timestamp, 1, 10) || 'T' || substr(timestamp, 12, 8) || 'Z' AS time,\n    WAITING,\n    PENDING,\n    RUNNING\nFROM\n    request_status\nORDER BY\n    time ASC;",
+            "refId": "A",
+            "timeColumns": [
+              "time",
+              "ts"
+            ]
           }
         ],
         "title": "Request Status",
-        "type": "xychart"
+        "type": "timeseries"
       },
       {
         "datasource": {

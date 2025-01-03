@@ -3,11 +3,51 @@
 import glob
 import os
 import shutil
+import sqlite3
+
 from unittest import TestCase
-from test.st.utils import execute_cmd
 import ast
 import pytest
 import pandas as pd
+from ...st.utils import execute_cmd
+
+
+def check_has_vaild_table(cursor, table_name, columns_to_check):
+    # 校验存在数据表
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name, ))
+    table_exists = cursor.fetchone()
+    assert table_exists is not None
+
+    # 校验生成的列
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    columns_in_table = [row[1] for row in cursor]
+    pytest.assume(all(column in columns_in_table for column in columns_to_check))
+
+    # 校验至少存在一行所有的列都不为空
+    cursor.execute(f"SELECT * FROM {table_name}")
+    data = cursor.fetchall()
+    for row in data:
+        if all(row):
+            return
+    pytest.assume(False)
+
+
+def check_latency_data(output_path):
+    # 校验db文件正常生成
+    db_path = os.path.join(output_path, 'profiler.db')
+    assert os.path.exists(db_path)
+
+    # 校验时延数据表
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    columns_to_check = ['avg', 'p50', 'p90', 'p99', 'timestamp']
+    check_has_vaild_table(cursor, 'decode_gen_speed', columns_to_check)
+    check_has_vaild_table(cursor, 'first_token_latency', columns_to_check)
+    check_has_vaild_table(cursor, 'prefill_gen_speed', columns_to_check)
+    check_has_vaild_table(cursor, 'req_latency', columns_to_check)
+
+    # 关闭连接
+    conn.close()
 
 
 class TestAnalyzeCmd(TestCase):
@@ -86,7 +126,12 @@ class TestAnalyzeCmd(TestCase):
         cmd = ["python", self.ANALYZE_PROFILER, "--input_path", self.INPUT_PATH, "--output_path", self.OUTPUT_PATH]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
             self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
+        # 校验输出文件是否存在
         with self.subTest():
             self.check_req_data_csv_integrity()
         with self.subTest():
             self.check_batch_data_csv_integrity()
+
+        # 校验时延数据生成
+        with self.subTest():
+            check_latency_data(self.OUTPUT_PATH)
