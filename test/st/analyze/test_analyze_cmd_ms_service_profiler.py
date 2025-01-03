@@ -82,7 +82,7 @@ class TestAnalyzeCmd(TestCase):
             'batch_type', 'during_time(microsecond)']
         
         # 检查列名是否正确
-        check_column(df.columns.tolist(), expected_header,  context='batch.csv')
+        check_column(df.columns.tolist(), expected_header, context='batch.csv')
         
         # 定义一个函数，用于检查res_list的格式
         def is_valid_res_list(res_list_str):
@@ -107,7 +107,7 @@ class TestAnalyzeCmd(TestCase):
 
         expected_header = ['http_rid', 'start_time_httpReq(microsecond)', 'recv_token_size', 'reply_token_size', \
             'execution_time(microsecond)', 'queue_wait_time(microsecond)']
-        check_column(df.columns.tolist(), expected_header,  context='request.csv')
+        check_column(df.columns.tolist(), expected_header, context='request.csv')
 
         def is_whole_number(n):
             if n == int(n):
