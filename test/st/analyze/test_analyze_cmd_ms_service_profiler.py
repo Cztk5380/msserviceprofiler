@@ -38,7 +38,7 @@ class TestAnalyzeCmd(TestCase):
 
         with self.subTest():
             if db_file:
-                self.assertTrue(self, check_req_status(db_file[0]))
+                self.check_req_status(db_file[0])
 
     def check_req_status(self, fp):
         """Check req_status output. Make sure this testcase after test_profiler."""
