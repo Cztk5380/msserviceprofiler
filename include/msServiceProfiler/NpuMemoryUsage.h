@@ -41,6 +41,8 @@ struct CardDevice {
     int deviceId;
 };
 
+const int PERCENTAGE_SCALE = 100;
+
 class NpuMemoryUsage {
 public:
     NpuMemoryUsage();
@@ -50,7 +52,7 @@ public:
 
 private:
     void *handleDcmi = nullptr;
-    bool is_hbm_device = false;
+    bool isHbmDevice = false;
     std::vector<CardDevice> cardDevices;
 
     int DcmiInit();
@@ -58,7 +60,7 @@ private:
     int DcmiGetDeviceIdInCard(int cardId, int *deviceIdMax);
     int DcmiGetDeviceMemoryInfoV3(
         int cardId, int deviceId, struct dcmi_get_memory_info_stru *memoryInfo);
-    int DcmiGetDeviceHbmInfo(int cardId, int deviceId, struct dsmi_hbm_info_stru *hbm_info);
+    int DcmiGetDeviceHbmInfo(int cardId, int deviceId, struct dsmi_hbm_info_stru *hbmInfo);
 };
 }  // namespace msServiceProfiler
 #endif  // GET_NPU_MEMORY_USAGE_H

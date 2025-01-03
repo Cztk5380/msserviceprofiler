@@ -29,7 +29,10 @@ int64_t Now()
 void TestSmoke(const std::string funcName, void (*func)())
 {
     try {
+        std::cout << "====================" << std::endl;
+        std::cout << funcName << " start" << std::endl;
         func();
+        std::cout << funcName << " end" << std::endl;
     } catch (const std::exception& e) {
         // 处理异常
         std::cerr << funcName << " smoke test FAILED. " << e.what() << std::endl;
@@ -38,9 +41,12 @@ void TestSmoke(const std::string funcName, void (*func)())
 
 void TestSpeed(const std::string funcName, void (*func)(), int ms)
 {
+    std::cout << "====================" << std::endl;
+    std::cout << funcName << " start" << std::endl;
     auto startTime = Now();
     func();
     auto du = Now() - startTime;
+    std::cout << funcName << " end" << std::endl;
     if (du > (ms * 1000)) { // 1000: MILLISECONDS_TO_SECONDS
         // 1000.0: MILLISECONDS_TO_SECONDS
         std::cerr << funcName << " speed FAILED. " << (du / 1000.0) << " > " << ms << std::endl;
@@ -58,48 +64,51 @@ void TestSpan()
                  .Attr("attr2", "str1234")
                  .Attr("attr3", std::string("str1234"))
                  .SpanStart("test"));
-
-    std::cout << "Test Span" << std::endl;
 }
 
 void TestMetric()
 {
     PROF(INFO, Domain(__func__).Metric("attr3", TEST_VALUE_66).SpanStart("test_metric_66"));
-    std::cout << "Test Metric" << std::endl;
 }
 
 void TestEvent()
 {
     PROF(INFO, Domain(__func__).Attr("attr3", TEST_VALUE_66).Event("test_event_66"));
     PROF(INFO, Domain(__func__).Attr("attr3", TEST_VALUE_56).Event("test_event_66"));
-    std::cout << "Test Event" << std::endl;
 }
 
 void TestLinker()
 {
     PROF(INFO, Domain(__func__).Link(TEST_VALUE_1234, "test_event_66"));
     PROF(INFO, Domain(__func__).Link(TEST_VALUE_56, "str56"));
-    std::cout << "Test Linker" << std::endl;
 }
 
 void TestNpuMemoryUsage()
 {
     NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
     npuMemoryUsage.InitDcmiCardAndDevices();
-    std::vector<int> memoryUsed;
-    std::vector<int> memoryUtiliza;
-    int ret = npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
-    std::cout << "Usage: ";
-    for (long unsigned int i = 0; i < memoryUsed.size(); i++) {
-        std::cout << memoryUsed[i] << ", ";
-    }
-    std::cout << std::endl;
 
-    std::cout << "Rate: ";
-    for (long unsigned int i = 0; i < memoryUtiliza.size(); i++) {
-        std::cout << memoryUtiliza[i] << ", ";
+    for (int ii = 0; ii < 2; ii++) {  // repeat 2 times
+        auto startTime = Now();
+        std::vector<int> memoryUsed;
+        std::vector<int> memoryUtiliza;
+        int ret = npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
+
+        auto du = Now() - startTime;
+        std::cout << "Duration: " << (du / 1000.0) << "ms" << std::endl;
+
+        std::cout << "Usage: ";
+        for (long unsigned int i = 0; i < memoryUsed.size(); i++) {
+            std::cout << memoryUsed[i] << ", ";
+        }
+        std::cout << std::endl;
+
+        std::cout << "Rate: ";
+        for (long unsigned int i = 0; i < memoryUtiliza.size(); i++) {
+            std::cout << memoryUtiliza[i] << ", ";
+        }
+        std::cout << std::endl;
     }
-    std::cout << "Test NpuMemoryUsage" << std::endl;
 }
 
 void TestSpan100NumAttr()
@@ -107,7 +116,6 @@ void TestSpan100NumAttr()
     int nums[TEST_VALUE_100];
     auto prof = PROF(INFO, Domain(__func__).SpanStart("test_span_100_Num"));
     PROF(prof.NumArrayAttr("attr", nums + TEST_VALUE_0, nums + TEST_VALUE_100));
-    std::cout << "Test Span 100 num" << std::endl;
 }
 
 void TestSpan100ObjAttr()
@@ -120,7 +128,6 @@ void TestSpan100ObjAttr()
             pProfiler->Attr("num", *pNum);
             pProfiler->Attr("iter", *pNum);
     }));
-    std::cout << "Test Span 100 obj" << std::endl;
 }
 
 void SmokeTest()

@@ -84,7 +84,7 @@ int NpuMemoryUsage::DcmiGetDeviceMemoryInfoV3(int cardId, int deviceId, struct d
     return ret;
 }
 
-int NpuMemoryUsage::DcmiGetDeviceHbmInfo(int cardId, int deviceId, struct dsmi_hbm_info_stru *hbm_info)
+int NpuMemoryUsage::DcmiGetDeviceHbmInfo(int cardId, int deviceId, struct dsmi_hbm_info_stru *hbmInfo)
 {
     using DcmiGetDeviceHbmInfoFunc = int(*)(int, int, dsmi_hbm_info_stru *);
     if (handleDcmi == nullptr) {
@@ -92,7 +92,7 @@ int NpuMemoryUsage::DcmiGetDeviceHbmInfo(int cardId, int deviceId, struct dsmi_h
     }
     DcmiGetDeviceHbmInfoFunc dcmiGetDeviceHbmInfo =
         (DcmiGetDeviceHbmInfoFunc) dlsym(handleDcmi, "dcmi_get_device_hbm_info");
-    int ret = dcmiGetDeviceHbmInfo(cardId, deviceId, hbm_info);
+    int ret = dcmiGetDeviceHbmInfo(cardId, deviceId, hbmInfo);
     return ret;
 }
 
@@ -132,26 +132,26 @@ int NpuMemoryUsage::GetByDcmi(std::vector<int> &memoryUsed, std::vector<int> &me
     int ret = 0;
     for (const auto &cardDevice : cardDevices) {
         int curRet = 0;  // Could either be getting by DcmiGetDeviceMemoryInfoV3 or DcmiGetDeviceHbmInfo
-        if (not is_hbm_device) { // Global value
+        if (not isHbmDevice) { // Global value
             struct dcmi_get_memory_info_stru memoryInfo;
             curRet = DcmiGetDeviceMemoryInfoV3(cardDevice.cardId, cardDevice.deviceId, &memoryInfo);
             if (curRet != 0) {
-                is_hbm_device = true;  // Will try DcmiGetDeviceHbmInfo later, and skip this next time
+                isHbmDevice = true;  // Will try DcmiGetDeviceHbmInfo later, and skip this next time
             } else {
                 memoryUsed.push_back(memoryInfo.memory_size - memoryInfo.memory_available);
                 memoryUtiliza.push_back(memoryInfo.utiliza);
             }
         }
 
-        if (is_hbm_device) {
-            struct dsmi_hbm_info_stru hbm_info;
-            curRet = DcmiGetDeviceHbmInfo(cardDevice.cardId, cardDevice.deviceId, &hbm_info);
+        if (isHbmDevice) {
+            struct dsmi_hbm_info_stru hbmInfo;
+            curRet = DcmiGetDeviceHbmInfo(cardDevice.cardId, cardDevice.deviceId, &hbmInfo);
             if (curRet != 0) {
                 ret = ret + curRet;
                 continue;
             } else {
-                memoryUsed.push_back(hbm_info.memory_usage);
-                memoryUtiliza.push_back(hbm_info.memory_usage * 100 / hbm_info.memory_size);
+                memoryUsed.push_back(hbmInfo.memory_usage);
+                memoryUtiliza.push_back(hbmInfo.memory_usage * PERCENTAGE_SCALE / hbmInfo.memory_size);
             }
         }
     }
