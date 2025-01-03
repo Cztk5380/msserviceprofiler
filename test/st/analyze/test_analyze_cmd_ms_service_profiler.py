@@ -20,25 +20,21 @@ from ms_service_profiler.exporters.factory import ExporterFactory
 
 def check_kvcache_csv_generated(output_path, csv_file_name):
     csv_file = os.path.join(output_path, csv_file_name)
-    if os.path.exists(csv_file):
-        return 1
-    return 0
+    pytest.assume(os.path.exists(csv_file), f"{csv_file_name} 文件未生成")
 
 
 def check_kvcache_db_generated(output_path, db_file_name):
     db_file = os.path.join(output_path, db_file_name)
-    if os.path.exists(db_file):
-        return 1
-    return 0
+    pytest.assume(os.path.exists(db_file), f"{db_file_name} 文件未生成")
 
 
 def check_kvcache_csv_content(output_path, csv_file_name, expected_columns):
     csv_file = os.path.join(output_path, csv_file_name)
     if os.path.exists(csv_file):
         df = pd.read_csv(csv_file)
-        if list(df.columns) == expected_columns:
-            return 1
-    return 0
+        pytest.assume(list(df.columns) == expected_columns, "CSV 文件列名不符合预期")
+    else:
+        pytest.assume(False, f"{csv_file_name} 文件未生成")
 
 
 def check_kvcache_db_content(output_path, db_file_name, expected_columns):
@@ -52,14 +48,15 @@ def check_kvcache_db_content(output_path, db_file_name, expected_columns):
 
         # 检查是否有额外的列
         extra_columns = set(actual_columns) - set(expected_columns)
+        pytest.assume(not extra_columns, f"表中存在额外的列: {extra_columns}")
+
         # 检查是否有缺失的列
         missing_columns = set(expected_columns) - set(actual_columns)
+        pytest.assume(not missing_columns, f"表中缺少预期的列: {missing_columns}")
 
         conn.close()
-
-        if not extra_columns and not missing_columns:
-            return 1
-    return 0
+    else:
+        pytest.assume(False, f"{db_file_name} 文件未生成")
 
 
 class TestAnalyzeCmd(TestCase):
@@ -92,17 +89,15 @@ class TestAnalyzeCmd(TestCase):
         trace_view_json = glob.glob(f"{self.OUTPUT_PATH}/chrome_tracing.json")[0]
 
         # 调用工具函数并检查返回值
-        pytest.assume(check_kvcache_csv_generated(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME) == 1,
-                      "CSV 文件生成检查失败")
-        pytest.assume(check_kvcache_db_generated(self.OUTPUT_PATH, self.DB_FILE_NAME) == 1, "数据库文件生成检查失败")
+        check_kvcache_csv_generated(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME)
+        check_kvcache_db_generated(self.OUTPUT_PATH, self.DB_FILE_NAME)
 
         expected_csv_columns = [
             'domain', 'rid', 'start_time(microsecond)', 'end_time(microsecond)',
             'name', 'device_kvcache_left', 'during_time(microsecond)'
         ]
-        pytest.assume(
-            check_kvcache_csv_content(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME, expected_csv_columns) == 1,
-            "CSV 文件内容检查失败")
+
+        check_kvcache_csv_content(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME, expected_csv_columns)
 
         expected_db_columns = [
             'rid',
@@ -111,8 +106,7 @@ class TestAnalyzeCmd(TestCase):
             'device_kvcache_left',
             'kvcache_usage_rate'
         ]
-        pytest.assume(check_kvcache_db_content(self.OUTPUT_PATH, self.DB_FILE_NAME, expected_db_columns) == 1,
-                      "数据库文件内容检查失败")
+        check_kvcache_db_content(self.OUTPUT_PATH, self.DB_FILE_NAME, expected_db_columns)
 
         # 其他断言
         self.assertEqual(len(db_file), 1, msg="The number of db files is incorrect.")
