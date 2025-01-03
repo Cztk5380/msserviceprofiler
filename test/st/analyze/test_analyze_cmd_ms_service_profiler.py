@@ -31,13 +31,11 @@ def check_kvcache_db_generated(output_path, db_file_name):
 def check_kvcache_csv_content(output_path, csv_file_name, expected_columns):
     csv_file = os.path.join(output_path, csv_file_name)
     if not os.path.isfile(csv_file):
-        pytest.assume(False, f"{csv_file_name} 文件未生成")
-        return
+        assert False, f"{csv_file_name} 文件未生成"
 
     try:
         df = pd.read_csv(csv_file)
         actual_columns = df.columns.tolist()
-
         # 检查是否包含所有期待的列名
         missing_columns = set(expected_columns) - set(actual_columns)
         if missing_columns:
@@ -45,7 +43,7 @@ def check_kvcache_csv_content(output_path, csv_file_name, expected_columns):
         else:
             pytest.assume(True, "CSV 文件包含所有列")
     except Exception as e:
-        pytest.assume(False, f"读取 CSV 文件失败: {e}")
+        assert False, f"读取 CSV 文件失败: {e}"
 
 
 def check_kvcache_db_content(output_path, db_file_name, expected_columns):
@@ -67,16 +65,16 @@ def check_kvcache_db_content(output_path, db_file_name, expected_columns):
 
         conn.close()
     else:
-        pytest.assume(False, f"{db_file_name} 文件未生成")
+        assert False, f"{db_file_name} 文件未生成"
 
 
 class TestAnalyzeCmd(TestCase):
     ST_DATA_PATH = os.getenv("MS_SERVICE_PROFILER", "/data/ms_service_profiler")
     INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/1230-1148-100Req")
     OUTPUT_PATH = os.path.join(ST_DATA_PATH, "output/analyze")
-    COMMAND_SUCCESS = 0
     KVCACHE_CSV_FILE_NAME = "kvcache.csv"
     DB_FILE_NAME = "profiler.db"
+    COMMAND_SUCCESS = 0
     ANALYZE_PROFILER = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")),
                                          "ms_service_profiler/analyze.py")
 
@@ -90,15 +88,23 @@ class TestAnalyzeCmd(TestCase):
         cmd = ["python", self.ANALYZE_PROFILER, "--input_path", self.INPUT_PATH, "--output_path", self.OUTPUT_PATH]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
             self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
-        args = argparse.Namespace(output_path=self.OUTPUT_PATH, input_path=self.INPUT_PATH)
-        exporters = ExporterFactory.create_exporters(args)
-        custom_plugins = [PluginReqStatus]
-        parse(self.INPUT_PATH, custom_plugins, exporters)
+
         # 校验输出文件是否存在
         db_file = glob.glob(f"{self.OUTPUT_PATH}/*.db")
         csv_file = glob.glob(f"{self.OUTPUT_PATH}/*.csv")
         trace_view_json = glob.glob(f"{self.OUTPUT_PATH}/chrome_tracing.json")[0]
 
+        # 其他断言
+        self.assertEqual(len(db_file), 1, msg="The number of db files is incorrect.")
+        self.assertEqual(len(csv_file), 3, msg="The number of csv files is incorrect.")
+        if not os.path.exists(trace_view_json):
+            self.fail("trace_view.json does not exist")
+
+    def test_kvcache_exporter(self):
+        args = argparse.Namespace(output_path=self.OUTPUT_PATH, input_path=self.INPUT_PATH)
+        exporters = ExporterFactory.create_exporters(args)
+        custom_plugins = [PluginReqStatus]
+        parse(self.INPUT_PATH, custom_plugins, exporters)
         # 调用工具函数并检查返回值
         check_kvcache_csv_generated(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME)
         check_kvcache_db_generated(self.OUTPUT_PATH, self.DB_FILE_NAME)
@@ -119,8 +125,3 @@ class TestAnalyzeCmd(TestCase):
         ]
         check_kvcache_db_content(self.OUTPUT_PATH, self.DB_FILE_NAME, expected_db_columns)
 
-        # 其他断言
-        self.assertEqual(len(db_file), 1, msg="The number of db files is incorrect.")
-        self.assertEqual(len(csv_file), 3, msg="The number of csv files is incorrect.")
-        if not os.path.exists(trace_view_json):
-            self.fail("trace_view.json does not exist")
