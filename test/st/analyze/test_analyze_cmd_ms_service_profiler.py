@@ -6,29 +6,62 @@ import shutil
 from unittest import TestCase
 from test.st.utils import execute_cmd
 import pytest
+import ast
 import pandas as pd
 
 
 def check_req_data_csv_integrity(path, test_case):
-    #校验该路径下是否正确的生成req_data的csv文件，以及文件内容
+    # 校验该路径下是否正确生成req_data的csv文件，以及文件内容
     csv_file_path = f"{path}/request.csv"
     test_case.assertTrue(os.path.isfile(csv_file_path), "文件不存在".format(csv_file_path))
     df = pd.read_csv(csv_file_path)
     test_case.assertNotEqual(len(df), 0, msg="The data of req csv is empty.")
+
     expected_header = ['http_rid', 'start_time_httpReq(microsecond)', 'recv_token_size', 'reply_token_size',
                     'execution_time(microsecond)', 'queue_wait_time(microsecond)']
     test_case.assertEqual(expected_header, df.columns.tolist(), "数据帧的列不正确")
+
+    # 检查第一行和最后一行数据
+    first_row = df.iloc[0]
+    last_row = df.iloc[-1]
+
+    # 检查recv_token_size和reply_token_size是否为整数
+    test_case.assertIsInstance(first_row['recv_token_size'], (int, float), "第一行的recv_token_size不是整数")
+    test_case.assertIsInstance(last_row['recv_token_size'], (int, float), "最后一行的recv_token_size不是整数")
+    test_case.assertIsInstance(first_row['reply_token_size'], (int, float), "第一行的reply_token_size不是整数")
+    test_case.assertIsInstance(last_row['reply_token_size'], (int, float), "最后一行的reply_token_size不是整数")
+
+    # 检查execution_time(microsecond)和queue_wait_time(microsecond)是否大于0
+    test_case.assertGreater(first_row['execution_time(microsecond)'], 0, "第一行的execution_time(microsecond)不是大于0的数")
+    test_case.assertGreater(last_row['execution_time(microsecond)'], 0, "最后一行的execution_time(microsecond)不是大于0的数")
+    test_case.assertGreater(first_row['queue_wait_time(microsecond)'], 0, "第一行的queue_wait_time(microsecond)不是大于0的数")
+    test_case.assertGreater(last_row['queue_wait_time(microsecond)'], 0, "最后一行的queue_wait_time(microsecond)不是大于0的数")
     
 
 def check_batch_data_csv_integrity(path, test_case):
-    #校验该路径下是否正确的生成batch_data的csv文件，以及文件内容
-    csv_file_path = f"{path}/batch.csv"
-    test_case.assertTrue(os.path.isfile(csv_file_path), "文件不存在".format(csv_file_path))
+    # 校验该路径下是否正确生成batch_data的csv文件，以及文件内容
+    csv_file_path = os.path.join(path, "batch.csv")
+    test_case.assertTrue(os.path.isfile(csv_file_path), f"文件不存在: {csv_file_path}")
     df = pd.read_csv(csv_file_path)
-    test_case.assertNotEqual(len(df), 0, msg="The data of batch csv is empty.")
+    test_case.assertNotEqual(len(df), 0, "The data of batch csv is empty.")
     expected_header = ['name', 'res_list', 'start_time(microsecond)', 'end_time(microsecond)',
                     'batch_size', 'batch_type', 'during_time(microsecond)']
+    # 检查列名是否正确
     test_case.assertEqual(expected_header, df.columns.tolist(), "数据帧的列不正确")
+    # 检查第一行和最后一行数据
+    first_row = df.iloc[0]
+    last_row = df.iloc[-1]
+    
+    # 检查res_list的格式
+    def is_valid_res_list(res_list_str):
+        # 将字符串转换为列表
+        res_list = ast.literal_eval(res_list_str)
+        # 检查res_list是否是一个列表，每个元素都是字典，且字典包含'rid'和'iter'这两个键
+        return all(isinstance(item, dict) and 'rid' in item and 'iter' in item for item in res_list)
+    
+    # 检查第一行和最后一行的res_list格式
+    test_case.assertTrue(is_valid_res_list(first_row['res_list']), "第一行的res_list格式不正确")
+    test_case.assertTrue(is_valid_res_list(last_row['res_list']), "最后一行的res_list格式不正确")
 
 
 class TestAnalyzeCmd(TestCase):
