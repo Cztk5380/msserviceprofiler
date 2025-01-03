@@ -10,7 +10,7 @@ from test.st.utils import execute_cmd
 
 class TestAnalyzeCmd(TestCase):
     ST_DATA_PATH = os.getenv("MS_SERVICE_PROFILER", "/data/ms_service_profiler")
-    INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/1230-1148-100Req")
+    INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/1225-196-10Req")
     OUTPUT_PATH = os.path.join(ST_DATA_PATH, "output/analyze")
     COMMAND_SUCCESS = 0
     ANALYZE_PROFILER = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")),
@@ -35,3 +35,32 @@ class TestAnalyzeCmd(TestCase):
         self.assertEqual(len(csv_file), 3, msg="The number of csv files is incorrect.")
         if not os.path.exists(trace_view_json):
             self.fail("trace_view.json does not exist")
+
+        with self.subTest():
+            if db_file:
+                self.assertTrue(self, check_req_status(db_file[0]))
+
+    def check_req_status(self, fp):
+        """Check req_status output. Make sure this testcase after test_profiler."""
+        from enum import Enum
+        import pandas as pd
+        
+        class ReqStatus(Enum):
+            WAITING = 0
+            PENDING = 1
+            RUNNING = 2
+            SWAPPED = 3
+            RECOMPUTE = 4
+            SUSPENDED = 5
+            END = 6
+            STOP = 7
+            PREFILL_HOLD = 8
+
+        conn = sqlite3.connect(fp)
+        df = pd.read_sql_query("SELECT * FROM request_status", conn)
+        conn.close()
+        
+        for col in ['start_datetime']:
+            self.assertIn(col, df.columns, msg=f"{col} should be found in request_status.")
+        for col in df.columns:
+            self.assertIn(col, ReqStatus.__members__, msg=f"{col} should not be found in request_status.")

@@ -4,6 +4,7 @@ import pandas as pd
 
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.utils.error import DataFrameMissingError, ColumnMissingError
 
 
 class PluginMetric(PluginBase):
@@ -16,17 +17,13 @@ class PluginMetric(PluginBase):
     def parse(cls, data):
         tx_data_df = data.get('tx_data_df')
         if tx_data_df is None:
-            raise ValueError("tx_data_df is None")
+            raise DataFrameMissingError(key="tx_data_df")
         
         metric_cols = [col for col in tx_data_df.columns if is_metric(col)]
         
-        for col in ['name', 'start_time', 'start_datetime']:
-            if col in tx_data_df.columns:
-                continue
-            else:
-                logger.error(f'Missing columns "{col}".')
-            logger.error(f'Skip parsing.')
-            return tx_data_df
+        missing_col = [col for col in ['name', 'start_time', 'start_datetime'] if col not in tx_data_df.columns]
+        if missing_col:
+            raise ColumnMissingError(key=missing_col)
 
         metric_data_df = tx_data_df[['start_time', 'start_datetime'] + metric_cols].copy()
         metric_data_df.loc[tx_data_df['name'] == 'httpReq', 'WAITING+'] = 1.0

@@ -7,6 +7,7 @@ import pandas as pd
 
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.plugins.plugin_metric import PluginMetric, is_metric
+from ms_service_profiler.utils.error import DataFrameMissingError, ColumnMissingError
 
 
 @pytest.fixture
@@ -54,14 +55,14 @@ def test_count(sample_data):
 
 def test_no_tx_data_df(empty_data):
     plugin = PluginMetric()
-    with pytest.raises(ValueError, match="tx_data_df is None"):
+    with pytest.raises(DataFrameMissingError):
         plugin.parse(empty_data)
 
 
 def test_no_start_datetime(sample_data_without_start_datetime, capsys):
     plugin = PluginMetric()
-    result = plugin.parse(sample_data_without_start_datetime)
-    assert 'metric_data_df' not in result
+    with pytest.raises(ColumnMissingError):
+        plugin.parse(sample_data_without_start_datetime)
 
 
 def test_is_metric():
