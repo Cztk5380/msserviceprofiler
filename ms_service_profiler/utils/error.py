@@ -51,6 +51,14 @@ class DataFrameMissingError(KeyMissingError):
         super().__init__(key, message)
 
 
+class ColumnMissingError(KeyMissingError):
+    def __init__(self, key, message="Failed to read column"):
+        super().__init__(key, message)
+        
+    def __str__(self):
+        return f"{self.message}: {self.key} not exists."
+
+
 class LoadDataError(ParseError):
     def __init__(self, path, message="Failed to load data"):
         super().__init__(message)
