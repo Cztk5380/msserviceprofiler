@@ -18,6 +18,16 @@ from ms_service_profiler.plugins import builtin_plugins
 from ms_service_profiler.exporters.factory import ExporterFactory
 
 
+def check_column(actual_columns, expected_columns, context=""):
+    # 检查是否有额外的列
+    extra_columns = set(actual_columns) - set(expected_columns)
+    pytest.assume(not extra_columns, f"{context} 表中存在额外的列: {extra_columns}")
+
+    # 检查是否有缺失的列
+    missing_columns = set(expected_columns) - set(actual_columns)
+    pytest.assume(not missing_columns, f"{context} 表中缺少列: {missing_columns}")
+
+
 def check_kvcache_csv_content(output_path, csv_file_name):
     expected_csv_columns = [
         'domain', 'rid', 'start_time(microsecond)', 'end_time(microsecond)',
@@ -31,12 +41,7 @@ def check_kvcache_csv_content(output_path, csv_file_name):
     try:
         df = pd.read_csv(csv_file)
         actual_columns = df.columns.tolist()
-        # 检查是否包含所有期待的列名
-        missing_columns = set(expected_csv_columns) - set(actual_columns)
-        if missing_columns:
-            pytest.assume(False, f"CSV 文件缺少列: {missing_columns}")
-        else:
-            pytest.assume(True, "CSV 文件包含所有列")
+        check_column(actual_columns, expected_csv_columns, context=csv_file_name)
     except Exception as e:
         assert False, f"读取 CSV 文件失败: {e}"
 
@@ -57,13 +62,7 @@ def check_kvcache_db_content(output_path, db_file_name):
         columns = cursor.fetchall()
         actual_columns = [column[1] for column in columns]
 
-        # 检查是否有额外的列
-        extra_columns = set(actual_columns) - set(expected_db_columns)
-        pytest.assume(not extra_columns, f"表中存在额外的列: {extra_columns}")
-
-        # 检查是否有缺失的列
-        missing_columns = set(expected_db_columns) - set(actual_columns)
-        pytest.assume(not missing_columns, f"表中缺少列: {missing_columns}")
+        check_column(actual_columns, expected_db_columns, context=db_file_name)
 
         conn.close()
     else:
@@ -99,7 +98,7 @@ class TestAnalyzeCmd(TestCase):
         # kvcache校验
         with self.subTest("Check kvcache CSV content"):
             check_kvcache_csv_content(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME)
-        with self.subTest("Check kvcache CSV content"):
+        with self.subTest("Check kvcache DB content"):
             check_kvcache_db_content(self.OUTPUT_PATH, self.DB_FILE_NAME)
 
         # 其他断言
