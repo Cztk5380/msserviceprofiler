@@ -2,12 +2,12 @@
 
 import glob
 import os
-import pytest
-import pandas as pd
 import shutil
 from unittest import TestCase
-
 from test.st.utils import execute_cmd
+import pytest
+import pandas as pd
+
 
 
 def check_req_data(path):
