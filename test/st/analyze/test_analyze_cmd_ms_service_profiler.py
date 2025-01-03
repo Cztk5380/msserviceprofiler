@@ -28,7 +28,11 @@ def check_kvcache_db_generated(output_path, db_file_name):
     pytest.assume(os.path.exists(db_file), f"{db_file_name} 文件未生成")
 
 
-def check_kvcache_csv_content(output_path, csv_file_name, expected_columns):
+def check_kvcache_csv_content(output_path, csv_file_name):
+    expected_csv_columns = [
+        'domain', 'rid', 'start_time(microsecond)', 'end_time(microsecond)',
+        'name', 'device_kvcache_left', 'during_time(microsecond)'
+    ]
     csv_file = os.path.join(output_path, csv_file_name)
     if not os.path.isfile(csv_file):
         assert False, f"{csv_file_name} 文件未生成"
@@ -37,7 +41,7 @@ def check_kvcache_csv_content(output_path, csv_file_name, expected_columns):
         df = pd.read_csv(csv_file)
         actual_columns = df.columns.tolist()
         # 检查是否包含所有期待的列名
-        missing_columns = set(expected_columns) - set(actual_columns)
+        missing_columns = set(expected_csv_columns) - set(actual_columns)
         if missing_columns:
             pytest.assume(False, f"CSV 文件缺少列: {missing_columns}")
         else:
@@ -46,8 +50,15 @@ def check_kvcache_csv_content(output_path, csv_file_name, expected_columns):
         assert False, f"读取 CSV 文件失败: {e}"
 
 
-def check_kvcache_db_content(output_path, db_file_name, expected_columns):
+def check_kvcache_db_content(output_path, db_file_name):
     db_file = os.path.join(output_path, db_file_name)
+    expected_db_columns = [
+        'rid',
+        'name',
+        'real_start_time',
+        'device_kvcache_left',
+        'kvcache_usage_rate'
+    ]
     if os.path.exists(db_file):
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
@@ -56,11 +67,11 @@ def check_kvcache_db_content(output_path, db_file_name, expected_columns):
         actual_columns = [column[1] for column in columns]
 
         # 检查是否有额外的列
-        extra_columns = set(actual_columns) - set(expected_columns)
+        extra_columns = set(actual_columns) - set(expected_db_columns)
         pytest.assume(not extra_columns, f"表中存在额外的列: {extra_columns}")
 
         # 检查是否有缺失的列
-        missing_columns = set(expected_columns) - set(actual_columns)
+        missing_columns = set(expected_db_columns) - set(actual_columns)
         pytest.assume(not missing_columns, f"表中缺少列: {missing_columns}")
 
         conn.close()
@@ -94,34 +105,15 @@ class TestAnalyzeCmd(TestCase):
         csv_file = glob.glob(f"{self.OUTPUT_PATH}/*.csv")
         trace_view_json = glob.glob(f"{self.OUTPUT_PATH}/chrome_tracing.json")[0]
 
+        # kvcache校验
+        check_kvcache_csv_generated(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME)
+        check_kvcache_db_generated(self.OUTPUT_PATH, self.DB_FILE_NAME)
+        check_kvcache_csv_content(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME)
+        check_kvcache_db_content(self.OUTPUT_PATH, self.DB_FILE_NAME)
+
         # 其他断言
         self.assertEqual(len(db_file), 1, msg="The number of db files is incorrect.")
         self.assertEqual(len(csv_file), 3, msg="The number of csv files is incorrect.")
         if not os.path.exists(trace_view_json):
             self.fail("trace_view.json does not exist")
-
-    def test_kvcache_exporter(self):
-        args = argparse.Namespace(output_path=self.OUTPUT_PATH, input_path=self.INPUT_PATH)
-        exporters = ExporterFactory.create_exporters(args)
-        custom_plugins = [PluginReqStatus]
-        parse(self.INPUT_PATH, custom_plugins, exporters)
-        # 调用工具函数并检查返回值
-        check_kvcache_csv_generated(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME)
-        check_kvcache_db_generated(self.OUTPUT_PATH, self.DB_FILE_NAME)
-
-        expected_csv_columns = [
-            'domain', 'rid', 'start_time(microsecond)', 'end_time(microsecond)',
-            'name', 'device_kvcache_left', 'during_time(microsecond)'
-        ]
-
-        check_kvcache_csv_content(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME, expected_csv_columns)
-
-        expected_db_columns = [
-            'rid',
-            'name',
-            'real_start_time',
-            'device_kvcache_left',
-            'kvcache_usage_rate'
-        ]
-        check_kvcache_db_content(self.OUTPUT_PATH, self.DB_FILE_NAME, expected_db_columns)
 
