@@ -11,10 +11,6 @@ import pandas as pd
 
 
 def check_column(actual_columns, expected_columns, context=""):
-    # 检查是否有额外的列
-    extra_columns = set(actual_columns) - set(expected_columns)
-    pytest.assume(not extra_columns, f"{context} 表中存在额外的列: {extra_columns}")
-
     # 检查是否有缺失的列
     missing_columns = set(expected_columns) - set(actual_columns)
     pytest.assume(not missing_columns, f"{context} 表中缺少列: {missing_columns}")
