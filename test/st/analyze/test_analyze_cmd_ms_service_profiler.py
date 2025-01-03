@@ -5,17 +5,10 @@ import glob
 import os
 import shutil
 from unittest import TestCase
-import argparse
-from pathlib import Path
 from test.st.utils import execute_cmd
+from os.path import exists
 import pytest
 import pandas as pd
-from ms_service_profiler.exporters.exporter_kvcache import ExporterKVCacheData
-from ms_service_profiler.parse import parse
-from ms_service_profiler.plugins.plugin_metric import PluginMetric
-from ms_service_profiler.plugins.plugin_req_status import PluginReqStatus
-from ms_service_profiler.plugins import builtin_plugins
-from ms_service_profiler.exporters.factory import ExporterFactory
 
 
 def check_column(actual_columns, expected_columns, context=""):
@@ -36,14 +29,11 @@ def check_kvcache_csv_content(output_path, csv_file_name):
     csv_file = os.path.join(output_path, csv_file_name)
     # 检查文件是否存在
     if not os.path.isfile(csv_file):
-        assert False, f"{csv_file_name} 文件未生成"
+        assert exists(csv_file)
 
-    try:
-        df = pd.read_csv(csv_file)
-        actual_columns = df.columns.tolist()
-        check_column(actual_columns, expected_csv_columns, context=csv_file_name)
-    except Exception as e:
-        assert False, f"读取 CSV 文件失败: {e}"
+    df = pd.read_csv(csv_file)
+    actual_columns = df.columns.tolist()
+    check_column(actual_columns, expected_csv_columns, context=csv_file_name)
 
 
 def check_kvcache_db_content(output_path, db_file_name):
@@ -66,7 +56,7 @@ def check_kvcache_db_content(output_path, db_file_name):
 
         conn.close()
     else:
-        assert False, f"{db_file_name} 文件未生成"
+        assert exists(db_file)
 
 
 class TestAnalyzeCmd(TestCase):
