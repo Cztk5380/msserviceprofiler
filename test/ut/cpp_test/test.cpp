@@ -17,13 +17,16 @@ constexpr int TEST_VALUE_66 = 66;
 constexpr int TEST_VALUE_56 = 56;
 constexpr int TEST_VALUE_100 = 100;
 constexpr int TEST_VALUE_0 = 0;
-constexpr int TEST_SPEED_5 = 5;
+
+constexpr int NANO_TO_MICRO_SECOND = 1e6;
+constexpr int NANO_TO_MILLI_SECOND = 1e3;
+constexpr int TEST_SPEED_5_US = 5;
 
 int64_t Now()
 {
     auto now = std::chrono::high_resolution_clock::now();
-    std::chrono::nanoseconds ms = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
-    return ms.count();
+    std::chrono::nanoseconds ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
+    return ns.count();
 }
 
 void TestSmoke(const std::string funcName, void (*func)())
@@ -39,20 +42,18 @@ void TestSmoke(const std::string funcName, void (*func)())
     }
 }
 
-void TestSpeed(const std::string funcName, void (*func)(), int ms)
+void TestSpeed(const std::string funcName, void (*func)(), int target_duration_us)
 {
     std::cout << "====================" << std::endl;
     std::cout << funcName << " start" << std::endl;
-    auto startTime = Now();
+    auto startTime = Now();  // ns
     func();
-    auto du = Now() - startTime;
+    auto duration = (Now() - startTime) / NANO_TO_MILLI_SECOND;
     std::cout << funcName << " end" << std::endl;
-    if (du > (ms * 1000)) { // 1000: MILLISECONDS_TO_SECONDS
-        // 1000.0: MILLISECONDS_TO_SECONDS
-        std::cerr << funcName << " speed FAILED. " << (du / 1000.0) << " > " << ms << std::endl;
+    if (duration > target_duration_us) {
+        std::cerr << funcName << " speed FAILED. " << duration << " > " << target_duration_us << " (μs)" << std::endl;
     } else {
-        // 1000.0: MILLISECONDS_TO_SECONDS
-        std::cout << funcName << (du / 1000.0) << " < " << ms << std::endl;
+        std::cout << funcName << duration << " < " << target_duration_us << " (μs)" << std::endl;
     }
 }
 
@@ -93,9 +94,8 @@ void TestNpuMemoryUsage()
         std::vector<int> memoryUsed;
         std::vector<int> memoryUtiliza;
         int ret = npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
-
         auto du = Now() - startTime;
-        std::cout << "Duration: " << (du / 1000.0) << "ms" << std::endl;
+        std::cout << "Duration: " << (du / NANO_TO_MICRO_SECOND) << "ms" << std::endl;
 
         std::cout << "Usage: ";
         for (long unsigned int i = 0; i < memoryUsed.size(); i++) {
@@ -141,12 +141,12 @@ void SmokeTest()
 
 void SpeedTest()
 {
-    TestSpeed("TestSpan", TestSpan, TEST_SPEED_5);
-    TestSpeed("TestMetric", TestMetric, TEST_SPEED_5);
-    TestSpeed("TestEvent", TestEvent, TEST_SPEED_5);
-    TestSpeed("TestLinker", TestLinker, TEST_SPEED_5);
-    TestSpeed("TestSpan100NumAttr", TestSpan100NumAttr, TEST_SPEED_5);
-    TestSpeed("TestSpan100ObjAttr", TestSpan100ObjAttr, TEST_SPEED_5);
+    TestSpeed("TestSpan", TestSpan, TEST_SPEED_5_US);
+    TestSpeed("TestMetric", TestMetric, TEST_SPEED_5_US);
+    TestSpeed("TestEvent", TestEvent, TEST_SPEED_5_US);
+    TestSpeed("TestLinker", TestLinker, TEST_SPEED_5_US);
+    TestSpeed("TestSpan100NumAttr", TestSpan100NumAttr, TEST_SPEED_5_US);
+    TestSpeed("TestSpan100ObjAttr", TestSpan100ObjAttr, TEST_SPEED_5_US);
 }
 
 int main()
@@ -175,7 +175,7 @@ int main()
 
     SmokeTest();
     SpeedTest();
-    const int sleepTime = 10000;
+    const int sleepTime = 10 * NANO_TO_MILLI_SECOND;
     std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 10 seconds
     StopServerProfiler();
     return 0;
