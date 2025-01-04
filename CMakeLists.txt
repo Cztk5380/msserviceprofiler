@@ -38,6 +38,7 @@ if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
             ${BUILD_ENV_MSPROF_DEPEND_PATH}
             ${BUILD_ENV_MSPROF_DEPEND_ACL_PATH}
             ${BUILD_ENV_MSPROF_DEPEND_API_PATH}
+            include
             3rdparty
             opensource/json/include
     )
@@ -47,6 +48,7 @@ else ()
             ${TOOLKIT_BASE_PATH}/include
             ${TOOLKIT_BASE_PATH}/aarch64-linux/include
             ${TOOLKIT_BASE_PATH}/x86_64-linux/include
+            include
             opensource/json/include
     )
 
@@ -61,13 +63,13 @@ add_library(ms_service_profiler
         SHARED
         src/Profiler.cpp
         src/ServiceProfilerManager.cpp
-        src/GetNpuMemoryUsage.cpp
+        src/NpuMemoryUsage.cpp
 )
 
 add_executable(test_server_profiler test/ut/cpp_test/test.cpp
         src/Profiler.cpp
         src/ServiceProfilerManager.cpp
-        src/GetNpuMemoryUsage.cpp
+        src/NpuMemoryUsage.cpp
 )
 
 target_compile_options(ms_service_profiler PRIVATE
@@ -103,6 +105,7 @@ target_link_libraries(ms_service_profiler
 target_link_libraries(test_server_profiler
         ascendcl
         msprofiler
+        ms_tools_ext
         dl
         pthread
 )

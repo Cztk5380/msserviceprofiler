@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
  */
 
 #include <sys/stat.h>
@@ -22,7 +22,7 @@
 #include "acl/acl.h"
 #include "mstx/ms_tools_ext.h"
 
-#include "../include/msServiceProfiler/GetNpuMemoryUsage.h"
+#include "../include/msServiceProfiler/NpuMemoryUsage.h"
 #include "../include/msServiceProfiler/Profiler.h"
 #include "../include/msServiceProfiler/ServiceProfilerManager.h"
 
@@ -277,12 +277,14 @@ namespace msServiceProfiler {
     // 线程函数：npu usage
     void ThreadFunction()
     {
+        msServiceProfiler::NpuMemoryUsage npuMemoryUsage = msServiceProfiler::NpuMemoryUsage();
+        npuMemoryUsage.InitDcmiCardAndDevices();
         while (g_threadRunFlag) {
             std::vector<int> memoryUsed;
             std::vector<int> memoryUtiliza;
 
             try {
-                int ret = GetNpuMemoryUsage(memoryUsed, memoryUtiliza);
+                int ret = npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
                 Write2Tx(memoryUsed, "usage");
                 Write2Tx(memoryUtiliza, "utiliza");
             } catch (std::exception& e) {

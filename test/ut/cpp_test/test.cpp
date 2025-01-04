@@ -1,10 +1,11 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
  */
 
 #include <chrono>
 #include <thread>
-#include "../../../include/msServiceProfiler/msServiceProfiler.h"
+#include "msServiceProfiler/msServiceProfiler.h"
+#include "msServiceProfiler/NpuMemoryUsage.h"
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
 
@@ -16,36 +17,43 @@ constexpr int TEST_VALUE_66 = 66;
 constexpr int TEST_VALUE_56 = 56;
 constexpr int TEST_VALUE_100 = 100;
 constexpr int TEST_VALUE_0 = 0;
-constexpr int TEST_SPEED_5 = 5;
+
+constexpr int NANO_TO_MICRO_SECOND = 1e6;
+constexpr int NANO_TO_MILLI_SECOND = 1e3;
+constexpr int TEST_SPEED_5_US = 5;
 
 int64_t Now()
 {
     auto now = std::chrono::high_resolution_clock::now();
-    std::chrono::nanoseconds ms = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
-    return ms.count();
+    std::chrono::nanoseconds ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
+    return ns.count();
 }
 
 void TestSmoke(const std::string funcName, void (*func)())
 {
     try {
+        std::cout << "====================" << std::endl;
+        std::cout << funcName << " start" << std::endl;
         func();
+        std::cout << funcName << " end" << std::endl;
     } catch (const std::exception& e) {
         // 处理异常
         std::cerr << funcName << " smoke test FAILED. " << e.what() << std::endl;
     }
 }
 
-void TestSpeed(const std::string funcName, void (*func)(), int ms)
+void TestSpeed(const std::string funcName, void (*func)(), int targetDurationUs)
 {
-    auto startTime = Now();
+    std::cout << "====================" << std::endl;
+    std::cout << funcName << " start" << std::endl;
+    auto startTime = Now();  // ns
     func();
-    auto du = Now() - startTime;
-    if (du > (ms * 1000)) { // 1000: MILLISECONDS_TO_SECONDS
-        // 1000.0: MILLISECONDS_TO_SECONDS
-        std::cerr << funcName << " speed FAILED. " << (du / 1000.0) << " > " << ms << std::endl;
+    auto duration = (Now() - startTime) / NANO_TO_MILLI_SECOND;
+    std::cout << funcName << " end" << std::endl;
+    if (duration > targetDurationUs) {
+        std::cerr << funcName << " speed FAILED. " << duration << " > " << targetDurationUs << " (μs)" << std::endl;
     } else {
-        // 1000.0: MILLISECONDS_TO_SECONDS
-        std::cout << funcName << (du / 1000.0) << " < " << ms << std::endl;
+        std::cout << funcName << duration << " < " << targetDurationUs << " (μs)" << std::endl;
     }
 }
 
@@ -57,28 +65,50 @@ void TestSpan()
                  .Attr("attr2", "str1234")
                  .Attr("attr3", std::string("str1234"))
                  .SpanStart("test"));
-
-    std::cout << "Test Span" << std::endl;
 }
 
 void TestMetric()
 {
     PROF(INFO, Domain(__func__).Metric("attr3", TEST_VALUE_66).SpanStart("test_metric_66"));
-    std::cout << "Test Metric" << std::endl;
 }
 
 void TestEvent()
 {
     PROF(INFO, Domain(__func__).Attr("attr3", TEST_VALUE_66).Event("test_event_66"));
     PROF(INFO, Domain(__func__).Attr("attr3", TEST_VALUE_56).Event("test_event_66"));
-    std::cout << "Test Event" << std::endl;
 }
 
 void TestLinker()
 {
     PROF(INFO, Domain(__func__).Link(TEST_VALUE_1234, "test_event_66"));
     PROF(INFO, Domain(__func__).Link(TEST_VALUE_56, "str56"));
-    std::cout << "Test Linker" << std::endl;
+}
+
+void TestNpuMemoryUsage()
+{
+    NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
+    npuMemoryUsage.InitDcmiCardAndDevices();
+
+    for (int ii = 0; ii < 2; ii++) {  // repeat 2 times
+        auto startTime = Now();
+        std::vector<int> memoryUsed;
+        std::vector<int> memoryUtiliza;
+        int ret = npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
+        auto du = Now() - startTime;
+        std::cout << "Duration: " << (du / NANO_TO_MICRO_SECOND) << "ms" << std::endl;
+
+        std::cout << "Usage: ";
+        for (long unsigned int i = 0; i < memoryUsed.size(); i++) {
+            std::cout << memoryUsed[i] << ", ";
+        }
+        std::cout << std::endl;
+
+        std::cout << "Rate: ";
+        for (long unsigned int i = 0; i < memoryUtiliza.size(); i++) {
+            std::cout << memoryUtiliza[i] << ", ";
+        }
+        std::cout << std::endl;
+    }
 }
 
 void TestSpan100NumAttr()
@@ -86,7 +116,6 @@ void TestSpan100NumAttr()
     int nums[TEST_VALUE_100];
     auto prof = PROF(INFO, Domain(__func__).SpanStart("test_span_100_Num"));
     PROF(prof.NumArrayAttr("attr", nums + TEST_VALUE_0, nums + TEST_VALUE_100));
-    std::cout << "Test Span 100 num" << std::endl;
 }
 
 void TestSpan100ObjAttr()
@@ -99,7 +128,6 @@ void TestSpan100ObjAttr()
             pProfiler->Attr("num", *pNum);
             pProfiler->Attr("iter", *pNum);
     }));
-    std::cout << "Test Span 100 obj" << std::endl;
 }
 
 void SmokeTest()
@@ -108,16 +136,17 @@ void SmokeTest()
     TestSmoke("TestMetric", TestMetric);
     TestSmoke("TestEvent", TestEvent);
     TestSmoke("TestLinker", TestLinker);
+    TestSmoke("TestNpuMemoryUsage", TestNpuMemoryUsage);
 }
 
 void SpeedTest()
 {
-    TestSpeed("TestSpan", TestSpan, TEST_SPEED_5);
-    TestSpeed("TestMetric", TestMetric, TEST_SPEED_5);
-    TestSpeed("TestEvent", TestEvent, TEST_SPEED_5);
-    TestSpeed("TestLinker", TestLinker, TEST_SPEED_5);
-    TestSpeed("TestSpan100NumAttr", TestSpan100NumAttr, TEST_SPEED_5);
-    TestSpeed("TestSpan100ObjAttr", TestSpan100ObjAttr, TEST_SPEED_5);
+    TestSpeed("TestSpan", TestSpan, TEST_SPEED_5_US);
+    TestSpeed("TestMetric", TestMetric, TEST_SPEED_5_US);
+    TestSpeed("TestEvent", TestEvent, TEST_SPEED_5_US);
+    TestSpeed("TestLinker", TestLinker, TEST_SPEED_5_US);
+    TestSpeed("TestSpan100NumAttr", TestSpan100NumAttr, TEST_SPEED_5_US);
+    TestSpeed("TestSpan100ObjAttr", TestSpan100ObjAttr, TEST_SPEED_5_US);
 }
 
 int main()
@@ -146,7 +175,7 @@ int main()
 
     SmokeTest();
     SpeedTest();
-    const int sleepTime = 10000;
+    const int sleepTime = 10 * NANO_TO_MILLI_SECOND;
     std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 10 seconds
     StopServerProfiler();
     return 0;
