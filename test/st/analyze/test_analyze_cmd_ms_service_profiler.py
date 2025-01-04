@@ -121,7 +121,10 @@ def check_column(actual_columns, expected_columns, context=""):
     pytest.assume(not missing_columns, f"{context} 表中缺少列: {missing_columns}")
 
     
-def check_chrome_tracing_valid(trace_view_json):
+def check_chrome_tracing_valid(output_path):
+    trace_view_json = glob.glob(f"{output_path}/chrome_tracing.json")[0]
+    assert os.path.exists(trace_view_json)
+
     schema = {
         "type": "object",
         "properties": {
@@ -253,5 +256,6 @@ class TestAnalyzeCmd(TestCase):
         # 校验时延数据生成
         with self.subTest():
             check_latency_data(self.OUTPUT_PATH)
-            check_chrome_tracing_valid(trace_view_json)
+        with self.subTest():
+            check_chrome_tracing_valid(self.OUTPUT_PATH)
         
