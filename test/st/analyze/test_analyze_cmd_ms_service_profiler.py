@@ -2,13 +2,16 @@
 
 import glob
 import os
+import logging
+import json
 import shutil
 import sqlite3
 import ast
 from unittest import TestCase
-
+import ast
 import pytest
 import pandas as pd
+from jsonschema import validate, ValidationError
 from ...st.utils import execute_cmd
 
 
@@ -138,32 +141,136 @@ def check_req_status(output_path):
     # 校验列存在
     for col in ['timestamp', 'WAITING', 'PENDING', 'RUNNING']:
         assert col in df.columns.tolist()
+        
+
+def check_column(actual_columns, expected_columns, context=""):
+    # 检查是否有缺失的列
+    missing_columns = set(expected_columns) - set(actual_columns)
+    pytest.assume(not missing_columns, f"{context} 表中缺少列: {missing_columns}")
+
+    
+def check_chrome_tracing_valid(trace_view_json):
+    schema = {
+        "type": "object",
+        "properties": {
+            "traceEvents": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "ph": {"type": "string", "enum": ["X", "I", "C", "M", "s", "f", "t"]},
+                        "ts": {"type": "number"},  # 时间戳，单位为微秒
+                        "dur": {"type": "number", "minimum": 0},  # 持续时间，适用于 X 类型事件
+                        "pid": {"type": "integer"},  # 进程 ID
+                        "tid": {"type": "string"},  # 线程 ID
+                        "id": {"type": "string"},  # 时间线事件的 ID
+                        "cat": {"type": "string"},  # 分类
+                        "args": {
+                            "type": "object",
+                            "additionalProperties": True  # args 可以是任意键值对
+                        }
+                    },
+                    "required": ["name", "ph", "pid", "tid"],  # 必需字段
+                    "additionalProperties": False  # 防止额外字段
+                }
+            }
+        },
+        "required": ["traceEvents"],  # 必需字段
+        "additionalProperties": False  # 防止额外字段
+    }
+
+    with open(trace_view_json) as f:
+        data = json.load(f)
+
+    validate(instance=data, schema=schema)
 
 
 class TestAnalyzeCmd(TestCase):
     ST_DATA_PATH = os.getenv("MS_SERVICE_PROFILER", "/data/ms_service_profiler")
-    INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/1230-1148-100Req")
+    INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/1225-196-10Req")
     OUTPUT_PATH = os.path.join(ST_DATA_PATH, "output/analyze")
     KVCACHE_CSV_FILE_NAME = "kvcache.csv"
     DB_FILE_NAME = "profiler.db"
     COMMAND_SUCCESS = 0
     ANALYZE_PROFILER = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")),
-                                         "ms_service_profiler/analyze.py")
+                                    "ms_service_profiler/analyze.py")
 
     def setup_class(self):
-        os.makedirs(self.OUTPUT_PATH, mode=0o750)
+        os.makedirs(self.OUTPUT_PATH, mode=0o750, exist_ok=True)
 
     def teardown_class(self):
         shutil.rmtree(self.OUTPUT_PATH)
 
-    def test_profiler(self):
+    
+
+    def check_batch_data_csv_integrity(self):
+        # 校验该路径下是否正确生成batch_data的csv文件，以及文件内容
+        csv_file_path = f"{self.OUTPUT_PATH}/batch.csv"
+        self.assertTrue(os.path.isfile(csv_file_path), f"文件不存在: {csv_file_path}")
+        df = pd.read_csv(csv_file_path)
+        # 检查文件是否为空
+        self.assertNotEqual(len(df), 0, "The data of batch csv is empty.")
+        expected_header = ['name', 'res_list', 'start_time(microsecond)', 'end_time(microsecond)', 'batch_size', \
+            'batch_type', 'during_time(microsecond)']
+        
+        # 检查列名是否正确
+        check_column(df.columns.tolist(), expected_header, context='batch.csv')
+        
+        # 定义一个函数，用于检查res_list的格式
+        def is_valid_res_list(res_list_str):
+            # 将字符串转换为列表
+            res_list = ast.literal_eval(res_list_str)
+            # 检查res_list是否是一个列表，每个元素都是字典，且字典包含'rid'和'iter'这两个键
+            return all(isinstance(item, dict) and 'rid' in item and 'iter' in item for item in res_list)
+
+        # 检查数据框的第一行和最后一行的特定列
+        rows_to_check = [0, -1]
+        columns_to_check = ['res_list']
+        for row_index in rows_to_check:
+            for column in columns_to_check:
+                self.assertTrue(is_valid_res_list(df.iloc[row_index][column]), f"{row_index}行的{column}格式不正确")
+
+    def check_req_data_csv_integrity(self):
+        # 校验该路径下是否正确生成req_data的csv文件，以及文件内容
+        csv_file_path = f"{self.OUTPUT_PATH}/request.csv"
+        self.assertTrue(os.path.isfile(csv_file_path), "文件不存在".format(csv_file_path))
+        df = pd.read_csv(csv_file_path)
+        self.assertNotEqual(len(df), 0, msg="The data of req csv is empty.")
+
+        expected_header = ['http_rid', 'start_time_httpReq(microsecond)', 'recv_token_size', 'reply_token_size', \
+            'execution_time(microsecond)', 'queue_wait_time(microsecond)']
+        check_column(df.columns.tolist(), expected_header, context='request.csv')
+
+        def is_whole_number(n):
+            if n == int(n):
+                return True
+            else:
+                return False
+
+        # 定义一个函数，用于检查数据框的某一行的特定列是否满足条件
+        def check_row(df, row_index, columns):
+            for column in columns:
+                if not is_whole_number(df.iloc[row_index][column]):
+                    raise AssertionError(f"{row_index}行的{column}不是整数")
+
+        # 检查数据框的第一行和最后一行的特定列
+        rows_to_check = [0, -1]
+        columns_to_check = ['recv_token_size', 'reply_token_size']
+        for row_index in rows_to_check:
+            for column in columns_to_check:
+                check_row(df, row_index, [column])
+
+    def test_prase_ms_service_profiler_data(self):
+        #校验msserviceprofiler打点采集数据解析功能是否正常解析，校验输出文件及内容
         cmd = ["python", self.ANALYZE_PROFILER, "--input_path", self.INPUT_PATH, "--output_path", self.OUTPUT_PATH]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
             self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
         # 校验输出文件是否存在
-        db_file = glob.glob(f"{self.OUTPUT_PATH}/*.db")
-        csv_file = glob.glob(f"{self.OUTPUT_PATH}/*.csv")
-        trace_view_json = glob.glob(f"{self.OUTPUT_PATH}/chrome_tracing.json")[0]
+        with self.subTest():
+            self.check_req_data_csv_integrity()
+        with self.subTest():
+            self.check_batch_data_csv_integrity()
 
         # kvcache校验
         with self.subTest("Check kvcache CSV content"):
@@ -178,3 +285,6 @@ class TestAnalyzeCmd(TestCase):
         # 校验请求状态数的数据生成
         with self.subTest():
             check_req_status(self.OUTPUT_PATH)
+
+        with self.subTest():
+            check_chrome_tracing_valid(trace_view_json)
