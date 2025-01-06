@@ -115,6 +115,34 @@ def check_latency_data(output_path):
     conn.close()
 
 
+def check_req_status(output_path):
+    from enum import Enum
+
+    class ReqStatus(Enum):
+        WAITING = 0
+        PENDING = 1
+        RUNNING = 2
+        SWAPPED = 3
+        RECOMPUTE = 4
+        SUSPENDED = 5
+        END = 6
+        STOP = 7
+        PREFILL_HOLD = 8
+
+    # 校验db文件正常生成
+    db_path = os.path.join(output_path, 'profiler.db')
+    assert os.path.exists(db_path)
+
+    # 获取数据表
+    conn = sqlite3.connect(db_path)
+    df = pd.read_sql_query("SELECT * FROM request_status", conn)
+    conn.close()
+
+    # 校验列存在
+    for col in ['timestamp', 'WAITING', 'PENDING', 'RUNNING']:
+        assert col in df.columns.tolist()
+        
+
 def check_column(actual_columns, expected_columns, context=""):
     # 检查是否有缺失的列
     missing_columns = set(expected_columns) - set(actual_columns)
@@ -253,5 +281,10 @@ class TestAnalyzeCmd(TestCase):
         # 校验时延数据生成
         with self.subTest():
             check_latency_data(self.OUTPUT_PATH)
+
+        # 校验请求状态数的数据生成
+        with self.subTest():
+            check_req_status(self.OUTPUT_PATH)
+
+        with self.subTest():
             check_chrome_tracing_valid(trace_view_json)
-        
