@@ -2,6 +2,7 @@
 
 import os
 import argparse
+import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -9,7 +10,7 @@ from ms_service_profiler.parse import parse
 from ms_service_profiler.exporters.factory import ExporterFactory
 from ms_service_profiler.exporters.utils import create_sqlite_db
 from ms_service_profiler.plugins import custom_plugins
-from ms_service_profiler.utils.log import set_log_level
+from ms_service_profiler.utils.log import set_log_level, logger
 
 
 def check_input_path_valid(path):
@@ -33,26 +34,55 @@ def check_output_path_valid(path):
     return path
 
 
-def get_chlid_output_dir(output_path):
-    current_datetime = datetime.now(tz=timezone.utc)
-    datetime_str = current_datetime.strftime("%Y%m%d_%H%M%S")
-    return os.path.join(output_path, datetime_str)
+def find_file_in_dir(directory, filename):
+    for root, _, files in os.walk(directory):
+        if filename in files:
+            return True
+    return False
+
+
+def gen_msprof_command(full_path):
+    command = "msprof --export=on "
+    output_param = f"--output={full_path}"
+    return command + output_param
+
+
+def run_msprof_command(command):
+    try:
+        subprocess.run(command, shell=True, check=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"msprof error: {e}")
+    except Exception as e:
+        logger.error(f"msprof error occurred: {e}")
+
+
+def preprocess_prof_folders(input_path):
+    for root, dirs, _ in os.walk(input_path):
+        for dir_name in dirs:
+            full_path = os.path.join(root, dir_name)
+
+            if dir_name.startswith('PROF_') and not find_file_in_dir(full_path, 'msproftx.db'):
+                command = gen_msprof_command(full_path)
+                logger.info(f"{command}")
+                run_msprof_command(command)
+    if not find_file_in_dir(input_path, 'msproftx.db'):
+        raise ValueError("msprof failed!")
 
 
 def main():
     parser = argparse.ArgumentParser(description='MS Server Profiler')
     parser.add_argument(
-        '--input_path',
+        '--input-path',
         required=True,
         type=check_input_path_valid,
         help='Path to the folder containing profile data.')
     parser.add_argument(
-        '--output_path',
+        '--output-path',
         type=check_output_path_valid,
         default=os.path.join(os.getcwd(), 'output'),
         help='Output file path to save results.')
     parser.add_argument(
-        '--log_level',
+        '--log-level',
         type=str,
         default='info',
         choices=['debug', 'info', 'warning', 'error', 'fatal', 'critical'],
@@ -62,6 +92,9 @@ def main():
 
     # 初始化日志等级
     set_log_level(args.log_level)
+
+    # msprof预处理
+    preprocess_prof_folders(args.input_path)
 
     # 初始化Exporter
     exporters = ExporterFactory.create_exporters(args)
