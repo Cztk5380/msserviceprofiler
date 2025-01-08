@@ -124,3 +124,6 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/scripts DESTINATION .
 
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/ms_service_profiler DESTINATION ./python
         FILES_MATCHING PATTERN "*.py")
+
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/ms_service_profiler DESTINATION ./python
+        FILES_MATCHING PATTERN "*.json")
