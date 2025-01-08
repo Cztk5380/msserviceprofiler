@@ -291,6 +291,3 @@ class TestAnalyzeCmd(TestCase):
 
         with self.subTest():
             check_chrome_tracing_valid(self.OUTPUT_PATH)
-
-
-
