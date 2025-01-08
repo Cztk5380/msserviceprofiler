@@ -35,7 +35,7 @@ def check_output_path_valid(path):
 
 
 def find_file_in_dir(directory, filename):
-    for root, _, files in os.walk(directory):
+    for _, _, files in os.walk(directory):
         if filename in files:
             return True
     return False
@@ -48,8 +48,9 @@ def gen_msprof_command(full_path):
 
 
 def run_msprof_command(command):
+    command_list = command.split()
     try:
-        subprocess.run(command, shell=True, check=True)
+        subprocess.run(command_list, check=True)
     except subprocess.CalledProcessError as e:
         logger.error(f"msprof error: {e}")
     except Exception as e:
