@@ -164,9 +164,16 @@ namespace msServiceProfiler {
         std::string homePath = getenv("HOME") ? getenv("HOME") : "";
         profPath_.append(homePath).append("/.ms_server_profiler/");
         ReadConfig();
+
+        aclError retInit = aclInit(nullptr);
+        if (retInit != ACL_ERROR_NONE) {
+            PROF_LOGE("acl init failed, ret = %d", retInit);
+        }
+
         if (enable_) {
             StartProfiler();
         }
+        LaunchThread();
     }
 
     void ServiceProfilerManager::ReadConfig()
@@ -198,6 +205,14 @@ namespace msServiceProfiler {
             ReadEnable(jsonData);
             ReadProfPath(jsonData);
             ReadLevel(jsonData);
+
+            struct stat config_file_stat;
+            if (stat(strConfigPath.c_str(), &config_file_stat) == 0) {
+                last_update_ = config_file_stat.st_mtime;
+            } else {
+                PROF_LOGE("fail to get stat of %s", strConfigPath.c_str());
+                return;
+            }
         }
         profPath_.append(std::to_string(ltm->tm_mon + 1))
                 .append(std::to_string(ltm->tm_mday))
@@ -262,6 +277,12 @@ namespace msServiceProfiler {
         }
     }
 
+    void ServiceProfilerManager::LaunchThread()
+    {
+        auto t = std::thread(&ServiceProfilerManager::ThreadFunction, this);
+        t.detach();
+    }
+
     // Funtion that write info to tx
     void Write2Tx(const std::vector<int> &memoryInfo, const std::string metricName)
     {
@@ -274,8 +295,8 @@ namespace msServiceProfiler {
         }
     }
 
-    // 线程函数：npu usage
-    void ThreadFunction()
+    // 线程函数：npu usage and dynamic monitor
+    void ServiceProfilerManager::ThreadFunction()
     {
         msServiceProfiler::NpuMemoryUsage npuMemoryUsage = msServiceProfiler::NpuMemoryUsage();
         npuMemoryUsage.InitDcmiCardAndDevices();
@@ -290,6 +311,53 @@ namespace msServiceProfiler {
             } catch (std::exception& e) {
                 PROF_LOGD("get npu memory usage failed");
             }
+
+            // dynamic start_and_stop
+            std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
+            struct stat config_file_stat;
+            if (stat(strConfigPath.c_str(), &config_file_stat) == 0) {
+                if (config_file_stat.st_mtime == last_update_) {
+                    continue;
+                } else {
+                    last_update_ = config_file_stat.st_mtime;
+                }
+            } else {
+                PROF_LOGE("fail to get stat of %s", strConfigPath.c_str());
+                return;
+            }
+            if (!strConfigPath.empty() && access(strConfigPath.c_str(), F_OK) == 0) {
+                std::ifstream configFile(strConfigPath);
+                if (!configFile.good()) {
+                    PROF_LOGE("fail to open: %s", strConfigPath.c_str());
+                    return;
+                }
+
+                json jsonData;
+                try {
+                    configFile >> jsonData;
+                } catch (const json::parse_error& e) {
+                    configFile.close();
+                    PROF_LOGE("fail to parse file content as json object, config path: %s", strConfigPath.c_str());
+                    return;
+                }
+                configFile.close();
+                if (jsonData.empty()) {
+                    PROF_LOGE("paresd json object is empty, config path: %s", strConfigPath.c_str());
+                    return;
+                }
+
+                auto enable_from_config = jsonData["enable"] == 1;
+                if (enable_from_config == true and enable_ == false) {
+                    PROF_LOGD("Profiler Enabled...");
+                    StartServerProfiler();
+                    PROF_LOGD("Profiler Enabled Successfully!");
+                } else if (enable_from_config == false and enable_ == true) {
+                    PROF_LOGD("Profiler Disabled...");
+                    StopServerProfiler();
+                    PROF_LOGD("Profiler Disabled Successfully!");
+                } else {
+                    PROF_LOGD("PROF_CONFIG_PATH changed but profiler Not Changed.");
+                }
 
             const int sleepTime = 1000;
             std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 1 seconds
@@ -309,11 +377,6 @@ namespace msServiceProfiler {
         uint32_t profSwitch = ACL_PROF_MSPROFTX | ACL_PROF_TASK_TIME;
         uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
 
-        aclError retInit = aclInit(nullptr);
-        if (retInit != ACL_ERROR_NONE) {
-            PROF_LOGE("acl init failed, ret = %d", retInit);
-        }
-
         aclError ret = aclprofInit(profPath_.c_str(), profPath_.size());
         if (ret != ACL_ERROR_NONE) {
             PROF_LOGE("acl prof init failed, ret = %d", ret);
@@ -328,7 +391,7 @@ namespace msServiceProfiler {
         }
         configHandle_ = config_;
 
-        if (retInit == ACL_ERROR_NONE) {
+        if (ret == ACL_ERROR_NONE) {
             aclprofSetConfig(ACL_PROF_HOST_SYS, "cpu", strlen("cpu"));
             aclprofSetConfig(ACL_PROF_HOST_SYS_USAGE, "cpu", strlen("cpu"));
             aclprofSetConfig(ACL_PROF_HOST_SYS_USAGE_FREQ, "2", strlen("2"));
@@ -344,10 +407,6 @@ namespace msServiceProfiler {
 
         // 设置标志位
         g_threadRunFlag = true;
-        // 启动线程
-        std::thread t(ThreadFunction);
-        // 分离线程，使其在后台运行
-        t.detach();
 
         enable_ = true;
         started_ = true;
@@ -379,9 +438,6 @@ namespace msServiceProfiler {
             PROF_LOGE("acl prof finalize failed, ret = %d", ret);
             return;
         }
-
-        // 设置标志位，通知线程退出
-        g_threadRunFlag = false;
 
         started_ = false;
     }
