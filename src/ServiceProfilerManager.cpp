@@ -206,9 +206,9 @@ namespace msServiceProfiler {
             ReadProfPath(jsonData);
             ReadLevel(jsonData);
 
-            struct stat config_file_stat;
-            if (stat(strConfigPath.c_str(), &config_file_stat) == 0) {
-                last_update_ = config_file_stat.st_mtime;
+            struct stat configFileStat;
+            if (stat(strConfigPath.c_str(), &configFileStat) == 0) {
+                lastUpdate_ = configFileStat.st_mtime;
             } else {
                 PROF_LOGE("fail to get stat of %s", strConfigPath.c_str());
                 return;
@@ -314,12 +314,12 @@ namespace msServiceProfiler {
 
             // dynamic start_and_stop
             std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
-            struct stat config_file_stat;
-            if (stat(strConfigPath.c_str(), &config_file_stat) == 0) {
-                if (config_file_stat.st_mtime == last_update_) {
+            struct stat configFileStat;
+            if (stat(strConfigPath.c_str(), &configFileStat) == 0) {
+                if (configFileStat.st_mtime == lastUpdate_) {
                     continue;
                 } else {
-                    last_update_ = config_file_stat.st_mtime;
+                    lastUpdate_ = configFileStat.st_mtime;
                 }
             } else {
                 PROF_LOGE("fail to get stat of %s", strConfigPath.c_str());

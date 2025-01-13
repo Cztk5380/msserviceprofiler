@@ -75,7 +75,7 @@ namespace msServiceProfiler {
         std::string profPath_;
         uint32_t level_ = Level::DETAILED;
         void *configHandle_;
-        int last_update_ = 0;
+        int lastUpdate_ = 0;
     };
 }  // namespace msServiceProfiler
 
