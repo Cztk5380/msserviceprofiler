@@ -31,6 +31,7 @@
 constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
 constexpr int STRING_TO_UINT_BASE = 10;
+constexpr int MILLISECONDS_IN_SECOND = 1000;
 
 // 全局标志位，用于控制线程退出
 std::atomic<bool> g_threadRunFlag(true);
@@ -317,7 +318,7 @@ namespace msServiceProfiler {
         if (config.contains("npu_memory_freq")) {
             try {
                 uint32_t npuMemoryFreq = config["npu_memory_freq"];
-                if (npuMemoryFreq >= 1 && npuMemoryFreq <= 50) {
+                if (npuMemoryFreq >= npuMemoryFreqMin_ && npuMemoryFreq <= npuMemoryFreqMax_) {
                     npuMemoryFreq_ = npuMemoryFreq;
                 } else {
                     PROF_LOGE("npu_memory_freq must be between %d and %d, will use default value: %d",
@@ -330,7 +331,7 @@ namespace msServiceProfiler {
                 PROF_LOGE("fail to convert npu_memory_freq config to uint, will use default value: 1");
                 ret = false;
             }
-            npuMemorySleepMilliseconds_ = static_cast<uint32_t>(std::round(1000.0 / npuMemoryFreq_));
+            npuMemorySleepMilliseconds_ = static_cast<uint32_t>(std::round(MILLISECONDS_IN_SECOND / npuMemoryFreq_));
         } else {
             ret = false;
         }
