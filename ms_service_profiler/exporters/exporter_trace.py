@@ -148,7 +148,7 @@ def add_trace_events(valid_name_df):
 
 
 def add_cpu_events(cpu_data_df):
-    if cpu_data_df is None or not len(cpu_data_df):
+    if cpu_data_df is None or cpu_data_df.shape[0] == 0:
         return []
     cpu_trace_df = cpu_data_df.copy()
     cpu_trace_df['name'] = 'CPU Usage'
@@ -162,7 +162,7 @@ def add_cpu_events(cpu_data_df):
 
 
 def add_mem_events(df):
-    if df is None or not len(df):
+    if df is None or df.shape[0] == 0:
         return []
     df = df.copy()
     df['name'] = 'Memory Usage'
@@ -176,7 +176,7 @@ def add_mem_events(df):
 
 
 def add_npu_events(npu_data_df):
-    if npu_data_df is None or not len(npu_data_df):
+    if npu_data_df is None or npu_data_df.shape[0] == 0:
         return []
     npu_trace_df = npu_data_df.copy()
     npu_trace_df['name'] = 'NPU Usage'

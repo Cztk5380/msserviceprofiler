@@ -67,6 +67,9 @@ namespace msServiceProfiler {
         bool ReadProfPath(const json &config);
         bool ReadLevel(const json &config);
         bool ReadCollectConfig(const json &config);
+        bool ReadHostConfig(const json &config);
+        bool ReadNpuConfig(const json &config);
+        bool SetAclProfHostSysConfig();
         void ThreadFunction();
 
     private:
@@ -79,8 +82,13 @@ namespace msServiceProfiler {
         bool hostCpuUsage_ = false;
         bool hostMemoryUsage_ = false;
         uint32_t hostFreq_ = 10;
+        uint32_t hostFreqMin_ = 1;
+        uint32_t hostFreqMax_ = 50;
 
         bool npuMemoryUsage_ = false;
+        uint32_t npuMemoryFreq_ = 1;
+        uint32_t npuMemoryFreqMin_ = 1;
+        uint32_t npuMemoryFreqMax_ = 50;
         uint32_t npuMemorySleepMilliseconds_ = 1000;
     };
 }  // namespace msServiceProfiler

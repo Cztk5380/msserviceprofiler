@@ -217,7 +217,7 @@ def parse(input_path, custom_plugins, exporters):
     logger.info('Start to parse.')
     # 解析数据
     data = read_origin_db(input_path)
-    if not len(data):
+    if not data:
         logger.info("Read origin db %s is empty, please check.", input_path)
         return
     logger.info('Read origin db success.')
