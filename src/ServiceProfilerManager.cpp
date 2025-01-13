@@ -163,7 +163,19 @@ namespace msServiceProfiler {
     {
         std::string homePath = getenv("HOME") ? getenv("HOME") : "";
         profPath_.append(homePath).append("/.ms_server_profiler/");
-        ReadConfig();
+        auto configJson = ReadConfig();
+        ReadEnable(configJson);
+        ReadProfPath(configJson);
+        ReadLevel(configJson);
+
+        time_t now = time(nullptr);
+        tm *ltm = std::localtime(&now);
+        profPath_.append(std::to_string(ltm->tm_mon + 1))
+                .append(std::to_string(ltm->tm_mday))
+                .append("-")
+                .append(std::to_string(ltm->tm_hour))
+                .append(std::to_string(ltm->tm_min))
+                .append("/");
 
         aclError retInit = aclInit(nullptr);
         if (retInit != ACL_ERROR_NONE) {
@@ -178,15 +190,12 @@ namespace msServiceProfiler {
 
     void ServiceProfilerManager::ReadConfig()
     {
-        time_t now = time(nullptr);
-        tm *ltm = std::localtime(&now);
-
         std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
         if (!strConfigPath.empty() && access(strConfigPath.c_str(), F_OK) == 0) {
             std::ifstream configFile(strConfigPath);
             if (!configFile.good()) {
                 PROF_LOGE("fail to open: %s", strConfigPath.c_str());
-                return;
+                return "";
             }
 
             json jsonData;
@@ -195,31 +204,17 @@ namespace msServiceProfiler {
             } catch (const json::parse_error& e) {
                 configFile.close();
                 PROF_LOGE("fail to parse file content as json object, config path: %s", strConfigPath.c_str());
-                return;
+                return "";
             }
             configFile.close();
             if (jsonData.empty()) {
                 PROF_LOGE("paresd json object is empty, config path: %s", strConfigPath.c_str());
-                return;
+                return "";
             }
-            ReadEnable(jsonData);
-            ReadProfPath(jsonData);
-            ReadLevel(jsonData);
-
-            struct stat configFileStat;
-            if (stat(strConfigPath.c_str(), &configFileStat) == 0) {
-                lastUpdate_ = configFileStat.st_mtime;
-            } else {
-                PROF_LOGE("fail to get stat of %s", strConfigPath.c_str());
-                return;
-            }
+            return jsonData;
+        } else {
+            return "";
         }
-        profPath_.append(std::to_string(ltm->tm_mon + 1))
-                .append(std::to_string(ltm->tm_mday))
-                .append("-")
-                .append(std::to_string(ltm->tm_hour))
-                .append(std::to_string(ltm->tm_min))
-                .append("/");
     }
 
     bool ServiceProfilerManager::ReadEnable(const json &config)
@@ -314,51 +309,32 @@ namespace msServiceProfiler {
 
             // dynamic start_and_stop
             std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
-            struct stat configFileStat;
-            if (stat(strConfigPath.c_str(), &configFileStat) == 0) {
-                if (configFileStat.st_mtime == lastUpdate_) {
+            struct stat config_file_stat;
+            if (stat(strConfigPath.c_str(), &config_file_stat) == 0) {
+                if (config_file_stat.st_mtime == lastUpdate_) {
                     continue;
                 } else {
-                    lastUpdate_ = configFileStat.st_mtime;
+                    lastUpdate_ = config_file_stat.st_mtime;
                 }
             } else {
                 PROF_LOGE("fail to get stat of %s", strConfigPath.c_str());
                 return;
             }
-            if (!strConfigPath.empty() && access(strConfigPath.c_str(), F_OK) == 0) {
-                std::ifstream configFile(strConfigPath);
-                if (!configFile.good()) {
-                    PROF_LOGE("fail to open: %s", strConfigPath.c_str());
-                    return;
-                }
 
-                json jsonData;
-                try {
-                    configFile >> jsonData;
-                } catch (const json::parse_error& e) {
-                    configFile.close();
-                    PROF_LOGE("fail to parse file content as json object, config path: %s", strConfigPath.c_str());
-                    return;
-                }
-                configFile.close();
-                if (jsonData.empty()) {
-                    PROF_LOGE("paresd json object is empty, config path: %s", strConfigPath.c_str());
-                    return;
-                }
-
-                auto enable_from_config = jsonData["enable"] == 1;
-                if (enable_from_config == true and enable_ == false) {
-                    PROF_LOGD("Profiler Enabled...");
-                    StartServerProfiler();
-                    PROF_LOGD("Profiler Enabled Successfully!");
-                } else if (enable_from_config == false and enable_ == true) {
-                    PROF_LOGD("Profiler Disabled...");
-                    StopServerProfiler();
-                    PROF_LOGD("Profiler Disabled Successfully!");
-                } else {
-                    PROF_LOGD("PROF_CONFIG_PATH changed but profiler Not Changed.");
-                }
-
+            auto configJson = ReadConfigRefactor();
+            auto enable_from_config = configJson["enable"] == 1;
+            if (enable_from_config == true and enable_ == false) {
+                PROF_LOGD("Profiler Enabled...");
+                StartServerProfiler();
+                PROF_LOGD("Profiler Enabled Successfully!");
+            } else if (enable_from_config == false and enable_ == true) {
+                PROF_LOGD("Profiler Disabled...");
+                StopServerProfiler();
+                PROF_LOGD("Profiler Disabled Successfully!");
+            } else {
+                PROF_LOGD("Profiler Not Changed.");
+            }
+            
             const int sleepTime = 1000;
             std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 1 seconds
         }

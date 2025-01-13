@@ -62,7 +62,7 @@ namespace msServiceProfiler {
     private:
         ServiceProfilerManager();
 
-        void ReadConfig();
+        json ReadConfig();
         bool ReadEnable(const json &config);
         bool ReadProfPath(const json &config);
         bool ReadLevel(const json &config);
