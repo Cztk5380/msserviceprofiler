@@ -66,6 +66,8 @@ namespace msServiceProfiler {
         bool ReadEnable(const json &config);
         bool ReadProfPath(const json &config);
         bool ReadLevel(const json &config);
+        bool ReadCollectConfig(const json &config);
+        void ThreadFunction();
 
     private:
         bool enable_ = false;
@@ -73,6 +75,13 @@ namespace msServiceProfiler {
         std::string profPath_;
         uint32_t level_ = Level::DETAILED;
         void *configHandle_;
+
+        bool hostCpuUsage_ = false;
+        bool hostMemoryUsage_ = false;
+        uint32_t hostFreq_ = 10;
+
+        bool npuMemoryUsage_ = false;
+        uint32_t npuMemorySleepMilliseconds_ = 1000;
     };
 }  // namespace msServiceProfiler
 

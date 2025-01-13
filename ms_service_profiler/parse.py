@@ -27,17 +27,17 @@ def save_dataframe_to_csv(filtered_df, output, file_name):
 
 
 def load_start_cnt(config_path):
-    sys_start_cnt = 0
-    cpu_start_cnt = 0
+    cntvct = 0
+    clock_monotonic_raw = 0
     with open(config_path, 'r') as f:
         for line in f:
             if "cntvct:" in line:
-                sys_start_cnt = int(line.strip().split(": ")[1])
+                cntvct = int(line.strip().split(": ")[1])
             elif "clock_monotonic_raw:" in line:
-                cpu_start_cnt = int(line.strip().split(": ")[1])
-    if sys_start_cnt == 0 or cpu_start_cnt == 0:
+                clock_monotonic_raw = int(line.strip().split(": ")[1])
+    if cntvct == 0 or clock_monotonic_raw == 0:
         raise ValueError(f"Failed to find 'cntvct' or 'clock_monotonic_raw' in {config_path}, please check.")
-    return sys_start_cnt, cpu_start_cnt
+    return cntvct, clock_monotonic_raw
 
 
 def load_start_time(start_info_path):
@@ -46,8 +46,8 @@ def load_start_time(start_info_path):
         data = json.load(info)
         if 'collectionTimeBegin' not in data:
             raise ValueError(f"Invalid or missing 'CPU' data in {start_info_path}.")
-        sys_start_time = float(data['collectionTimeBegin']) / 1e6
-    return sys_start_time
+        collection_time_begin = float(data['collectionTimeBegin']) / 1e6
+    return collection_time_begin
 
 
 def create_span_message_dict(data):
@@ -123,6 +123,24 @@ def load_cpu_data(db_path):
     return cpu_data_df
 
 
+def load_memory_data(db_path):
+    if db_path is None:
+        return None
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT *
+        FROM MemUsage
+    """)
+
+    data = cursor.fetchall()
+    columns = [description[0] for description in cursor.description]
+    df = pd.DataFrame(data, columns=columns)
+    conn.close()
+    return df
+
+
 def load_cpu_freq(info_path):
     cpu_frequency = None
     file_description = os.open(info_path, os.O_RDONLY)
@@ -148,13 +166,13 @@ def get_filepaths(folder_path, file_filter):
 
 
 def load_time_info(filepaths):
-    sys_start_cnt, cpu_start_cnt = load_start_cnt(filepaths.get("host_start"))
+    cntvct, clock_monotonic_raw = load_start_cnt(filepaths.get("host_start"))
     cpu_frequency = load_cpu_freq(filepaths.get("info"))
-    sys_start_time = load_start_time(filepaths.get("start_info"))
+    collection_time_begin = load_start_time(filepaths.get("start_info"))
     return dict(
-        sys_start_cnt=sys_start_cnt,
-        cpu_start_cnt=cpu_start_cnt,
-        sys_start_time=sys_start_time,
+        cntvct=cntvct,
+        clock_monotonic_raw=clock_monotonic_raw,
+        collection_time_begin=collection_time_begin,
         cpu_frequency=cpu_frequency
     )
 
@@ -162,11 +180,13 @@ def load_time_info(filepaths):
 def load_prof(filepaths):
     tx_data_df = load_tx_data(filepaths.get("tx"))
     cpu_data_df = load_cpu_data(filepaths.get("cpu"))
+    memory_data_df = load_memory_data(filepaths.get("memory"))
     time_info = load_time_info(filepaths)
 
     return dict(
         tx_data_df=tx_data_df,
         cpu_data_df=cpu_data_df,
+        memory_data_df=memory_data_df,
         time_info=time_info,
     )
 
@@ -175,6 +195,7 @@ def read_origin_db(db_path: str):
     file_filter = {
         "tx": "msproftx.db",
         "cpu": "host_cpu_usage.db",
+        "memory": "host_mem_usage.db",
         "host_start": "host_start.log",
         "info": "info.json",
         "start_info": "start_info",
@@ -196,6 +217,9 @@ def parse(input_path, custom_plugins, exporters):
     logger.info('Start to parse.')
     # 解析数据
     data = read_origin_db(input_path)
+    if not len(data):
+        logger.info("Read origin db %s is empty, please check.", input_path)
+        return
     logger.info('Read origin db success.')
 
     all_plugins = sort_plugins(builtin_plugins + custom_plugins)
@@ -210,6 +234,8 @@ def parse(input_path, custom_plugins, exporters):
                 return
             else:
                 logger.exception(f'{plugin.name} failure. Skip it.')
+        except Exception as ex:
+            logger.exception(f'{plugin.name} failure. Skip it.')
 
     logger.info('Starting exporter processes.')
     with ProcessPoolExecutor() as executor:
