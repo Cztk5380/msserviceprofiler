@@ -309,19 +309,19 @@ namespace msServiceProfiler {
 
             // dynamic start_and_stop
             std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
-            struct stat config_file_stat;
-            if (stat(strConfigPath.c_str(), &config_file_stat) == 0) {
-                if (config_file_stat.st_mtime == lastUpdate_) {
+            struct stat configFileStat;
+            if (stat(strConfigPath.c_str(), &configFileStat) == 0) {
+                if (configFileStat.st_mtime == lastUpdate_) {
                     continue;
                 } else {
-                    lastUpdate_ = config_file_stat.st_mtime;
+                    lastUpdate_ = configFileStat.st_mtime;
                 }
             } else {
                 PROF_LOGE("fail to get stat of %s", strConfigPath.c_str());
                 return;
             }
 
-            auto configJson = ReadConfigRefactor();
+            auto configJson = ReadConfig();
             auto enable_from_config = configJson["enable"] == 1;
             if (enable_from_config == true and enable_ == false) {
                 PROF_LOGD("Profiler Enabled...");
@@ -334,7 +334,7 @@ namespace msServiceProfiler {
             } else {
                 PROF_LOGD("Profiler Not Changed.");
             }
-            
+
             const int sleepTime = 1000;
             std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 1 seconds
         }
