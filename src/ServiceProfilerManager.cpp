@@ -296,16 +296,6 @@ namespace msServiceProfiler {
         msServiceProfiler::NpuMemoryUsage npuMemoryUsage = msServiceProfiler::NpuMemoryUsage();
         npuMemoryUsage.InitDcmiCardAndDevices();
         while (g_threadRunFlag) {
-            std::vector<int> memoryUsed;
-            std::vector<int> memoryUtiliza;
-
-            try {
-                int ret = npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
-                Write2Tx(memoryUsed, "usage");
-                Write2Tx(memoryUtiliza, "utiliza");
-            } catch (std::exception& e) {
-                PROF_LOGD("get npu memory usage failed");
-            }
 
             // dynamic start_and_stop
             std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
@@ -333,6 +323,18 @@ namespace msServiceProfiler {
                 PROF_LOGD("Profiler Disabled Successfully!");
             } else {
                 PROF_LOGD("Profiler Not Changed.");
+            }
+
+            std::vector<int> memoryUsed;
+            std::vector<int> memoryUtiliza;
+            try {
+                if (enable_ == true) {
+                    int ret = npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
+                    Write2Tx(memoryUsed, "usage");
+                    Write2Tx(memoryUtiliza, "utiliza");
+                }
+            } catch (std::exception& e) {
+                PROF_LOGD("get npu memory usage failed");
             }
 
             const int sleepTime = 1000;
