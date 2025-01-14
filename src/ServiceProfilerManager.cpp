@@ -296,7 +296,6 @@ namespace msServiceProfiler {
         msServiceProfiler::NpuMemoryUsage npuMemoryUsage = msServiceProfiler::NpuMemoryUsage();
         npuMemoryUsage.InitDcmiCardAndDevices();
         while (g_threadRunFlag) {
-
             // dynamic start_and_stop
             std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
             struct stat configFileStat;
@@ -328,7 +327,7 @@ namespace msServiceProfiler {
             std::vector<int> memoryUsed;
             std::vector<int> memoryUtiliza;
             try {
-                if (enable_ == true) {
+                if (enable_) {
                     int ret = npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
                     Write2Tx(memoryUsed, "usage");
                     Write2Tx(memoryUtiliza, "utiliza");
