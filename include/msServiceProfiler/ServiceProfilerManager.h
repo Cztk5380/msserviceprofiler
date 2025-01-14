@@ -70,6 +70,8 @@ namespace msServiceProfiler {
         bool ReadHostConfig(const json &config);
         bool ReadNpuConfig(const json &config);
         bool SetAclProfHostSysConfig();
+        void DynamicControl();
+        void LaunchThread();
         void ThreadFunction();
 
     private:
