@@ -216,6 +216,7 @@ namespace msServiceProfiler {
             }
             return jsonData;
         } else {
+            PROF_LOGE("PROF_CONFIG_PATH : %s is empty or Permission Denied", strConfigPath.c_str());
             return "";
         }
     }
