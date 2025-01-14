@@ -310,6 +310,9 @@ namespace msServiceProfiler {
         if (enable_from_config == true and enable_ == false) {
             PROF_LOGD("Profiler Enabled...");
             StartServerProfiler();
+            ReadEnable(configJson);
+            ReadProfPath(configJson);
+            ReadLevel(configJson);
             PROF_LOGD("Profiler Enabled Successfully!");
         } else if (enable_from_config == false and enable_ == true) {
             PROF_LOGD("Profiler Disabled...");
