@@ -266,8 +266,10 @@ namespace msServiceProfiler {
     }
 
     bool ServiceProfilerManager::ReadCollectConfig(const json &config)
-    {
-        return ReadHostConfig(config) && ReadNpuConfig(config);
+    {   
+        bool retHost = ReadHostConfig(config);
+        bool retNpu = ReadNpuConfig(config);
+        return retHost && retNpu;
     }
 
     bool ServiceProfilerManager::ReadHostConfig(const json &config)

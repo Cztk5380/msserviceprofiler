@@ -46,7 +46,7 @@ def load_start_time(start_info_path):
         data = json.load(info)
         if 'collectionTimeBegin' not in data:
             raise ValueError(f"Invalid or missing 'CPU' data in {start_info_path}.")
-        collection_time_begin = float(data['collectionTimeBegin']) / 1e6
+        collection_time_begin = float(data['collectionTimeBegin'])
     return collection_time_begin
 
 
