@@ -68,6 +68,7 @@ namespace msServiceProfiler {
         bool ReadLevel(const json &config);
         void ThreadFunction();
         void LaunchThread();
+        void DynamicControl();
 
     private:
         bool enable_ = false;
