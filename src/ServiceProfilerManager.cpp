@@ -17,6 +17,7 @@
 #include <thread>
 #include <vector>
 #include <map>
+#include <cmath>
 
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
@@ -30,6 +31,7 @@
 constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
 constexpr int STRING_TO_UINT_BASE = 10;
+constexpr int MILLISECONDS_IN_SECOND = 1000;
 
 // 全局标志位，用于控制线程退出
 std::atomic<bool> g_threadRunFlag(true);
@@ -185,7 +187,7 @@ namespace msServiceProfiler {
             json jsonData;
             try {
                 configFile >> jsonData;
-            } catch (const json::parse_error& e) {
+            } catch (const json::parse_error &e) {
                 configFile.close();
                 PROF_LOGE("fail to parse file content as json object, config path: %s", strConfigPath.c_str());
                 return;
@@ -198,13 +200,14 @@ namespace msServiceProfiler {
             ReadEnable(jsonData);
             ReadProfPath(jsonData);
             ReadLevel(jsonData);
+            ReadCollectConfig(jsonData);
         }
         profPath_.append(std::to_string(ltm->tm_mon + 1))
-                .append(std::to_string(ltm->tm_mday))
-                .append("-")
-                .append(std::to_string(ltm->tm_hour))
-                .append(std::to_string(ltm->tm_min))
-                .append("/");
+            .append(std::to_string(ltm->tm_mday))
+            .append("-")
+            .append(std::to_string(ltm->tm_hour))
+            .append(std::to_string(ltm->tm_min))
+            .append("/");
     }
 
     bool ServiceProfilerManager::ReadEnable(const json &config)
@@ -242,7 +245,7 @@ namespace msServiceProfiler {
         if (config.contains("profiler_level")) {
             try {
                 level_ = Str2Uint(config["profiler_level"]);
-            } catch (const std::invalid_argument& e) {
+            } catch (const std::invalid_argument &e) {
                 PROF_LOGE("fail to convert profiler_level config to uint, will use default DETAILED");
             }
             if (level_ == 0) {
@@ -262,6 +265,81 @@ namespace msServiceProfiler {
         }
     }
 
+    bool ServiceProfilerManager::ReadCollectConfig(const json &config)
+    {
+        bool retHost = ReadHostConfig(config);
+        bool retNpu = ReadNpuConfig(config);
+        return retHost && retNpu;
+    }
+
+    bool ServiceProfilerManager::ReadHostConfig(const json &config)
+    {
+        bool ret = true;
+        if (config.contains("host_cpu_usage")) {
+            hostCpuUsage_ = config["host_cpu_usage"] == 1;
+        } else {
+            ret = false;
+        }
+        if (config.contains("host_memory_usage")) {
+            hostMemoryUsage_ = config["host_memory_usage"] == 1;
+        } else {
+            ret = false;
+        }
+
+        if (config.contains("host_freq")) {
+            try {
+                uint32_t hostFreq = config["host_freq"];
+                if (hostFreq >= hostFreqMin_ && hostFreq <= hostFreqMax_) {
+                    hostFreq_ = hostFreq;
+                } else {
+                    PROF_LOGE("host_freq must be between %d and %d, will use default value: %d",
+                        hostFreqMin_,
+                        hostFreqMax_,
+                        hostFreq_);
+                    ret = false;
+                }
+            } catch (const std::exception &e) {
+                PROF_LOGE("fail to convert host_freq config to uint, will use default value: %d", hostFreq_);
+                ret = false;
+            }
+        } else {
+            ret = false;
+        }
+        return ret;
+    }
+
+    bool ServiceProfilerManager::ReadNpuConfig(const json &config)
+    {
+        bool ret = true;
+        if (config.contains("npu_memory_usage")) {
+            npuMemoryUsage_ = config["npu_memory_usage"] == 1;
+        } else {
+            ret = false;
+        }
+
+        if (config.contains("npu_memory_freq")) {
+            try {
+                uint32_t npuMemoryFreq = config["npu_memory_freq"];
+                if (npuMemoryFreq >= npuMemoryFreqMin_ && npuMemoryFreq <= npuMemoryFreqMax_) {
+                    npuMemoryFreq_ = npuMemoryFreq;
+                } else {
+                    PROF_LOGE("npu_memory_freq must be between %d and %d, will use default value: %d",
+                        npuMemoryFreqMin_,
+                        npuMemoryFreqMax_,
+                        npuMemoryFreq_);
+                    ret = false;
+                }
+            } catch (const std::exception &e) {
+                PROF_LOGE("fail to convert npu_memory_freq config to uint, will use default value: 1");
+                ret = false;
+            }
+            npuMemorySleepMilliseconds_ = static_cast<uint32_t>(std::round(MILLISECONDS_IN_SECOND / npuMemoryFreq_));
+        } else {
+            ret = false;
+        }
+        return ret;
+    }
+
     // Funtion that write info to tx
     void Write2Tx(const std::vector<int> &memoryInfo, const std::string metricName)
     {
@@ -275,7 +353,7 @@ namespace msServiceProfiler {
     }
 
     // 线程函数：npu usage
-    void ThreadFunction()
+    void ServiceProfilerManager::ThreadFunction()
     {
         msServiceProfiler::NpuMemoryUsage npuMemoryUsage = msServiceProfiler::NpuMemoryUsage();
         npuMemoryUsage.InitDcmiCardAndDevices();
@@ -291,8 +369,32 @@ namespace msServiceProfiler {
                 PROF_LOGD("get npu memory usage failed");
             }
 
-            const int sleepTime = 1000;
-            std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 1 seconds
+            std::this_thread::sleep_for(std::chrono::milliseconds(this->npuMemorySleepMilliseconds_));
+        }
+    }
+
+    bool ServiceProfilerManager::SetAclProfHostSysConfig()
+    {
+        std::string hostProfString = "";
+
+        // 根据条件设置 hostProfString 的值
+        if (hostCpuUsage_ && hostMemoryUsage_) {
+            hostProfString = "cpu,mem";
+        } else if (hostCpuUsage_) {
+            hostProfString = "cpu";
+        } else if (hostMemoryUsage_) {
+            hostProfString = "mem";
+        }
+
+        if (hostProfString != "") {
+            aclprofSetConfig(ACL_PROF_HOST_SYS, hostProfString.c_str(), strlen(hostProfString.c_str()));
+            aclprofSetConfig(ACL_PROF_HOST_SYS_USAGE, hostProfString.c_str(), strlen(hostProfString.c_str()));
+            aclprofSetConfig(ACL_PROF_HOST_SYS_USAGE_FREQ,
+                std::to_string(hostFreq_).c_str(),
+                strlen(std::to_string(hostFreq_).c_str()));
+            return true;
+        } else {
+            return false;
         }
     }
 
@@ -322,16 +424,14 @@ namespace msServiceProfiler {
 
         auto config_ = aclprofCreateConfig(deviceIdList, 1, ACL_AICORE_NONE, nullptr, profSwitch);
         if (config_ == nullptr) {
-            PROF_LOGE("acl prof crate config failed.");
+            PROF_LOGE("acl prof create config failed.");
             enable_ = false;
             return;
         }
         configHandle_ = config_;
 
         if (retInit == ACL_ERROR_NONE) {
-            aclprofSetConfig(ACL_PROF_HOST_SYS, "cpu", strlen("cpu"));
-            aclprofSetConfig(ACL_PROF_HOST_SYS_USAGE, "cpu", strlen("cpu"));
-            aclprofSetConfig(ACL_PROF_HOST_SYS_USAGE_FREQ, "2", strlen("2"));
+            SetAclProfHostSysConfig();
         }
 
         PROF_LOGD("begin to start profiling");
@@ -344,10 +444,13 @@ namespace msServiceProfiler {
 
         // 设置标志位
         g_threadRunFlag = true;
-        // 启动线程
-        std::thread t(ThreadFunction);
-        // 分离线程，使其在后台运行
-        t.detach();
+
+        if (npuMemoryUsage_) {
+            // 启动线程
+            std::thread t([this]() { this->ThreadFunction(); });
+            // 分离线程，使其在后台运行
+            t.detach();
+        }
 
         enable_ = true;
         started_ = true;
