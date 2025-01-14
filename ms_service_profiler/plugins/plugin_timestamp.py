@@ -76,7 +76,7 @@ def timestamp_converter(timestamp):
     return date_time.strftime("%Y-%m-%d %H:%M:%S:%f")
 
 
-def calculate_timestamp(df, time_info, prof_type=['system_count']):
+def calculate_timestamp(df, time_info, prof_type='system_count'):
     if df is None:
         return
 
@@ -86,7 +86,7 @@ def calculate_timestamp(df, time_info, prof_type=['system_count']):
 
     if prof_type == 'system_count':
         df['start_time'] = convert_syscnt_to_ts(df['start_time'], time_info)
-        df['end_time'] = convert_syscnt_to_ts(df['end_time'],  time_info)
+        df['end_time'] = convert_syscnt_to_ts(df['end_time'], time_info)
     else:
         df['start_time'] = convert_systs_to_ts(df['start_time'], time_info)
         df['end_time'] = convert_systs_to_ts(df['end_time'], time_info)
