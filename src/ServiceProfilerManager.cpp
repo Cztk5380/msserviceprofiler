@@ -391,6 +391,7 @@ namespace msServiceProfiler {
             ReadEnable(configJson);
             ReadProfPath(configJson);
             ReadLevel(configJson);
+            ReadCollectConfig(configJson);
             PROF_LOGD("Profiler Enabled Successfully!");
         } else if (enable_from_config == false and enable_ == true) {
             PROF_LOGD("Profiler Disabled...");
@@ -478,7 +479,7 @@ namespace msServiceProfiler {
         }
         configHandle_ = config_;
 
-        if (retInit == ACL_ERROR_NONE) {
+        if (ret == ACL_ERROR_NONE) {
             SetAclProfHostSysConfig();
         }
 
