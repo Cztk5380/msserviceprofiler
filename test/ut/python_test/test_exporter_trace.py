@@ -10,7 +10,7 @@ import math
 import pytest
 import pandas as pd
 
-from ms_service_profiler.exporters.exporter_trace import ExporterTrace, write_trace_data_to_file,\
+from ms_service_profiler.exporters.exporter_trace import ExporterTrace, write_trace_data_to_file, \
     save_trace_data_into_json, add_flow_event, create_trace_events, sort_trace_events_by_tid, add_mem_events
 
 
@@ -18,7 +18,6 @@ from ms_service_profiler.exporters.exporter_trace import ExporterTrace, write_tr
 @pytest.fixture
 def mock_data():
     # 模拟输入的 DataFrame 数据
-    import pandas as pd
     return {
         'tx_data_df': pd.DataFrame({
             'name': ['task1', 'task2'],
@@ -26,18 +25,23 @@ def mock_data():
             'start_time': [12345, 12346],
             'end_time': [12355, 12356],
             'during_time': [10, 10],
+            'start_datetime': [12345, 12346],
+            'end_datetime': [12345, 12346],
             'batch_type': ['batch1', 'batch2'],
             'batch_size': [5, 10],
+            'deviceBlock=': [5, 10],
             'res_list': [['res1'], ['res2']],
             'rid': [[0], [1]],
             'pid': [[0], [1]]
         }),
         'cpu_data_df': pd.DataFrame({
             'start_time': [12345, 12346],
+            'start_datetime': [12345, 12346],
             'usage': [30.5, 35.0]
         }),
         'memory_data_df': pd.DataFrame({
             'start_time': [12345, 12346],
+            'start_datetime': [12345, 12346],
             'usage': [200, 250]
         })
     }
@@ -79,22 +83,7 @@ def test_write_trace_data_to_file():
         assert os.path.exists(output)  # 验证文件是否存在
 
 
-# 测试 create_trace_events
-@mock.patch('ms_service_profiler.exporters.exporter_trace.add_trace_events')
-@mock.patch('ms_service_profiler.exporters.exporter_trace.add_cpu_events')
-@mock.patch('ms_service_profiler.exporters.exporter_trace.add_mem_events')
-@mock.patch('ms_service_profiler.exporters.exporter_trace.add_npu_events')
-@mock.patch('ms_service_profiler.exporters.exporter_trace.add_kvcache_events')
-@mock.patch('ms_service_profiler.exporters.exporter_trace.add_flow_event')
-def test_create_trace_events(
-    mock_flow, mock_kvcache, mock_npu, mock_mem, mock_cpu, mock_trace, mock_data
-):
-    mock_trace.return_value = [{'name': 'task1', 'ph': 'I', 'ts': 12345}]
-    mock_cpu.return_value = [{'name': 'CPU Usage', 'ph': 'C', 'ts': 12346}]
-    mock_mem.return_value = [{'name': 'Memory Usage', 'ph': 'C', 'ts': 12347}]
-    mock_npu.return_value = [{'name': 'NPU Usage', 'ph': 'C', 'ts': 12348}]
-    mock_kvcache.return_value = [{'name': 'KVCache', 'ph': 'C', 'ts': 12349}]
-    mock_flow.return_value = [{'name': 'flow_1', 'ph': 's', 'ts': 12350}]
+def test_create_trace_events(mock_data):
 
     result = create_trace_events(
         mock_data['tx_data_df'], mock_data['cpu_data_df'], mock_data['memory_data_df']
