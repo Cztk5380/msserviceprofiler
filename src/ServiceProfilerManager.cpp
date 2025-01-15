@@ -297,9 +297,12 @@ namespace msServiceProfiler {
                 uint32_t hostFreq = config["host_system_usage_freq"];
                 if (hostFreq >= hostFreqMin_ && hostFreq <= hostFreqMax_) {
                     hostFreq_ = hostFreq;
+                    hostCpuUsage_ = true;
+                    hostMemoryUsage_ = true;
                 } else {
                     PROF_LOGE(
-                        "host_system_usage_freq must be between %d and %d, will not collect host cpu or host memory usage.",
+                        "host_system_usage_freq must be between %d and %d, "
+                        "will not collect host cpu or host memory usage.",
                         hostFreqMin_,
                         hostFreqMax_);
                     hostCpuUsage_ = false;
@@ -327,6 +330,7 @@ namespace msServiceProfiler {
                 uint32_t npuMemoryFreq = config["npu_memory_usage_freq"];
                 if (npuMemoryFreq >= npuMemoryFreqMin_ && npuMemoryFreq <= npuMemoryFreqMax_) {
                     npuMemoryFreq_ = npuMemoryFreq;
+                    npuMemoryUsage_ = true;
                 } else {
                     PROF_LOGE(
                         "npu_memory_usage_freq must be between %d and %d, will not collect npu memory usage.",
@@ -359,6 +363,7 @@ namespace msServiceProfiler {
         }
     }
 
+    // Dynamic Control according to config file modification
     void ServiceProfilerManager::DynamicControl()
     {
         std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
