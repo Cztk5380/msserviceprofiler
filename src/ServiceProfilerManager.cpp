@@ -194,30 +194,30 @@ namespace msServiceProfiler {
     json ServiceProfilerManager::ReadConfig()
     {
         std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
+        json jsonData;
         if (!strConfigPath.empty() && access(strConfigPath.c_str(), F_OK) == 0) {
             std::ifstream configFile(strConfigPath);
             if (!configFile.good()) {
                 PROF_LOGE("fail to open: %s", strConfigPath.c_str());
-                return "";
+                return jsonData;
             }
 
-            json jsonData;
             try {
                 configFile >> jsonData;
             } catch (const json::parse_error &e) {
                 configFile.close();
                 PROF_LOGE("fail to parse file content as json object, config path: %s", strConfigPath.c_str());
-                return "";
+                return jsonData;
             }
             configFile.close();
             if (jsonData.empty()) {
                 PROF_LOGE("paresd json object is empty, config path: %s", strConfigPath.c_str());
-                return "";
+                return jsonData;
             }
             return jsonData;
         } else {
             PROF_LOGE("PROF_CONFIG_PATH : %s is empty or Permission Denied", strConfigPath.c_str());
-            return "";
+            return jsonData;
         }
     }
 
@@ -367,6 +367,9 @@ namespace msServiceProfiler {
     void ServiceProfilerManager::DynamicControl()
     {
         std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
+        if (strConfigPath.empty()) {
+            return;
+        }
         struct stat configFileStat;
         if (stat(strConfigPath.c_str(), &configFileStat) == 0) {
             if (configFileStat.st_mtime == lastUpdate_) {
