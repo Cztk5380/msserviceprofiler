@@ -292,31 +292,25 @@ namespace msServiceProfiler {
     bool ServiceProfilerManager::ReadHostConfig(const json &config)
     {
         bool ret = true;
-        if (config.contains("host_cpu_usage")) {
-            hostCpuUsage_ = config["host_cpu_usage"] == 1;
-        } else {
-            ret = false;
-        }
-        if (config.contains("host_memory_usage")) {
-            hostMemoryUsage_ = config["host_memory_usage"] == 1;
-        } else {
-            ret = false;
-        }
-
-        if (config.contains("host_freq")) {
+        if (config.contains("host_system_usage_freq")) {
             try {
-                uint32_t hostFreq = config["host_freq"];
+                uint32_t hostFreq = config["host_system_usage_freq"];
                 if (hostFreq >= hostFreqMin_ && hostFreq <= hostFreqMax_) {
                     hostFreq_ = hostFreq;
                 } else {
-                    PROF_LOGE("host_freq must be between %d and %d, will use default value: %d",
+                    PROF_LOGE(
+                        "host_system_usage_freq must be between %d and %d, will not collect host cpu or host memory usage.",
                         hostFreqMin_,
-                        hostFreqMax_,
-                        hostFreq_);
+                        hostFreqMax_);
+                    hostCpuUsage_ = false;
+                    hostMemoryUsage_ = false;
                     ret = false;
                 }
             } catch (const std::exception &e) {
-                PROF_LOGE("fail to convert host_freq config to uint, will use default value: %d", hostFreq_);
+                PROF_LOGE("fail to convert host_system_usage_freq config to uint,"
+                        "will not collect host cpu or host memory usage.");
+                hostCpuUsage_ = false;
+                hostMemoryUsage_ = false;
                 ret = false;
             }
         } else {
@@ -328,26 +322,22 @@ namespace msServiceProfiler {
     bool ServiceProfilerManager::ReadNpuConfig(const json &config)
     {
         bool ret = true;
-        if (config.contains("npu_memory_usage")) {
-            npuMemoryUsage_ = config["npu_memory_usage"] == 1;
-        } else {
-            ret = false;
-        }
-
-        if (config.contains("npu_memory_freq")) {
+        if (config.contains("npu_memory_usage_freq")) {
             try {
-                uint32_t npuMemoryFreq = config["npu_memory_freq"];
+                uint32_t npuMemoryFreq = config["npu_memory_usage_freq"];
                 if (npuMemoryFreq >= npuMemoryFreqMin_ && npuMemoryFreq <= npuMemoryFreqMax_) {
                     npuMemoryFreq_ = npuMemoryFreq;
                 } else {
-                    PROF_LOGE("npu_memory_freq must be between %d and %d, will use default value: %d",
+                    PROF_LOGE(
+                        "npu_memory_usage_freq must be between %d and %d, will not collect npu memory usage.",
                         npuMemoryFreqMin_,
-                        npuMemoryFreqMax_,
-                        npuMemoryFreq_);
+                        npuMemoryFreqMax_);
+                    npuMemoryUsage_ = false;
                     ret = false;
                 }
             } catch (const std::exception &e) {
-                PROF_LOGE("fail to convert npu_memory_freq config to uint, will use default value: 1");
+                PROF_LOGE("fail to convert npu_memory_usage_freq config to uint, will not collect npu memory usage.");
+                npuMemoryUsage_ = false;
                 ret = false;
             }
             npuMemorySleepMilliseconds_ = static_cast<uint32_t>(std::round(MILLISECONDS_IN_SECOND / npuMemoryFreq_));
@@ -388,11 +378,20 @@ namespace msServiceProfiler {
         auto enable_from_config = configJson["enable"] == 1;
         if (enable_from_config == true and enable_ == false) {
             PROF_LOGD("Profiler Enabled...");
-            StartServerProfiler();
-            ReadEnable(configJson);
             ReadProfPath(configJson);
+            time_t now = time(nullptr);
+            tm *ltm = std::localtime(&now);
+            profPath_.append(std::to_string(ltm->tm_mon + 1))
+                    .append(std::to_string(ltm->tm_mday))
+                    .append("-")
+                    .append(std::to_string(ltm->tm_hour))
+                    .append(std::to_string(ltm->tm_min))
+                    .append("/");
+
+            ReadEnable(configJson);
             ReadLevel(configJson);
             ReadCollectConfig(configJson);
+            StartServerProfiler();
             PROF_LOGD("Profiler Enabled Successfully!");
         } else if (enable_from_config == false and enable_ == true) {
             PROF_LOGD("Profiler Disabled...");
@@ -428,7 +427,7 @@ namespace msServiceProfiler {
         }
     }
 
-    bool ServiceProfilerManager::SetAclProfHostSysConfig()
+    void ServiceProfilerManager::SetAclProfHostSysConfig()
     {
         std::string hostProfString = "";
 
@@ -441,16 +440,11 @@ namespace msServiceProfiler {
             hostProfString = "mem";
         }
 
-        if (hostProfString != "") {
-            aclprofSetConfig(ACL_PROF_HOST_SYS, hostProfString.c_str(), strlen(hostProfString.c_str()));
-            aclprofSetConfig(ACL_PROF_HOST_SYS_USAGE, hostProfString.c_str(), strlen(hostProfString.c_str()));
-            aclprofSetConfig(ACL_PROF_HOST_SYS_USAGE_FREQ,
-                std::to_string(hostFreq_).c_str(),
-                strlen(std::to_string(hostFreq_).c_str()));
-            return true;
-        } else {
-            return false;
-        }
+        aclprofSetConfig(ACL_PROF_HOST_SYS, hostProfString.c_str(), strlen(hostProfString.c_str()));
+        aclprofSetConfig(ACL_PROF_HOST_SYS_USAGE, hostProfString.c_str(), strlen(hostProfString.c_str()));
+        aclprofSetConfig(ACL_PROF_HOST_SYS_USAGE_FREQ,
+            std::to_string(hostFreq_).c_str(),
+            strlen(std::to_string(hostFreq_).c_str()));
     }
 
     void ServiceProfilerManager::StartProfiler()
