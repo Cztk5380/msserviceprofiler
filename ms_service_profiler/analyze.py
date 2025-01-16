@@ -11,6 +11,7 @@ from ms_service_profiler.exporters.factory import ExporterFactory
 from ms_service_profiler.exporters.utils import create_sqlite_db
 from ms_service_profiler.plugins import custom_plugins
 from ms_service_profiler.utils.log import set_log_level, logger
+from ms_service_profiler.utils.file_open_check import FileStat
 
 
 def check_input_path_valid(path):
@@ -42,6 +43,11 @@ def find_file_in_dir(directory, filename):
 
 
 def gen_msprof_command(full_path):
+    try:
+        FileStat(full_path)
+    except Exception as err:
+        raise argparse.ArgumentTypeError(f"input path:{input_path} is illegal. Please check.") from err
+
     command = "msprof --export=on "
     output_param = f"--output={full_path}"
     return command + output_param
@@ -67,7 +73,7 @@ def preprocess_prof_folders(input_path):
                 logger.info(f"{command}")
                 run_msprof_command(command)
     if not find_file_in_dir(input_path, 'msproftx.db'):
-        raise ValueError("msprof failed!")
+        raise ValueError("msprof failed! No msproftx.db file is generated.")
 
 
 def main():
