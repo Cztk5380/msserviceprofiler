@@ -18,9 +18,9 @@ class ExporterTrace(ExporterBase):
 
     @classmethod
     def export(cls, data) -> None:
-        all_data_df, cpu_data_df = data['tx_data_df'], data['cpu_data_df']
+        all_data_df, cpu_data_df, memory_data_df = data['tx_data_df'], data['cpu_data_df'], data['memory_data_df']
         output = cls.args.output_path
-        trace_data = create_trace_events(all_data_df, cpu_data_df)
+        trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df)
         save_trace_data_into_json(trace_data, output)
 
 
@@ -60,7 +60,7 @@ def add_flow_event(flow_event_df):
     return flow_trace_events
 
 
-def create_trace_events(all_data_df, cpu_data_df):
+def create_trace_events(all_data_df, cpu_data_df, memory_data_df):
     metric_event = ['npu', 'KVCache']
 
     # 普通事件
@@ -70,8 +70,13 @@ def create_trace_events(all_data_df, cpu_data_df):
     # metric事件
     cpu_trace_events = add_cpu_events(cpu_data_df)
     trace_events.extend(cpu_trace_events)
+
+    mem_trace_events = add_mem_events(memory_data_df)
+    trace_events.extend(mem_trace_events)
+
     npu_trace_events = add_npu_events(all_data_df[all_data_df['name'] == 'npu'])
     trace_events.extend(npu_trace_events)
+
     kv_trace_events = add_kvcache_events(all_data_df[all_data_df['domain'] == 'KVCache'])
     trace_events.extend(kv_trace_events)
 
@@ -152,6 +157,8 @@ def add_trace_events(valid_name_df):
 
 
 def add_cpu_events(cpu_data_df):
+    if cpu_data_df is None or cpu_data_df.shape[0] == 0:
+        return []
     cpu_trace_df = cpu_data_df.copy()
     cpu_trace_df['name'] = 'CPU Usage'
     cpu_trace_df['ph'] = 'C'
@@ -163,7 +170,23 @@ def add_cpu_events(cpu_data_df):
     return cpu_trace_events
 
 
+def add_mem_events(df):
+    if df is None or df.shape[0] == 0:
+        return []
+    df = df.copy()
+    df['name'] = 'Memory Usage'
+    df['ph'] = 'C'
+    df['ts'] = df['start_time']
+    df['pid'] = 1
+    df['tid'] = 'Memory Usage'
+    df['args'] = [{'Memory Usage': usage} for usage in df['usage']]
+    events = df[['name', 'ph', 'ts', 'pid', 'tid', 'args']].to_dict(orient='records')
+    return events
+
+
 def add_npu_events(npu_data_df):
+    if npu_data_df is None or npu_data_df.shape[0] == 0:
+        return []
     npu_trace_df = npu_data_df.copy()
     npu_trace_df['name'] = 'NPU Usage'
     npu_trace_df['ph'] = 'C'
