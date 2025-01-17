@@ -63,10 +63,17 @@ namespace msServiceProfiler {
     private:
         ServiceProfilerManager();
 
-        void ReadConfig();
+        json ReadConfig();
         bool ReadEnable(const json &config);
         bool ReadProfPath(const json &config);
         bool ReadLevel(const json &config);
+        bool ReadCollectConfig(const json &config);
+        bool ReadHostConfig(const json &config);
+        bool ReadNpuConfig(const json &config);
+        void SetAclProfHostSysConfig();
+        void DynamicControl();
+        void LaunchThread();
+        void ThreadFunction();
 
     private:
         bool enable_ = false;
@@ -74,6 +81,19 @@ namespace msServiceProfiler {
         std::string profPath_;
         uint32_t level_ = Level::DETAILED;
         void *configHandle_;
+        int lastUpdate_ = 0;
+
+        bool hostCpuUsage_ = false;
+        bool hostMemoryUsage_ = false;
+        uint32_t hostFreq_ = 10;
+        uint32_t hostFreqMin_ = 1;
+        uint32_t hostFreqMax_ = 50;
+
+        bool npuMemoryUsage_ = false;
+        uint32_t npuMemoryFreq_ = 1;
+        uint32_t npuMemoryFreqMin_ = 1;
+        uint32_t npuMemoryFreqMax_ = 50;
+        uint32_t npuMemorySleepMilliseconds_ = 1000;
     };
 }  // namespace msServiceProfiler
 

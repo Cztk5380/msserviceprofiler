@@ -189,6 +189,22 @@ def check_chrome_tracing_valid(output_path):
     validate(instance=data, schema=schema)
 
 
+def check_chrome_tracing_content_valid(output_path):
+    trace_view_json = glob.glob(f"{output_path}/chrome_tracing.json")[0]
+    assert os.path.exists(trace_view_json)
+
+    with open(trace_view_json) as f:
+        text = f.read()
+    
+    exist = ["CPU Usage"]
+    not_exist = ["Memory Usage", "Npu Usage"]
+    for key in exist:
+        pytest.assume(key in text, "流水图中应该包含CPU Usage")
+    for key in not_exist:
+        pytest.assume(key not in text, "流水图中不该包含Npu Usage")
+        pytest.assume(key not in text, "流水图中不该包含Memory")
+
+
 class TestAnalyzeCmd(TestCase):
     ST_DATA_PATH = os.getenv("MS_SERVICE_PROFILER", "/data/ms_service_profiler")
     INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/1225-196-10Req")
@@ -289,5 +305,10 @@ class TestAnalyzeCmd(TestCase):
         with self.subTest():
             check_req_status(self.OUTPUT_PATH)
 
+        # 校验chrome_tracing的数据格式
         with self.subTest():
             check_chrome_tracing_valid(self.OUTPUT_PATH)
+
+        # 校验chrome_tracing的数据内容
+        with self.subTest():
+            check_chrome_tracing_content_valid(self.OUTPUT_PATH)
