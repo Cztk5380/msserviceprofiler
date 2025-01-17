@@ -87,7 +87,7 @@ def load_tx_data(db_path):
     for cur in all_data:
         if len(cur) < 6 or cur[6].startswith("span="):
             continue
-        msg = cur[6]
+        msg = "" if cur[2] == "start/end" else cur[6]  # clean span name in range
         msg_combined = (msg + message_dict.get(str(cur[5]), "")).replace("^", "\"")
         if not (msg_combined.startswith('{') and msg_combined.endswith('}')):
             msg_combined = '{' + msg_combined[:-1] + '}'  # -1 is ,

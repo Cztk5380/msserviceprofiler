@@ -73,7 +73,7 @@ class Profiler:
     def span_start(self, span_name):
         if self._enable:
             self.attr("name", span_name).attr("type", MarkType.TYPE_SPAN)
-            self._span_handle = service_profiler.start_span()
+            self._span_handle = service_profiler.start_span(span_name)
         return self
 
     def span_end(self):
