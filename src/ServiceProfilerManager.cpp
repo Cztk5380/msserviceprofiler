@@ -201,9 +201,14 @@ namespace msServiceProfiler {
         std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
         json jsonData;
         if (!strConfigPath.empty() && access(strConfigPath.c_str(), F_OK) == 0) {
-            std::ifstream configFile(strConfigPath);
-            if (!configFile.good()) {
-                PROF_LOGE("fail to open: %s", strConfigPath.c_str());
+            try {
+                std::ifstream configFile(strConfigPath);
+                if (!configFile.good()) {
+                    PROF_LOGE("fail to open: %s", strConfigPath.c_str());
+                    return jsonData;
+                }
+            } catch (const std::exception &e) {
+                PROF_LOGE("fail to read config file: %s, please input a valid json file path.", strConfigPath.c_str());
                 return jsonData;
             }
 
