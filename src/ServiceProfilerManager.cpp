@@ -207,19 +207,12 @@ namespace msServiceProfiler {
                     PROF_LOGE("fail to open: %s", strConfigPath.c_str());
                     return jsonData;
                 }
-            } catch (const std::exception &e) {
-                PROF_LOGE("fail to read config file: %s, please input a valid json file path.", strConfigPath.c_str());
-                return jsonData;
-            }
-
-            try {
                 configFile >> jsonData;
-            } catch (const json::parse_error &e) {
                 configFile.close();
+            } catch (const std::exception &e) {
                 PROF_LOGE("fail to parse file content as json object, config path: %s", strConfigPath.c_str());
                 return jsonData;
             }
-            configFile.close();
             if (jsonData.empty()) {
                 PROF_LOGE("paresd json object is empty, config path: %s", strConfigPath.c_str());
                 return jsonData;
