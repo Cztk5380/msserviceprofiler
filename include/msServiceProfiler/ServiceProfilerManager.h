@@ -29,6 +29,7 @@ using json = nlohmann::json;
 
 extern "C" {
 MS_SERVICE_PROFILER_API SpanHandle StartSpan();
+MS_SERVICE_PROFILER_API SpanHandle StartSpanWithName(const char *name);
 MS_SERVICE_PROFILER_API void MarkSpanAttr(const char *msg, SpanHandle spanHandle);
 MS_SERVICE_PROFILER_API void EndSpan(SpanHandle spanHandle);
 MS_SERVICE_PROFILER_API void MarkEvent(const char *msg);
@@ -52,7 +53,7 @@ namespace msServiceProfiler {
 
         MS_SERVICE_PROFILER_API inline bool IsEnable(uint32_t level)
         {
-            return enable_ && level_ > level;
+            return enable_ && level_ >= level;
         }
 
         MS_SERVICE_PROFILER_API void StartProfiler();

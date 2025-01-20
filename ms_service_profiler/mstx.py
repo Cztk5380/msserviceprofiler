@@ -22,8 +22,10 @@ class LibServiceProfiler:
         self.func_is_enable = None
 
         if self.lib is not None:
-            self.func_start_span = self.lib.StartSpan
-            self.func_start_span.restype = ctypes.c_ulonglong
+            self.func_start_span_with_name = self.lib.StartSpanWithName
+            self.func_start_span_with_name.argtypes = (ctypes.c_char_p, )
+            self.func_start_span_with_name.restype = ctypes.c_ulonglong
+
             self.func_end_span = self.lib.EndSpan
             self.func_end_span.argtypes = (ctypes.c_ulonglong,)
             self.func_mark_span_attr = self.lib.MarkSpanAttr
@@ -36,10 +38,11 @@ class LibServiceProfiler:
             self.func_is_enable.argtypes = (ctypes.c_ulong,)
             self.func_is_enable.restype = ctypes.c_bool
 
-    def start_span(self):
-        if self.func_start_span is None:
+    def start_span(self, name=None):
+        if self.func_start_span_with_name is None:
             return 0
-        return self.func_start_span()
+        msg = "" if name is None else name
+        return self.func_start_span_with_name(bytes(msg, encoding="utf-8"))
 
     def end_span(self, span_handle):
         if self.func_end_span is not None:

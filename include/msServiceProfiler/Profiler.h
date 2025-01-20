@@ -214,7 +214,7 @@ namespace msServiceProfiler {
             if (IsEnable(level)) {
                 this->Attr("name", spanName);
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_SPAN));
-                spanHandle_ = StartSpan();
+                spanHandle_ = StartSpanWithName(spanName);
                 autoEnd_ = autoEnd;
             }
             return *this;

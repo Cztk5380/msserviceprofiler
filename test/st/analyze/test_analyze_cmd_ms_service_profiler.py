@@ -141,7 +141,7 @@ def check_req_status(output_path):
     # 校验列存在
     for col in ['timestamp', 'WAITING', 'PENDING', 'RUNNING']:
         assert col in df.columns.tolist()
-        
+
 
 def check_column(actual_columns, expected_columns, context=""):
     # 检查是否有缺失的列

@@ -53,6 +53,11 @@ SpanHandle StartSpan()
     return mstxRangeStartA("", nullptr);
 }
 
+SpanHandle StartSpanWithName(const char *name)
+{
+    return mstxRangeStartA(name, nullptr);
+}
+
 void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
 {
     std::string spanTag;
