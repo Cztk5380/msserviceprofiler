@@ -201,20 +201,30 @@ namespace msServiceProfiler {
         std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
         json jsonData;
         if (!strConfigPath.empty() && access(strConfigPath.c_str(), F_OK) == 0) {
-            std::ifstream configFile(strConfigPath);
-            if (!configFile.good()) {
-                PROF_LOGE("fail to open: %s", strConfigPath.c_str());
+            std::ifstream configFile; // 单独创建 std::ifstream 对象
+
+            try {
+                configFile.open(strConfigPath);
+                if (!configFile.good()) {
+                    PROF_LOGE("fail to open: %s", strConfigPath.c_str());
+                    return jsonData;
+                }
+            } catch (const std::exception &e) {
+                PROF_LOGE("fail to open config file: %s, error: %s",
+                        strConfigPath.c_str(), e.what());
                 return jsonData;
             }
 
             try {
-                configFile >> jsonData;
-            } catch (const json::parse_error &e) {
-                configFile.close();
-                PROF_LOGE("fail to parse file content as json object, config path: %s", strConfigPath.c_str());
+                configFile >> jsonData; // 尝试解析 JSON 数据
+            } catch (const std::exception &e) {
+                PROF_LOGE("fail to parse file content as json object, config path: %s, error: %s",
+                        strConfigPath.c_str(), e.what());
+                configFile.close(); // 确保文件关闭
                 return jsonData;
             }
-            configFile.close();
+
+            configFile.close(); // 成功解析后关闭文件
             if (jsonData.empty()) {
                 PROF_LOGE("paresd json object is empty, config path: %s", strConfigPath.c_str());
                 return jsonData;
