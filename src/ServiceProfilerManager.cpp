@@ -210,7 +210,7 @@ namespace msServiceProfiler {
                     return jsonData;
                 }
             } catch (const std::exception &e) {
-                PROF_LOGE("fail to open config file: %s, error: %s", 
+                PROF_LOGE("fail to open config file: %s, error: %s",
                         strConfigPath.c_str(), e.what());
                 return jsonData;
             }
@@ -218,7 +218,7 @@ namespace msServiceProfiler {
             try {
                 configFile >> jsonData; // 尝试解析 JSON 数据
             } catch (const std::exception &e) {
-                PROF_LOGE("fail to parse file content as json object, config path: %s, error: %s", 
+                PROF_LOGE("fail to parse file content as json object, config path: %s, error: %s",
                         strConfigPath.c_str(), e.what());
                 configFile.close(); // 确保文件关闭
                 return jsonData;
