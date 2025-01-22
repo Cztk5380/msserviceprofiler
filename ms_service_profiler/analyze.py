@@ -12,31 +12,40 @@ from ms_service_profiler.exporters.utils import create_sqlite_db
 from ms_service_profiler.plugins import custom_plugins
 from ms_service_profiler.utils.log import set_log_level, logger
 from ms_service_profiler.utils.file_open_check import FileStat
+from ms_service_profiler.utils.check.rule import Rule
 
 
 def check_input_path_valid(path):
-    if not os.path.exists(path):
-        raise argparse.ArgumentTypeError(f"Path does not exist: {path}")
-    if not os.path.isdir(path):
+    try:
+        file_stat = FileStat(path)
+    except Exception as err:
+        raise argparse.ArgumentTypeError(f"input path:{path} is illegal. Please check.")
+    if not file_stat.is_dir:
         raise argparse.ArgumentTypeError(f"Path is not a valid directory: {path}")
-    if '..' in path:
-        raise argparse.ArgumentTypeError(f"Path contains illegal characters: {path}")
     return path
 
 
 def check_output_path_valid(path):
     path = os.path.abspath(path)
-    if not os.path.exists(path):
-        os.makedirs(path, mode=0o755)
+    if not os.path.isdir(path): # not exists or exists but not directory
+        os.makedirs(path, mode=0o750) # create
     else:
-        os.chmod(path, 0o755)
+        check_path = Rule.input_dir().check(path)
+        if not check_path:
+            raise argparse.ArgumentTypeError("Output path %r is incorrect due to %s, please check", path, check_path)
     if not os.access(path, os.W_OK):
         raise argparse.ArgumentTypeError(f"Output path is not writable: {path}")
     return path
 
 
 def find_file_in_dir(directory, filename):
+    count = 0
+    max_iter = 1000
+
     for _, _, files in os.walk(directory):
+        count += len(files)
+        if count > max_iter:
+            break
         if filename in files:
             return True
     return False
