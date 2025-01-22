@@ -183,6 +183,7 @@ namespace msServiceProfiler {
         TouchConfigPath();
         auto configJson = ReadConfig();
         ReadEnable(configJson);
+        ReadAclTaskTime(configJson);
         ReadProfPath(configJson);
         ReadLevel(configJson);
         ReadCollectConfig(configJson);
@@ -506,6 +507,7 @@ namespace msServiceProfiler {
             PROF_LOGD("Profiler Enabled...");
             ReadProfPath(configJson);
             ReadEnable(configJson);
+            ReadAclTaskTime(configJson);
             ReadLevel(configJson);
             ReadCollectConfig(configJson);
             StartServerProfiler();
