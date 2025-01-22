@@ -85,7 +85,7 @@ namespace msServiceProfiler {
         void TouchConfigPath();
         void AppendProfPathTailByConfigFile();
     private:
-        bool isMaster = true;
+        bool isMaster_ = true;
         bool enable_ = false;
         bool started_ = false;
         std::string configPath_;
