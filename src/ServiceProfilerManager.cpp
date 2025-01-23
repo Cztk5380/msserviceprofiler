@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <semaphore.h>
-#include <time.h>
+#include <utime.h>
 #include <fcntl.h>
 
 #include <algorithm>
@@ -21,7 +21,6 @@
 #include <vector>
 #include <map>
 #include <cmath>
-#include <sys/utime.h>
 
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
@@ -311,9 +310,6 @@ namespace msServiceProfiler {
                     PROF_LOGW("Unknown profiler_level. Use the default profiler level.");
                 }
             }
-            return true;
-        } else {
-            return false;
         }
     }
 
@@ -360,7 +356,7 @@ namespace msServiceProfiler {
                 sem_unlink(exitSemNameWaitTime.c_str());
             });
         } else {
-            sem_t* semaphore_wait = sem_open(semNameWaitTime.c_str(), _O_RDONLY);
+            sem_t* semaphore_wait = sem_open(semNameWaitTime.c_str(), 0);
             if (semaphore_wait != SEM_FAILED) {
                 // 等 Master touch 配置文件，最多等一秒钟
                 struct timespec ts;
