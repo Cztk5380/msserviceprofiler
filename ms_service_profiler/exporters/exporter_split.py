@@ -122,6 +122,11 @@ def process_req_record(req_map, record):
     # 处理rid_list和token_id_list
     rid_list = record.get('rid_list')
     token_id_list = record.get('token_id_list')
+    process_rid_token_list(req_map, rid_list, token_id_list, record)
+
+
+def process_rid_token_list(req_map, rid_list, token_id_list, record):
+
     if not is_contained_vaild_iter_info(rid_list, token_id_list):
         return
 
@@ -167,7 +172,11 @@ def gen_exporter_results(all_data_df):
 
     # 获取req_view数据
     first_token_latency = [req["first_token_latency"] for req in req_view]
-    subsequent_token_latency = [latency for req in req_view for latency in req["subsequent_token_latency"]]
+    subsequent_token_latency = [
+        latency
+        for req in req_view
+        for latency in req["subsequent_token_latency"]
+    ]
     total_time = [req["total_time"] for req in req_view]
     exec_time = [req["exec_time"] for req in req_view]
     waiting_time = [req["waiting_time"] for req in req_view]
@@ -248,23 +257,18 @@ def calculate_request_metrics(req_map):
         "generate_token_speed (token/s)": 0,
         "generate_all_token_speed (token/s)": 0
     }
-    first_request_start_time = None
-    last_request_end_time = None
+    first_request_start_time, last_request_end_time = None, None
     for req_id, req_data in req_map.items():
-        first_token_latency = round(req_data["first_token_latency"] / 1000, 4)
-        exec_time = round(req_data["exec_time"] / 1000, 4)
         input_token_num = req_data["input_token_num"]
         generated_token_num = req_data["generated_token_num"]
         # 从字典取出数据
         record = {
             "req_id": req_id,
-            "first_token_latency": first_token_latency,
-            "exec_time": exec_time,
+            "first_token_latency": round(req_data["first_token_latency"] / 1000, 4),
+            "exec_time": round(req_data["exec_time"] / 1000, 4),
             "input_token_num": input_token_num,
             "generated_token_num": generated_token_num
         }
-        # 首Token时延 first_token_latency：已经计算好了就是字典中的first_token_latency
-
         # 非首Token时延 subsequent_token_latency：当前Token.endtime - 前一个Token.endtime
         token_id = req_data["token_id"]
         subsequent_token_latency = []
@@ -272,18 +276,14 @@ def calculate_request_metrics(req_map):
         for i in range(1, len(sorted_tokens)):
             current_token_time = parse_time(sorted_tokens[i][1])
             previous_token_time = parse_time(sorted_tokens[i - 1][1])
-            latency = (current_token_time - previous_token_time).total_seconds() * 1000  # 转换为毫秒
-            # 保留一位小数
-            rounded_latency = round(latency, 4)
-            subsequent_token_latency.append(rounded_latency)
+            latency = round((current_token_time - previous_token_time).total_seconds() * 1000, 4)  # 转换为毫秒
+            subsequent_token_latency.append(latency)
         record["subsequent_token_latency"] = subsequent_token_latency
 
         # 总时长 total_time：httpRes.endtime - httpReq.start_time
         total_time = (parse_time(req_data["httpRes_end"]) - parse_time(req_data["httpReq_start"]))
         total_time = total_time.total_seconds() * 1000
         record["total_time"] = total_time
-
-        # 执行总时长 exec_time：计算完毕，字典中的exec_time
 
         # 队列等待时长 waiting_time：字典中的req_pending_time + req_waiting_time
         waiting_time = req_data["req_pending_time"] + req_data["req_waiting_time"]
@@ -303,9 +303,6 @@ def calculate_request_metrics(req_map):
             last_request_end_time = current_end_time
 
         # 计算 total_exec_time
-        # total_map["total_exec_time"] = (last_request_end_time - first_request_start_time).total_seconds() * 1e6
-        # total_map["total_exec_time"] = (last_request_end_time - first_request_start_time).total_seconds()
-        # total_map["total_exec_time"] = round(total_map["total_exec_time"], 4)
         total_exec_time = round((last_request_end_time - first_request_start_time).total_seconds(), 4)
 
         # 计算 generate_token_speed 和 generate_all_token_speed
@@ -321,41 +318,40 @@ def calculate_request_metrics(req_map):
 
 
 def save_dataframe_to_csv(map_data, output, file_name, include_stats=1):
-    """
-    格式化存入csv，若include_status=0，不计算avg等指标
-    """
-    if output is not None:
-        output_path = Path(output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path = output_path / file_name
-        # 将 map_data 转换为 DataFrame
-        data = []
-        for metric, values in map_data.items():
-            if include_stats == 1:
-                # 包含统计值
-                row = {
-                    "Metric": metric,
-                    "average": values["avg"],
-                    "max": values["max"],
-                    "min": values["min"],
-                    "P50": values["p50"],
-                    "P90": values["p90"],
-                    "P99": values["p99"]
-                }
-            else:
-                # 不包含统计值，只记录特定字段
-                if metric == "generate_token_speed (token/s)":
-                    value = format(values, ".8f")
-                else:
-                    value = values
-                row = {
-                        "Metric": metric,
-                        "value": value
-                    }
-            data.append(row)
+    if output is None:
+        return  # 提前返回，减少嵌套
 
-        df = pd.DataFrame(data)
-        df.to_csv(file_path, index=False)
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path = output_path / file_name
+
+    # 将 map_data 转换为 DataFrame
+    df = convert_map_to_dataframe(map_data, include_stats)
+
+    # 保存到 CSV
+    df.to_csv(file_path, index=False)
+
+
+def convert_map_to_dataframe(map_data, include_stats):
+    data = []
+    for metric, values in map_data.items():
+        if include_stats == 1:
+            # 包含统计值
+            row = {
+                "Metric": metric,
+                "average": values["avg"],
+                "max": values["max"],
+                "min": values["min"],
+                "P50": values["p50"],
+                "P90": values["p90"],
+                "P99": values["p99"]
+            }
+        else:
+            # 不包含统计值，只记录特定字段
+            value = format(values, ".8f") if metric == "generate_token_speed (token/s)" else values
+            row = {"Metric": metric, "value": value}
+        data.append(row)
+    return pd.DataFrame(data)
 
 
 def parse_time(time_str):
