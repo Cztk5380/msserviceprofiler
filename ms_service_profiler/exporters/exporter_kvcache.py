@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 
 from ms_service_profiler.exporters.base import ExporterBase
-from ms_service_profiler.parse import save_dataframe_to_csv
+from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.exporters.utils import create_sqlite_db, add_table_into_visual_db
 from ms_service_profiler.utils.log import logger
 
@@ -146,6 +146,7 @@ class ExporterKVCacheData(ExporterBase):
         output = cls.args.output_path
         save_dataframe_to_csv(kvcache_df, output, "kvcache.csv")
         kvcache_df['start_datetime'] = start_datetime_data
+        # kvcache_df.loc[:, 'real_start_time'] = start_datetime_data
         kvcache_df = kvcache_df.rename(columns={
         'start_datetime': 'real_start_time'
         })
