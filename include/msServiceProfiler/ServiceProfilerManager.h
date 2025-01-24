@@ -60,31 +60,48 @@ namespace msServiceProfiler {
 
         MS_SERVICE_PROFILER_API void StopProfiler();
 
-        std::string static ToSemName(const std::string& oriSemName);
+        static std::string ToSemName(const std::string &oriSemName);
 
-        std::string& GetConfigPath() {
+        std::string &GetConfigPath()
+        {
             return configPath_;
         }
+
     private:
         ServiceProfilerManager();
+
         ~ServiceProfilerManager();
 
         json ReadConfig();
+
         void ReadEnable(const json &config);
+
         void ReadProfPath(const json &config);
+
         void ReadLevel(const json &config);
+
         void ReadAclTaskTime(const json &config);
+
         bool ReadCollectConfig(const json &config);
+
         bool ReadHostConfig(const json &config);
+
         bool ReadNpuConfig(const json &config);
+
         void SetAclProfHostSysConfig();
+
         void DynamicControl();
+
         void LaunchThread();
+
         void ThreadFunction();
 
         void ReadConfigPath();
+
         void MarkFirstProcessAsMain();
-        void InitProfPathDateTail(bool forceReinit=false);
+
+        void InitProfPathDateTail(bool forceReinit = false);
+
     private:
         bool isMaster_ = true;
         bool enable_ = false;
