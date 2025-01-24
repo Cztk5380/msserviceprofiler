@@ -60,12 +60,14 @@ namespace msServiceProfiler {
 
         MS_SERVICE_PROFILER_API void StopProfiler();
 
-        MS_SERVICE_PROFILER_API std::string& GetConfigPath() {
+        std::string static ToSemName(const std::string& oriSemName);
+
+        std::string& GetConfigPath() {
             return configPath_;
         }
-
     private:
         ServiceProfilerManager();
+        ~ServiceProfilerManager();
 
         json ReadConfig();
         void ReadEnable(const json &config);
@@ -82,8 +84,7 @@ namespace msServiceProfiler {
 
         void ReadConfigPath();
         void MarkFirstProcessAsMain();
-        void TouchConfigPath();
-        void AppendProfPathTailByConfigFile();
+        void InitProfPathDateTail(bool forceReinit=false);
     private:
         bool isMaster_ = true;
         bool enable_ = false;

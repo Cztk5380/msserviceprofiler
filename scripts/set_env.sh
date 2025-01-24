@@ -9,3 +9,4 @@ export PYTHONPATH=$PYTHONPATH:$SHELL_DIR/../python
 export MS_SERVER_PROFILER_INLUDE_DIR=$SHELL_DIR/../include
 export MS_SERVER_PROFILER_LIB_DIR=$SHELL_DIR/../lib
 
+# export SERVICE_PROF_CONFIG_PATH=./default_config.json

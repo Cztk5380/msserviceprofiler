@@ -4,11 +4,11 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <semaphore.h>
 #include <utime.h>
 #include <fcntl.h>
-
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -21,10 +21,12 @@
 #include <vector>
 #include <map>
 #include <cmath>
+#include <csignal>
 
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
 #include "mstx/ms_tools_ext.h"
+#include "securec.h"
 
 #include "../include/msServiceProfiler/NpuMemoryUsage.h"
 #include "../include/msServiceProfiler/Profiler.h"
@@ -57,18 +59,15 @@ std::atomic<bool> g_threadRunFlag(true);
         printf("\n");        \
     } while (0)
 
-SpanHandle StartSpan()
-{
+SpanHandle StartSpan() {
     return mstxRangeStartA("", nullptr);
 }
 
-SpanHandle StartSpanWithName(const char *name)
-{
+SpanHandle StartSpanWithName(const char *name) {
     return mstxRangeStartA(name, nullptr);
 }
 
-void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
-{
+void MarkSpanAttr(const char *msg, SpanHandle spanHandle) {
     std::string spanTag;
     spanTag.reserve(MAX_TX_MSG_LEN);
     spanTag.append("span=").append(std::to_string(spanHandle)).append("*");
@@ -87,43 +86,36 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
     }
 }
 
-void EndSpan(SpanHandle spanHandle)
-{
+void EndSpan(SpanHandle spanHandle) {
     mstxRangeEnd(spanHandle);
 }
 
-void MarkEventLongAttr(const char *msg)
-{
+void MarkEventLongAttr(const char *msg) {
     auto spanHandle = StartSpan();
     MarkSpanAttr(msg, spanHandle);
 }
 
-void MarkEvent(const char *msg)
-{
+void MarkEvent(const char *msg) {
     if (strlen(msg) > MAX_TX_MSG_LEN) {
         MarkEventLongAttr(msg);
     }
     mstxMarkA(msg, nullptr);
 }
 
-void StartServerProfiler()
-{
+void StartServerProfiler() {
     msServiceProfiler::ServiceProfilerManager::GetInstance().StartProfiler();
 }
 
-void StopServerProfiler()
-{
+void StopServerProfiler() {
     msServiceProfiler::ServiceProfilerManager::GetInstance().StopProfiler();
 }
 
-bool IsEnable(uint32_t level)
-{
+bool IsEnable(uint32_t level) {
     return msServiceProfiler::ServiceProfilerManager::GetInstance().IsEnable(level);
 }
 
 namespace msServiceProfiler {
-    static inline std::string TrimStr(const std::string &str)
-    {
+    static inline std::string TrimStr(const std::string &str) {
         auto start = str.find_first_not_of(" \t\n\v\f\r");
         if (start == std::string::npos) {
             return "";
@@ -132,14 +124,12 @@ namespace msServiceProfiler {
         return str.substr(start, end - start + 1);
     }
 
-    static inline unsigned long Str2Uint(const std::string &str)
-    {
+    static inline unsigned long Str2Uint(const std::string &str) {
         char *endPtr;
         return std::strtoul(str.c_str(), &endPtr, STRING_TO_UINT_BASE);
     }
 
-    static inline std::pair<std::string, std::string> SplitStr(const std::string &str, char splitChar)
-    {
+    static inline std::pair<std::string, std::string> SplitStr(const std::string &str, char splitChar) {
         auto start = str.find_first_of(splitChar);
         if (start == std::string::npos) {
             return {"", ""};
@@ -148,8 +138,7 @@ namespace msServiceProfiler {
         }
     }
 
-    bool MakeDirs(const std::string &dirPath)
-    {
+    bool MakeDirs(const std::string &dirPath) {
         if (access(dirPath.c_str(), F_OK) == 0) {
             return true;
         }
@@ -169,17 +158,15 @@ namespace msServiceProfiler {
         return true;
     }
 
-    ServiceProfilerManager &ServiceProfilerManager::GetInstance()
-    {
+    ServiceProfilerManager &ServiceProfilerManager::GetInstance() {
         static ServiceProfilerManager manager;
         return manager;
     }
 
-    ServiceProfilerManager::ServiceProfilerManager()
-    {
+    ServiceProfilerManager::ServiceProfilerManager() {
         ReadConfigPath();
         MarkFirstProcessAsMain();
-        TouchConfigPath();
+        InitProfPathDateTail();
         auto configJson = ReadConfig();
         ReadEnable(configJson);
         ReadAclTaskTime(configJson);
@@ -197,56 +184,69 @@ namespace msServiceProfiler {
         LaunchThread();
     }
 
+    ServiceProfilerManager::~ServiceProfilerManager() {
+        std::string &exitSemName = GetConfigPath();
+        if (!exitSemName.empty()) {
+            std::cout << exitSemName << std::endl;
+            std::cout << ServiceProfilerManager::ToSemName(exitSemName) << std::endl;
+            shm_unlink(ServiceProfilerManager::ToSemName(exitSemName).c_str());
+        }
+    }
+
 
     void ServiceProfilerManager::ReadConfigPath() {
         configPath_ = getenv("SERVICE_PROF_CONFIG_PATH") ? getenv("SERVICE_PROF_CONFIG_PATH") : "";
         if (configPath_.empty()) {
             configPath_ = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
+            if (access(configPath_.c_str(), F_OK) != 0) {
+                configPath_ = "";
+            }
         }
     }
 
 
-    json ServiceProfilerManager::ReadConfig()
-    {
+    json ServiceProfilerManager::ReadConfig() {
         json jsonData;
-        if (!configPath_.empty() && access(configPath_.c_str(), F_OK) == 0) {
-            std::ifstream configFile; // 单独创建 std::ifstream 对象
-
-            try {
-                configFile.open(configPath_);
-                if (!configFile.good()) {
-                    PROF_LOGE("fail to open: %s", configPath_.c_str());
-                    return jsonData;
-                }
-            } catch (const std::exception &e) {
-                PROF_LOGE("fail to open config file: %s, error: %s",
-                          configPath_.c_str(), e.what());
-                return jsonData;
-            }
-
-            try {
-                configFile >> jsonData; // 尝试解析 JSON 数据
-            } catch (const std::exception &e) {
-                PROF_LOGE("fail to parse file content as json object, config path: %s, error: %s",
-                          configPath_.c_str(), e.what());
-                configFile.close(); // 确保文件关闭
-                return jsonData;
-            }
-
-            configFile.close(); // 成功解析后关闭文件
-            if (jsonData.empty()) {
-                PROF_LOGE("paresd json object is empty, config path: %s", configPath_.c_str());
-                return jsonData;
-            }
-            return jsonData;
-        } else {
-            PROF_LOGE("PROF_CONFIG_PATH : %s is empty or Permission Denied", configPath_.c_str());
+        if (configPath_.empty()) {
             return jsonData;
         }
+        if (access(configPath_.c_str(), F_OK) != 0) {
+            PROF_LOGE("SERVICE_PROF_CONFIG_PATH : %s is not file or Permission Denied", configPath_.c_str());
+            return jsonData;
+        }
+
+        std::ifstream configFile; // 单独创建 std::ifstream 对象
+        try {
+            configFile.open(configPath_);
+            if (!configFile.good()) {
+                PROF_LOGE("fail to open: %s", configPath_.c_str());
+                return jsonData;
+            }
+        } catch (const std::exception &e) {
+            PROF_LOGE("fail to open config file: %s, error: %s",
+                      configPath_.c_str(), e.what());
+            return jsonData;
+        }
+
+        try {
+            configFile >> jsonData; // 尝试解析 JSON 数据
+        } catch (const std::exception &e) {
+            PROF_LOGE("fail to parse file content as json object, config path: %s, error: %s",
+                      configPath_.c_str(), e.what());
+            configFile.close(); // 确保文件关闭
+            return jsonData;
+        }
+
+        configFile.close(); // 成功解析后关闭文件
+        if (jsonData.empty()) {
+            PROF_LOGE("paresd json object is empty, config path: %s", configPath_.c_str());
+            return jsonData;
+        }
+        return jsonData;
+
     }
 
-    void ServiceProfilerManager::ReadEnable(const json &config)
-    {
+    void ServiceProfilerManager::ReadEnable(const json &config) {
         if (config.contains("enable")) {
             enable_ = config["enable"] == 1;
         } else {
@@ -254,8 +254,7 @@ namespace msServiceProfiler {
         }
     }
 
-    void ServiceProfilerManager::ReadProfPath(const json &config)
-    {
+    void ServiceProfilerManager::ReadProfPath(const json &config) {
         if (config.contains("prof_dir")) {
             profPath_ = config["prof_dir"];
             if (profPath_.back() != '/') {
@@ -266,12 +265,11 @@ namespace msServiceProfiler {
             profPath_.append(homePath).append("/.ms_server_profiler/");
         }
 
-        AppendProfPathTailByConfigFile();
+        profPath_.append(profPathDateTail_);
     }
 
-    void ServiceProfilerManager::ReadAclTaskTime(const json &config)
-    {
-        if (config.contains("acl_task_time") ) {
+    void ServiceProfilerManager::ReadAclTaskTime(const json &config) {
+        if (config.contains("acl_task_time")) {
             if (config["acl_task_time"].is_number_integer()) {
                 enableAclTaskTime_ = config["acl_task_time"] == 1;
                 return;
@@ -282,14 +280,13 @@ namespace msServiceProfiler {
         enableAclTaskTime_ = false;
     }
 
-    void ServiceProfilerManager::ReadLevel(const json &config)
-    {
+    void ServiceProfilerManager::ReadLevel(const json &config) {
         level_ = Level::INFO;
         static const std::map<std::string, Level> enumMap = {
-            {"ERROR", Level::ERROR},
-            {"INFO", Level::INFO},
-            {"DETAILED", Level::DETAILED},
-            {"VERBOSE", Level::VERBOSE},
+                {"ERROR",    Level::ERROR},
+                {"INFO",     Level::INFO},
+                {"DETAILED", Level::DETAILED},
+                {"VERBOSE",  Level::VERBOSE},
         };
 
         if (config.contains("profiler_level")) {
@@ -313,100 +310,89 @@ namespace msServiceProfiler {
         }
     }
 
+    std::string ServiceProfilerManager::ToSemName(const std::string &oriSemName) {
+        std::string semName = "/";
+        semName.append(oriSemName);
+        std::replace(++semName.begin(), semName.end(), '/', '#');
+        return std::move(semName);
+    }
 
+    void ServiceProfilerManager::MarkFirstProcessAsMain() {
+        const size_t MMAP_SIZE = 1024; // 共享内存对象的大小
+        const size_t INFO_MAX_SIZE = 128; // 内存中信息的最大大小
 
-    void ServiceProfilerManager::MarkFirstProcessAsMain()
-    {
-        std::string& semNameTouchTime = msServiceProfiler::ServiceProfilerManager::GetInstance().GetConfigPath();
-        sem_t* semaphore = sem_open(semNameTouchTime.c_str(), O_CREAT, 0600, 1);
-        if (semaphore == SEM_FAILED) {
+        std::string &semNameTouchTime = GetConfigPath();
+
+        if (semNameTouchTime.empty()) {
             return;
         }
 
-        if (sem_trywait(semaphore) == -1) {
-            isMaster_ = false;
+        int shm_fd = shm_open(ToSemName(semNameTouchTime).c_str(), O_CREAT | O_RDWR, 0666);
+        if (shm_fd == -1) {
+            PROF_LOGW("shm_open failed");
+            return;
         }
-        sem_close(semaphore);
-        // 在程序退出时删除信号量
-        std::atexit([]() {
-            sem_unlink(msServiceProfiler::ServiceProfilerManager::GetInstance().GetConfigPath().c_str());
-        });
-    }
 
-    void ServiceProfilerManager::TouchConfigPath()
-    {
-        std::string& semNameTouchTime = msServiceProfiler::ServiceProfilerManager::GetInstance().GetConfigPath();
-        std::string semNameWaitTime = semNameTouchTime + "Wait";
+        // 设置共享内存对象的大小
+        if (ftruncate(shm_fd, MMAP_SIZE) == -1) {
+            PROF_LOGW("ftruncate failed");
+            return;
+        }
+
+        // 将共享内存对象映射到进程地址空间
+        void *mmapPtr = mmap(0, MMAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        if (mmapPtr == MAP_FAILED) {
+            PROF_LOGW("mmap failed");
+            close(shm_fd);
+            return;
+        }
+        char *pInfoStr = static_cast<char *>(mmapPtr);
+        std::string infoStr(pInfoStr, INFO_MAX_SIZE);
+
+        auto splitInfo = SplitStr(infoStr.c_str(), ',');  // 格式为： pid,目录。所以使用逗号分隔开
+        if (!splitInfo.first.empty()) {
+            pid_t pid = Str2Uint(splitInfo.first); // 检查的进程 PID, 如果存在，就将和它放到一个目录中
+            if (kill(pid, 0) == 0) {
+                isMaster_ = false;
+                profPathDateTail_ = splitInfo.second;
+                PROF_LOGD("is not Master");
+            }
+        }
+
         if (isMaster_) {
-            // mod config file
-            struct utimbuf new_times{};
-            new_times.actime = time(nullptr);      // set as now
-            new_times.modtime = time(nullptr);     // set as now
-
-            if (utime(configPath_.c_str(), &new_times) != 0) {
-                PROF_LOGW("change config file mod time failed");
-            }
-            sem_t* semaphore_wait = sem_open(semNameWaitTime.c_str(), O_CREAT, 0600, 10000);
-            if (semaphore_wait != SEM_FAILED) {
-                sem_close(semaphore_wait);
-            }
-            std::atexit([]() {
-                std::string & semName = msServiceProfiler::ServiceProfilerManager::GetInstance().GetConfigPath();
-                std::string exitSemNameWaitTime = semName + "Wait";
-                sem_unlink(exitSemNameWaitTime.c_str());
-            });
-        } else {
-            sem_t* semaphore_wait = sem_open(semNameWaitTime.c_str(), 0);
-            if (semaphore_wait != SEM_FAILED) {
-                // 等 Master touch 配置文件，最多等一秒钟
-                struct timespec ts;
-                clock_gettime(CLOCK_REALTIME, &ts);
-                ts.tv_sec += 1;
-                if (sem_timedwait(semaphore_wait, &ts) == -1) {
-                    PROF_LOGW("wait semaphore failed");
-                }
-                sem_close(semaphore_wait);
-            }
+            std::string infoOut;
+            InitProfPathDateTail(true);
+            infoOut.append(std::to_string(getpid())).append(",").append(profPathDateTail_);
+            sprintf_s(pInfoStr, INFO_MAX_SIZE, "%s", infoOut.c_str());
         }
+        close(shm_fd);
     }
 
-    void ServiceProfilerManager::AppendProfPathTailByConfigFile()
-    {
-        tm *ltm = nullptr;
-        if (!configPath_.empty() && access(configPath_.c_str(), F_OK) == 0) {
-            struct stat attr;
-            if (stat(configPath_.c_str(), &attr) == 0) {
-                ltm = std::localtime(&attr.st_mtime);
-            }
-        }
-        if (ltm == nullptr) {
+    void ServiceProfilerManager::InitProfPathDateTail(bool forceReinit) {
+        const size_t TAIL_MAX_SIZE = 32; // 目录的最大大小
+
+        if (profPathDateTail_.empty() || forceReinit) {
             time_t now = time(nullptr);
-            ltm = std::localtime(&now);
+            auto ltm = std::localtime(&now);
+            char pStrDateTail[TAIL_MAX_SIZE + 1] = {0};  // 多申请一点，保证安全
+            sprintf_s(pStrDateTail, TAIL_MAX_SIZE, "%02d%02d-%02d%02d/",
+                      ltm->tm_mon + 1, ltm->tm_mday, ltm->tm_hour, ltm->tm_min);
+            profPathDateTail_ = pStrDateTail;
         }
-
-        profPath_.append(std::to_string(ltm->tm_mon + 1))
-                .append(std::to_string(ltm->tm_mday))
-                .append("-")
-                .append(std::to_string(ltm->tm_hour))
-                .append(std::to_string(ltm->tm_min))
-                .append("/");
     }
 
-    void ServiceProfilerManager::LaunchThread()
-    {
+    void ServiceProfilerManager::LaunchThread() {
         auto t = std::thread(&ServiceProfilerManager::ThreadFunction, this);
         t.detach();
     }
 
-    bool ServiceProfilerManager::ReadCollectConfig(const json &config)
-    {
+    bool ServiceProfilerManager::ReadCollectConfig(const json &config) {
         bool retHost = ReadHostConfig(config);
         bool retNpu = ReadNpuConfig(config);
         return retHost && retNpu;
     }
 
-    bool ServiceProfilerManager::ReadHostConfig(const json &config)
-    {
+    bool ServiceProfilerManager::ReadHostConfig(const json &config) {
         bool ret = true;
         if (config.contains("host_system_usage_freq")) {
             try {
@@ -417,17 +403,17 @@ namespace msServiceProfiler {
                     hostMemoryUsage_ = true;
                 } else {
                     PROF_LOGE(
-                        "host_system_usage_freq must be between %d and %d, "
-                        "will not collect host cpu or host memory usage.",
-                        hostFreqMin_,
-                        hostFreqMax_);
+                            "host_system_usage_freq must be between %d and %d, "
+                            "will not collect host cpu or host memory usage.",
+                            hostFreqMin_,
+                            hostFreqMax_);
                     hostCpuUsage_ = false;
                     hostMemoryUsage_ = false;
                     ret = false;
                 }
             } catch (const std::exception &e) {
                 PROF_LOGE("fail to convert host_system_usage_freq config to uint,"
-                        "will not collect host cpu or host memory usage.");
+                          "will not collect host cpu or host memory usage.");
                 hostCpuUsage_ = false;
                 hostMemoryUsage_ = false;
                 ret = false;
@@ -438,8 +424,7 @@ namespace msServiceProfiler {
         return ret;
     }
 
-    bool ServiceProfilerManager::ReadNpuConfig(const json &config)
-    {
+    bool ServiceProfilerManager::ReadNpuConfig(const json &config) {
         bool ret = true;
         if (config.contains("npu_memory_usage_freq")) {
             try {
@@ -449,9 +434,9 @@ namespace msServiceProfiler {
                     npuMemoryUsage_ = true;
                 } else {
                     PROF_LOGE(
-                        "npu_memory_usage_freq must be between %d and %d, will not collect npu memory usage.",
-                        npuMemoryFreqMin_,
-                        npuMemoryFreqMax_);
+                            "npu_memory_usage_freq must be between %d and %d, will not collect npu memory usage.",
+                            npuMemoryFreqMin_,
+                            npuMemoryFreqMax_);
                     npuMemoryUsage_ = false;
                     ret = false;
                 }
@@ -468,20 +453,18 @@ namespace msServiceProfiler {
     }
 
     // Funtion that write info to tx
-    void Write2Tx(const std::vector<int> &memoryInfo, const std::string metricName)
-    {
+    void Write2Tx(const std::vector<int> &memoryInfo, const std::string metricName) {
         for (long unsigned int i = 0; i < memoryInfo.size(); i++) {
             msServiceProfiler::Profiler<msServiceProfiler::INFO>()
-                .Domain("npu")
-                .Metric(metricName.c_str(), memoryInfo[i])
-                .MetricScope("device", i)
-                .Launch();
+                    .Domain("npu")
+                    .Metric(metricName.c_str(), memoryInfo[i])
+                    .MetricScope("device", i)
+                    .Launch();
         }
     }
 
     // Dynamic Control according to config file modification
-    void ServiceProfilerManager::DynamicControl()
-    {
+    void ServiceProfilerManager::DynamicControl() {
         if (configPath_.empty()) {
             return;
         }
@@ -501,10 +484,11 @@ namespace msServiceProfiler {
         auto enable_from_config = configJson["enable"] == 1;
         if (enable_from_config and !enable_) {
             PROF_LOGD("Profiler Enabled...");
-            ReadProfPath(configJson);
             ReadEnable(configJson);
             ReadAclTaskTime(configJson);
             ReadLevel(configJson);
+            ReadProfPath(configJson);
+            ReadAclTaskTime(configJson);
             ReadCollectConfig(configJson);
             StartServerProfiler();
             PROF_LOGD("Profiler Enabled Successfully!");
@@ -518,8 +502,7 @@ namespace msServiceProfiler {
     }
 
     // 线程函数：npu usage and dynamic monitor
-    void ServiceProfilerManager::ThreadFunction()
-    {
+    void ServiceProfilerManager::ThreadFunction() {
         msServiceProfiler::NpuMemoryUsage npuMemoryUsage = msServiceProfiler::NpuMemoryUsage();
         npuMemoryUsage.InitDcmiCardAndDevices();
         while (g_threadRunFlag) {
@@ -536,7 +519,7 @@ namespace msServiceProfiler {
                         Write2Tx(memoryUtiliza, "utiliza");
                     }
                 }
-            } catch (std::exception& e) {
+            } catch (std::exception &e) {
                 PROF_LOGD("get npu memory usage failed");
             }
 
@@ -544,8 +527,7 @@ namespace msServiceProfiler {
         }
     }
 
-    void ServiceProfilerManager::SetAclProfHostSysConfig()
-    {
+    void ServiceProfilerManager::SetAclProfHostSysConfig() {
         std::string hostProfString = "";
 
         // 根据条件设置 hostProfString 的值
@@ -560,12 +542,11 @@ namespace msServiceProfiler {
         aclprofSetConfig(ACL_PROF_HOST_SYS, hostProfString.c_str(), strlen(hostProfString.c_str()));
         aclprofSetConfig(ACL_PROF_HOST_SYS_USAGE, hostProfString.c_str(), strlen(hostProfString.c_str()));
         aclprofSetConfig(ACL_PROF_HOST_SYS_USAGE_FREQ,
-            std::to_string(hostFreq_).c_str(),
-            strlen(std::to_string(hostFreq_).c_str()));
+                         std::to_string(hostFreq_).c_str(),
+                         strlen(std::to_string(hostFreq_).c_str()));
     }
 
-    void ServiceProfilerManager::StartProfiler()
-    {
+    void ServiceProfilerManager::StartProfiler() {
         if (started_) {
             return;
         }
@@ -618,14 +599,13 @@ namespace msServiceProfiler {
         started_ = true;
     }
 
-    void ServiceProfilerManager::StopProfiler()
-    {
+    void ServiceProfilerManager::StopProfiler() {
         if (!started_) {
             return;
         }
         enable_ = false;
 
-        auto config_ = (aclprofConfig *)configHandle_;
+        auto config_ = (aclprofConfig *) configHandle_;
 
         auto ret = aclprofStop(config_);
         if (ret != ACL_ERROR_NONE) {
