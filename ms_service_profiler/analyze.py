@@ -31,14 +31,13 @@ def main():
         help='Log level to print')
 
     args = parser.parse_args()
-    args.split = 'on'
 
     # 初始化日志等级
     set_log_level(args.log_level)
 
     # 初始化Exporter
-    exporters = ExporterFactory.create_exporters(args)
-    
+    exporters = [ExporterFactory.create_summary_exporter(args)]
+
     # 创建output目录
     Path(args.output_path).mkdir(parents=True, exist_ok=True)
 

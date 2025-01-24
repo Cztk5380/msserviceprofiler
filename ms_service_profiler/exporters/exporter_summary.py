@@ -15,9 +15,9 @@ def is_contained_vaild_iter_info(rid_list, token_id_list):
 
 
 def print_warning_log(log_name):
-    if not ExporterSplit.get_err_log_flag(log_name):
+    if not ExporterSummary.get_err_log_flag(log_name):
         logger.warning(f"The '{log_name}' field info is missing, please check.")
-        ExporterSplit.set_err_log_flag(log_name, True)
+        ExporterSummary.set_err_log_flag(log_name, True)
 
 
 def process_each_record(req_map, batch_map, record):
@@ -66,17 +66,27 @@ def process_req_record(req_map, record):
 
     if name == 'httpReq':
         req_map[rid] = {
-            'httpReq_start': record.get('start_datetime'),
+            'httpReq_start': record.get('start_time'),
             'token_id': {},  # 初始化 token_id 字典
             'req_waiting_time': 0.0,
-            'req_pending_time': 0.0
+            'req_pending_time': 0.0,
+            'is_complete': False
         }
+        return
+
+    if name == 'httpRes':
+        # 只有 httpRes 时，检查是否有对应的 httpReq
+        if rid in req_map:
+            req_map[rid]['httpRes_end'] = record.get('end_time')
+            req_map[rid]['is_complete'] = True  # 标记为完整
+        else:
+            # 如果没有对应的 httpReq，直接丢弃
+            logger.warning(f"Missing httpReq for httpRes with rid={rid}.")
         return
 
     if req_map.get(rid) is not None:
         if name == 'httpRes':
-            req_map[rid]['httpRes_end'] = record.get('end_datetime')
-        req_map[rid]['req_exec_time'] = record.get('end_time')
+            req_map[rid]['httpRes_end'] = record.get('end_time')
 
     # 队列waiting时长
     if req_wait_status == 1:
@@ -111,14 +121,12 @@ def process_rid_token_list(req_map, rid_list, token_id_list, record):
             print_warning_log('httpReq')
             continue
 
-        req_map[req_rid]['req_exec_time'] = record.get('end_time')
-
         cur_iter = token_id_list[i]
         if cur_iter is None:
             print_warning_log('token_id_list')
             continue
 
-        req_map[req_rid]['token_id'][str(cur_iter)] = record.get('end_datetime')
+        req_map[req_rid]['token_id'][str(cur_iter)] = record.get('end_time')
 
         # 首token时延
         if cur_iter == 0:
@@ -249,15 +257,15 @@ def calculate_request_metrics(req_map):
         subsequent_token_latency = []
         sorted_tokens = sorted(token_id.items(), key=lambda x: int(x[0]))  # 按Token ID排序
         for i in range(1, len(sorted_tokens)):
-            current_token_time = parse_time(sorted_tokens[i][1])
-            previous_token_time = parse_time(sorted_tokens[i - 1][1])
-            latency = round((current_token_time - previous_token_time).total_seconds() * 1000, 4)  # 转换为毫秒
+            current_token_time = sorted_tokens[i][1]
+            previous_token_time = sorted_tokens[i - 1][1]
+            latency = round((current_token_time - previous_token_time) / 1000, 4)  # 转换为毫秒
             subsequent_token_latency.append(latency)
         record["subsequent_token_latency"] = subsequent_token_latency
 
         # 总时长 total_time：httpRes.endtime - httpReq.start_time
-        total_time = (parse_time(req_data["httpRes_end"]) - parse_time(req_data["httpReq_start"]))
-        total_time = total_time.total_seconds() * 1000
+        total_time = req_data["httpRes_end"] - req_data["httpReq_start"]
+        total_time = total_time / 1000
         record["total_time"] = total_time
 
         # 队列等待时长 waiting_time：字典中的req_pending_time + req_waiting_time
@@ -270,15 +278,15 @@ def calculate_request_metrics(req_map):
         total_map["total_generated_token_num"] += generated_token_num
 
         # 更新第一个请求的开始时间和最后一个请求的结束时间
-        current_start_time = parse_time(req_data["httpReq_start"])
-        current_end_time = parse_time(req_data["httpRes_end"])
+        current_start_time = req_data["httpReq_start"]
+        current_end_time = req_data["httpRes_end"]
         if first_request_start_time is None or current_start_time < first_request_start_time:
             first_request_start_time = current_start_time
         if last_request_end_time is None or current_end_time > last_request_end_time:
             last_request_end_time = current_end_time
 
         # 计算 total_exec_time
-        total_exec_time = round((last_request_end_time - first_request_start_time).total_seconds(), 4)
+        total_exec_time = round((last_request_end_time - first_request_start_time) / 1000000, 4)
 
         # 计算 generate_token_speed 和 generate_all_token_speed
         if total_exec_time > 0:
@@ -329,12 +337,8 @@ def convert_map_to_dataframe(map_data, include_stats):
     return pd.DataFrame(data)
 
 
-def parse_time(time_str):
-    return pd.to_datetime(time_str, format='%Y-%m-%d %H:%M:%S:%f')
-
-
-class ExporterSplit(ExporterBase):
-    name = "split"
+class ExporterSummary(ExporterBase):
+    name = "summary"
     err_log = {'rid or name': False, 'start_time': False, 'httpReq': False, 'token_id_list': False}
 
     @classmethod
@@ -363,8 +367,8 @@ class ExporterSplit(ExporterBase):
         output = cls.args.output_path
 
         # 格式化存入csv
-        save_dataframe_to_csv(req_status, output, "request_split.csv")
-        save_dataframe_to_csv(batch_status, output, "batch_split.csv")
-        save_dataframe_to_csv(total_map, output, "overall_split.csv", include_stats=0)
+        save_dataframe_to_csv(req_status, output, "request_summary.csv")
+        save_dataframe_to_csv(batch_status, output, "batch_summary.csv")
+        save_dataframe_to_csv(total_map, output, "service_summary.csv", include_stats=0)
 
 

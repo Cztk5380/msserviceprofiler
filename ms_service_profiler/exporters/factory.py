@@ -6,25 +6,30 @@ from ms_service_profiler.exporters.exporter_req_data import ExporterReqData
 from ms_service_profiler.exporters.exporter_batch import ExporterBatchData
 from ms_service_profiler.exporters.exporter_kvcache import ExporterKVCacheData
 from ms_service_profiler.exporters.exporter_latency import ExporterLatency
-from ms_service_profiler.exporters.exporter_split import ExporterSplit
+from ms_service_profiler.exporters.exporter_summary import ExporterSummary
 
 
 # 插件工厂类
 class ExporterFactory:
     exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterReqData, ExporterBatchData, \
-        ExporterKVCacheData, ExporterLatency, ExporterSplit]
+        ExporterKVCacheData, ExporterLatency, ExporterSummary]
 
     @staticmethod
     def create_exporters(args):
         exporters = []
-        if hasattr(args, 'split') and args.split == 'on':
-            enable_exporter = ['split']
-        else:
-            enable_exporter = ['trace', 'req_status', 'req_data', 'batch_data', 'kvcache_data', 'latency']
+        enable_exporter = ['trace', 'req_status', 'req_data', 'batch_data', 'kvcache_data', 'latency']
         for name in enable_exporter:
             exporters.append(ExporterFactory.create(name, args))
         return exporters
-    
+
+    @staticmethod
+    def create_summary_exporter(args):
+        for exporter in ExporterFactory.exporter_cls:
+            if exporter.name == 'summary':
+                exporter.initialize(args)
+                return exporter
+        raise ValueError("ExporterSummary not found.")
+
     @staticmethod
     def create(name, args):
         for exporter in ExporterFactory.exporter_cls:
