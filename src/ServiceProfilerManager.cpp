@@ -259,7 +259,6 @@ namespace msServiceProfiler {
             return jsonData;
         }
         return jsonData;
-
     }
 
     void ServiceProfilerManager::ReadEnable(const json &config)
@@ -303,10 +302,10 @@ namespace msServiceProfiler {
     {
         level_ = Level::INFO;
         static const std::map<std::string, Level> enumMap = {
-                {"ERROR",    Level::ERROR},
-                {"INFO",     Level::INFO},
-                {"DETAILED", Level::DETAILED},
-                {"VERBOSE",  Level::VERBOSE},
+            {"ERROR",    Level::ERROR},
+            {"INFO",     Level::INFO},
+            {"DETAILED", Level::DETAILED},
+            {"VERBOSE",  Level::VERBOSE},
         };
 
         if (config.contains("profiler_level")) {
@@ -340,8 +339,8 @@ namespace msServiceProfiler {
 
     void ServiceProfilerManager::MarkFirstProcessAsMain()
     {
-        const size_t MMAP_SIZE = 1024; // 共享内存对象的大小
-        const size_t INFO_MAX_SIZE = 128; // 内存中信息的最大大小
+        const size_t mmapSize = 1024; // 共享内存对象的大小
+        const size_t infoMaxSize = 128; // 内存中信息的最大大小
 
         std::string &semNameTouchTime = GetConfigPath();
 
@@ -349,27 +348,27 @@ namespace msServiceProfiler {
             return;
         }
 
-        int shm_fd = shm_open(ToSemName(semNameTouchTime).c_str(), O_CREAT | O_RDWR, 0666);
-        if (shm_fd == -1) {
+        int shmFd = shm_open(ToSemName(semNameTouchTime).c_str(), O_CREAT | O_RDWR, 0666);
+        if (shmFd == -1) {
             PROF_LOGW("shm_open failed");
             return;
         }
 
         // 设置共享内存对象的大小
-        if (ftruncate(shm_fd, MMAP_SIZE) == -1) {
+        if (ftruncate(shmFd, mmapSize) == -1) {
             PROF_LOGW("ftruncate failed");
             return;
         }
 
         // 将共享内存对象映射到进程地址空间
-        void *mmapPtr = mmap(0, MMAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        void *mmapPtr = mmap(nullptr, mmapSize, PROT_READ | PROT_WRITE, MAP_SHARED, shmFd, 0);
         if (mmapPtr == MAP_FAILED) {
             PROF_LOGW("mmap failed");
-            close(shm_fd);
+            close(shmFd);
             return;
         }
         char *pInfoStr = static_cast<char *>(mmapPtr);
-        std::string infoStr(pInfoStr, INFO_MAX_SIZE);
+        std::string infoStr(pInfoStr, infoMaxSize);
 
         auto splitInfo = SplitStr(infoStr.c_str(), ',');  // 格式为： pid,目录。所以使用逗号分隔开
         if (!splitInfo.first.empty()) {
@@ -385,20 +384,22 @@ namespace msServiceProfiler {
             std::string infoOut;
             InitProfPathDateTail(true);
             infoOut.append(std::to_string(getpid())).append(",").append(profPathDateTail_);
-            sprintf_s(pInfoStr, INFO_MAX_SIZE, "%s", infoOut.c_str());
+            if (sprintf_s(pInfoStr, infoMaxSize, "%s", infoOut.c_str()) == -1) {
+                PROF_LOGW("cannot write to mmap");
+            }
         }
-        close(shm_fd);
+        close(shmFd);
     }
 
     void ServiceProfilerManager::InitProfPathDateTail(bool forceReinit)
     {
-        const size_t TAIL_MAX_SIZE = 32; // 目录的最大大小
+        const size_t tailMaxSize = 32; // 目录的最大大小
 
         if (profPathDateTail_.empty() || forceReinit) {
             time_t now = time(nullptr);
             auto ltm = std::localtime(&now);
-            char pStrDateTail[TAIL_MAX_SIZE + 1] = {0};  // 多申请一点，保证安全
-            sprintf_s(pStrDateTail, TAIL_MAX_SIZE, "%02d%02d-%02d%02d/",
+            char pStrDateTail[tailMaxSize + 1] = {0};  // 多申请一点，保证安全
+            sprintf_s(pStrDateTail, tailMaxSize, "%02d%02d-%02d%02d/",
                       ltm->tm_mon + 1, ltm->tm_mday, ltm->tm_hour, ltm->tm_min);
             profPathDateTail_ = pStrDateTail;
         }
@@ -461,7 +462,7 @@ namespace msServiceProfiler {
                     npuMemoryUsage_ = true;
                 } else {
                     PROF_LOGE(
-                            "npu_memory_usage_freq must be between %d and %d, will not collect npu memory usage.",
+                            "npu_memory_usage_freq must be between %u and %u, will not collect npu memory usage.",
                             npuMemoryFreqMin_,
                             npuMemoryFreqMax_);
                     npuMemoryUsage_ = false;
@@ -510,8 +511,8 @@ namespace msServiceProfiler {
         }
 
         auto configJson = ReadConfig();
-        auto enable_from_config = configJson["enable"] == 1;
-        if (enable_from_config and !enable_) {
+        auto enableFromConfig = configJson["enable"] == 1;
+        if (enableFromConfig and !enable_) {
             PROF_LOGD("Profiler Enabled...");
             ReadEnable(configJson);
             ReadAclTaskTime(configJson);
@@ -521,7 +522,7 @@ namespace msServiceProfiler {
             ReadCollectConfig(configJson);
             StartServerProfiler();
             PROF_LOGD("Profiler Enabled Successfully!");
-        } else if (!enable_from_config and enable_) {
+        } else if (!enableFromConfig and enable_) {
             PROF_LOGD("Profiler Disabled...");
             StopServerProfiler();
             PROF_LOGD("Profiler Disabled Successfully!");
@@ -542,12 +543,10 @@ namespace msServiceProfiler {
             std::vector<int> memoryUsed;
             std::vector<int> memoryUtiliza;
             try {
-                if (enable_ && npuMemoryUsage_ && isMaster_) {
-                    int ret = npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
-                    if (ret == EXITCODE_SUCCESS) {
-                        Write2Tx(memoryUsed, "usage");
-                        Write2Tx(memoryUtiliza, "utiliza");
-                    }
+                if (enable_ && npuMemoryUsage_ && isMaster_
+                    && npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza) == EXITCODE_SUCCESS) {
+                    Write2Tx(memoryUsed, "usage");
+                    Write2Tx(memoryUtiliza, "utiliza");
                 }
             } catch (std::exception &e) {
                 PROF_LOGD("get npu memory usage failed");
@@ -604,20 +603,20 @@ namespace msServiceProfiler {
             return;
         }
 
-        auto config_ = aclprofCreateConfig(deviceIdList, 1, ACL_AICORE_NONE, nullptr, profSwitch);
-        if (config_ == nullptr) {
+        auto config = aclprofCreateConfig(deviceIdList, 1, ACL_AICORE_NONE, nullptr, profSwitch);
+        if (config == nullptr) {
             PROF_LOGE("acl prof create config failed.");
             enable_ = false;
             return;
         }
-        configHandle_ = config_;
+        configHandle_ = config;
 
         if (ret == ACL_ERROR_NONE) {
             SetAclProfHostSysConfig();
         }
 
         PROF_LOGD("begin to start profiling");
-        ret = aclprofStart(config_);
+        ret = aclprofStart(config);
         if (ret != ACL_ERROR_NONE) {
             PROF_LOGE("acl prof start failed, ret = %d", ret);
             enable_ = false;
@@ -638,14 +637,14 @@ namespace msServiceProfiler {
         }
         enable_ = false;
 
-        auto config_ = (aclprofConfig *) configHandle_;
+        auto config = (aclprofConfig *) configHandle_;
 
-        auto ret = aclprofStop(config_);
+        auto ret = aclprofStop(config);
         if (ret != ACL_ERROR_NONE) {
             PROF_LOGE("acl prof stop failed, ret = %d", ret);
             return;
         }
-        ret = aclprofDestroyConfig(config_);
+        ret = aclprofDestroyConfig(config);
         if (ret != ACL_ERROR_NONE) {
             PROF_LOGE("acl prof destroy config failed, ret = %d", ret);
             return;
