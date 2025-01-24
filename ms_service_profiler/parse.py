@@ -196,13 +196,13 @@ def read_origin_db(db_path: str):
     return data_list
 
 
-def parse(input_path, custom_plugins, exporters):
+def parse(input_path, plugins, exporters):
     logger.info('Start to parse.')
     # 解析数据
     data = read_origin_db(input_path)
     logger.info('Read origin db success.')
 
-    all_plugins = sort_plugins(builtin_plugins + custom_plugins)
+    all_plugins = sort_plugins(builtin_plugins + plugins)
     total_plugins = len(all_plugins)
     for cur_id, plugin in enumerate(all_plugins):
         try:

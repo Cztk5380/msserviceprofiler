@@ -146,7 +146,6 @@ class ExporterKVCacheData(ExporterBase):
         output = cls.args.output_path
         save_dataframe_to_csv(kvcache_df, output, "kvcache.csv")
         kvcache_df['start_datetime'] = start_datetime_data
-        # kvcache_df.loc[:, 'real_start_time'] = start_datetime_data
         kvcache_df = kvcache_df.rename(columns={
         'start_datetime': 'real_start_time'
         })
