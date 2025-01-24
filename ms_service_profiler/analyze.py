@@ -3,7 +3,6 @@
 import os
 import argparse
 from pathlib import Path
-from datetime import datetime, timezone
 
 from ms_service_profiler.parse import parse
 from ms_service_profiler.exporters.factory import ExporterFactory

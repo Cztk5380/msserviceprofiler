@@ -26,33 +26,8 @@ def process_each_record(req_map, batch_map, record):
 
 
 def process_batch_record(batch_map, record):
-    name = record.get('name')
     batch_type = record.get('batch_type')
-    rid_list = record.get('rid_list')
-    # batch_map逻辑
-    rid_tuple = str(rid_list)
-
-    # 初始化 batch_map
-    if name == 'BatchSchedule':
-        if batch_type == 'Prefill':
-            key = f"prefill_{rid_tuple}"
-        elif batch_type == 'Decode':
-            key = f"decode_{rid_tuple}"
-        else:
-            return
-
-        # 初始化 key 对应的数据结构
-        if key not in batch_map:
-            if batch_type == 'Prefill':
-                batch_map[key] = {
-                    'prefill_batch_num': 0,
-                    'prefill_exec_time (ms)': 0.0
-                }
-            elif batch_type == 'Decode':
-                batch_map[key] = {
-                    'decode_batch_num': 0,
-                    'decode_exec_time (ms)': 0.0
-                }
+    rid_tuple = str(record.get('rid_list'))
 
     # 构建 batch_map
     if batch_type == 'Prefill':
