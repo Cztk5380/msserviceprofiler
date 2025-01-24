@@ -55,6 +55,7 @@ else ()
     )
 endif ()
 
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/platform/securec/src/ SECUREC_SRC)
 
 include_directories(
         include
@@ -62,21 +63,19 @@ include_directories(
         platform/securec/include
 )
 
-link_directories(
-        platform/securec/lib
-)
-
 add_library(ms_service_profiler
         SHARED
         src/Profiler.cpp
         src/ServiceProfilerManager.cpp
         src/NpuMemoryUsage.cpp
+        ${SECUREC_SRC}
 )
 
 add_executable(test_server_profiler test/ut/cpp_test/test.cpp
         src/Profiler.cpp
         src/ServiceProfilerManager.cpp
         src/NpuMemoryUsage.cpp
+        ${SECUREC_SRC}
 )
 
 target_compile_options(ms_service_profiler PRIVATE
@@ -107,7 +106,6 @@ target_link_libraries(ms_service_profiler
         dl
         pthread
         rt
-        securec
 )
 
 
@@ -118,7 +116,6 @@ target_link_libraries(test_server_profiler
         dl
         pthread
         rt
-        securec
 )
 
 target_compile_definitions(test_server_profiler PUBLIC -DENABLE_PROF)
