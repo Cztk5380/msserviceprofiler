@@ -217,7 +217,7 @@ def add_pull_kvcache_events(df):
         df['ts'] = df['start_time']
         df['tid'] = f"Prefill Device {rank}"
         df['dur'] = df['during_time']
-        args = ['rank', 'rid', 'block_tables','seq_len', \
+        args = ['rank', 'rid', 'block_tables', 'seq_len', \
                 'during_time', 'start_datetime', 'end_datetime', 'start_time', 'end_time']
         df['args'] = df[[arg for arg in args if arg in df.columns]].to_dict(orient='records')
         events = df[['name', 'ph', 'ts', 'pid', 'tid', 'args', 'dur']].to_dict(orient='records')
@@ -231,7 +231,7 @@ def add_pull_kvcache_events(df):
         events = df_decode[['name', 'ph', 'ts', 'pid', 'tid', 'args', 'dur']].to_dict(orient='records')
         all_events.extend(events)
     
-        for i, row in df.iterrows():
+        for i, _ in df.iterrows():
             all_events.append({
                 "id": f"pull_kvcache_rank{rank}_{i}",
                 "cat": f"pull_kvcache_rank{rank}_{i}",
