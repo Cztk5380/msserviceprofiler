@@ -143,14 +143,14 @@ class ExporterKVCacheData(ExporterBase):
             })
         except KeyError as e:
             logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
-        save_dataframe_to_csv(kvcache_df, cls.args.output_path, "kvcache.csv")
-        start_datetime_data = df['start_datetime'].copy()
+        output = cls.args.output_path
+        save_dataframe_to_csv(kvcache_df, output, "kvcache.csv")
         kvcache_df['start_datetime'] = start_datetime_data
         kvcache_df = kvcache_df.rename(columns={
         'start_datetime': 'real_start_time'
         })
         kvcache_df = kvcache_usage_rate_calculator(kvcache_df)
-        db_file_path = create_sqlite_db(cls.args.output_path)
+        db_file_path = create_sqlite_db(output)
         add_table_into_visual_db(kvcache_df, 'kvcache')
 
         export_pull_kvcache(df, cls.args.output_path)
