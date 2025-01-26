@@ -134,7 +134,7 @@ class ExporterKVCacheData(ExporterBase):
         try:
             kvcache_df = df[df['domain'] == 'KVCache']
             kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'name', \
-                                    'deviceBlock=', 'during_time']]
+                                     'deviceBlock=', 'during_time']]
             kvcache_df = kvcache_df.rename(columns={
                 'deviceBlock=': 'device_kvcache_left',
                 'start_time': 'start_time(microsecond)',
