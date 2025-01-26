@@ -18,11 +18,10 @@
 #define MS_SERVER_PROFILER_MARKER_H
 
 #include <string>
-#include <vector>
 #include <nlohmann/json.hpp>
 
 using SpanHandle = uint64_t;
-using json = nlohmann::json;
+using Json = nlohmann::json;
 
 #define MS_SERVICE_PROFILER_API __attribute__((visibility("default")))
 
@@ -51,7 +50,7 @@ namespace msServiceProfiler {
     public:
         MS_SERVICE_PROFILER_API static ServiceProfilerManager &GetInstance();
 
-        MS_SERVICE_PROFILER_API inline bool IsEnable(uint32_t level)
+        MS_SERVICE_PROFILER_API inline bool IsEnable(uint32_t level) const
         {
             return enable_ && level_ >= level;
         }
@@ -63,14 +62,14 @@ namespace msServiceProfiler {
     private:
         ServiceProfilerManager();
 
-        json ReadConfig();
-        bool ReadEnable(const json &config);
-        bool ReadProfPath(const json &config);
-        bool ReadLevel(const json &config);
-        bool ReadCollectConfig(const json &config);
-        bool ReadHostConfig(const json &config);
-        bool ReadNpuConfig(const json &config);
-        void SetAclProfHostSysConfig();
+        Json ReadConfig();
+        bool ReadEnable(const Json &config);
+        bool ReadProfPath(const Json &config);
+        bool ReadLevel(const Json &config);
+        bool ReadCollectConfig(const Json &config);
+        bool ReadHostConfig(const Json &config);
+        bool ReadNpuConfig(const Json &config);
+        void SetAclProfHostSysConfig() const;
         void DynamicControl();
         void LaunchThread();
         void ThreadFunction();

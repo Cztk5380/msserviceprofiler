@@ -196,10 +196,10 @@ namespace msServiceProfiler {
         LaunchThread();
     }
 
-    json ServiceProfilerManager::ReadConfig()
+    Json ServiceProfilerManager::ReadConfig()
     {
         std::string strConfigPath = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
-        json jsonData;
+        Json jsonData;
         if (!strConfigPath.empty() && access(strConfigPath.c_str(), F_OK) == 0) {
             std::ifstream configFile; // 单独创建 std::ifstream 对象
 
@@ -236,7 +236,7 @@ namespace msServiceProfiler {
         }
     }
 
-    bool ServiceProfilerManager::ReadEnable(const json &config)
+    bool ServiceProfilerManager::ReadEnable(const Json &config)
     {
         if (config.contains("enable")) {
             enable_ = config["enable"] == 1;
@@ -246,7 +246,7 @@ namespace msServiceProfiler {
         }
     }
 
-    bool ServiceProfilerManager::ReadProfPath(const json &config)
+    bool ServiceProfilerManager::ReadProfPath(const Json &config)
     {
         if (config.contains("prof_dir")) {
             profPath_ = config["prof_dir"];
@@ -259,9 +259,9 @@ namespace msServiceProfiler {
         }
     }
 
-    bool ServiceProfilerManager::ReadLevel(const json &config)
+    bool ServiceProfilerManager::ReadLevel(const Json &config)
     {
-        static const std::map<std::string, Level> enumMap = {
+        static const std::map<std::string, Level> ENUM_MAP = {
             {"ERROR", Level::ERROR},
             {"INFO", Level::INFO},
             {"DETAILED", Level::DETAILED},
@@ -279,8 +279,8 @@ namespace msServiceProfiler {
                 std::transform(valueUpper.begin(), valueUpper.end(), valueUpper.begin(), [](char const &c) {
                     return std::toupper(c);
                 });
-                if (enumMap.find(valueUpper) != enumMap.end()) {
-                    level_ = enumMap.at(valueUpper);
+                if (ENUM_MAP.find(valueUpper) != ENUM_MAP.end()) {
+                    level_ = ENUM_MAP.at(valueUpper);
                 } else {
                     level_ = Level::INFO;
                 }
@@ -296,15 +296,15 @@ namespace msServiceProfiler {
         auto t = std::thread(&ServiceProfilerManager::ThreadFunction, this);
         t.detach();
     }
-    
-    bool ServiceProfilerManager::ReadCollectConfig(const json &config)
+
+    bool ServiceProfilerManager::ReadCollectConfig(const Json &config)
     {
         bool retHost = ReadHostConfig(config);
         bool retNpu = ReadNpuConfig(config);
         return retHost && retNpu;
     }
 
-    bool ServiceProfilerManager::ReadHostConfig(const json &config)
+    bool ServiceProfilerManager::ReadHostConfig(const Json &config)
     {
         bool ret = true;
         if (config.contains("host_system_usage_freq")) {
@@ -316,7 +316,7 @@ namespace msServiceProfiler {
                     hostMemoryUsage_ = true;
                 } else {
                     PROF_LOGE(
-                        "host_system_usage_freq must be between %d and %d, "
+                        "host_system_usage_freq must be between %u and %u, "
                         "will not collect host cpu or host memory usage.",
                         hostFreqMin_,
                         hostFreqMax_);
@@ -337,7 +337,7 @@ namespace msServiceProfiler {
         return ret;
     }
 
-    bool ServiceProfilerManager::ReadNpuConfig(const json &config)
+    bool ServiceProfilerManager::ReadNpuConfig(const Json &config)
     {
         bool ret = true;
         if (config.contains("npu_memory_usage_freq")) {
@@ -398,8 +398,8 @@ namespace msServiceProfiler {
         }
 
         auto configJson = ReadConfig();
-        auto enable_from_config = configJson["enable"] == 1;
-        if (enable_from_config == true and enable_ == false) {
+        auto enableFromConfig = configJson["enable"] == 1;
+        if (enableFromConfig && !enable_) {
             PROF_LOGD("Profiler Enabled...");
             ReadProfPath(configJson);
             time_t now = time(nullptr);
@@ -416,7 +416,7 @@ namespace msServiceProfiler {
             ReadCollectConfig(configJson);
             StartServerProfiler();
             PROF_LOGD("Profiler Enabled Successfully!");
-        } else if (enable_from_config == false and enable_ == true) {
+        } else if (!enableFromConfig && enable_) {
             PROF_LOGD("Profiler Disabled...");
             StopServerProfiler();
             PROF_LOGD("Profiler Disabled Successfully!");
@@ -450,7 +450,7 @@ namespace msServiceProfiler {
         }
     }
 
-    void ServiceProfilerManager::SetAclProfHostSysConfig()
+    void ServiceProfilerManager::SetAclProfHostSysConfig() const
     {
         std::string hostProfString = "";
 
@@ -489,20 +489,20 @@ namespace msServiceProfiler {
             return;
         }
 
-        auto config_ = aclprofCreateConfig(deviceIdList, 1, ACL_AICORE_NONE, nullptr, profSwitch);
-        if (config_ == nullptr) {
+        auto profConfig = aclprofCreateConfig(deviceIdList, 1, ACL_AICORE_NONE, nullptr, profSwitch);
+        if (profConfig == nullptr) {
             PROF_LOGE("acl prof create config failed.");
             enable_ = false;
             return;
         }
-        configHandle_ = config_;
+        this->configHandle_ = profConfig;
 
         if (ret == ACL_ERROR_NONE) {
             SetAclProfHostSysConfig();
         }
 
         PROF_LOGD("begin to start profiling");
-        ret = aclprofStart(config_);
+        ret = aclprofStart(profConfig);
         if (ret != ACL_ERROR_NONE) {
             PROF_LOGE("acl prof start failed, ret = %d", ret);
             enable_ = false;
@@ -523,19 +523,19 @@ namespace msServiceProfiler {
         }
         enable_ = false;
 
-        auto config_ = (aclprofConfig *)configHandle_;
+        auto profConfig = (aclprofConfig *)this->configHandle_;
 
-        auto ret = aclprofStop(config_);
+        auto ret = aclprofStop(profConfig);
         if (ret != ACL_ERROR_NONE) {
             PROF_LOGE("acl prof stop failed, ret = %d", ret);
             return;
         }
-        ret = aclprofDestroyConfig(config_);
+        ret = aclprofDestroyConfig(profConfig);
         if (ret != ACL_ERROR_NONE) {
             PROF_LOGE("acl prof destroy config failed, ret = %d", ret);
             return;
         }
-        configHandle_ = nullptr;
+        this->configHandle_ = nullptr;
 
         ret = aclprofFinalize();
         if (ret != ACL_ERROR_NONE) {
