@@ -29,6 +29,7 @@ using json = nlohmann::json;
 
 extern "C" {
 MS_SERVICE_PROFILER_API SpanHandle StartSpan();
+MS_SERVICE_PROFILER_API SpanHandle StartSpanWithName(const char *name);
 MS_SERVICE_PROFILER_API void MarkSpanAttr(const char *msg, SpanHandle spanHandle);
 MS_SERVICE_PROFILER_API void EndSpan(SpanHandle spanHandle);
 MS_SERVICE_PROFILER_API void MarkEvent(const char *msg);
@@ -52,27 +53,78 @@ namespace msServiceProfiler {
 
         MS_SERVICE_PROFILER_API inline bool IsEnable(uint32_t level)
         {
-            return enable_ && level_ > level;
+            return enable_ && level_ >= level;
         }
 
         MS_SERVICE_PROFILER_API void StartProfiler();
 
         MS_SERVICE_PROFILER_API void StopProfiler();
 
+        static std::string ToSemName(const std::string &oriSemName);
+
+        std::string &GetConfigPath()
+        {
+            return configPath_;
+        }
+
     private:
         ServiceProfilerManager();
 
-        void ReadConfig();
-        bool ReadEnable(const json &config);
-        bool ReadProfPath(const json &config);
-        bool ReadLevel(const json &config);
+        ~ServiceProfilerManager();
+
+        json ReadConfig();
+
+        void ReadEnable(const json &config);
+
+        void ReadProfPath(const json &config);
+
+        void ReadLevel(const json &config);
+
+        void ReadAclTaskTime(const json &config);
+
+        bool ReadCollectConfig(const json &config);
+
+        bool ReadHostConfig(const json &config);
+
+        bool ReadNpuConfig(const json &config);
+
+        void SetAclProfHostSysConfig();
+
+        void DynamicControl();
+
+        void LaunchThread();
+
+        void ThreadFunction();
+
+        void ReadConfigPath();
+
+        void MarkFirstProcessAsMain();
+
+        void InitProfPathDateTail(bool forceReinit = false);
 
     private:
+        bool isMaster_ = true;
         bool enable_ = false;
         bool started_ = false;
+        std::string configPath_;
         std::string profPath_;
-        uint32_t level_ = Level::DETAILED;
+        std::string profPathDateTail_;
+        uint32_t level_ = Level::INFO;
+        bool enableAclTaskTime_ = false;
         void *configHandle_;
+        int lastUpdate_ = 0;
+
+        bool hostCpuUsage_ = false;
+        bool hostMemoryUsage_ = false;
+        uint32_t hostFreq_ = 10;
+        uint32_t hostFreqMin_ = 1;
+        uint32_t hostFreqMax_ = 50;
+
+        bool npuMemoryUsage_ = false;
+        uint32_t npuMemoryFreq_ = 1;
+        uint32_t npuMemoryFreqMin_ = 1;
+        uint32_t npuMemoryFreqMax_ = 50;
+        uint32_t npuMemorySleepMilliseconds_ = 1000;
     };
 }  // namespace msServiceProfiler
 
