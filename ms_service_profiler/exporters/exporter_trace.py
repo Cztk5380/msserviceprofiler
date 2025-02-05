@@ -61,7 +61,7 @@ def add_flow_event(flow_event_df):
 
 
 def create_trace_events(all_data_df, cpu_data_df, memory_data_df):
-    metric_event = ['npu', 'KVCache']
+    metric_event = ['npu', 'KVCache', 'PullKVCache']
 
     # 普通事件
     valid_name_df = all_data_df[all_data_df['name'].notna() & (~all_data_df['domain'].isin(metric_event))]
@@ -79,6 +79,9 @@ def create_trace_events(all_data_df, cpu_data_df, memory_data_df):
 
     kv_trace_events = add_kvcache_events(all_data_df[all_data_df['domain'] == 'KVCache'])
     trace_events.extend(kv_trace_events)
+
+    pull_kvcache_events = add_pull_kvcache_events(all_data_df[all_data_df['domain'] == 'PullKVCache'])
+    trace_events.extend(pull_kvcache_events)
 
     # flow事件
     flow_event_df = valid_name_df[valid_name_df['rid'].notna()]
@@ -198,3 +201,55 @@ def add_kvcache_events(kv_data_df):
     kv_trace_df['args'] = [{'Device Block': usage} for usage in kv_data_df['deviceBlock=']]
     kv_trace_events = kv_trace_df[['name', 'ph', 'ts', 'pid', 'tid', 'args']].to_dict(orient='records')
     return kv_trace_events
+
+
+def add_pull_kvcache_events(df):
+    if df is None or df.shape[0] == 0:
+        return []
+    df_all_device = df.copy()
+    all_events = []
+
+    for rank in df_all_device['rank'].unique():
+        df = df_all_device[df_all_device['rank'] == rank].copy().reset_index(drop=True)
+        df['pid'] = "PullKVCache"
+        df['name'] = df['domain']
+        df['ph'] = 'X'
+        df['ts'] = df['start_time']
+        df['tid'] = f"Prefill Device {rank}"
+        df['dur'] = df['during_time']
+        args = ['rank', 'rid', 'block_tables', 'seq_len', \
+                'during_time', 'start_datetime', 'end_datetime', 'start_time', 'end_time']
+        df['args'] = df[[arg for arg in args if arg in df.columns]].to_dict(orient='records')
+        events = df[['name', 'ph', 'ts', 'pid', 'tid', 'args', 'dur']].to_dict(orient='records')
+        all_events.extend(events)
+
+        df_decode = df.copy()
+        df['ph'] = 'X'
+        df_decode['ts'] = df_decode['end_time']
+        df_decode['dur'] = 1
+        df_decode['tid'] = f"Decode Device {rank}"
+        events = df_decode[['name', 'ph', 'ts', 'pid', 'tid', 'args', 'dur']].to_dict(orient='records')
+        all_events.extend(events)
+    
+        for i, _ in df.iterrows():
+            all_events.append({
+                "id": f"pull_kvcache_rank{rank}_{i}",
+                "cat": f"pull_kvcache_rank{rank}_{i}",
+                "name": f"pull_kvcache_rank{rank}_{i}",
+                "pid": "PullKVCache",
+                "tid": df['tid'][i],
+                "ph": 's',
+                "ts": df['start_time'][i],
+            })
+
+            all_events.append({
+                "id": f"pull_kvcache_rank{rank}_{i}",
+                "cat": f"pull_kvcache_rank{rank}_{i}",
+                "name": f"pull_kvcache_rank{rank}_{i}",
+                "pid": "PullKVCache",
+                "tid": df_decode['tid'][i],
+                "ph": 't',
+                "ts": df['end_time'][i],
+            })
+
+    return all_events
