@@ -6,3 +6,6 @@ output
 opensource
 build
 test/.coverage
+platform/**
+*.xml
+*.db
