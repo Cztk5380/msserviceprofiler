@@ -357,6 +357,7 @@ namespace msServiceProfiler {
         // 设置共享内存对象的大小
         if (ftruncate(shmFd, mmapSize) == -1) {
             PROF_LOGW("ftruncate failed");
+            close(shmFd);
             return;
         }
 
@@ -515,7 +516,6 @@ namespace msServiceProfiler {
         if (enableFromConfig and !enable_) {
             PROF_LOGD("Profiler Enabled...");
             ReadEnable(configJson);
-            ReadAclTaskTime(configJson);
             ReadLevel(configJson);
             ReadProfPath(configJson);
             ReadAclTaskTime(configJson);
@@ -611,7 +611,7 @@ namespace msServiceProfiler {
         }
         configHandle_ = config;
 
-        if (ret == ACL_ERROR_NONE) {
+        if (ret == ACL_ERROR_NONE && isMaster_) {
             SetAclProfHostSysConfig();
         }
 
