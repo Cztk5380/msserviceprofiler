@@ -11,17 +11,16 @@ from ms_service_profiler.exporters.exporter_latency import ExporterLatency
 # 插件工厂类
 class ExporterFactory:
     exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterReqData, ExporterBatchData, \
-        ExporterKVCacheData, ExporterLatency]
+                    ExporterKVCacheData, ExporterLatency]
 
     @staticmethod
     def create_exporters(args):
         exporters = []
-        
         enable_exporter = ['trace', 'req_status', 'req_data', 'batch_data', 'kvcache_data', 'latency']
         for name in enable_exporter:
             exporters.append(ExporterFactory.create(name, args))
         return exporters
-    
+
     @staticmethod
     def create(name, args):
         for exporter in ExporterFactory.exporter_cls:
