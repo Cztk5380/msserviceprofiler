@@ -22,14 +22,6 @@ class ExporterFactory:
         return exporters
 
     @staticmethod
-    def create_summary_exporter(args):
-        for exporter in ExporterFactory.exporter_cls:
-            if exporter.name == 'summary':
-                exporter.initialize(args)
-                return exporter
-        raise ValueError("ExporterSummary not found.")
-
-    @staticmethod
     def create(name, args):
         for exporter in ExporterFactory.exporter_cls:
             if exporter.name == name:
