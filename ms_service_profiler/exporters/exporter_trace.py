@@ -209,7 +209,7 @@ def add_pull_kvcache_events(df):
     df_all_device = df.copy()
     all_events = []
 
-    for rank in [0, 1]:
+    for rank in df_all_device['rank'].unique():
         df = df_all_device[df_all_device['rank'] == rank].copy().reset_index(drop=True)
         df['pid'] = "PullKVCache"
         df['name'] = df['domain']
