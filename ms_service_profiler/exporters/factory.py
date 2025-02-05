@@ -6,13 +6,12 @@ from ms_service_profiler.exporters.exporter_req_data import ExporterReqData
 from ms_service_profiler.exporters.exporter_batch import ExporterBatchData
 from ms_service_profiler.exporters.exporter_kvcache import ExporterKVCacheData
 from ms_service_profiler.exporters.exporter_latency import ExporterLatency
-from ms_service_profiler.exporters.exporter_summary import ExporterSummary
 
 
 # 插件工厂类
 class ExporterFactory:
     exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterReqData, ExporterBatchData, \
-        ExporterKVCacheData, ExporterLatency, ExporterSummary]
+                    ExporterKVCacheData, ExporterLatency]
 
     @staticmethod
     def create_exporters(args):
