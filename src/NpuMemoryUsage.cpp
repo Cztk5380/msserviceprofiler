@@ -35,7 +35,7 @@ NpuMemoryUsage::~NpuMemoryUsage()
         handleDcmi = nullptr;
     }
 }
-int NpuMemoryUsage::DcmiInit()
+int NpuMemoryUsage::DcmiInit() const
 {
     using DcmiInitFunc = int (*)();
     if (handleDcmi == nullptr) {
@@ -47,7 +47,7 @@ int NpuMemoryUsage::DcmiInit()
     return ret;
 }
 
-int NpuMemoryUsage::DcmiGetCardList(int *cardNum, int *cardList, int listLen)
+int NpuMemoryUsage::DcmiGetCardList(int *cardNum, int *cardList, int listLen) const
 {
     using DcmiGetCardListFunc = int (*)(int *, int *, int);
     if (handleDcmi == nullptr) {
@@ -58,7 +58,7 @@ int NpuMemoryUsage::DcmiGetCardList(int *cardNum, int *cardList, int listLen)
     return ret;
 }
 
-int NpuMemoryUsage::DcmiGetDeviceIdInCard(int cardId, int *deviceIdMax)
+int NpuMemoryUsage::DcmiGetDeviceIdInCard(int cardId, int *deviceIdMax) const
 {
     using DcmiGetDeviceIdInCardFunc = int (*)(int, int *, int *, int *);
     if (handleDcmi == nullptr) {
@@ -72,7 +72,8 @@ int NpuMemoryUsage::DcmiGetDeviceIdInCard(int cardId, int *deviceIdMax)
     return ret;
 }
 
-int NpuMemoryUsage::DcmiGetDeviceMemoryInfoV3(int cardId, int deviceId, struct dcmi_get_memory_info_stru *memoryInfo)
+int NpuMemoryUsage::DcmiGetDeviceMemoryInfoV3(int cardId, int deviceId,
+                                              struct dcmi_get_memory_info_stru *memoryInfo) const
 {
     using DcmiGetDeviceMemoryInfoV3Func = int (*)(int, int, dcmi_get_memory_info_stru *);
     if (handleDcmi == nullptr) {
@@ -84,7 +85,7 @@ int NpuMemoryUsage::DcmiGetDeviceMemoryInfoV3(int cardId, int deviceId, struct d
     return ret;
 }
 
-int NpuMemoryUsage::DcmiGetDeviceHbmInfo(int cardId, int deviceId, struct dsmi_hbm_info_stru *hbmInfo)
+int NpuMemoryUsage::DcmiGetDeviceHbmInfo(int cardId, int deviceId, struct dsmi_hbm_info_stru *hbmInfo) const
 {
     using DcmiGetDeviceHbmInfoFunc = int(*)(int, int, dsmi_hbm_info_stru *);
     if (handleDcmi == nullptr) {

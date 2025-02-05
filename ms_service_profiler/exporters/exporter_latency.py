@@ -38,7 +38,6 @@ def process_each_record(req_map, record):
     name = record.get('name')
     rid = record.get('rid')
     if rid is None or name is None:
-        print_warning_log('rid or name')
         return
 
     if name == 'httpReq':
@@ -67,7 +66,6 @@ def process_each_record(req_map, record):
         # 更新请求首token时延
         cur_iter = token_id_list[i]
         if cur_iter is None:
-            print_warning_log('token_id_list')
             continue
 
         if cur_iter == 0:

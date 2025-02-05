@@ -36,23 +36,25 @@ def process_data(req_en_queue_df, req_running_df, pending_df):
     decode_first_df = req_en_queue_df.groupby('rid').head(1)
     running_first_df = req_running_df.groupby('rid').head(1)
 
-    if decode_first_df.shape[0] == running_first_df.shape[0]:
-        prefill_df = pd.merge(decode_first_df, running_first_df, on=['rid'], suffixes=('_enque', '_running'))
-    else:
-        logger.error("The data is wrong, please check")
-        return None
+
+    # 计算prefill阶段的等待时间
+    if decode_first_df.shape[0] != running_first_df.shape[0]:
+        logger.warning("The number of 'Enqueue' is different from 'RUNNING' in the prefill phase, please check")
+    prefill_df = pd.merge(decode_first_df, running_first_df, on=['rid'], how='left', suffixes=('_enque', '_running'))
     prefill_df['waiting_time'] = prefill_df["start_time_running"] - prefill_df["end_time_enque"]
+
+    # 计算decode阶段的等待时间
     decode_running_df = req_running_df.groupby('rid').apply(lambda x: x.iloc[1:]).reset_index(drop=True)
     pending_df = pending_df.reset_index(drop=True)
     pending_df = pending_df[['start_time', 'end_time', 'rid']]
     decode_running_df = decode_running_df[['start_time', 'end_time', 'rid']]
+
     rows_pending = pending_df.shape[0]
     rows_running = decode_running_df.shape[0]
-    if rows_pending == rows_running:
-        decode_merge = pd.concat([pending_df, decode_running_df], ignore_index=True, axis=1)
-    else:
-        logger.error("The data is wrong, please check")
-        return None
+    if rows_pending != rows_running:
+        logger.warning("The number of 'PENDING' is different from 'RUNNING' in the decode phase , please check")
+    decode_merge = pd.concat([pending_df, decode_running_df], ignore_index=True, axis=1)
+
     decode_merge.columns = ['start_time_pending', 'end_time_pending', 'rid', 'start_time_running', \
         'end_time_running', 'rid_running']
     decode_merge["pending_time"] = decode_merge['start_time_running'] - decode_merge['start_time_pending']
@@ -60,8 +62,9 @@ def process_data(req_en_queue_df, req_running_df, pending_df):
     decode_merge = decode_merge.drop(columns=['start_time_running', 'end_time_running'])
     pending_time_sum = decode_merge.groupby('rid')['pending_time'].sum().reset_index()
 
+    # 计算总的等待时间
     if prefill_df.shape[0] != pending_time_sum.shape[0]:
-        logger.warning("Some requests don't have pending time.")
+        logger.warning("The waiting time length in the prefill phase is different from that in the decode phase.")
 
     pending_time_sum.set_index('rid', inplace=True)
     wait_df = pd.merge(prefill_df, pending_time_sum, on='rid', how='left')
@@ -99,15 +102,17 @@ class ExporterReqData(ExporterBase):
             logger.error("The data is empty, please check")
             return
         output = cls.args.output_path
+    
         try:
             df = df.apply(update_name, axis=1)
             http_req_df, http_res_df, http_rectoken_df, http_restoken_df, wait_df = filter_data(df)
         except Exception as e:
             logger.error(f"An error occurred: {e}")
             return
+
         # 使用merge操作将httpReq和httpRes的数据进行匹配
         if http_req_df.shape[0] != http_res_df.shape[0]:
-            logger.error("The data is wrong, please check")
+            logger.warning("The number of 'httpReq' is different from 'httpRes', please check.")
         df_merged = pd.merge(http_req_df, http_res_df, on='rid', suffixes=('_httpReq', '_httpRes'), how='left')
 
         df_merged['rid'] = pd.to_numeric(df_merged['rid'], errors='coerce')
@@ -116,7 +121,7 @@ class ExporterReqData(ExporterBase):
         http_rectoken_df = http_rectoken_df[['rid', 'recvTokenSize=']]
         http_restoken_df = http_restoken_df[['rid', 'replyTokenSize=']]
         if http_rectoken_df.shape[0] != http_restoken_df.shape[0]:
-            logger.warning("The lengths of the 'DecodeEnd' and 'encode' fields are different.")
+            logger.warning("The number of 'DecodeEnd' is different from 'encode', please check.")
         df_token = pd.merge(http_rectoken_df, http_restoken_df, on='rid', how='left')
 
         df_token['rid'] = pd.to_numeric(df_token['rid'], errors='coerce')
