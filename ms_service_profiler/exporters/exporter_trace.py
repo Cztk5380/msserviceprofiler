@@ -26,7 +26,7 @@ class ExporterTrace(ExporterBase):
 
 def write_trace_data_to_file(trace_data, output):
     with ms_open(output, "w") as f:
-        json.dump(trace_data, f, ensure_ascii=False, indent=2)
+        json.dump(trace_data, f, ensure_ascii=False)
     logger.info("Written trace data successfully.")
 
 
@@ -130,20 +130,29 @@ def add_trace_events(valid_name_df):
     trace_event_df['tid'] = valid_name_df['domain']
     trace_event_df['dur'] = valid_name_df['during_time']
     args_list = []
-    for start, end, batch_type, batch_size, res_list in zip(
+    for start, end, batch_type, batch_size, res_list, rid, message in zip(
             valid_name_df['start_datetime'],
             valid_name_df['end_datetime'],
             valid_name_df['batch_type'],
             valid_name_df['batch_size'],
-            valid_name_df['res_list']
+            valid_name_df['res_list'],
+            valid_name_df['rid'],
+            valid_name_df['message']
     ):
-        args_dict = {
+        args_dict = dict(**{k: v for k, v in message.items() if k not in ["domain", "name", "type", "rid"]}, **{
             'start_datetime': start,
             'end_datetime': end,
-            'batch_type': batch_type,
-            'batch_size': batch_size,
-            'batch_info': res_list
-        }
+
+        })
+        if batch_size is not None:
+            args_dict.update({
+                'batch_type': batch_type,
+                'batch_size': batch_size,
+            })
+        if res_list is not None:
+            args_dict.update({"res_list": res_list})
+        if batch_size is None and rid != res_list:
+            args_dict.update({"rid": rid})
         args_list.append(args_dict)
     trace_event_df['args'] = args_list
     trace_events = trace_event_df[['name', 'ph', 'ts', 'dur', 'pid', 'tid', 'args']].to_dict(orient='records')

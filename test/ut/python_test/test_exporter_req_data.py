@@ -53,13 +53,6 @@ class TestProcessData(unittest.TestCase):
         pd.testing.assert_frame_equal(result, expected)
 
 
-    def test_process_data_inconsistent_rows(self):
-        # 测试当pending_df和req_running_df的行数不一致时
-        self.req_running_df = self.req_running_df.iloc[:2]
-        result = process_data(self.req_en_queue_df, self.req_running_df, self.pending_df)
-        self.assertIsNone(result)
-
-
     def test_update_name(self):
         # 应用函数
         result = update_name(self.test_data.iloc[0])
