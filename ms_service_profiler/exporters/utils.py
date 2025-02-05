@@ -5,6 +5,8 @@ import argparse
 from pathlib import Path
 import multiprocessing
 
+from ms_service_profiler.utils.file_open_check import FileStat
+from ms_service_profiler.utils.check.rule import Rule
 from ms_service_profiler.utils.error import DatabaseError
 
 visual_db_fp = ''
@@ -49,21 +51,23 @@ def save_dataframe_to_csv(filtered_df, output, file_name):
 
 
 def check_input_path_valid(path):
-    if not os.path.exists(path):
-        raise argparse.ArgumentTypeError(f"Path does not exist: {path}")
-    if not os.path.isdir(path):
+    try:
+        file_stat = FileStat(path)
+    except Exception as err:
+        raise argparse.ArgumentTypeError(f"input path:{path} is illegal. Please check.")
+    if not file_stat.is_dir:
         raise argparse.ArgumentTypeError(f"Path is not a valid directory: {path}")
-    if '..' in path:
-        raise argparse.ArgumentTypeError(f"Path contains illegal characters: {path}")
     return path
 
 
 def check_output_path_valid(path):
     path = os.path.abspath(path)
-    if not os.path.exists(path):
-        os.makedirs(path, mode=0o755)
+    if not os.path.isdir(path):  # not exists or exists but not directory
+        os.makedirs(path, mode=0o750)  # create
     else:
-        os.chmod(path, 0o755)
+        check_path = Rule.input_dir().check(path)
+        if not check_path:
+            raise argparse.ArgumentTypeError("Output path %r is incorrect due to %s, please check", path, check_path)
     if not os.access(path, os.W_OK):
         raise argparse.ArgumentTypeError(f"Output path is not writable: {path}")
     return path
