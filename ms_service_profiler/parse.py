@@ -259,7 +259,7 @@ def gen_msprof_command(full_path):
     try:
         FileStat(full_path)
     except Exception as err:
-        raise argparse.ArgumentTypeError(f"input path:{input_path} is illegal. Please check.") from err
+        raise argparse.ArgumentTypeError(f"input path:{full_path} is illegal. Please check.") from err
 
     command = "msprof --export=on "
     output_param = f"--output={full_path}"
