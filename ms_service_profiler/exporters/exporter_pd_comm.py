@@ -20,15 +20,15 @@ def process_each_req_group(req_group_df):
 
         event_time = record.get('start_datetime')
         if name == 'request':
-                http_req_time = event_time
+            http_req_time = event_time
         elif name == 'sendReqToD':
-                request_send_time = event_time
+            request_send_time = event_time
         elif name == 'sendReqToDSucc':
-                request_send_succ_time = event_time
+            request_send_succ_time = event_time
         elif name == 'prefillRes':
-                prefill_res_time = event_time
+            prefill_res_time = event_time
         elif name == 'decodeRes':
-                requset_end_time = event_time
+            requset_end_time = event_time
     return http_req_time, request_send_time, request_send_succ_time, prefill_res_time, requset_end_time
 
 
