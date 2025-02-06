@@ -50,7 +50,7 @@ class ExporterPDComm(ExporterBase):
             return
 
         pd_split_df = all_data_df[(all_data_df['domain'] == 'PDSplit')]
-        if pd_split_df is None:
+        if pd_split_df.empty():
             return
 
         # 按照rid进行分组

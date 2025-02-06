@@ -213,7 +213,7 @@ class TestAnalyzeCmd(TestCase):
     DB_FILE_NAME = "profiler.db"
     COMMAND_SUCCESS = 0
     ANALYZE_PROFILER = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")),
-                                    "ms_service_profiler/analyze.py")
+                                    "ms_service_profiler/parse.py")
 
     def setup_class(self):
         os.makedirs(self.OUTPUT_PATH, mode=0o750, exist_ok=True)
