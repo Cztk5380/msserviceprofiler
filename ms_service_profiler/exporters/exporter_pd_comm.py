@@ -19,16 +19,15 @@ def process_each_req_group(req_group_df):
             continue
 
         event_time = record.get('start_datetime')
-        match name:
-            case 'request':
+        if name == 'request':
                 http_req_time = event_time
-            case 'sendReqToD':
+        elif name == 'sendReqToD':
                 request_send_time = event_time
-            case 'sendReqToDSucc':
+        elif name == 'sendReqToDSucc':
                 request_send_succ_time = event_time
-            case 'prefillRes':
+        elif name == 'prefillRes':
                 prefill_res_time = event_time
-            case 'decodeRes':
+        elif name == 'decodeRes':
                 requset_end_time = event_time
     return http_req_time, request_send_time, request_send_succ_time, prefill_res_time, requset_end_time
 
@@ -49,7 +48,10 @@ class ExporterPDComm(ExporterBase):
         if all_data_df is None:
             logger.warning("The tx_data_df is empty, please check")
             return
+
         pd_split_df = all_data_df[(all_data_df['domain'] == 'PDSplit')]
+        if pd_split_df is None:
+            return
 
         # 按照rid进行分组
         req_group_df = pd_split_df.groupby('rid')
