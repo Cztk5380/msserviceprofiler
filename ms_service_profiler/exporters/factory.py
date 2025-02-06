@@ -17,7 +17,7 @@ class ExporterFactory:
     @staticmethod
     def create_exporters(args):
         exporters = []
-        enable_exporter = ['trace', 'req_status', 'batch_data', 'kvcache_data', 'latency', 'pd_comm']
+        enable_exporter = ['trace', 'req_status', 'req_data', 'batch_data', 'kvcache_data', 'latency', 'pd_comm']
         for name in enable_exporter:
             exporters.append(ExporterFactory.create(name, args))
         return exporters
