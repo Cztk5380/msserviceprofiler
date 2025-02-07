@@ -29,7 +29,9 @@ constexpr int MAX_RES_STR_IZE = 128;
 
 namespace msServiceProfiler {
 
-    enum class ResType : uint8_t { STRING = '\0', UINT64 };
+    enum class ResType : uint8_t {
+        STRING = '\0', UINT64
+    };
 
     union ResIdValue {
         uint64_t rid;
@@ -39,8 +41,6 @@ namespace msServiceProfiler {
     struct ResID {
         ResIdValue resValue;
         ResType type;
-
-        static const ResID illegalResource ;
 
         ResID(int rid) noexcept : type(ResType::UINT64)
         {
@@ -67,15 +67,24 @@ namespace msServiceProfiler {
             }
         }
 
-        ResID(const std::string &strRid) noexcept : ResID(strRid.c_str()) {}
+        ResID(const std::string &strRid) noexcept : ResID(strRid.c_str())
+        {}
 
         bool IsIllegal() const
         {
             return resValue.rid == std::numeric_limits<uint64_t>::max() && type == ResType::UINT64;
         }
+
+        static const ResID &IllegalResource()
+        {
+            static const ResID illegalResource = ResID(std::numeric_limits<uint64_t>::max());
+            return illegalResource;
+        }
     };
 
-    enum class MarkType : uint8_t { TYPE_EVENT = 0, TYPE_METRIC = 1, TYPE_SPAN = 2, TYPE_LINK = 3 };
+    enum class MarkType : uint8_t {
+        TYPE_EVENT = 0, TYPE_METRIC = 1, TYPE_SPAN = 2, TYPE_LINK = 3
+    };
 
     template <typename TProfiler, typename T>
     class ArrayCollectorHelper {
@@ -88,7 +97,7 @@ namespace msServiceProfiler {
     public:
         inline bool IsEnable(Level msgLevel = level)
         {
-            return msServiceProfiler::ServiceProfilerManager::GetInstance().IsEnable(msgLevel);
+            return msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallIsEnable(msgLevel);
         };
 
         template <Level levelAttr = level, typename T>
@@ -214,7 +223,7 @@ namespace msServiceProfiler {
             if (IsEnable(level)) {
                 this->Attr("name", spanName);
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_SPAN));
-                spanHandle_ = StartSpanWithName(spanName);
+                spanHandle_ = msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallStartSpanWithName(spanName);
                 autoEnd_ = autoEnd;
             }
             return *this;
@@ -223,8 +232,9 @@ namespace msServiceProfiler {
         void SpanEnd()
         {
             if (this->IsEnable(level)) {
-                MarkSpanAttr(this->GetMsg().c_str(), spanHandle_);
-                EndSpan(spanHandle_);
+                msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallMarkSpanAttr(this->GetMsg().c_str(),
+                                                                                          spanHandle_);
+                msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallEndSpan(spanHandle_);
                 autoEnd_ = false;
             }
         }
@@ -242,7 +252,7 @@ namespace msServiceProfiler {
             return *this;
         }
 
-        Profiler(Profiler &obj):autoEnd_(obj.autoEnd_), spanHandle_(obj.spanHandle_), msg_(std::move(obj.msg_))
+        Profiler(Profiler &obj) : autoEnd_(obj.autoEnd_), spanHandle_(obj.spanHandle_), msg_(std::move(obj.msg_))
         {
             obj.autoEnd_ = false;
         }
@@ -301,7 +311,7 @@ namespace msServiceProfiler {
         void Launch()
         {
             if (this->IsEnable(level)) {
-                MarkEvent(this->GetMsg().c_str());
+                msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallMarkEvent(this->GetMsg().c_str());
             }
         }
 
@@ -311,7 +321,7 @@ namespace msServiceProfiler {
             if (this->IsEnable(level)) {
                 this->Attr("name", eventName);
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_EVENT));
-                MarkEvent(this->GetMsg().c_str());
+                msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallMarkEvent(this->GetMsg().c_str());
             }
         }
 
@@ -322,7 +332,7 @@ namespace msServiceProfiler {
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_LINK));
                 this->Attr("from", fromRid);
                 this->Attr("to", toRid);
-                MarkEvent(this->GetMsg().c_str());
+                msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallMarkEvent(this->GetMsg().c_str());
             }
         }
 

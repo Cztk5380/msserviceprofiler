@@ -19,6 +19,7 @@
 
 #include <string>
 #include <vector>
+#include <dlfcn.h>
 #include <nlohmann/json.hpp>
 
 using SpanHandle = uint64_t;
@@ -38,6 +39,96 @@ MS_SERVICE_PROFILER_API void StopServerProfiler();
 MS_SERVICE_PROFILER_API bool IsEnable(uint32_t level);
 }
 
+namespace msServiceProfilerCompatible {
+    class ProfilerFunc {
+    public:
+        static ProfilerFunc &GetInstance()
+        {
+            static ProfilerFunc logManager;
+            return logManager;
+        }
+
+        ~ProfilerFunc() = default;
+
+        inline SpanHandle CallStartSpanWithName(const char *name)
+        {
+            return ptrStartSpanWithName_ ? ptrStartSpanWithName_(name) : 0;
+        }
+
+        inline void CallMarkSpanAttr(const char *msg, SpanHandle spanHandle)
+        {
+            if (ptrMarkSpanAttr_) {
+                ptrMarkSpanAttr_(msg, spanHandle);
+            }
+        }
+
+        inline void CallEndSpan(SpanHandle spanHandle)
+        {
+            if (ptrEndSpan_) {
+                ptrEndSpan_(spanHandle);
+            }
+        }
+
+        inline void CallMarkEvent(const char *msg)
+        {
+            if (ptrMarkEvent_) {
+                ptrMarkEvent_(msg);
+            }
+        }
+
+        inline bool CallIsEnable(uint32_t level)
+        {
+            return ptrIsEnable_ && ptrIsEnable_(level);
+        }
+
+        inline void CallStartServerProfiler()
+        {
+            if (ptrStartServerProfiler_) {
+                ptrStartServerProfiler_();
+            }
+        }
+
+        inline void CallStopServerProfiler()
+        {
+            if (ptrStopServerProfiler_) {
+                ptrStopServerProfiler_();
+            }
+        }
+
+    private:
+        void *handle_ = nullptr;
+        decltype(IsEnable)* ptrIsEnable_ = nullptr;
+        decltype(StartSpanWithName)* ptrStartSpanWithName_ = nullptr;
+        decltype(MarkSpanAttr)* ptrMarkSpanAttr_ = nullptr;
+        decltype(EndSpan)* ptrEndSpan_ = nullptr;
+        decltype(MarkEvent)* ptrMarkEvent_ = nullptr;
+        decltype(StartServerProfiler)* ptrStartServerProfiler_ = nullptr;
+        decltype(StopServerProfiler)* ptrStopServerProfiler_ = nullptr;
+    private:
+        ProfilerFunc()
+        {
+            handle_ = dlopen("libms_service_profiler.so", RTLD_LAZY);
+            if (handle_) {
+                ptrIsEnable_ = (decltype(IsEnable)*)dlsym(handle_, "IsEnable");
+                ptrStartSpanWithName_ = (decltype(StartSpanWithName)*)dlsym(handle_, "StartSpanWithName");
+                ptrMarkSpanAttr_ = (decltype(MarkSpanAttr)*)dlsym(handle_, "MarkSpanAttr");
+                ptrEndSpan_ = (decltype(EndSpan)*)dlsym(handle_, "EndSpan");
+                ptrMarkEvent_ = (decltype(MarkEvent)*)dlsym(handle_, "MarkEvent");
+                ptrStartServerProfiler_ = (decltype(StartServerProfiler)*)dlsym(handle_, "StartServerProfiler");
+                ptrStopServerProfiler_ = (decltype(StopServerProfiler)*)dlsym(handle_, "StopServerProfiler");
+            }
+        };
+
+        ProfilerFunc(const ProfilerFunc &) = delete;
+
+        ProfilerFunc &operator=(const ProfilerFunc &) = delete;
+
+        ProfilerFunc(ProfilerFunc &&) = delete;
+
+        ProfilerFunc &operator=(ProfilerFunc &&) = delete;
+    };
+}
+
 namespace msServiceProfiler {
 
     enum Level : uint32_t {
@@ -49,16 +140,16 @@ namespace msServiceProfiler {
 
     class ServiceProfilerManager {
     public:
-        MS_SERVICE_PROFILER_API static ServiceProfilerManager &GetInstance();
+        static ServiceProfilerManager &GetInstance();
 
-        MS_SERVICE_PROFILER_API inline bool IsEnable(uint32_t level)
+        inline bool IsEnable(uint32_t level)
         {
             return enable_ && level_ >= level;
         }
 
-        MS_SERVICE_PROFILER_API void StartProfiler();
+        void StartProfiler();
 
-        MS_SERVICE_PROFILER_API void StopProfiler();
+        void StopProfiler();
 
         static std::string ToSemName(const std::string &oriSemName);
 

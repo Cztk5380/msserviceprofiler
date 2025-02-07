@@ -10,7 +10,13 @@ project(ms_service_profiler)
 set(CMAKE_SKIP_RPATH TRUE)
 set(CMAKE_CXX_STANDARD 11)
 add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
+add_definitions(-DENABLE_PROF)
 
+include_directories(
+        include
+        opensource/json/include
+        platform/securec/include
+)
 
 if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
     message(AUTHOR_WARNING "no env $ASCEND_TOOLKIT_HOME")
@@ -57,22 +63,14 @@ endif ()
 
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/platform/securec/src/ SECUREC_SRC)
 
-include_directories(
-        include
-        opensource/json/include
-        platform/securec/include
-)
-
 add_library(ms_service_profiler
         SHARED
-        src/Profiler.cpp
         src/ServiceProfilerManager.cpp
         src/NpuMemoryUsage.cpp
         ${SECUREC_SRC}
 )
 
 add_executable(test_server_profiler test/ut/cpp_test/test.cpp
-        src/Profiler.cpp
         src/ServiceProfilerManager.cpp
         src/NpuMemoryUsage.cpp
         ${SECUREC_SRC}
