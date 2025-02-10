@@ -101,9 +101,9 @@
               "type": "frser-sqlite-datasource",
               "uid": "be9gcyy5a15hcd"
             },
-            "queryText": "\nWITH numbered_data AS (\n    SELECT \n        ROW_NUMBER() OVER (ORDER BY batch_size) - 1 AS batch_id,\n        batch_size,\n        batch_type\n    FROM batch\n    WHERE name = 'BatchSchedule'\n)\nSELECT \n    batch_id, \n    CASE \n        WHEN batch_type = 'Prefill' THEN batch_size\n        ELSE NULL\n    END AS Prefill_batch_size,\n    CASE \n        WHEN batch_type = 'Decode' THEN batch_size\n        ELSE NULL\n    END AS Decode_batch_size\nFROM numbered_data\nORDER BY batch_id;\n",
+            "queryText": "\nWITH numbered_data AS (\n    SELECT \n        ROW_NUMBER() OVER (ORDER BY `start_time(microsecond)`) - 1 AS batch_id,\n        batch_size,\n        batch_type\n    FROM batch\n    WHERE name = 'BatchSchedule'\n)\nSELECT \n    batch_id, \n    CASE \n        WHEN batch_type = 'Prefill' THEN batch_size\n        ELSE NULL\n    END AS Prefill_batch_size,\n    CASE \n        WHEN batch_type = 'Decode' THEN batch_size\n        ELSE NULL\n    END AS Decode_batch_size\nFROM numbered_data\nORDER BY batch_id;\n",
             "queryType": "table",
-            "rawQueryText": "\nWITH numbered_data AS (\n    SELECT \n        ROW_NUMBER() OVER (ORDER BY batch_size) - 1 AS batch_id,\n        batch_size,\n        batch_type\n    FROM batch\n    WHERE name = 'BatchSchedule'\n)\nSELECT \n    batch_id, \n    CASE \n        WHEN batch_type = 'Prefill' THEN batch_size\n        ELSE NULL\n    END AS Prefill_batch_size,\n    CASE \n        WHEN batch_type = 'Decode' THEN batch_size\n        ELSE NULL\n    END AS Decode_batch_size\nFROM numbered_data\nORDER BY batch_id;\n",
+            "rawQueryText": "\nWITH numbered_data AS (\n    SELECT \n        ROW_NUMBER() OVER (ORDER BY `start_time(microsecond)`) - 1 AS batch_id,\n        batch_size,\n        batch_type\n    FROM batch\n    WHERE name = 'BatchSchedule'\n)\nSELECT \n    batch_id, \n    CASE \n        WHEN batch_type = 'Prefill' THEN batch_size\n        ELSE NULL\n    END AS Prefill_batch_size,\n    CASE \n        WHEN batch_type = 'Decode' THEN batch_size\n        ELSE NULL\n    END AS Decode_batch_size\nFROM numbered_data\nORDER BY batch_id;\n",
             "refId": "A"
           }
         ],
