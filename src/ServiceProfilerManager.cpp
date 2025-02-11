@@ -265,11 +265,15 @@ namespace msServiceProfiler {
 
     void ServiceProfilerManager::ReadEnable(const Json &config)
     {
+        enable_ = false;  // Default to false
         if (config.contains("enable")) {
-            enable_ = config["enable"] == 1;
-        } else {
-            enable_ = false;
+            if (config["enable"].is_number_integer()) {
+                enable_ = config["enable"] == 1;
+            } else {
+                PROF_LOGW("enable value is not an integer, will set false.");
+            }
         }
+        PROF_LOGD("profile enable_: %s", enable_ ? "true" : "false");
     }
 
     void ServiceProfilerManager::ReadProfPath(const Json &config)
@@ -289,15 +293,15 @@ namespace msServiceProfiler {
 
     void ServiceProfilerManager::ReadAclTaskTime(const Json &config)
     {
+        enableAclTaskTime_ = false;  // Default to false
         if (config.contains("acl_task_time")) {
             if (config["acl_task_time"].is_number_integer()) {
                 enableAclTaskTime_ = config["acl_task_time"] == 1;
-                return;
             } else {
                 PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");
             }
         }
-        enableAclTaskTime_ = false;
+        PROF_LOGD("profile enableAclTaskTime_: %s", enableAclTaskTime_ ? "true" : "false");
     }
 
     void ServiceProfilerManager::ReadLevel(const Json &config)
