@@ -66,7 +66,7 @@ class TestExporterSummaryFunctions(unittest.TestCase):
         }
         process_batch_record(self.sample_batch_map, prefill_record)
         prefill_key = f"prefill_{str(prefill_record['rid_list'])}"
-        self.assertTrue(prefill_key in self.sample_batch_map, f"键 {prefill_key} 未在 sample_batch_map 中找到")
+        self.assertIn(prefill_key, self.sample_batch_map, f"键 {prefill_key} 未在 sample_batch_map 中找到")
         self.assertEqual(self.sample_batch_map[prefill_key]['prefill_batch_num'], 8)
         self.assertAlmostEqual(self.sample_batch_map[prefill_key]['prefill_exec_time (ms)'], 1500.0)
         # 测试Decode类型
@@ -78,7 +78,7 @@ class TestExporterSummaryFunctions(unittest.TestCase):
         }
         process_batch_record(self.sample_batch_map, decode_record)
         decode_key = f"decode_{str(decode_record['rid_list'])}"
-        self.assertTrue(decode_key in self.sample_batch_map, f"键 {decode_key} 未在 sample_batch_map 中找到")
+        self.assertIn(decode_key, self.sample_batch_map, f"键 {decode_key} 未在 sample_batch_map 中找到")
         self.assertEqual(self.sample_batch_map[decode_key]['decode_batch_num'], 4)
         self.assertAlmostEqual(self.sample_batch_map[decode_key]['decode_exec_time (ms)'], 500.0)
         unknown_record = {
