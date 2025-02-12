@@ -374,4 +374,4 @@ class ExporterSummary(ExporterBase):
         # 格式化存入csv
         save_dataframe_to_csv(req_status, output, "request_summary.csv")
         save_dataframe_to_csv(batch_status, output, "batch_summary.csv")
-        save_dataframe_to_csv(total_map, output,"service_summary.csv", include_stats=0)
+        save_dataframe_to_csv(total_map, output, "service_summary.csv", include_stats=0)
