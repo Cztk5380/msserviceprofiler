@@ -58,7 +58,6 @@ class TestExporterSummaryFunctions(unittest.TestCase):
         )
 
     def test_process_batch_record_multiple_types(self):
-        # 测试Prefill类型
         prefill_record = {
             'batch_type': 'Prefill',
             'rid_list': [1001],
@@ -66,15 +65,10 @@ class TestExporterSummaryFunctions(unittest.TestCase):
             'during_time': 1_500_000  # 1.5秒
         }
         process_batch_record(self.sample_batch_map, prefill_record)
-        print("处理Prefill记录后 self.sample_batch_map 的内容:")
-        print(self.sample_batch_map)
-        prefill_key = "prefill_(1001,)"  # 修改键的生成逻辑
-        try:
-            self.assertEqual(self.sample_batch_map[prefill_key]['prefill_batch_num'], 8)
-            self.assertAlmostEqual(self.sample_batch_map[prefill_key]['prefill_exec_time (ms)'], 1500.0)
-        except KeyError as e:
-            print(f"KeyError: {e}")
-
+        prefill_key = f"prefill_{str(prefill_record['rid_list'])}"
+        self.assertTrue(prefill_key in self.sample_batch_map, f"键 {prefill_key} 未在 sample_batch_map 中找到")
+        self.assertEqual(self.sample_batch_map[prefill_key]['prefill_batch_num'], 8)
+        self.assertAlmostEqual(self.sample_batch_map[prefill_key]['prefill_exec_time (ms)'], 1500.0)
         # 测试Decode类型
         decode_record = {
             'batch_type': 'Decode',
@@ -83,16 +77,10 @@ class TestExporterSummaryFunctions(unittest.TestCase):
             'during_time': 500_000  # 0.5秒
         }
         process_batch_record(self.sample_batch_map, decode_record)
-        print("处理Decode记录后 self.sample_batch_map 的内容:")
-        print(self.sample_batch_map)
-        decode_key = "decode_(1002,)"
-        try:
-            self.assertEqual(self.sample_batch_map[decode_key]['decode_batch_num'], 4)
-            self.assertAlmostEqual(self.sample_batch_map[decode_key]['decode_exec_time (ms)'], 500.0)
-        except KeyError as e:
-            print(f"KeyError: {e}")
-
-        # 新增：测试未知 batch_type 的情况
+        decode_key = f"decode_{str(decode_record['rid_list'])}"
+        self.assertTrue(decode_key in self.sample_batch_map, f"键 {decode_key} 未在 sample_batch_map 中找到")
+        self.assertEqual(self.sample_batch_map[decode_key]['decode_batch_num'], 4)
+        self.assertAlmostEqual(self.sample_batch_map[decode_key]['decode_exec_time (ms)'], 500.0)
         unknown_record = {
             'batch_type': 'Unknown',
             'rid_list': [1003],
@@ -100,8 +88,6 @@ class TestExporterSummaryFunctions(unittest.TestCase):
             'during_time': 200_000
         }
         process_batch_record(self.sample_batch_map, unknown_record)
-        print("处理未知类型记录后 self.sample_batch_map 的内容:")
-        print(self.sample_batch_map)
         self.assertEqual(len(self.sample_batch_map), 2, "未知 batch_type 不应添加新项")
 
     def test_calculate_statistics_comprehensive(self):
@@ -298,11 +284,10 @@ class TestExporterSummaryFunctions(unittest.TestCase):
         }
         process_req_record(self.req_map, input_token_record)
         # 验证 req_map 的内容
-        print(self.req_map)
         self.assertEqual(len(self.req_map), 1)
         self.assertEqual(self.req_map['0']['httpReq_start'], 1739276837290586.5)
         self.assertEqual(self.req_map['0']['token_id']['0'], 1739276837517605.2)
-        self.assertEqual(self.req_map['0']['is_complete'], True)
+        self.assertTrue(self.req_map['0']['is_complete'], True)
         self.assertEqual(self.req_map['0']['input_token_num'], 4.0)
         self.assertEqual(self.req_map['0']['generated_token_num'], 250.0)
         self.assertEqual(self.req_map['0']['httpRes_end'], 1739276841538271.0)
