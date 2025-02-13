@@ -23,7 +23,7 @@
 #include <limits>
 #include <cstdint>
 
-#include "ServiceProfilerManager.h"
+#include "ServiceProfilerInterface.h"
 
 constexpr int MAX_RES_STR_IZE = 128;
 
