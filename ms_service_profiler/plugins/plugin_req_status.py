@@ -86,5 +86,6 @@ def parse_message_state_name(message):
 def rename_req_status(tx_data_df, req_status):
     real_status = tx_data_df[req_status].gt(0)
     real_status.columns = real_status.columns.str.replace('+', '', regex=False)
-    tx_data_df['name'] = real_status.idxmax(axis=1).where(real_status.any(axis=1), tx_data_df['name'])
+    tx_data_df['name'][tx_data_df['name'] == 'ReqState'] = real_status.idxmax(axis=1).where(real_status.any(axis=1), \
+        tx_data_df['name'])[tx_data_df['name'] == 'ReqState']
     return tx_data_df
