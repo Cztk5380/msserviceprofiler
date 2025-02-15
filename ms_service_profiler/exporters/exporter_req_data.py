@@ -81,7 +81,7 @@ def process_data(req_en_queue_df, req_running_df, pending_df):
     wait_df = pd.merge(prefill_df, pending_time_sum, on='rid', how='left')
 
     wait_df['queue_wait_time'] = wait_df['waiting_time'] + wait_df['pending_time']
-    wait_df['rid'] = wait_df['rid'].apply(int)
+    wait_df['rid'] = wait_df['rid'].apply(str)
     wait_df = wait_df[['rid', 'queue_wait_time']]
     return wait_df
 
@@ -98,10 +98,11 @@ def get_req_base_info(df):
     req_group_df = df.groupby('rid')
     req_base_info = []
     for rid, pre_req_data in req_group_df:
-        if ',' in str(rid):
+        rid = str(rid)
+        if ',' in rid or '{' in rid or ':' in rid:
             continue
         new_req = {
-            'rid': int(rid),
+            'rid': rid,
             'start_time': '',
             'end_time': '',
             'recvTokenSize=': '',
