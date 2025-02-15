@@ -78,7 +78,7 @@ class TestExporterReqData(unittest.TestCase):
         data = {
             'name': ['httpReq', 'encode', 'Enqueue', 'ReqState', 'ReqState', 'ReqState', 'DecodeEnd', 'httpRes'],
             'message': [
-                {'domain': 'http', 'rid': 'endpoint_common_1', 'name': 'httpReq', 'type': 0},
+                {'domain': 'http', 'rid': 0, 'name': 'httpReq', 'type': 0},
                 {'domain': 'http', 'rid': 'endpoint_common_1', 'name': 'encode', 'type': 2, '=recvTokenSize': 4},
                 {'domain': 'Queue', 'rid': 0, '=QueueSize': 1, 'queue': 20, 'name': 'Enqueue', 'type': 0},
                 {'rid': 0, '+WAITING': -1, '+RUNNING': 1, 'name': 'ReqState', 'type': 0},
@@ -94,7 +94,8 @@ class TestExporterReqData(unittest.TestCase):
             'replyTokenSize=':['', '', '', '', '', '', 250, ''],
             'RUNNING+':['', '', '', 1, '', 1, '', ''],
             'PENDING+':['', '', '', '', 1, '', '', ''],
-            'during_time':[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+            'during_time':[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+            'domain':['', '', '', '', '', '', '', '']
         }
 
         return pd.DataFrame(data)

@@ -98,7 +98,7 @@ def get_req_base_info(df):
     req_group_df = df.groupby('rid')
     req_base_info = []
     for rid, pre_req_data in req_group_df:
-        if ',' in rid:
+        if ',' in str(rid):
             continue
         new_req = {
             'rid': int(rid),
