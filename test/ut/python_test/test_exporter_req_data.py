@@ -47,7 +47,7 @@ class TestProcessData(unittest.TestCase):
         # 测试当req_en_queue_df和req_running_df的行数一致时
         result = process_data(self.req_en_queue_df, self.req_running_df, self.pending_df)
         expected = pd.DataFrame({
-            'rid': [1],
+            'rid': ['1'],
             'queue_wait_time': [11]
         })
         pd.testing.assert_frame_equal(result, expected)
