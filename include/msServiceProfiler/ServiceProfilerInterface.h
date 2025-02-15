@@ -35,15 +35,24 @@ MS_SERVICE_PROFILER_API bool IsEnable(uint32_t level);
 }
 
 namespace msServiceProfilerCompatible {
-    class ProfilerFunc {
+    class ServiceProfilerInterface {
     public:
-        static ProfilerFunc &GetInstance()
+        ServiceProfilerInterface(const ServiceProfilerInterface &) = delete;
+
+        ServiceProfilerInterface &operator=(const ServiceProfilerInterface &) = delete;
+
+        ServiceProfilerInterface(ServiceProfilerInterface &&) = delete;
+
+        ServiceProfilerInterface &operator=(ServiceProfilerInterface &&) = delete;
+
+    public:
+        static ServiceProfilerInterface &GetInstance()
         {
-            static ProfilerFunc logManager;
+            static ServiceProfilerInterface logManager;
             return logManager;
         }
 
-        ~ProfilerFunc() = default;
+        ~ServiceProfilerInterface() = default;
 
         inline SpanHandle CallStartSpanWithName(const char *name)
         {
@@ -91,16 +100,7 @@ namespace msServiceProfilerCompatible {
         }
 
     private:
-        decltype(IsEnable)* ptrIsEnable_ = nullptr;
-        decltype(StartSpanWithName)* ptrStartSpanWithName_ = nullptr;
-        decltype(MarkSpanAttr)* ptrMarkSpanAttr_ = nullptr;
-        decltype(EndSpan)* ptrEndSpan_ = nullptr;
-        decltype(MarkEvent)* ptrMarkEvent_ = nullptr;
-        decltype(StartServerProfiler)* ptrStartServerProfiler_ = nullptr;
-        decltype(StopServerProfiler)* ptrStopServerProfiler_ = nullptr;
-
-    private:
-        ProfilerFunc()
+        ServiceProfilerInterface()
         {
 #ifdef ENABLE_SERVICE_PROF_UNIT_TEST
             ptrIsEnable_ = IsEnable;
@@ -123,14 +123,15 @@ namespace msServiceProfilerCompatible {
             }
 #endif
         };
-    public:
-        ProfilerFunc(const ProfilerFunc &) = delete;
 
-        ProfilerFunc &operator=(const ProfilerFunc &) = delete;
-
-        ProfilerFunc(ProfilerFunc &&) = delete;
-
-        ProfilerFunc &operator=(ProfilerFunc &&) = delete;
+    private:
+        decltype(IsEnable)* ptrIsEnable_ = nullptr;
+        decltype(StartSpanWithName)* ptrStartSpanWithName_ = nullptr;
+        decltype(MarkSpanAttr)* ptrMarkSpanAttr_ = nullptr;
+        decltype(EndSpan)* ptrEndSpan_ = nullptr;
+        decltype(MarkEvent)* ptrMarkEvent_ = nullptr;
+        decltype(StartServerProfiler)* ptrStartServerProfiler_ = nullptr;
+        decltype(StopServerProfiler)* ptrStopServerProfiler_ = nullptr;
     };
 }
 

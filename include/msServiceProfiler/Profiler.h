@@ -94,7 +94,7 @@ namespace msServiceProfiler {
     public:
         inline bool IsEnable(Level msgLevel = level) const
         {
-            return msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallIsEnable(msgLevel);
+            return msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallIsEnable(msgLevel);
         };
 
         template <Level levelAttr = level, typename T>
@@ -220,7 +220,8 @@ namespace msServiceProfiler {
             if (IsEnable(level)) {
                 this->Attr("name", spanName);
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_SPAN));
-                spanHandle_ = msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallStartSpanWithName(spanName);
+                spanHandle_ = msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
+                    .CallStartSpanWithName(spanName);
                 autoEnd_ = autoEnd;
             }
             return *this;
@@ -229,9 +230,9 @@ namespace msServiceProfiler {
         void SpanEnd()
         {
             if (this->IsEnable(level)) {
-                msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallMarkSpanAttr(this->GetMsg().c_str(),
-                                                                                          spanHandle_);
-                msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallEndSpan(spanHandle_);
+                msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallMarkSpanAttr(
+                    this->GetMsg().c_str(), spanHandle_);
+                msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallEndSpan(spanHandle_);
                 autoEnd_ = false;
             }
         }
@@ -308,7 +309,8 @@ namespace msServiceProfiler {
         void Launch() const
         {
             if (this->IsEnable(level)) {
-                msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallMarkEvent(this->GetMsg().c_str());
+                msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
+                    .CallMarkEvent(this->GetMsg().c_str());
             }
         }
 
@@ -318,7 +320,8 @@ namespace msServiceProfiler {
             if (this->IsEnable(level)) {
                 this->Attr("name", eventName);
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_EVENT));
-                msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallMarkEvent(this->GetMsg().c_str());
+                msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
+                    .CallMarkEvent(this->GetMsg().c_str());
             }
         }
 
@@ -329,7 +332,8 @@ namespace msServiceProfiler {
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_LINK));
                 this->Attr("from", fromRid);
                 this->Attr("to", toRid);
-                msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallMarkEvent(this->GetMsg().c_str());
+                msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
+                    .CallMarkEvent(this->GetMsg().c_str());
             }
         }
 
