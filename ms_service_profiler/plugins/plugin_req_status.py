@@ -86,6 +86,10 @@ def parse_message_state_name(message):
 def rename_req_status(tx_data_df, req_status):
     real_status = tx_data_df[req_status].gt(0)
     real_status.columns = real_status.columns.str.replace('+', '', regex=False)
-    tx_data_df['name'][tx_data_df['name'] == 'ReqState'] = real_status.idxmax(axis=1).where(real_status.any(axis=1), \
-        tx_data_df['name'])[tx_data_df['name'] == 'ReqState']
+
+    # 当前修改只针对name为ReqState的行生效；创建一个行索引，选择满足条件的行
+    indexer = tx_data_df['name'] == 'ReqState'
+    # 使用这个索引来更新'name'列
+    tx_data_df.loc[indexer, 'name'] = real_status.idxmax(axis=1).where(real_status.any(axis=1), \
+        tx_data_df.loc[indexer, 'name'])
     return tx_data_df
