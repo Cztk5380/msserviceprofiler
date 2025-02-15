@@ -150,7 +150,7 @@ void SpeedTest()
 
 int main()
 {
-    msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallStartServerProfiler();
+    msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallStartServerProfiler();
     aclrtContext context_;
     aclrtStream stream_;
 
@@ -176,6 +176,6 @@ int main()
     SpeedTest();
     const int sleepTime = 10 * NANO_TO_MILLI_SECOND;
     std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 10 seconds
-    msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallStopServerProfiler();
+    msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallStopServerProfiler();
     return 0;
 }
