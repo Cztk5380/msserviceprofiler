@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,11 @@
 #ifndef MS_SERVER_PROFILER_INTERFACE_H
 #define MS_SERVER_PROFILER_INTERFACE_H
 
-#include <string>
-#include <vector>
 #include <dlfcn.h>
 
 using SpanHandle = uint64_t;
 
 #define MS_SERVICE_PROFILER_API __attribute__((visibility("default")))
-
 
 extern "C" {
 MS_SERVICE_PROFILER_API SpanHandle StartSpan();
@@ -94,7 +91,6 @@ namespace msServiceProfilerCompatible {
         }
 
     private:
-        void *handle_ = nullptr;
         decltype(IsEnable)* ptrIsEnable_ = nullptr;
         decltype(StartSpanWithName)* ptrStartSpanWithName_ = nullptr;
         decltype(MarkSpanAttr)* ptrMarkSpanAttr_ = nullptr;
@@ -102,24 +98,32 @@ namespace msServiceProfilerCompatible {
         decltype(MarkEvent)* ptrMarkEvent_ = nullptr;
         decltype(StartServerProfiler)* ptrStartServerProfiler_ = nullptr;
         decltype(StopServerProfiler)* ptrStopServerProfiler_ = nullptr;
+
     private:
         ProfilerFunc()
         {
-            handle_ = dlopen("libms_service_profiler.so", RTLD_LAZY);
-            if (handle_) {
-                std::cout << "find \"libms_service_profiler.so\"" << std::endl;
-                ptrIsEnable_ = (decltype(IsEnable)*)dlsym(handle_, "IsEnable");
-                ptrStartSpanWithName_ = (decltype(StartSpanWithName)*)dlsym(handle_, "StartSpanWithName");
-                ptrMarkSpanAttr_ = (decltype(MarkSpanAttr)*)dlsym(handle_, "MarkSpanAttr");
-                ptrEndSpan_ = (decltype(EndSpan)*)dlsym(handle_, "EndSpan");
-                ptrMarkEvent_ = (decltype(MarkEvent)*)dlsym(handle_, "MarkEvent");
-                ptrStartServerProfiler_ = (decltype(StartServerProfiler)*)dlsym(handle_, "StartServerProfiler");
-                ptrStopServerProfiler_ = (decltype(StopServerProfiler)*)dlsym(handle_, "StopServerProfiler");
-            } else {
-                std::cout << "not find \"libms_service_profiler.so\"" << std::endl;
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+            ptrIsEnable_ = IsEnable;
+            ptrStartSpanWithName_ = StartSpanWithName;
+            ptrMarkSpanAttr_ = MarkSpanAttr;
+            ptrEndSpan_ = EndSpan;
+            ptrMarkEvent_ = MarkEvent;
+            ptrStartServerProfiler_ = StartServerProfiler;
+            ptrStopServerProfiler_ = StopServerProfiler;
+#else
+            auto handle = dlopen("libms_service_profiler.so", RTLD_LAZY);
+            if (handle) {
+                ptrIsEnable_ = (decltype(IsEnable)*)dlsym(handle, "IsEnable");
+                ptrStartSpanWithName_ = (decltype(StartSpanWithName)*)dlsym(handle, "StartSpanWithName");
+                ptrMarkSpanAttr_ = (decltype(MarkSpanAttr)*)dlsym(handle, "MarkSpanAttr");
+                ptrEndSpan_ = (decltype(EndSpan)*)dlsym(handle, "EndSpan");
+                ptrMarkEvent_ = (decltype(MarkEvent)*)dlsym(handle, "MarkEvent");
+                ptrStartServerProfiler_ = (decltype(StartServerProfiler)*)dlsym(handle, "StartServerProfiler");
+                ptrStopServerProfiler_ = (decltype(StopServerProfiler)*)dlsym(handle, "StopServerProfiler");
             }
+#endif
         };
-
+    public:
         ProfilerFunc(const ProfilerFunc &) = delete;
 
         ProfilerFunc &operator=(const ProfilerFunc &) = delete;
@@ -131,7 +135,6 @@ namespace msServiceProfilerCompatible {
 }
 
 namespace msServiceProfiler {
-
     enum Level : uint32_t {
         ERROR = 10,
         INFO = 20,

@@ -29,9 +29,7 @@
 namespace msServiceProfiler {
     constexpr int MAX_RES_STR_IZE = 128;
 
-    enum class ResType : uint8_t {
-        STRING = '\0', UINT64
-    };
+    enum class ResType : uint8_t { STRING = '\0', UINT64 };
 
     union ResIdValue {
         uint64_t rid;
@@ -67,8 +65,7 @@ namespace msServiceProfiler {
             }
         }
 
-        ResID(const std::string &strRid) noexcept : ResID(strRid.c_str())
-        {}
+        ResID(const std::string &strRid) noexcept : ResID(strRid.c_str()) {}
 
         bool IsIllegal() const
         {
@@ -337,9 +334,9 @@ namespace msServiceProfiler {
         }
 
     private:
-        std::string msg_;
         bool autoEnd_ = false;
-        SpanHandle spanHandle_ = 0;
+        SpanHandle spanHandle_ = 0U;
+        std::string msg_;
     };
 
 }  // namespace msServiceProfiler

@@ -1,0 +1,85 @@
+cmake_minimum_required(VERSION 3.13)
+project(ms_service_profiler_test)
+message("building test of msServiceProfiler")
+
+set(CMAKE_SKIP_RPATH TRUE)
+set(CMAKE_CXX_STANDARD 14)
+set(PROJECT_TOP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
+set(TOOLKIT_BASE_PATH $ENV{ASCEND_TOOLKIT_HOME})
+
+add_compile_definitions(
+        ENABLE_PROF
+        ENABLE_SERVICE_PROF_UNIT_TEST
+)
+
+add_compile_options(
+        -fprofile-arcs
+        -ftest-coverage
+        -g
+        -Wall
+)
+
+include_directories(
+        ${PROJECT_TOP_DIR}/include
+        ${PROJECT_TOP_DIR}/include/msServiceProfiler
+        ${PROJECT_TOP_DIR}/opensource/googletest-1.8.1/googletest/include
+        ${PROJECT_TOP_DIR}/opensource/googletest-1.8.1/googlemock/include
+        ${PROJECT_TOP_DIR}/opensource/json/include
+        ${PROJECT_TOP_DIR}/platform/securec/include
+        ${TOOLKIT_BASE_PATH}/include
+        ${TOOLKIT_BASE_PATH}/aarch64-linux/include
+        ${TOOLKIT_BASE_PATH}/x86_64-linux/include
+)
+
+link_directories(
+        ${PROJECT_TOP_DIR}/opensource/googletest-1.8.1/lib
+        ${PROJECT_TOP_DIR}/opensource/googletest-1.8.1/lib64
+        ${TOOLKIT_BASE_PATH}/lib64
+        ${TOOLKIT_BASE_PATH}/aarch64-linux/devlib
+        ${TOOLKIT_BASE_PATH}/x86_64-linux/devlib
+)
+
+set(TEST_LIBS
+        ascendcl
+        msprofiler
+        ms_tools_ext
+        dl
+        pthread
+        rt
+        securec
+        libgtest.a
+        libgtest_main.a
+        libgmock.a
+        libgmock_main.a
+        libstdc++fs.a
+)
+
+add_link_options(
+        -lgcov
+        --coverage
+)
+
+aux_source_directory(${PROJECT_TOP_DIR}/src/ PROFILER_SRC)
+add_subdirectory(${PROJECT_TOP_DIR}/platform platform)
+
+add_executable(ut_server_profiler
+        testServiceProfilerManager.cpp
+        ${PROFILER_SRC}
+)
+
+add_executable(st_server_profiler
+        test.cpp
+        ${PROFILER_SRC}
+)
+
+target_link_libraries(ut_server_profiler
+        ${TEST_LIBS}
+)
+
+target_link_libraries(st_server_profiler
+        ${TEST_LIBS}
+)
+
+target_compile_options(ut_server_profiler PRIVATE
+        -fno-access-control
+)

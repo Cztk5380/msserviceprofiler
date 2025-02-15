@@ -2,5 +2,5 @@
     "enable": 1,
     "prof_dir": "./server_profiler",
     "profiler_level": "INFO",
-    "acl_task_time": 1
+    "acl_task_time": 0
 }
