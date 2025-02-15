@@ -56,7 +56,8 @@ def process_data(req_en_queue_df, req_running_df, pending_df):
  
     decode_running_df = decode_running_df.groupby('rid').agg({'start_time': ["sum", "count"]}).reset_index()
     decode_running_df = decode_running_df.sort_values("rid")
-    decode_running_df = pd.merge(decode_running_df["start_time"], decode_running_df["rid"], left_index=True, right_index=True)
+    decode_running_df = pd.merge(decode_running_df["start_time"], decode_running_df["rid"], \
+        left_index=True, right_index=True)
     decode_running_df.columns = ['start_time', 'count', 'rid']
 
     rows_pending = pending_df.shape[0]
@@ -129,7 +130,7 @@ def get_req_base_info(df):
         if decode_end_df.shape[0] == 1 and 'recvTokenSize=' in decode_end_df.columns:
             new_req['replyTokenSize='] = decode_end_df.iloc[0, decode_end_df.columns.get_loc('replyTokenSize=')]
 
-        if new_req['start_time'] is not '' and new_req['end_time'] is not '':
+        if new_req['start_time'] != '' and new_req['end_time'] != '':
             new_req['execution_time'] = new_req['end_time'] - new_req['start_time']
         req_base_info.append(new_req)
     return pd.DataFrame(req_base_info)
