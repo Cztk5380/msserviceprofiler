@@ -22,14 +22,14 @@
 #include <nlohmann/json.hpp>
 #include "ServiceProfilerInterface.h"
 
-using json = nlohmann::json;
+using Json = nlohmann::json;
 
 namespace msServiceProfiler {
     class ServiceProfilerManager {
     public:
         static ServiceProfilerManager &GetInstance();
 
-        inline bool IsEnable(uint32_t level)
+        inline bool IsEnable(uint32_t level) const
         {
             return enable_ && level_ >= level;
         }
@@ -50,23 +50,23 @@ namespace msServiceProfiler {
 
         ~ServiceProfilerManager();
 
-        json ReadConfig();
+        Json ReadConfig();
 
-        void ReadEnable(const json &config);
+        void ReadEnable(const Json &config);
 
-        void ReadProfPath(const json &config);
+        void ReadProfPath(const Json &config);
 
-        void ReadLevel(const json &config);
+        void ReadLevel(const Json &config);
 
-        void ReadAclTaskTime(const json &config);
+        void ReadAclTaskTime(const Json &config);
 
-        bool ReadCollectConfig(const json &config);
+        bool ReadCollectConfig(const Json &config);
 
-        bool ReadHostConfig(const json &config);
+        bool ReadHostConfig(const Json &config);
 
-        bool ReadNpuConfig(const json &config);
+        bool ReadNpuConfig(const Json &config);
 
-        void SetAclProfHostSysConfig();
+        void SetAclProfHostSysConfig() const;
 
         void DynamicControl();
 

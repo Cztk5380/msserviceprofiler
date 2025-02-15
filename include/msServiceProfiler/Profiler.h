@@ -25,9 +25,9 @@
 
 #include "ServiceProfilerInterface.h"
 
-constexpr int MAX_RES_STR_IZE = 128;
 
 namespace msServiceProfiler {
+    constexpr int MAX_RES_STR_IZE = 128;
 
     enum class ResType : uint8_t {
         STRING = '\0', UINT64
@@ -95,7 +95,7 @@ namespace msServiceProfiler {
     template <Level level = Level::INFO>
     class Profiler {
     public:
-        inline bool IsEnable(Level msgLevel = level)
+        inline bool IsEnable(Level msgLevel = level) const
         {
             return msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallIsEnable(msgLevel);
         };
@@ -212,7 +212,7 @@ namespace msServiceProfiler {
             return *this;
         }
 
-        std::string &GetMsg()
+        const std::string &GetMsg() const
         {
             return msg_;
         }
@@ -302,13 +302,13 @@ namespace msServiceProfiler {
         }
 
         template <typename T>
-        inline Profiler &MetricScopeAsGlobal()
+        inline Profiler &MetricScopeAsGlobal() const
         {
             // default, do nothing
             return *this;
         }
 
-        void Launch()
+        void Launch() const
         {
             if (this->IsEnable(level)) {
                 msServiceProfilerCompatible::ProfilerFunc::GetInstance().CallMarkEvent(this->GetMsg().c_str());

@@ -16,6 +16,9 @@
 #ifndef GET_NPU_MEMORY_USAGE_H
 #define GET_NPU_MEMORY_USAGE_H
 
+#include <vector>
+
+
 namespace msServiceProfiler {
 struct dcmi_get_memory_info_stru {
     unsigned long long memory_size;      /* unit:MB */
@@ -57,12 +60,12 @@ private:
     bool isHbmDevice = false;
     std::vector<CardDevice> cardDevices;
 
-    int DcmiInit();
-    int DcmiGetCardList(int *cardNum, int *cardList, int listLen);
-    int DcmiGetDeviceIdInCard(int cardId, int *deviceIdMax);
+    int DcmiInit() const;
+    int DcmiGetCardList(int *cardNum, int *cardList, int listLen) const;
+    int DcmiGetDeviceIdInCard(int cardId, int *deviceIdMax) const;
     int DcmiGetDeviceMemoryInfoV3(
-        int cardId, int deviceId, struct dcmi_get_memory_info_stru *memoryInfo);
-    int DcmiGetDeviceHbmInfo(int cardId, int deviceId, struct dsmi_hbm_info_stru *hbmInfo);
+        int cardId, int deviceId, struct dcmi_get_memory_info_stru *memoryInfo) const;
+    int DcmiGetDeviceHbmInfo(int cardId, int deviceId, struct dsmi_hbm_info_stru *hbmInfo) const;
 };
 }  // namespace msServiceProfiler
 #endif  // GET_NPU_MEMORY_USAGE_H
