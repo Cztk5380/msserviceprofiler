@@ -1,5 +1,5 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-import fnmatch
+
 import os
 import argparse
 import subprocess
@@ -166,33 +166,9 @@ def load_cpu_freq(info_path):
 def get_filepaths(folder_path, file_filter):
     filepaths = {}
     reverse_d = {value: key for key, value in file_filter.items()}
-    wildcard_patterns = [p for p in reverse_d.keys() if "*" in p or "?" in p]
-
-    # 处理精确匹配的文件
     for fp in Path(folder_path).rglob('*'):
         if fp.name in reverse_d:
             filepaths[reverse_d[fp.name]] = str(fp)
-
-    # 处理通配符匹配的文件
-    for pattern in wildcard_patterns:
-        alias = reverse_d[pattern]
-        if pattern == "msprof_*.json":
-            # 使用正则表达式进行精确匹配
-            regex_pattern = r'^msprof_\d+\.json$'
-            matched_files = []
-            for fp in Path(folder_path).rglob('*.json'):
-                if re.match(regex_pattern, fp.name):
-                    matched_files.append(str(fp))
-            if matched_files:
-                if alias not in filepaths:
-                    filepaths[alias] = []
-                filepaths[alias].extend(matched_files)
-        else:
-            # 原有逻辑处理其他通配符模式
-            for fp in Path(folder_path).rglob(pattern):
-                filepaths[alias] = str(fp)
-                break  # 保持原有逻辑，只取第一个匹配的文件
-
     return filepaths
 
 
@@ -213,54 +189,13 @@ def load_prof(filepaths):
     cpu_data_df = load_cpu_data(filepaths.get("cpu"))
     memory_data_df = load_memory_data(filepaths.get("memory"))
     time_info = load_time_info(filepaths)
-    msprof_files = filepaths.get("msprof", [])
-    msprof_data = [load_single_prof(pf) for pf in msprof_files]
 
     return dict(
         tx_data_df=tx_data_df,
         cpu_data_df=cpu_data_df,
         memory_data_df=memory_data_df,
         time_info=time_info,
-        msprof_data=msprof_data
     )
-
-
-def load_single_prof(pf):
-    try:
-        with open(pf, 'r', encoding='utf-8') as file:
-            trace_events = json.load(file)
-
-        # 找到 CANN 进程的 pid
-        cann_pid = None
-        for event in trace_events:
-            if event.get("name") == "process_name":
-                args = event.get("args", {})
-                if args.get("name") == "CANN":
-                    cann_pid = event.get("pid")
-                    break
-
-        if cann_pid is None:
-            return {"traceEvents": []}
-
-        # 筛选出 CANN 相关的事件
-        def is_cann_event(event):
-            return event.get("pid") == cann_pid
-
-        filtered_trace_events = [
-            event for event in trace_events if is_cann_event(event)]
-
-        # 创建包含筛选后 CANN 事件的字典
-        merged_dict = {
-            "traceEvents": filtered_trace_events
-        }
-        return merged_dict
-    except FileNotFoundError:
-        logger.warning("The file was not found. Please check the file path.")
-        return {"traceEvents": []}
-    except json.JSONDecodeError:
-        logger.warning()
-        return {"traceEvents": []}
-
 
 
 def read_origin_db(db_path: str):
@@ -271,7 +206,6 @@ def read_origin_db(db_path: str):
         "host_start": "host_start.log",
         "info": "info.json",
         "start_info": "start_info",
-        "msprof": "msprof_*.json"
     }
 
     data_list = []
@@ -366,6 +300,7 @@ def preprocess_prof_folders(input_path):
                 run_msprof_command(command)
     if not find_file_in_dir(input_path, 'msproftx.db'):
         raise ValueError("msprof failed! No msproftx.db file is generated.")
+
 
 
 def main():
