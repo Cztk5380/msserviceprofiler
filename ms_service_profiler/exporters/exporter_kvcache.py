@@ -161,7 +161,7 @@ def export_pull_kvcache(df, output):
         kvcache_df = df[df['domain'] == 'PullKVCache']
         logger.debug(f"pd_separate_kvcache shape {kvcache_df.shape}.")
         kvcache_df = kvcache_df[[
-            'domain', 'rank', 'rid', 'block_tables', 'seq_len', 'during_time', \
+            'domain', 'rank', 'rid', 'block_tables', 'batch_seq_len', 'during_time', \
             'start_datetime', 'end_datetime', 'start_time', 'end_time',
         ]]
         kvcache_df = kvcache_df.rename(columns={
