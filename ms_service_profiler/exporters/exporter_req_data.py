@@ -128,7 +128,7 @@ def get_req_base_info(df):
             new_req['end_time'] = http_res_df.iloc[0, http_res_df.columns.get_loc('end_time')]
             new_req['replyTokenSize='] = http_res_df.iloc[0, http_res_df.columns.get_loc('replyTokenSize=')]
 
-        if decode_end_df.shape[0] == 1 and 'recvTokenSize=' in decode_end_df.columns:
+        if decode_end_df.shape[0] == 1 and 'replyTokenSize=' in decode_end_df.columns:
             new_req['replyTokenSize='] = decode_end_df.iloc[0, decode_end_df.columns.get_loc('replyTokenSize=')]
 
         if new_req['start_time'] != '' and new_req['end_time'] != '':
