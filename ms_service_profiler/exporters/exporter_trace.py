@@ -3,6 +3,7 @@
 import json
 import os
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
@@ -19,9 +20,23 @@ class ExporterTrace(ExporterBase):
     @classmethod
     def export(cls, data) -> None:
         all_data_df, cpu_data_df, memory_data_df = data['tx_data_df'], data['cpu_data_df'], data['memory_data_df']
+        msprof_data_df = data['msprof_data']
         output = cls.args.output_path
         trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df)
-        save_trace_data_into_json(trace_data, output)
+        merged_data = merge_json_data(trace_data, msprof_data_df)
+        save_trace_data_into_json(merged_data, output)
+
+
+def process_msprof_item(item):
+    return item.get("traceEvents", [])
+
+
+def merge_json_data(trace_data, msprof_data_df):
+    with ThreadPoolExecutor() as executor:
+        results = executor.map(process_msprof_item, msprof_data_df)
+        for events in results:
+            trace_data["traceEvents"].extend(events)
+    return trace_data
 
 
 def write_trace_data_to_file(trace_data, output):
@@ -239,7 +254,7 @@ def add_pull_kvcache_events(df):
         df_decode['tid'] = f"Decode Device {rank}"
         events = df_decode[['name', 'ph', 'ts', 'pid', 'tid', 'args', 'dur']].to_dict(orient='records')
         all_events.extend(events)
-    
+
         for i, _ in df.iterrows():
             all_events.append({
                 "id": f"pull_kvcache_rank{rank}_{i}",
