@@ -17,6 +17,7 @@ class PluginTimeStampHelper(PluginBase):
         cpu_data_df = data.get('cpu_data_df')
         memory_data_df = data.get('memory_data_df')
         time_info = data.get('time_info')
+        msprof_data_df = data.get('msprof_data')
 
         if time_info is None:
             raise ValueError("There is no time infomation, please check data.")
@@ -29,6 +30,7 @@ class PluginTimeStampHelper(PluginBase):
             'tx_data_df': tx_data_df,
             'cpu_data_df': cpu_data_df,
             'memory_data_df': memory_data_df,
+            'msprof_data_df': msprof_data_df
         }
         return data
 
