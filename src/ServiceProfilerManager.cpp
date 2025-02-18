@@ -172,7 +172,6 @@ namespace msServiceProfiler {
 
     ServiceProfilerManager::ServiceProfilerManager()
     {
-        std::cout << "HELLO, MY NAME IS HANMEIMEI" << std::endl;
         ReadConfigPath();
         MarkFirstProcessAsMain();
         InitProfPathDateTail();
