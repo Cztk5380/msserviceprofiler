@@ -1,5 +1,4 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-import concurrent.futures
 import os
 import argparse
 import subprocess
@@ -228,8 +227,7 @@ def load_prof(filepaths):
     memory_data_df = load_memory_data(filepaths.get("memory"))
     time_info = load_time_info(filepaths)
     msprof_files = filepaths.get("msprof", [])
-    # 多线程
-    msprof_data = load_multiple_profs(msprof_files)
+    msprof_data = [load_single_prof(pf) for pf in msprof_files]
 
     return dict(
         tx_data_df=tx_data_df,
@@ -238,15 +236,6 @@ def load_prof(filepaths):
         time_info=time_info,
         msprof_data=msprof_data
     )
-
-
-def load_multiple_profs(file_paths):
-    results = []
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(load_single_prof, pf) for pf in file_paths]
-        for future in concurrent.futures.as_completed(futures):
-            results.append(future.result())
-    return results
 
 
 def load_single_prof(pf):
