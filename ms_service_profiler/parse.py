@@ -321,12 +321,6 @@ def parse(input_path, plugins, exporters):
     logger.info('Read origin db success.')
 
     all_plugins = sort_plugins(builtin_plugins + plugins)
-    data = run_plugins(data, all_plugins)
-    if data is not None:
-        run_exporters(data, exporters)
-
-
-def run_plugins(data, all_plugins):
     total_plugins = len(all_plugins)
     for cur_id, plugin in enumerate(all_plugins):
         try:
@@ -335,15 +329,12 @@ def run_plugins(data, all_plugins):
         except ParseError as ex:
             if plugin.name in ['plugin_timestamp', 'plugin_concat']:
                 logger.exception(f'{plugin.name} failure. Program stopped.')
-                return None
+                return
             else:
                 logger.exception(f'{plugin.name} failure. Skip it.')
         except Exception as ex:
             logger.exception(f'{plugin.name} failure. Skip it.')
-    return data
 
-
-def run_exporters(data, exporters):
     logger.info('Starting exporter processes.')
     with ProcessPoolExecutor() as executor:
         futures = [executor.submit(exporter.export, data) for exporter in exporters]
