@@ -74,8 +74,8 @@ namespace msServiceProfiler {
 
         static const ResID &IllegalResource()
         {
-            static const ResID illegalResource = ResID(std::numeric_limits<uint64_t>::max());
-            return illegalResource;
+            static const ResID ILLEGAL_RESOURCE = ResID(std::numeric_limits<uint64_t>::max());
+            return ILLEGAL_RESOURCE;
         }
     };
 
