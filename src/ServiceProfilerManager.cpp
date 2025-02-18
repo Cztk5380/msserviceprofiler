@@ -107,7 +107,7 @@ void MarkEvent(const char *msg)
     if (strlen(msg) > MAX_TX_MSG_LEN) {
         MarkEventLongAttr(msg);
     }
-    PROF_LOGD(msg);
+    PROF_LOGD("%s", msg);
     mstxMarkA(msg, nullptr);
 }
 
