@@ -10,7 +10,13 @@ project(ms_service_profiler)
 set(CMAKE_SKIP_RPATH TRUE)
 set(CMAKE_CXX_STANDARD 11)
 add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
+add_definitions(-DENABLE_PROF)
 
+include_directories(
+        include
+        opensource/json/include
+        platform/securec/include
+)
 
 if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
     message(AUTHOR_WARNING "no env $ASCEND_TOOLKIT_HOME")
@@ -55,47 +61,35 @@ else ()
     )
 endif ()
 
-aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/platform/securec/src/ SECUREC_SRC)
 
-include_directories(
-        include
-        opensource/json/include
-        platform/securec/include
-)
-
-add_library(ms_service_profiler
-        SHARED
-        src/Profiler.cpp
-        src/ServiceProfilerManager.cpp
-        src/NpuMemoryUsage.cpp
-        ${SECUREC_SRC}
-)
-
-add_executable(test_server_profiler test/ut/cpp_test/test.cpp
-        src/Profiler.cpp
-        src/ServiceProfilerManager.cpp
-        src/NpuMemoryUsage.cpp
-        ${SECUREC_SRC}
-)
-
-target_compile_options(ms_service_profiler PRIVATE
-        -std=c++11
+add_compile_options(
         -fPIC
         -fstack-protector-all
         -fno-strict-aliasing
         -fno-common
         -fvisibility=hidden
-        -fvisibility-inlines-hidden
         -Wfloat-equal
         -Wextra
         -D_FORTIFY_SOURCE=2 -O2
 )
 
-target_link_options(ms_service_profiler PRIVATE
+add_link_options(
         -Wl,-z,relro,-z,now,-z,noexecstack
         -Wl,-Bsymbolic
         -Wl,--exclude-libs=ALL
         $<$<NOT:$<STREQUAL:${CMAKE_BUILD_TYPE},Debug>>:-s>
+)
+
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/ PROFILER_SRC)
+add_subdirectory(platform)
+
+add_library(ms_service_profiler
+        SHARED
+        ${PROFILER_SRC}
+)
+
+target_compile_options(ms_service_profiler PRIVATE
+        -fvisibility-inlines-hidden
 )
 
 
@@ -106,19 +100,8 @@ target_link_libraries(ms_service_profiler
         dl
         pthread
         rt
+        securec
 )
-
-
-target_link_libraries(test_server_profiler
-        ascendcl
-        msprofiler
-        ms_tools_ext
-        dl
-        pthread
-        rt
-)
-
-target_compile_definitions(test_server_profiler PUBLIC -DENABLE_PROF)
 
 install(TARGETS ms_service_profiler
         LIBRARY DESTINATION lib
