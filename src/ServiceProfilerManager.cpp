@@ -106,9 +106,9 @@ void MarkEvent(const char *msg)
 {
     if (strlen(msg) > MAX_TX_MSG_LEN) {
         MarkEventLongAttr(msg);
+    } else {
+        mstxMarkA(msg, nullptr);
     }
-    PROF_LOGD("%s", msg);
-    mstxMarkA(msg, nullptr);
 }
 
 void StartServerProfiler()
@@ -172,6 +172,7 @@ namespace msServiceProfiler {
 
     ServiceProfilerManager::ServiceProfilerManager()
     {
+        std::cout << "HELLO, MY NAME IS HANMEIMEI" << std::endl;
         ReadConfigPath();
         MarkFirstProcessAsMain();
         InitProfPathDateTail();
