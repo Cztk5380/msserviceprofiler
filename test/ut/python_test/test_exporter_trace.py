@@ -46,31 +46,34 @@ def mock_data():
             'start_datetime': [12345, 12346],
             'usage': [200, 250]
         }),
-        'msprof_data': [
-        {
-            "traceEvents": [
-                {
-                    "name": "process_name",
-                    "pid": 198545663,
-                    "tid": 0,
-                    "ph": "M",
-                    "args": {
-                        "name": "CANN"
-                    }
-                },
-                {
-                    "name": "process_labels",
-                    "pid": 198545663,
-                    "tid": 0,
-                    "ph": "M",
-                    "args": {
-                        "labels": "CPU"
-                    }
+        'msprof_data': msprof_data
+    }
+
+
+msprof_data = [
+    {
+        "traceEvents": [
+            {
+                "name": "process_name",
+                "pid": 198545663,
+                "tid": 0,
+                "ph": "M",
+                "args": {
+                    "name": "CANN"
                 }
-            ]
-        },
-    ]
-}
+            },
+            {
+                "name": "process_labels",
+                "pid": 198545663,
+                "tid": 0,
+                "ph": "M",
+                "args": {
+                    "labels": "CPU"
+                }
+            }
+        ]
+    }
+]
 
 
 # 测试 ExporterTrace 初始化

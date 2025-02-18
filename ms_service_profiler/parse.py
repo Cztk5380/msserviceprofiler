@@ -169,30 +169,44 @@ def get_filepaths(folder_path, file_filter):
     wildcard_patterns = [p for p in reverse_d.keys() if "*" in p or "?" in p]
 
     # 处理精确匹配的文件
-    for fp in Path(folder_path).rglob('*'):
-        if fp.name in reverse_d:
-            filepaths[reverse_d[fp.name]] = str(fp)
+    filepaths = handle_exact_match(folder_path, reverse_d)
 
     # 处理通配符匹配的文件
     for pattern in wildcard_patterns:
         alias = reverse_d[pattern]
         if pattern == "msprof_*.json":
-            # 使用正则表达式进行精确匹配
-            regex_pattern = r'^msprof_\d+\.json$'
-            matched_files = []
-            for fp in Path(folder_path).rglob('*.json'):
-                if re.match(regex_pattern, fp.name):
-                    matched_files.append(str(fp))
-            if matched_files:
-                if alias not in filepaths:
-                    filepaths[alias] = []
-                filepaths[alias].extend(matched_files)
+            filepaths = handle_msprof_pattern(folder_path, alias, filepaths)
         else:
-            # 原有逻辑处理其他通配符模式
-            for fp in Path(folder_path).rglob(pattern):
-                filepaths[alias] = str(fp)
-                break  # 保持原有逻辑，只取第一个匹配的文件
+            filepaths = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
 
+    return filepaths
+
+
+def handle_exact_match(folder_path, reverse_d):
+    filepaths = {}
+    for fp in Path(folder_path).rglob('*'):
+        if fp.name in reverse_d:
+            filepaths[reverse_d[fp.name]] = str(fp)
+    return filepaths
+
+
+def handle_msprof_pattern(folder_path, alias, filepaths):
+    regex_pattern = r'^msprof_\d+\.json$'
+    matched_files = []
+    for fp in Path(folder_path).rglob('*.json'):
+        if re.match(regex_pattern, fp.name):
+            matched_files.append(str(fp))
+    if matched_files:
+        if alias not in filepaths:
+            filepaths[alias] = []
+        filepaths[alias].extend(matched_files)
+    return filepaths
+
+
+def handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths):
+    for fp in Path(folder_path).rglob(pattern):
+        filepaths[alias] = str(fp)
+        break
     return filepaths
 
 
@@ -229,40 +243,49 @@ def load_single_prof(pf):
     try:
         with open(pf, 'r', encoding='utf-8') as file:
             trace_events = json.load(file)
-
-        # 找到 CANN 进程的 pid
-        cann_pid = None
-        for event in trace_events:
-            if event.get("name") == "process_name":
-                args = event.get("args", {})
-                if args.get("name") == "CANN":
-                    cann_pid = event.get("pid")
-                    break
-
-        if cann_pid is None:
-            return {"traceEvents": []}
-
-        # 筛选出 CANN 相关的事件
-        def is_cann_event(event):
-            return event.get("pid") == cann_pid
-
-        filtered_trace_events = [
-            event
-            for event in trace_events
-            if is_cann_event(event)
-        ]
-
-        # 创建包含筛选后 CANN 事件的字典
-        merged_dict = {
-            "traceEvents": filtered_trace_events
-        }
-        return merged_dict
     except FileNotFoundError:
-        logger.warning("The file was not found. Please check the file path.")
+        logger.warning(f"The file was not found. Please check the file path.")
         return {"traceEvents": []}
     except json.JSONDecodeError:
-        logger.warning("The file {pf} is not in a valid JSON format.")
+        logger.warning(f"The file is not in a valid JSON format.")
         return {"traceEvents": []}
+
+    # 找到 CANN 进程的 pid
+    cann_pid = find_cann_pid(trace_events)
+    if cann_pid is None:
+        return {"traceEvents": []}
+
+    # 筛选出 CANN 相关的事件
+    filtered_trace_events = [
+        event
+        for event in trace_events
+        if is_cann_event(event, cann_pid)
+    ]
+
+    # 创建包含筛选后 CANN 事件的字典
+    merged_dict = {
+        "traceEvents": filtered_trace_events
+    }
+    return merged_dict
+
+
+def is_cann_event(event, cann_pid):
+    """
+    判断事件是否与 CANN 进程相关。
+    """
+    return event.get("pid") == cann_pid
+
+
+def find_cann_pid(trace_events):
+    """
+    在 trace_events 中查找 CANN 进程的 pid。
+    """
+    for event in trace_events:
+        if event.get("name") == "process_name":
+            args = event.get("args", {})
+            if args.get("name") == "CANN":
+                return event.get("pid")
+    return None
 
 
 def read_origin_db(db_path: str):
@@ -298,6 +321,12 @@ def parse(input_path, plugins, exporters):
     logger.info('Read origin db success.')
 
     all_plugins = sort_plugins(builtin_plugins + plugins)
+    data = run_plugins(data, all_plugins)
+    if data is not None:
+        run_exporters(data, exporters)
+
+
+def run_plugins(data, all_plugins):
     total_plugins = len(all_plugins)
     for cur_id, plugin in enumerate(all_plugins):
         try:
@@ -306,12 +335,15 @@ def parse(input_path, plugins, exporters):
         except ParseError as ex:
             if plugin.name in ['plugin_timestamp', 'plugin_concat']:
                 logger.exception(f'{plugin.name} failure. Program stopped.')
-                return
+                return None
             else:
                 logger.exception(f'{plugin.name} failure. Skip it.')
         except Exception as ex:
             logger.exception(f'{plugin.name} failure. Skip it.')
+    return data
 
+
+def run_exporters(data, exporters):
     logger.info('Starting exporter processes.')
     with ProcessPoolExecutor() as executor:
         futures = [executor.submit(exporter.export, data) for exporter in exporters]
