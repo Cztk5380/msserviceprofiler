@@ -252,6 +252,36 @@ def load_single_prof(pf):
         logger.warning(f"The msprof.json file is not in a valid JSON format.")
         return {"traceEvents": []}
 
+    # 找到 CANN 进程的 pid
+    cann_pid = find_cann_pid(trace_events)
+    if cann_pid is None:
+        return {"traceEvents": []}
+
+    # 筛选出 CANN 相关的事件
+    filtered_trace_events = [
+        event
+        for event in trace_events
+        if event.get("pid") == cann_pid
+    ]
+
+    # 创建包含筛选后 CANN 事件的字典
+    merged_dict = {
+        "traceEvents": filtered_trace_events
+    }
+    return merged_dict
+
+
+def find_cann_pid(trace_events):
+    """
+    在 trace_events 中查找 CANN 进程的 pid。
+    """
+    for event in trace_events:
+        if event.get("name") == "process_name":
+            args = event.get("args", {})
+            if args.get("name") == "CANN":
+                return event.get("pid")
+    return None
+
 
 def read_origin_db(db_path: str):
     file_filter = {

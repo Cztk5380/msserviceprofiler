@@ -21,43 +21,10 @@ class ExporterTrace(ExporterBase):
     def export(cls, data) -> None:
         all_data_df, cpu_data_df, memory_data_df = data['tx_data_df'], data['cpu_data_df'], data['memory_data_df']
         msprof_data_df = data['msprof_data']
-        cann_data_df = load_cann_prof(msprof_data_df)
         output = cls.args.output_path
         trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df)
-        merged_data = merge_json_data(trace_data, cann_data_df)
+        merged_data = merge_json_data(trace_data, msprof_data_df)
         save_trace_data_into_json(merged_data, output)
-
-
-def load_cann_prof(trace_events):
-    # 找到 CANN 进程的 pid
-    cann_pid = find_cann_pid(trace_events)
-    if cann_pid is None:
-        return {"traceEvents": []}
-
-    # 筛选出 CANN 相关的事件
-    filtered_trace_events = [
-        event
-        for event in trace_events
-        if event.get("pid") == cann_pid
-    ]
-
-    # 创建包含筛选后 CANN 事件的字典
-    merged_dict = {
-        "traceEvents": filtered_trace_events
-    }
-    return merged_dict
-
-
-def find_cann_pid(trace_events):
-    """
-    在 trace_events 中查找 CANN 进程的 pid。
-    """
-    for event in trace_events:
-        if event.get("name") == "process_name":
-            args = event.get("args", {})
-            if args.get("name") == "CANN":
-                return event.get("pid")
-    return None
 
 
 def process_msprof_item(item):
