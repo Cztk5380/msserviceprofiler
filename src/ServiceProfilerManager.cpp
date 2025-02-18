@@ -107,6 +107,7 @@ void MarkEvent(const char *msg)
     if (strlen(msg) > MAX_TX_MSG_LEN) {
         MarkEventLongAttr(msg);
     }
+    PROF_LOGD(msg);
     mstxMarkA(msg, nullptr);
 }
 
@@ -126,16 +127,6 @@ bool IsEnable(uint32_t level)
 }
 
 namespace msServiceProfiler {
-    static inline std::string TrimStr(const std::string &str)
-    {
-        auto start = str.find_first_not_of(" \t\n\v\f\r");
-        if (start == std::string::npos) {
-            return "";
-        };
-        auto end = str.find_last_not_of(" \t\n\v\f\r");
-        return str.substr(start, end - start + 1);
-    }
-
     static inline unsigned long Str2Uint(const std::string &str)
     {
         char *endPtr;
