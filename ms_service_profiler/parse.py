@@ -170,13 +170,16 @@ def get_filepaths(folder_path, file_filter):
     # 处理精确匹配的文件
     filepaths = handle_exact_match(folder_path, reverse_d)
 
+    # 定义模式处理函数的映射
+    pattern_handlers = {
+        "msprof_*.json": handle_msprof_pattern,
+    }
+
     # 处理通配符匹配的文件
     for pattern in wildcard_patterns:
         alias = reverse_d[pattern]
-        if pattern == "msprof_*.json":
-            filepaths = handle_msprof_pattern(folder_path, alias, filepaths)
-        else:
-            filepaths = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
+        handler = pattern_handlers.get(pattern, handle_other_wildcard_patterns)
+        filepaths = handler(folder_path, alias, filepaths)
 
     return filepaths
 
@@ -243,48 +246,11 @@ def load_single_prof(pf):
         with open(pf, 'r', encoding='utf-8') as file:
             trace_events = json.load(file)
     except FileNotFoundError:
-        logger.warning(f"The file was not found. Please check the file path.")
+        logger.warning(f"The msprof.json file was not found. Please check the file path.")
         return {"traceEvents": []}
     except json.JSONDecodeError:
-        logger.warning(f"The file is not in a valid JSON format.")
+        logger.warning(f"The msprof.json file is not in a valid JSON format.")
         return {"traceEvents": []}
-
-    # 找到 CANN 进程的 pid
-    cann_pid = find_cann_pid(trace_events)
-    if cann_pid is None:
-        return {"traceEvents": []}
-
-    # 筛选出 CANN 相关的事件
-    filtered_trace_events = [
-        event
-        for event in trace_events
-        if is_cann_event(event, cann_pid)
-    ]
-
-    # 创建包含筛选后 CANN 事件的字典
-    merged_dict = {
-        "traceEvents": filtered_trace_events
-    }
-    return merged_dict
-
-
-def is_cann_event(event, cann_pid):
-    """
-    判断事件是否与 CANN 进程相关。
-    """
-    return event.get("pid") == cann_pid
-
-
-def find_cann_pid(trace_events):
-    """
-    在 trace_events 中查找 CANN 进程的 pid。
-    """
-    for event in trace_events:
-        if event.get("name") == "process_name":
-            args = event.get("args", {})
-            if args.get("name") == "CANN":
-                return event.get("pid")
-    return None
 
 
 def read_origin_db(db_path: str):
