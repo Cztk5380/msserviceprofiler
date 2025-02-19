@@ -32,6 +32,7 @@ extern "C" {
 #ifndef INC_EXTERNAL_ACL_PROF_H_
 static const int ACL_ERROR_NONE = 0;
 static const int ACL_SUCCESS = 0;
+static const int ACL_ERROR_REPEAT_INITIALIZE = 100002;
 #endif
 
 typedef void *aclrtStream;
