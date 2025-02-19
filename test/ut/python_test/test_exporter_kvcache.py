@@ -11,7 +11,7 @@ from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.exporters.exporter_kvcache import ExporterKVCacheData
 
 
-pd_separate_pull_kv_data = \
+PD_SEPARATE_PULL_KV_DATA = \
 """,pid,tid,event_type,start_time,end_time,mark_id,ori_msg,message,name,type,domain,rid,Queu\
 eSize=,scope#queue,deviceBlock=,scope#dp,RUNNING+,WAITING+,PENDING+,replyTokenSize=,END+,span_id,during_time,start_\
 datetime,end_datetime,recvTokenSize=,PREFILL_HOLD+,rank,batch_seq_len,block_tables,res_list,rid_list,token_id_list,\
@@ -23,7 +23,7 @@ lKVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252
 """
 
 
-pd_separate_pull_kv_data_missing_key = \
+PD_SEPARATE_PULL_KV_DATA_MISSING_KEY = \
 """,pid,tid,event_type,start_time,end_time,mark_id,ori_msg,message,name,type,domain,rid,Queu\
 eSize=,scope#queue,deviceBlock=,scope#dp,RUNNING+,WAITING+,PENDING+,replyTokenSize=,END+,span_id,during_time,start_\
 datetime,end_datetime,recvTokenSize=,PREFILL_HOLD+,rank,seq_len,block_tables,res_list,rid_list,token_id_list,\
@@ -73,7 +73,7 @@ class TestExporterBatchData(unittest.TestCase):
     def test_export_pd_separate(self):
         file_path_kvcache = Path(os.path.join(os.getcwd(), 'kvcache.csv'))
         file_path_pd_separate_kvcache = Path(os.path.join(os.getcwd(), 'pd_separate_kvcache.csv'))
-        data = {'tx_data_df': pd.read_csv(io.StringIO(pd_separate_pull_kv_data))}
+        data = {'tx_data_df': pd.read_csv(io.StringIO(PD_SEPARATE_PULL_KV_DATA))}
         try:
             # 初始化args
             ExporterKVCacheData.initialize(self.args)
@@ -91,7 +91,7 @@ class TestExporterBatchData(unittest.TestCase):
     def test_export_pd_separate_missing_key(self):
         file_path_kvcache = Path(os.path.join(os.getcwd(), 'kvcache.csv'))
         file_path_pd_separate_kvcache = Path(os.path.join(os.getcwd(), 'pd_separate_kvcache.csv'))
-        data = {'tx_data_df': pd.read_csv(io.StringIO(pd_separate_pull_kv_data_missing_key))}
+        data = {'tx_data_df': pd.read_csv(io.StringIO(PD_SEPARATE_PULL_KV_DATA_MISSING_KEY))}
         try:
             # 初始化args
             ExporterKVCacheData.initialize(self.args)
