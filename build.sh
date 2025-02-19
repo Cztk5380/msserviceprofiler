@@ -31,32 +31,11 @@ function fn_build_securec()
   fi
 }
 
-function fn_build_googletest()
-{
-  GTEST_DIR="${CUR_DIR}/opensource/googletest-1.8.1"
-  if [ ! -d "$GTEST_DIR" ]; then
-      cd ${CUR_DIR}/opensource
-      git clone https://codehub-dg-y.huawei.com/OpenSourceCenter/googletest.git googletest-1.8.1 -b release-1.8.1
-      cmake -DCMAKE_INSTALL_PREFIX=$THIRD_PARTY_DIR/googletest ..
-      cd googletest
-      mkdir gtest_build
-      cd gtest_build
-      cmake -DCMAKE_INSTALL_PREFIX=$GTEST_DIR/googletest ..
-      make -j20
-      make install
-  else
-      echo "opensource/googletest already exists. no need to download."
-  fi
-}
-
-
 make_msserviceprofiler() {
     cd $CUR_DIR
     fn_build_nlohmann_json
     cd $CUR_DIR
     fn_build_securec
-    cd $CUR_DIR
-    fn_build_googletest
     cd $CUR_DIR
     rm -rf build
     mkdir -p build && cd build && cmake .. && make -j 4 && cmake --install . --prefix output

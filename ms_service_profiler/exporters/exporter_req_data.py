@@ -49,6 +49,17 @@ def process_data(req_en_queue_df, req_running_df, pending_df):
     pending_df = pending_df[['start_time', 'end_time', 'rid']]
     decode_running_df = decode_running_df[['start_time', 'end_time', 'rid']]
 
+    pending_df = pending_df.groupby('rid').agg({'start_time': ["sum", "count"]}).reset_index()
+    pending_df = pending_df.sort_values("rid")
+    pending_df = pd.merge(pending_df["start_time"], pending_df["rid"], left_index=True, right_index=True)
+    pending_df.columns = ['start_time', 'count', 'rid']
+ 
+    decode_running_df = decode_running_df.groupby('rid').agg({'start_time': ["sum", "count"]}).reset_index()
+    decode_running_df = decode_running_df.sort_values("rid")
+    decode_running_df = pd.merge(decode_running_df["start_time"], decode_running_df["rid"], \
+        left_index=True, right_index=True)
+    decode_running_df.columns = ['start_time', 'count', 'rid']
+
     rows_pending = pending_df.shape[0]
     rows_running = decode_running_df.shape[0]
     if rows_pending != rows_running:
@@ -70,22 +81,60 @@ def process_data(req_en_queue_df, req_running_df, pending_df):
     wait_df = pd.merge(prefill_df, pending_time_sum, on='rid', how='left')
 
     wait_df['queue_wait_time'] = wait_df['waiting_time'] + wait_df['pending_time']
-    wait_df['rid'] = pd.to_numeric(wait_df['rid'], errors='coerce')
+    wait_df['rid'] = wait_df['rid'].apply(str)
     wait_df = wait_df[['rid', 'queue_wait_time']]
     return wait_df
 
 
-def filter_data(df):
-    # 过滤数据的函数
-    http_req_df = df[df['name'] == 'httpReq']
-    http_res_df = df[df['name'] == 'httpRes']
-    http_rectoken_df = df[df['name'] == 'encode']
-    http_restoken_df = df[df['name'] == 'DecodeEnd']
+def get_wait_df(df):
     req_en_queue_df = df[df['name'] == 'Enqueue']
     req_running_df = df[df['name'] == 'RUNNING']
     pending_df = df[df['name'] == 'PENDING']
     wait_df = process_data(req_en_queue_df, req_running_df, pending_df)
-    return http_req_df, http_res_df, http_rectoken_df, http_restoken_df, wait_df
+    return wait_df
+
+
+def get_req_base_info(df):
+    req_group_df = df.groupby('rid')
+    req_base_info = []
+    for rid, pre_req_data in req_group_df:
+        rid = str(rid)
+        if ',' in rid or '{' in rid or ':' in rid:
+            continue
+        new_req = {
+            'rid': rid,
+            'start_time': '',
+            'end_time': '',
+            'recvTokenSize=': '',
+            'replyTokenSize=': '',
+            'execution_time': ''
+        }
+        http_req_df = pre_req_data[pre_req_data['name'] == 'httpReq']
+        encode_df = pre_req_data[pre_req_data['name'] == 'encode']
+        decode_end_df = pre_req_data[pre_req_data['name'] == 'DecodeEnd']
+        http_res_df = None
+        if pre_req_data[pre_req_data['domain'] == 'PDSplit'].empty:
+            http_res_df = pre_req_data[pre_req_data['name'] == 'httpRes']
+        elif 'replyTokenSize=' in pre_req_data.columns:
+            http_res_df = pre_req_data[(pre_req_data['name'] == 'httpRes') & (pre_req_data['replyTokenSize='].notna())]
+
+        if http_req_df.shape[0] == 1:
+            new_req['start_time'] = http_req_df.iloc[0, http_req_df.columns.get_loc('start_time')]
+
+        if encode_df.shape[0] == 1 and 'recvTokenSize=' in encode_df.columns:
+            new_req['recvTokenSize='] = encode_df.iloc[0, encode_df.columns.get_loc('recvTokenSize=')]
+
+        if http_res_df is not None and http_res_df.shape[0] == 1 and 'replyTokenSize=' in http_res_df.columns:
+            new_req['end_time'] = http_res_df.iloc[0, http_res_df.columns.get_loc('end_time')]
+            new_req['replyTokenSize='] = http_res_df.iloc[0, http_res_df.columns.get_loc('replyTokenSize=')]
+
+        if decode_end_df.shape[0] == 1 and 'replyTokenSize=' in decode_end_df.columns:
+            new_req['replyTokenSize='] = decode_end_df.iloc[0, decode_end_df.columns.get_loc('replyTokenSize=')]
+
+        if new_req['start_time'] != '' and new_req['end_time'] != '':
+            new_req['execution_time'] = new_req['end_time'] - new_req['start_time']
+        req_base_info.append(new_req)
+    return pd.DataFrame(req_base_info)
 
 
 class ExporterReqData(ExporterBase):
@@ -102,44 +151,31 @@ class ExporterReqData(ExporterBase):
             logger.error("The data is empty, please check")
             return
         output = cls.args.output_path
-    
+
+        req_base_info = get_req_base_info(df)
         try:
-            df = df.apply(update_name, axis=1)
-            http_req_df, http_res_df, http_rectoken_df, http_restoken_df, wait_df = filter_data(df)
+            df = df.rename(columns={"RUNNING+": "RUNNING", "PENDING+": "PENDING"})
+            wait_df = get_wait_df(df)
         except Exception as e:
             logger.error(f"An error occurred: {e}")
             return
 
-        # 使用merge操作将httpReq和httpRes的数据进行匹配
-        if http_req_df.shape[0] != http_res_df.shape[0]:
-            logger.warning("The number of 'httpReq' is different from 'httpRes', please check.")
-        df_merged = pd.merge(http_req_df, http_res_df, on='rid', suffixes=('_httpReq', '_httpRes'), how='left')
+        # 使用merge操作将req_base_info和wait_df的数据进行匹配
+        if req_base_info.shape[0] != wait_df.shape[0]:
+            logger.warning("The shape of 'req_base_info' is different from 'wait_df', please check.")
 
-        df_merged['rid'] = pd.to_numeric(df_merged['rid'], errors='coerce')
-        df_merged = pd.merge(df_merged, wait_df, on='rid', how='left')
+        df_merged = pd.merge(req_base_info, wait_df, on='rid', how='outer', indicator=True)
+        df_merged.drop(columns=['_merge'], inplace=True)
 
-        http_rectoken_df = http_rectoken_df[['rid', 'recvTokenSize=']]
-        http_restoken_df = http_restoken_df[['rid', 'replyTokenSize=']]
-        if http_rectoken_df.shape[0] != http_restoken_df.shape[0]:
-            logger.warning("The number of 'DecodeEnd' is different from 'encode', please check.")
-        df_token = pd.merge(http_rectoken_df, http_restoken_df, on='rid', how='left')
-
-        df_token['rid'] = pd.to_numeric(df_token['rid'], errors='coerce')
-        if df_merged.shape[0] != df_token.shape[0]:
-            logger.warning("The number of records between the 'httpReq' and 'httpRes' fields is different from that "
-                "between the 'DecodeEnd' and 'encode' fields.")
-        df_merged = pd.merge(df_merged, df_token, on='rid', how='left')
-        
-        df_merged['execution_time'] = df_merged['end_time_httpRes'] - df_merged['start_time_httpReq']
-        df_merged['http_rid'] = df_merged['message_httpReq'].apply(lambda x: x['rid'])
-        filtered_df = df_merged[['http_rid', 'start_time_httpReq', 'recvTokenSize=', 'replyTokenSize=', \
+        filtered_df = df_merged[['rid', 'start_time', 'recvTokenSize=', 'replyTokenSize=', \
             'execution_time', 'queue_wait_time']]
         filtered_df = filtered_df.rename(columns={
+            'rid': 'http_rid',
             'recvTokenSize=': 'recv_token_size',
             'replyTokenSize=': 'reply_token_size',
-            'start_time_httpReq': 'start_time_httpReq(microsecond)',
+            'start_time': 'start_time_httpReq(microsecond)',
             'execution_time': 'execution_time(microsecond)',
             'queue_wait_time': 'queue_wait_time(microsecond)'
         })
-        
+
         save_dataframe_to_csv(filtered_df, output, "request.csv")

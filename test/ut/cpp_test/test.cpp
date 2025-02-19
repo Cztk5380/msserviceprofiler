@@ -6,7 +6,6 @@
 #include <thread>
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "msServiceProfiler/NpuMemoryUsage.h"
-#include "acl/acl_prof.h"
 #include "acl/acl.h"
 
 using namespace msServiceProfiler;
@@ -93,7 +92,7 @@ void TestNpuMemoryUsage()
         auto startTime = Now();
         std::vector<int> memoryUsed;
         std::vector<int> memoryUtiliza;
-        int ret = npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
+        npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
         auto du = Now() - startTime;
         std::cout << "Duration: " << (du / NANO_TO_MICRO_SECOND) << "ms" << std::endl;
 
@@ -151,7 +150,7 @@ void SpeedTest()
 
 int main()
 {
-    StartServerProfiler();
+    msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallStartServerProfiler();
     aclrtContext context_;
     aclrtStream stream_;
 
@@ -177,6 +176,6 @@ int main()
     SpeedTest();
     const int sleepTime = 10 * NANO_TO_MILLI_SECOND;
     std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime)); // sleep 10 seconds
-    StopServerProfiler();
+    msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallStopServerProfiler();
     return 0;
 }

@@ -16,15 +16,57 @@ clean() {
   cd -
 }
 
+function fn_build_googletest()
+{
+  GTEST_DIR="${CUR_DIR}/../opensource/googletest-1.8.1"
+  if [ ! -d "$GTEST_DIR" ]; then
+      cd ${CUR_DIR}/../opensource
+      git clone https://codehub-dg-y.huawei.com/OpenSourceCenter/googletest.git googletest-1.8.1 -b release-1.8.1
+      cd googletest-1.8.1
+      mkdir gtest_build
+      cd gtest_build
+      cmake -DCMAKE_INSTALL_PREFIX=$GTEST_DIR ..
+      make -j20
+      make install
+  else
+      echo "opensource/googletest already exists. no need to download."
+  fi
+}
+
 run_test_cpp() {
-  cd .
+  cd ${TEST_DIR}/..
+  bash build.sh
+  cd ${TEST_DIR}
+  mkdir -p test_build && cd test_build && rm * -rf && cmake ../ut/cpp_test && make -j 4
+  cd ${TEST_DIR}
+  ./test_build/st_server_profiler && ./test_build/st_server_profiler && ./test_build/ut_server_profiler
+  mkdir -p coverage
+  rm -rf ./coverage/*
+
+  lcov_opt="--rc lcov_branch_coverage=1 --rc geninfo_no_exception_branch=1"
+  lcov -c -d ./test_build/CMakeFiles/st_server_profiler.dir -o ./coverage/st_server_profiler.info -b ./coverage $lcov_opt
+  lcov -c -d ./test_build/CMakeFiles/ut_server_profiler.dir -o ./coverage/ut_server_profiler.info -b ./coverage $lcov_opt
+  lcov -a ./coverage/ut_server_profiler.info  -a ./coverage/st_server_profiler.info  -o ./coverage/test_server_profiler.info
+
+
+  lcov -r ./coverage/test_server_profiler.info '*platform*' -o ./coverage/test_server_profiler.info $lcov_opt
+  lcov -r ./coverage/test_server_profiler.info '*opensource*' -o ./coverage/test_server_profiler.info $lcov_opt
+  lcov -r ./coverage/test_server_profiler.info '*test*' -o ./coverage/test_server_profiler.info $lcov_opt
+  lcov -r ./coverage/test_server_profiler.info '*c++*' -o ./coverage/test_server_profiler.info $lcov_opt
+  lcov -r ./coverage/test_server_profiler.info '/usr/include/*' -o ./coverage/test_server_profiler.info $lcov_opt
+  lcov -r ./coverage/test_server_profiler.info '*nlohmann*' -o ./coverage/test_server_profiler.info $lcov_opt
+
+  genhtml ./coverage/test_server_profiler.info -o ./coverage/report --branch-coverage
+  cd coverage
+  tar -zcvf report.tar.gz ./report
+  echo show report using cmd: python -m http.server -d ./coverage/report
 }
 
 run_test_python() {
   python3 --version
   pip3 install pytest "pandas>=2.2"
   export PYTHONPATH=${TOP_DIR}:${PYTHONPATH}
-  python3 -m coverage run --branch --source ${TOP_DIR}/'ms_service_profiler' -m pytest ${TEST_DIR}/ut/python_test  
+  python3 -m coverage run --branch --source ${TOP_DIR}/'ms_service_profiler' -m pytest ${TEST_DIR}/ut/python_test
 
   if [ $? -ne 0 ]; then
     echo "UT Failure"
@@ -32,7 +74,7 @@ run_test_python() {
   fi
 
   python3 -m coverage report -m
-  python3 -m coverage xml -o ${TEST_DIR}/coverage.xml  
+  python3 -m coverage xml -o ${TEST_DIR}/coverage.xml
 }
 
 run_test() {
@@ -42,6 +84,7 @@ run_test() {
 
 main() {
   cd ${TEST_DIR}
+  fn_build_googletest
   clean
   run_test
   echo "UT Success"

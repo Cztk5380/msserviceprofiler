@@ -19,7 +19,7 @@ def process_each_req_group(req_group_df):
             continue
 
         event_time = record.get('start_datetime')
-        if name == 'request':
+        if name == 'receiveReq':
             http_req_time = event_time
         elif name == 'sendReqToD':
             request_send_time = event_time

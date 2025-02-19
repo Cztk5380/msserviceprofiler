@@ -6,6 +6,8 @@ output
 opensource
 build
 test/.coverage
+test/coverage
 platform/**
 *.xml
 *.db
+cmake-build-debug

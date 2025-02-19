@@ -17,10 +17,11 @@ class PluginTimeStampHelper(PluginBase):
         cpu_data_df = data.get('cpu_data_df')
         memory_data_df = data.get('memory_data_df')
         time_info = data.get('time_info')
+        msprof_data_df = data.get('msprof_data')
 
         if time_info is None:
             raise ValueError("There is no time infomation, please check data.")
-        
+
         calculate_timestamp(tx_data_df, time_info, prof_type='system_count')
         calculate_timestamp(cpu_data_df, time_info, prof_type='system_timestamp')
         calculate_timestamp(memory_data_df, time_info, prof_type='system_timestamp')
@@ -29,6 +30,7 @@ class PluginTimeStampHelper(PluginBase):
             'tx_data_df': tx_data_df,
             'cpu_data_df': cpu_data_df,
             'memory_data_df': memory_data_df,
+            'msprof_data_df': msprof_data_df
         }
         return data
 
@@ -90,7 +92,6 @@ def calculate_timestamp(df, time_info, prof_type='system_count'):
     else:
         df['start_time'] = convert_systs_to_ts(df['start_time'], time_info)
         df['end_time'] = convert_systs_to_ts(df['end_time'], time_info)
-
 
     df['during_time'] = df['end_time'] - df['start_time']
     df['start_datetime'] = df['start_time'].apply(timestamp_converter)
