@@ -68,32 +68,6 @@ def mock_data():
     }
 
 
-msprof_data = [
-    {
-        "traceEvents": [
-            {
-                "name": "process_name",
-                "pid": 198545663,
-                "tid": 0,
-                "ph": "M",
-                "args": {
-                    "name": "CANN"
-                }
-            },
-            {
-                "name": "process_labels",
-                "pid": 198545663,
-                "tid": 0,
-                "ph": "M",
-                "args": {
-                    "labels": "CPU"
-                }
-            }
-        ]
-    }
-]
-
-
 # 测试 ExporterTrace 初始化
 def test_exporter_initialize():
     mock_args = mock.Mock()
