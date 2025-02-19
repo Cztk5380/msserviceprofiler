@@ -17,6 +17,24 @@ from ms_service_profiler.exporters.exporter_trace import ExporterTrace, write_tr
 # Mock 数据
 @pytest.fixture
 def mock_data():
+    base_path = '/home/raonaxin/cheps/0211-1226/'
+
+    profiles = [
+        'PROF_000001_20250211122640832_MOAFENMIAMARIKCA',
+        'PROF_000001_20250211122717318_QCFMCMCCQNJJGQCC',
+        'PROF_000001_20250211122717318_FRPOJKFFIHHERIIA'
+    ]
+    date_times = [
+        '20250211122801',
+        '20250211122756',
+        '20250211122800'
+    ]
+
+    msprof_data = []
+    for profile, date_time in zip(profiles, date_times):
+        file_path = f'{base_path}{profile}/mindstudio_profiler_output/msprof_{date_time}.json'
+        msprof_data.append(file_path)
+
     # 模拟输入的 DataFrame 数据
     return {
         'tx_data_df': pd.DataFrame({
