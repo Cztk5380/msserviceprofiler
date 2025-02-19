@@ -83,6 +83,7 @@ namespace msServiceProfiler {
         bool isMaster_ = true;
         bool enable_ = false;
         bool started_ = false;
+        bool isAclInit_ = false;
         std::string configPath_;
         std::string profPath_;
         std::string profPathDateTail_;
