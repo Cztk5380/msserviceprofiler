@@ -592,11 +592,11 @@ namespace msServiceProfiler {
 
         if (!isAclInit_) {
             aclError retInit = aclInit(nullptr);
-            if (retInit != ACL_ERROR_NONE) {
+            if (retInit == ACL_SUCCESS || retInit == ACL_ERROR_REPEAT_INITIALIZE) {
+                isAclInit_ = true;
+            } else {
                 PROF_LOGE("acl init failed, ret = %d", retInit);
                 isAclInit_ = false;
-            } else {
-                isAclInit_ = true;
             }
         }
 
