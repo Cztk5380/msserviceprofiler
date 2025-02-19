@@ -3,7 +3,6 @@
 import json
 import os
 import threading
-from concurrent.futures import ThreadPoolExecutor
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
@@ -21,19 +20,52 @@ class ExporterTrace(ExporterBase):
     def export(cls, data) -> None:
         all_data_df, cpu_data_df, memory_data_df = data['tx_data_df'], data['cpu_data_df'], data['memory_data_df']
         msprof_data_df = data['msprof_data']
+        cann_data = [load_single_prof(pf) for pf in msprof_data_df]
         output = cls.args.output_path
         trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df)
-        merged_data = merge_json_data(trace_data, msprof_data_df)
+        merged_data = merge_json_data(trace_data, cann_data)
         save_trace_data_into_json(merged_data, output)
 
 
-def process_msprof_item(item):
-    return item.get("traceEvents", [])
+def load_single_prof(pf):
+    try:
+        with open(pf, 'r', encoding='utf-8') as file:
+            trace_events = json.load(file)
+    except FileNotFoundError:
+        logger.warning(f"The msprof.json file was not found. Please check the file path.")
+        return {"traceEvents": []}
+    except json.JSONDecodeError:
+        logger.warning(f"The msprof.json file is not in a valid JSON format.")
+        return {"traceEvents": []}
+
+    cann_pid = find_cann_pid(trace_events)
+    if cann_pid is None:
+        return {"traceEvents": []}
+
+    filtered_trace_events = [
+        event
+        for event in trace_events
+        if event.get("pid") == cann_pid
+    ]
+
+    merged_dict = {
+        "traceEvents": filtered_trace_events
+    }
+    return merged_dict
+
+
+def find_cann_pid(trace_events):
+    for event in trace_events:
+        if event.get("name") == "process_name":
+            args = event.get("args", {})
+            if args.get("name") == "CANN":
+                return event.get("pid")
+    return None
 
 
 def merge_json_data(trace_data, msprof_data_df):
     for item in msprof_data_df:
-        events = process_msprof_item(item)
+        events = item.get("traceEvents", [])
         trace_data["traceEvents"].extend(events)
     return trace_data
 
