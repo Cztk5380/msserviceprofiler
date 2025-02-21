@@ -1,7 +1,9 @@
-import pytest
+# Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
+
 from pathlib import Path
 import re
 from unittest.mock import patch, MagicMock
+import pytest
 
 from ms_service_profiler.parse import (
     read_origin_db,
