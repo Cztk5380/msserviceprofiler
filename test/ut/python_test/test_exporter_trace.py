@@ -1,6 +1,7 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
 from unittest import mock
+from unittest.mock import patch, mock_open
 import json
 import threading
 import tempfile
@@ -11,7 +12,8 @@ import pytest
 import pandas as pd
 
 from ms_service_profiler.exporters.exporter_trace import ExporterTrace, write_trace_data_to_file, \
-    save_trace_data_into_json, add_flow_event, create_trace_events, sort_trace_events_by_tid, add_mem_events
+    save_trace_data_into_json, add_flow_event, create_trace_events, sort_trace_events_by_tid, add_mem_events, \
+    load_single_prof, find_cann_pid, merge_json_data
 
 
 # Mock 数据
@@ -66,6 +68,86 @@ def mock_data():
         }),
         'msprof_data': msprof_data
     }
+
+
+def test_find_cann_pid():
+    # 测试找到 CANN PID 的情况
+    trace_events = [
+        {"name": "process_name", "args": {"name": "CANN"}, "pid": 123},
+        {"name": "other_event", "args": {}, "pid": 456}
+    ]
+    assert find_cann_pid(trace_events) == 123
+
+    # 测试未找到 CANN PID 的情况
+    trace_events = [
+        {"name": "process_name", "args": {"name": "OTHER"}, "pid": 123},
+        {"name": "other_event", "args": {}, "pid": 456}
+    ]
+    assert find_cann_pid(trace_events) is None
+
+
+def test_load_single_prof_valid_file():
+    # 模拟有效的 JSON 文件内容
+    mock_json_content = json.dumps([
+        {"name": "process_name", "args": {"name": "CANN"}, "pid": 123},
+        {"name": "event1", "pid": 123},
+        {"name": "event2", "pid": 456}
+    ])
+
+    with patch("builtins.open", mock_open(read_data=mock_json_content)):
+        result = load_single_prof("dummy_path.json")
+        assert result == {"traceEvents": [
+            {"name": "process_name", "args": {"name": "CANN"}, "pid": 123},
+            {"name": "event1", "pid": 123}
+        ]}
+
+
+def test_load_single_prof_file_not_found():
+    # 模拟文件未找到的情况
+    with patch("builtins.open", side_effect=FileNotFoundError):
+        result = load_single_prof("nonexistent_path.json")
+        assert result == {"traceEvents": []}
+
+
+def test_load_single_prof_invalid_json():
+    # 模拟无效的 JSON 文件内容
+    with patch("builtins.open", mock_open(read_data="invalid json")):
+        result = load_single_prof("invalid_path.json")
+        assert result == {"traceEvents": []}
+
+
+def test_merge_json_data():
+    # 测试合并 JSON 数据
+    trace_data = {"traceEvents": [{"name": "event1", "pid": 123}]}
+    msprof_data_df = [
+        {"traceEvents": [{"name": "event2", "pid": 123}]},
+        {"traceEvents": [{"name": "event3", "pid": 456}]}
+    ]
+    result = merge_json_data(trace_data, msprof_data_df)
+    assert result == {
+        "traceEvents": [
+            {"name": "event1", "pid": 123},
+            {"name": "event2", "pid": 123},
+            {"name": "event3", "pid": 456}
+        ]
+    }
+
+
+def test_integration(mock_data):
+    # 集成测试：模拟多个文件的加载和合并
+    mock_json_content = json.dumps([
+        {"name": "process_name", "args": {"name": "CANN"}, "pid": 123},
+        {"name": "event1", "pid": 123},
+        {"name": "event2", "pid": 456}
+    ])
+
+    with patch("builtins.open", mock_open(read_data=mock_json_content)):
+        trace_data = {"traceEvents": []}
+        for pf in mock_data["msprof_data"]:
+            result = load_single_prof(pf)
+            trace_data = merge_json_data(trace_data, [result])
+
+        assert len(trace_data["traceEvents"]) == 6
 
 
 # 测试 ExporterTrace 初始化
