@@ -71,6 +71,20 @@ def check_kvcache_db_content(output_path, db_file_name):
     conn.close()
 
 
+def check_pullkvcache_csv_content(csv_file):
+    expected_csv_columns = [
+        'domain', 'rank', 'rid', 'block_tables', 'batch_seq_len', 'during_time(microsecond)', \
+        'start_datetime', 'end_datetime', 'start_time(microsecond)', 'end_time(microsecond)',
+    ]
+    # 检查文件是否存在
+    assert os.path.exists(csv_file)
+    assert os.path.isfile(csv_file)
+
+    df = pd.read_csv(csv_file)
+    actual_columns = df.columns.tolist()
+    check_column(actual_columns, expected_csv_columns, context=csv_file)
+
+
 def check_has_vaild_table(cursor, table_name, columns_to_check):
     # 校验存在数据表
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
@@ -198,6 +212,7 @@ def check_chrome_tracing_content_valid(output_path):
 class TestAnalyzeCmd(TestCase):
     ST_DATA_PATH = os.getenv("MS_SERVICE_PROFILER", "/data/ms_service_profiler")
     INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/0211-1226")
+    INPUT_PATH_PD_SEPARATE = os.path.join(ST_DATA_PATH, "input/analyze/pullkv_0212")
     OUTPUT_PATH = os.path.join(ST_DATA_PATH, "output/analyze")
     KVCACHE_CSV_FILE_NAME = "kvcache.csv"
     DB_FILE_NAME = "profiler.db"
@@ -300,3 +315,14 @@ class TestAnalyzeCmd(TestCase):
         # 校验chrome_tracing的数据内容
         with self.subTest():
             check_chrome_tracing_content_valid(self.OUTPUT_PATH)
+
+
+    def test_parse_data_in_pd_separate(self):
+        #校验msserviceprofiler打点PD分离数据解析功能是否正常解析，校验输出文件及内容
+        cmd = ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH_PD_SEPARATE, \
+            "--output-path", self.OUTPUT_PATH]
+        if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
+            self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
+
+        with self.subTest("Check pullkvcache csv content"):
+            check_pullkvcache_csv_content(os.path.join(self.OUTPUT_PATH, "pd_separate_kvcache.csv"))

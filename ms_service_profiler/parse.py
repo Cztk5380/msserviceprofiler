@@ -78,6 +78,8 @@ def create_span_message_dict(data):
 
 
 def load_tx_data(db_path):
+    if db_path is None:
+        return None
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM MsprofTxEx")

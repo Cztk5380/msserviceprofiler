@@ -157,22 +157,23 @@ class ExporterKVCacheData(ExporterBase):
 
 
 def export_pull_kvcache(df, output):
+    kvcache_df = df[df['domain'] == 'PullKVCache']
+    logger.debug(f"pd_separate_kvcache shape {kvcache_df.shape}.")
+    
+    if kvcache_df.shape[0] == 0:
+        return
     try:
-        kvcache_df = df[df['domain'] == 'PullKVCache']
-        logger.debug(f"pd_separate_kvcache shape {kvcache_df.shape}.")
         kvcache_df = kvcache_df[[
             'domain', 'rank', 'rid', 'block_tables', 'batch_seq_len', 'during_time', \
             'start_datetime', 'end_datetime', 'start_time', 'end_time',
         ]]
-        kvcache_df = kvcache_df.rename(columns={
-            'start_time': 'start_time(microsecond)',
-            'end_time': 'end_time(microsecond)',
-            'during_time': 'during_time(microsecond)'
-        })
     except KeyError as e:
-        logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
-    if kvcache_df.shape[0] != 0:
-        save_dataframe_to_csv(kvcache_df, output, "pd_separate_kvcache.csv")
-        logger.info(f"pd_separate_kvcache.csv success.")
-    else:
-        logger.info(f"pd_separate_kvcache empty")
+        logger.warning(f"Field '{e.args[0]}' not found in PullKVCache.")
+    
+    kvcache_df = kvcache_df.rename(columns={
+        'start_time': 'start_time(microsecond)',
+        'end_time': 'end_time(microsecond)',
+        'during_time': 'during_time(microsecond)'
+    })
+    save_dataframe_to_csv(kvcache_df, output, "pd_separate_kvcache.csv")
+    logger.info(f"pd_separate_kvcache.csv success.")
