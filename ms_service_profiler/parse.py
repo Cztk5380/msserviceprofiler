@@ -169,15 +169,15 @@ def get_filepaths(folder_path, file_filter):
     reverse_d = {value: key for key, value in file_filter.items()}
     wildcard_patterns = [p for p in reverse_d.keys() if "*" in p or "?" in p]
 
-    # 处理精确匹配的文件
+    # 精确匹配的文件路径
     filepaths = handle_exact_match(folder_path, reverse_d)
 
-    # 定义模式处理函数的映射
+    # 创建映射
     pattern_handlers = {
         "msprof_*.json": handle_msprof_pattern,
     }
 
-    # 处理通配符匹配的文件
+    # 通配符匹配的文件路径
     for pattern in wildcard_patterns:
         alias = reverse_d[pattern]
         handler = pattern_handlers.get(pattern, handle_other_wildcard_patterns)
@@ -232,57 +232,14 @@ def load_prof(filepaths):
     memory_data_df = load_memory_data(filepaths.get("memory"))
     time_info = load_time_info(filepaths)
     msprof_files = filepaths.get("msprof", [])
-    msprof_data = [load_single_prof(pf) for pf in msprof_files]
 
     return dict(
         tx_data_df=tx_data_df,
         cpu_data_df=cpu_data_df,
         memory_data_df=memory_data_df,
         time_info=time_info,
-        msprof_data=msprof_data
+        msprof_data=msprof_files
     )
-
-
-def load_single_prof(pf):
-    try:
-        with open(pf, 'r', encoding='utf-8') as file:
-            trace_events = json.load(file)
-    except FileNotFoundError:
-        logger.warning(f"The msprof.json file was not found. Please check the file path.")
-        return {"traceEvents": []}
-    except json.JSONDecodeError:
-        logger.warning(f"The msprof.json file is not in a valid JSON format.")
-        return {"traceEvents": []}
-
-    # 找到 CANN 进程的 pid
-    cann_pid = find_cann_pid(trace_events)
-    if cann_pid is None:
-        return {"traceEvents": []}
-
-    # 筛选出 CANN 相关的事件
-    filtered_trace_events = [
-        event
-        for event in trace_events
-        if event.get("pid") == cann_pid
-    ]
-
-    # 创建包含筛选后 CANN 事件的字典
-    merged_dict = {
-        "traceEvents": filtered_trace_events
-    }
-    return merged_dict
-
-
-def find_cann_pid(trace_events):
-    """
-    在 trace_events 中查找 CANN 进程的 pid。
-    """
-    for event in trace_events:
-        if event.get("name") == "process_name":
-            args = event.get("args", {})
-            if args.get("name") == "CANN":
-                return event.get("pid")
-    return None
 
 
 def read_origin_db(db_path: str):
