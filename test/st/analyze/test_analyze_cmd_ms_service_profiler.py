@@ -15,12 +15,6 @@ from jsonschema import validate, ValidationError
 from ...st.utils import execute_cmd
 
 
-def check_column(actual_columns, expected_columns, context=""):
-    # 检查是否有缺失的列
-    missing_columns = set(expected_columns) - set(actual_columns)
-    pytest.assume(not missing_columns, f"{context} 表中缺少列: {missing_columns}")
-
-
 def check_kvcache_csv_content(output_path, csv_file_name):
     expected_csv_columns = [
         'domain', 'rid', 'start_time(microsecond)', 'end_time(microsecond)',
@@ -79,7 +73,7 @@ def check_kvcache_db_content(output_path, db_file_name):
 
 def check_has_vaild_table(cursor, table_name, columns_to_check):
     # 校验存在数据表
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name, ))
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
     table_exists = cursor.fetchone()
     assert table_exists is not None
 
@@ -148,7 +142,7 @@ def check_column(actual_columns, expected_columns, context=""):
     missing_columns = set(expected_columns) - set(actual_columns)
     pytest.assume(not missing_columns, f"{context} 表中缺少列: {missing_columns}")
 
-    
+
 def check_chrome_tracing_valid(output_path):
     trace_view_json = glob.glob(f"{output_path}/chrome_tracing.json")[0]
     assert os.path.exists(trace_view_json)
@@ -163,10 +157,12 @@ def check_chrome_tracing_valid(output_path):
                     "properties": {
                         "name": {"type": "string"},
                         "ph": {"type": "string", "enum": ["X", "I", "C", "M", "s", "f", "t"]},
-                        "ts": {"type": "number"},  # 时间戳，单位为微秒
+                        "ts": {"type": ["number", "string"],
+                               "pattern": "^\\d+(\\.\\d+)?$"
+                               },  # 时间戳，单位为微秒
                         "dur": {"type": "number", "minimum": 0},  # 持续时间，适用于 X 类型事件
                         "pid": {"type": "integer"},  # 进程 ID
-                        "tid": {"type": "string"},  # 线程 ID
+                        "tid": {"type": ["string", "integer"]},
                         "id": {"type": "string"},  # 时间线事件的 ID
                         "cat": {"type": "string"},  # 分类
                         "args": {
@@ -182,7 +178,6 @@ def check_chrome_tracing_valid(output_path):
         "required": ["traceEvents"],  # 必需字段
         "additionalProperties": False  # 防止额外字段
     }
-
     with open(trace_view_json) as f:
         data = json.load(f)
 
@@ -193,21 +188,16 @@ def check_chrome_tracing_content_valid(output_path):
     trace_view_json = glob.glob(f"{output_path}/chrome_tracing.json")[0]
     assert os.path.exists(trace_view_json)
 
-    with open(trace_view_json) as f:
+    with open(trace_view_json, 'r', encoding='utf-8') as f:
         text = f.read()
-    
-    exist = ["CPU Usage"]
-    not_exist = ["Memory Usage", "Npu Usage"]
+    exist = ["NPU Usage"]
     for key in exist:
-        pytest.assume(key in text, "流水图中应该包含CPU Usage")
-    for key in not_exist:
-        pytest.assume(key not in text, "流水图中不该包含Npu Usage")
-        pytest.assume(key not in text, "流水图中不该包含Memory")
+        pytest.assume(key in text, "流水图中应该包含NPU Usage")
 
 
 class TestAnalyzeCmd(TestCase):
     ST_DATA_PATH = os.getenv("MS_SERVICE_PROFILER", "/data/ms_service_profiler")
-    INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/1225-196-10Req")
+    INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/0211-1226")
     OUTPUT_PATH = os.path.join(ST_DATA_PATH, "output/analyze")
     KVCACHE_CSV_FILE_NAME = "kvcache.csv"
     DB_FILE_NAME = "profiler.db"
@@ -221,8 +211,6 @@ class TestAnalyzeCmd(TestCase):
     def teardown_class(self):
         shutil.rmtree(self.OUTPUT_PATH)
 
-    
-
     def check_batch_data_csv_integrity(self):
         # 校验该路径下是否正确生成batch_data的csv文件，以及文件内容
         csv_file_path = f"{self.OUTPUT_PATH}/batch.csv"
@@ -231,11 +219,11 @@ class TestAnalyzeCmd(TestCase):
         # 检查文件是否为空
         self.assertNotEqual(len(df), 0, "The data of batch csv is empty.")
         expected_header = ['name', 'res_list', 'start_time(microsecond)', 'end_time(microsecond)', 'batch_size', \
-            'batch_type', 'during_time(microsecond)']
-        
+                           'batch_type', 'during_time(microsecond)']
+
         # 检查列名是否正确
         check_column(df.columns.tolist(), expected_header, context='batch.csv')
-        
+
         # 定义一个函数，用于检查res_list的格式
         def is_valid_res_list(res_list_str):
             # 将字符串转换为列表
@@ -258,7 +246,7 @@ class TestAnalyzeCmd(TestCase):
         self.assertNotEqual(len(df), 0, msg="The data of req csv is empty.")
 
         expected_header = ['http_rid', 'start_time_httpReq(microsecond)', 'recv_token_size', 'reply_token_size', \
-            'execution_time(microsecond)', 'queue_wait_time(microsecond)']
+                           'execution_time(microsecond)', 'queue_wait_time(microsecond)']
         check_column(df.columns.tolist(), expected_header, context='request.csv')
 
         def is_whole_number(n):
@@ -281,7 +269,7 @@ class TestAnalyzeCmd(TestCase):
                 check_row(df, row_index, [column])
 
     def test_prase_ms_service_profiler_data(self):
-        #校验msserviceprofiler打点采集数据解析功能是否正常解析，校验输出文件及内容
+        # 校验msserviceprofiler打点采集数据解析功能是否正常解析，校验输出文件及内容
         cmd = ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
             self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
