@@ -1,9 +1,9 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-import os
-import pandas as pd
 import unittest
 from unittest.mock import patch
+import os
+import pandas as pd
 from ms_service_profiler.exporters.exporter_pd_comm import ExporterPDComm
 
 
