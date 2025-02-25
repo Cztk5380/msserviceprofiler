@@ -19,6 +19,7 @@ class ExporterTrace(ExporterBase):
     @classmethod
     def export(cls, data) -> None:
         all_data_df, cpu_data_df, memory_data_df = data['tx_data_df'], data['cpu_data_df'], data['memory_data_df']
+        all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
         msprof_data_df = data['msprof_data']
         cann_data = [load_single_prof(pf) for pf in msprof_data_df]
         output = cls.args.output_path
@@ -107,7 +108,7 @@ def add_flow_event(flow_event_df):
 
 
 def create_trace_events(all_data_df, cpu_data_df, memory_data_df):
-    metric_event = ['npu', 'KVCache', 'PullKVCache', 'PDSplit']
+    metric_event = ['npu', 'KVCache', 'PullKVCache']
 
     # 普通事件
     valid_name_df = all_data_df[all_data_df['name'].notna() & (~all_data_df['domain'].isin(metric_event))]
