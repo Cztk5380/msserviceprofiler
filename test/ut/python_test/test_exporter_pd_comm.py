@@ -2,6 +2,7 @@
 
 import unittest
 from unittest.mock import patch
+from collections import namedtuple
 import os
 import pandas as pd
 from ms_service_profiler.exporters.exporter_pd_comm import ExporterPDComm
@@ -9,7 +10,7 @@ from ms_service_profiler.exporters.exporter_pd_comm import ExporterPDComm
 
 class TestExporterPDComm(unittest.TestCase):
     def setUp(self):
-        self.args = type('Args', (object,), {'output_path': './'})
+        self.args = namedtuple('args', 'output_path')('./')
         ExporterPDComm.initialize(self.args)
 
     def test_export(self):
