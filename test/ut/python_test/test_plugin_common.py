@@ -1,3 +1,4 @@
+# Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
 import pytest
 import pandas as pd
 import numpy as np
@@ -70,16 +71,16 @@ def test_parse_with_empty_rid_from_message():
     rid_from_message = []
     rid_map = {1: 1, 2: 2}
     rid, token_id = extract_ids_from_reslist(rid_from_message, rid_map)
-    assert rid == []
-    assert token_id == []
+    assert len(rid) == 0
+    assert len(token_id) == 0
 
 
 def test_parse_with_string_rid_from_message():
     rid_from_message = ['1', '2']
     rid_map = {1: 1, 2: 2}
     rid, token_id = extract_ids_from_reslist(rid_from_message, rid_map)
-    assert rid == []
-    assert token_id == []
+    assert len(rid) == 0
+    assert len(token_id) == 0
 
 
 def test_parse_with_list_rid_from_message():
