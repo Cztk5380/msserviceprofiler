@@ -94,10 +94,16 @@ def add_flow_event(flow_event_df):
     flow_event_df.loc[:, 'rid'] = flow_event_df['rid'].str.split(',')
     exploded_df = flow_event_df.explode('rid')
     exploded_df['tid'] = exploded_df['domain']
-    exploded_df['ph'] = [
-        's' if 'httpReq' in name else ('f' if 'httpRes' in name else 't')
-        for name in exploded_df['name']
-    ]
+    if 'PDCommunication' in flow_event_df['domain'].values:
+        exploded_df['ph'] = [
+            's' if 'httpReq' in name else ('f' if ('httpRes' in name and 'receiveToken=' in message) else 't')
+            for name, message in zip(exploded_df['name'], exploded_df['message'])
+        ]
+    else:
+        exploded_df['ph'] = [
+            's' if 'httpReq' in name else ('f' if 'httpRes' in name else 't')
+            for name in exploded_df['name']
+        ]
     exploded_df['bp'] = ['b' if 'httpRes' in name else '' for name in exploded_df['name']]
     exploded_df['name'] = 'flow_' + exploded_df['rid']
     exploded_df['ts'] = exploded_df['start_time']
