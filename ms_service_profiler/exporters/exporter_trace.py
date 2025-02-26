@@ -18,7 +18,9 @@ class ExporterTrace(ExporterBase):
 
     @classmethod
     def export(cls, data) -> None:
-        all_data_df, cpu_data_df, memory_data_df = data['tx_data_df'], data['cpu_data_df'], data['memory_data_df']
+        cpu_data_df, memory_data_df = data['cpu_data_df'], data['memory_data_df']
+        all_data_df = data['tx_data_df'].copy()
+        all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
         msprof_data_df = data['msprof_data']
         cann_data = [load_single_prof(pf) for pf in msprof_data_df]
         output = cls.args.output_path
@@ -92,10 +94,16 @@ def add_flow_event(flow_event_df):
     flow_event_df.loc[:, 'rid'] = flow_event_df['rid'].str.split(',')
     exploded_df = flow_event_df.explode('rid')
     exploded_df['tid'] = exploded_df['domain']
-    exploded_df['ph'] = [
-        's' if 'httpReq' in name else ('f' if 'httpRes' in name else 't')
-        for name in exploded_df['name']
-    ]
+    if 'PDCommunication' in flow_event_df['domain'].values:
+        exploded_df['ph'] = [
+            's' if 'httpReq' in name else ('f' if ('httpRes' in name and 'receiveToken=' in message) else 't')
+            for name, message in zip(exploded_df['name'], exploded_df['message'])
+        ]
+    else:
+        exploded_df['ph'] = [
+            's' if 'httpReq' in name else ('f' if 'httpRes' in name else 't')
+            for name in exploded_df['name']
+        ]
     exploded_df['bp'] = ['b' if 'httpRes' in name else '' for name in exploded_df['name']]
     exploded_df['name'] = 'flow_' + exploded_df['rid']
     exploded_df['ts'] = exploded_df['start_time']
@@ -107,7 +115,7 @@ def add_flow_event(flow_event_df):
 
 
 def create_trace_events(all_data_df, cpu_data_df, memory_data_df):
-    metric_event = ['npu', 'KVCache', 'PullKVCache', 'PDSplit']
+    metric_event = ['npu', 'KVCache', 'PullKVCache']
 
     # 普通事件
     valid_name_df = all_data_df[all_data_df['name'].notna() & (~all_data_df['domain'].isin(metric_event))]

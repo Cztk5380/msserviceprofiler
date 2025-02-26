@@ -168,12 +168,16 @@ def test_exporter_export(mock_save, mock_create, mock_data):
     ExporterTrace.initialize(mock.Mock(output_path='/tmp'))
     ExporterTrace.export(mock_data)
 
-    # 检查创建 trace 事件的函数是否被调用
-    mock_create.assert_called_once_with(
-        mock_data['tx_data_df'], mock_data['cpu_data_df'], mock_data['memory_data_df'])
+    # 验证 create_trace_events 被调用一次
+    mock_create.assert_called_once()
 
-    # 检查保存 trace 数据的函数是否被调用
-    mock_save.assert_called_once()
+    # 获取调用参数
+    called_args, called_kwargs = mock_create.call_args
+
+    # 手动验证参数中的 DataFrame 内容
+    pd.testing.assert_frame_equal(called_args[0], mock_data['tx_data_df'])
+    pd.testing.assert_frame_equal(called_args[1], mock_data['cpu_data_df'])
+    pd.testing.assert_frame_equal(called_args[2], mock_data['memory_data_df'])
 
 
 def test_write_trace_data_to_file():
