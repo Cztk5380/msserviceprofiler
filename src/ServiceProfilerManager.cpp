@@ -393,8 +393,11 @@ namespace msServiceProfiler {
             time_t now = time(nullptr);
             auto ltm = std::localtime(&now);
             char pStrDateTail[tailMaxSize + 1] = {0};  // 多申请一点，保证安全
-            sprintf_s(pStrDateTail, tailMaxSize, "%02d%02d-%02d%02d/",
+            int ret = sprintf_s(pStrDateTail, tailMaxSize, "%02d%02d-%02d%02d/",
                       ltm->tm_mon + 1, ltm->tm_mday, ltm->tm_hour, ltm->tm_min);
+            if (ret == -1) {
+                PROF_LOGW("ProfPathDateTail init failed");
+            }
             profPathDateTail_ = pStrDateTail;
         }
     }
