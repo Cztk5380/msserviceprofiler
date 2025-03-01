@@ -120,6 +120,8 @@ def get_req_base_info(df):
 
         if http_req_df.shape[0] == 1:
             new_req['start_time'] = http_req_df.iloc[0, http_req_df.columns.get_loc('start_time')]
+            if 'recvTokenSize=' in http_req_df.columns:
+                new_req['recvTokenSize='] = http_req_df.iloc[0, http_req_df.columns.get_loc('recvTokenSize=')]
 
         if encode_df.shape[0] == 1 and 'recvTokenSize=' in encode_df.columns:
             new_req['recvTokenSize='] = encode_df.iloc[0, encode_df.columns.get_loc('recvTokenSize=')]

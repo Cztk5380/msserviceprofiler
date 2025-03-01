@@ -48,26 +48,38 @@ class PluginTimeStamp(PluginBase):
         return res
 
 
+# system_count, 用于tx_data_df中时间戳转换计算
 def convert_syscnt_to_ts(cnt, time_info):
     cpu_frequency = time_info.get('cpu_frequency')
     collection_time_begin = time_info.get('collection_time_begin')
     collection_cnt_begin = time_info.get('cntvct')
+    host_clock_monotonic_raw = time_info.get('host_clock_monotonic_raw')
+    start_clock_monotonic_raw = time_info.get('start_clock_monotonic_raw')
+
     try:
-        # cpu_frequency 单位为Hz
-        # 返回值单位为微秒ms
-        return collection_time_begin + (((cnt - collection_cnt_begin) / cpu_frequency)) * US_PER_SECOND
+        '''
+            频率不为空，获取的是计数，需要除以频率；
+            频率为空，获取的是monotonic，可以直接计算
+            collection_time_begin单位为us，其他数据单位为ns
+        '''
+        if cpu_frequency != 0:
+            return collection_time_begin + ((cnt - collection_cnt_begin) / cpu_frequency + \
+                host_clock_monotonic_raw - start_clock_monotonic_raw) / NS_PER_US
+        else:
+            return collection_time_begin + (cnt - start_clock_monotonic_raw) / NS_PER_US
     except Exception as ex:
         raise AttributeError("Timestamp format error.") from ex
 
 
+# system_timestamp, 用于cpu_data_df, memory_data_df中时间戳装换计算
 def convert_systs_to_ts(systs, time_info):
     cpu_frequency = time_info.get('cpu_frequency')
     collection_time_begin = time_info.get('collection_time_begin')
-    collection_systs_begin = time_info.get('clock_monotonic_raw')
+    collection_systs_begin = time_info.get('start_clock_monotonic_raw')
     try:
-        # collection_time_begin 以微秒ms为单位
+        # collection_time_begin 以微秒us为单位
         # systs/start_systs 以纳秒ns为单位
-        # 返回值单位为微秒ms
+        # 返回值单位为微秒us
         return collection_time_begin + (systs - collection_systs_begin) / NS_PER_US
     except Exception as ex:
         raise AttributeError("Timestamp format error.") from ex
