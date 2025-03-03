@@ -327,7 +327,7 @@ namespace msServiceProfiler {
         std::string semName = "/";
         semName.append(oriSemName);
         std::replace(++semName.begin(), semName.end(), '/', '#');
-        return std::move(semName);
+        return semName;
     }
 
     void ServiceProfilerManager::MarkFirstProcessAsMain()
