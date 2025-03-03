@@ -17,6 +17,7 @@
 #ifndef MS_SERVER_PROFILER_INTERFACE_H
 #define MS_SERVER_PROFILER_INTERFACE_H
 
+#include <cstdint>
 #include <dlfcn.h>
 
 using SpanHandle = uint64_t;
