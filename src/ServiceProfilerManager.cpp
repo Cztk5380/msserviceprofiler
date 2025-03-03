@@ -366,7 +366,7 @@ namespace msServiceProfiler {
 
         auto splitInfo = SplitStr(infoStr.c_str(), ',');  // 格式为： pid,目录。所以使用逗号分隔开
         if (!splitInfo.first.empty()) {
-            pid_t pid = Str2Uint(splitInfo.first); // 检查的进程 PID, 如果存在，就将和它放到一个目录中
+            pid_t pid = static_cast<pid_t>(Str2Uint(splitInfo.first)); // 检查的进程 PID, 如果存在，就将和它放到一个目录中
             if (kill(pid, 0) == 0) {
                 isMaster_ = false;
                 profPathDateTail_ = splitInfo.second;
