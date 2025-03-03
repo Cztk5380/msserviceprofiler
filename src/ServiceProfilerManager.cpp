@@ -306,7 +306,7 @@ namespace msServiceProfiler {
             if (profilerLevel.is_number_integer()) {
                 int level = profilerLevel.get<int>();
                 if (level >= 0) {
-                    level_ = level;
+                    level_ = static_cast<uint32_t>(level);
                 }
             } else if (profilerLevel.is_string()) {
                 std::string valueUpper = profilerLevel;
