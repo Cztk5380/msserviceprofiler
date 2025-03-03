@@ -13,6 +13,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstring>
+#include <climits>
 #include <ctime>
 #include <fstream>
 #include <iostream>
@@ -221,6 +222,14 @@ namespace msServiceProfiler {
         }
 
         std::ifstream configFile; // 单独创建 std::ifstream 对象
+
+        char realConfigPath[PATH_MAX] = {0};
+        if (realpath(configPath_.c_str(), realConfigPath) == nullptr) {
+            PROF_LOGE("Failed to canonicalize path: %s", configPath_.c_str());
+            return jsonData;
+        }
+        configPath_ = realConfigPath;
+
         try {
             configFile.open(configPath_);
             if (!configFile.good()) {
