@@ -170,7 +170,7 @@ namespace msServiceProfiler {
         return manager;
     }
 
-    ServiceProfilerManager::ServiceProfilerManager()
+    ServiceProfilerManager::ServiceProfilerManager() : configHandle_(nullptr)
     {
         ReadConfigPath();
         MarkFirstProcessAsMain();
