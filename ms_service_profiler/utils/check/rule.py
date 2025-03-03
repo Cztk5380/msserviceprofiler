@@ -45,7 +45,16 @@ class Rule:
 
     @staticmethod
     def input_dir() -> PathChecker:
-        return PathChecker().exists().is_dir().is_readable().is_uid_matched().is_not_writable_to_others().as_default()
+        return (
+            PathChecker()
+            .exists()
+            .forbidden_softlink()
+            .is_dir()
+            .is_readable()
+            .is_owner()
+            .is_not_writable_to_others()
+            .as_default()
+        )
 
     @staticmethod
     def output_dir() -> PathChecker:

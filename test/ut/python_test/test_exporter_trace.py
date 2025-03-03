@@ -1,6 +1,7 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
 from unittest import mock
+from unittest.mock import patch, mock_open
 import json
 import threading
 import tempfile
@@ -11,12 +12,31 @@ import pytest
 import pandas as pd
 
 from ms_service_profiler.exporters.exporter_trace import ExporterTrace, write_trace_data_to_file, \
-    save_trace_data_into_json, add_flow_event, create_trace_events, sort_trace_events_by_tid, add_mem_events
+    save_trace_data_into_json, add_flow_event, create_trace_events, sort_trace_events_by_tid, add_mem_events, \
+    load_single_prof, find_cann_pid, merge_json_data
 
 
 # Mock 数据
 @pytest.fixture
 def mock_data():
+    base_path = '/home/raonaxin/cheps/0211-1226/'
+
+    profiles = [
+        'PROF_000001_20250211122640832_MOAFENMIAMARIKCA',
+        'PROF_000001_20250211122717318_QCFMCMCCQNJJGQCC',
+        'PROF_000001_20250211122717318_FRPOJKFFIHHERIIA'
+    ]
+    date_times = [
+        '20250211122801',
+        '20250211122756',
+        '20250211122800'
+    ]
+
+    msprof_data = []
+    for profile, date_time in zip(profiles, date_times):
+        file_path = f'{base_path}{profile}/mindstudio_profiler_output/msprof_{date_time}.json'
+        msprof_data.append(file_path)
+
     # 模拟输入的 DataFrame 数据
     return {
         'tx_data_df': pd.DataFrame({
@@ -32,7 +52,9 @@ def mock_data():
             'deviceBlock=': [5, 10],
             'res_list': [['res1'], ['res2']],
             'rid': [[0], [1]],
-            'pid': [[0], [1]]
+            'pid': [[0], [1]],
+            'message': [{'rid': 0, 'PENDING+': 1, 'RUNNING+': -1, 'name': 'ReqState', 'type': 0},
+                        {'rid': 1, 'PENDING+': 1, 'RUNNING+': -1, 'name': 'ReqState', 'type': 0}]
         }),
         'cpu_data_df': pd.DataFrame({
             'start_time': [12345, 12346],
@@ -43,8 +65,89 @@ def mock_data():
             'start_time': [12345, 12346],
             'start_datetime': [12345, 12346],
             'usage': [200, 250]
-        })
+        }),
+        'msprof_data': msprof_data
     }
+
+
+def test_find_cann_pid():
+    # 测试找到 CANN PID 的情况
+    trace_events = [
+        {"name": "process_name", "args": {"name": "CANN"}, "pid": 123},
+        {"name": "other_event", "args": {}, "pid": 456}
+    ]
+    assert find_cann_pid(trace_events) == 123
+
+    # 测试未找到 CANN PID 的情况
+    trace_events = [
+        {"name": "process_name", "args": {"name": "OTHER"}, "pid": 123},
+        {"name": "other_event", "args": {}, "pid": 456}
+    ]
+    assert find_cann_pid(trace_events) is None
+
+
+def test_load_single_prof_valid_file():
+    # 模拟有效的 JSON 文件内容
+    mock_json_content = json.dumps([
+        {"name": "process_name", "args": {"name": "CANN"}, "pid": 123},
+        {"name": "event1", "pid": 123},
+        {"name": "event2", "pid": 456}
+    ])
+
+    with patch("builtins.open", mock_open(read_data=mock_json_content)):
+        result = load_single_prof("dummy_path.json")
+        assert result == {"traceEvents": [
+            {"name": "process_name", "args": {"name": "CANN"}, "pid": 123},
+            {"name": "event1", "pid": 123}
+        ]}
+
+
+def test_load_single_prof_file_not_found():
+    # 模拟文件未找到的情况
+    with patch("builtins.open", side_effect=FileNotFoundError):
+        result = load_single_prof("nonexistent_path.json")
+        assert result == {"traceEvents": []}
+
+
+def test_load_single_prof_invalid_json():
+    # 模拟无效的 JSON 文件内容
+    with patch("builtins.open", mock_open(read_data="invalid json")):
+        result = load_single_prof("invalid_path.json")
+        assert result == {"traceEvents": []}
+
+
+def test_merge_json_data():
+    # 测试合并 JSON 数据
+    trace_data = {"traceEvents": [{"name": "event1", "pid": 123}]}
+    msprof_data_df = [
+        {"traceEvents": [{"name": "event2", "pid": 123}]},
+        {"traceEvents": [{"name": "event3", "pid": 456}]}
+    ]
+    result = merge_json_data(trace_data, msprof_data_df)
+    assert result == {
+        "traceEvents": [
+            {"name": "event1", "pid": 123},
+            {"name": "event2", "pid": 123},
+            {"name": "event3", "pid": 456}
+        ]
+    }
+
+
+def test_integration(mock_data):
+    # 集成测试：模拟多个文件的加载和合并
+    mock_json_content = json.dumps([
+        {"name": "process_name", "args": {"name": "CANN"}, "pid": 123},
+        {"name": "event1", "pid": 123},
+        {"name": "event2", "pid": 456}
+    ])
+
+    with patch("builtins.open", mock_open(read_data=mock_json_content)):
+        trace_data = {"traceEvents": []}
+        for pf in mock_data["msprof_data"]:
+            result = load_single_prof(pf)
+            trace_data = merge_json_data(trace_data, [result])
+
+        assert len(trace_data["traceEvents"]) == 6
 
 
 # 测试 ExporterTrace 初始化
@@ -65,12 +168,16 @@ def test_exporter_export(mock_save, mock_create, mock_data):
     ExporterTrace.initialize(mock.Mock(output_path='/tmp'))
     ExporterTrace.export(mock_data)
 
-    # 检查创建 trace 事件的函数是否被调用
-    mock_create.assert_called_once_with(
-        mock_data['tx_data_df'], mock_data['cpu_data_df'], mock_data['memory_data_df'])
+    # 验证 create_trace_events 被调用一次
+    mock_create.assert_called_once()
 
-    # 检查保存 trace 数据的函数是否被调用
-    mock_save.assert_called_once()
+    # 获取调用参数
+    called_args, called_kwargs = mock_create.call_args
+
+    # 手动验证参数中的 DataFrame 内容
+    pd.testing.assert_frame_equal(called_args[0], mock_data['tx_data_df'])
+    pd.testing.assert_frame_equal(called_args[1], mock_data['cpu_data_df'])
+    pd.testing.assert_frame_equal(called_args[2], mock_data['memory_data_df'])
 
 
 def test_write_trace_data_to_file():

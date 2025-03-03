@@ -6,7 +6,7 @@ import json
 import pandas as pd
 
 from ms_service_profiler.exporters.base import ExporterBase
-from ms_service_profiler.parse import save_dataframe_to_csv
+from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.exporters.utils import add_table_into_visual_db
 

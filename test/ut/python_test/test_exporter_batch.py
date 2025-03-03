@@ -7,7 +7,7 @@ import io
 from pathlib import Path
 from unittest.mock import patch
 import pandas as pd
-from ms_service_profiler.parse import save_dataframe_to_csv
+from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.exporters.exporter_batch import ExporterBatchData
 
 

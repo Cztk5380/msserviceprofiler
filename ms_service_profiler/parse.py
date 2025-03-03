@@ -1,7 +1,9 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-
 import os
+import argparse
+import subprocess
 from pathlib import Path
+from datetime import datetime, timezone
 import json
 import re
 import sqlite3
@@ -11,11 +13,15 @@ from concurrent.futures import ProcessPoolExecutor
 
 import pandas as pd
 
+from ms_service_profiler.exporters.factory import ExporterFactory
+from ms_service_profiler.exporters.utils import create_sqlite_db, check_input_path_valid, check_output_path_valid
 from ms_service_profiler.constant import US_PER_SECOND
-from ms_service_profiler.plugins import builtin_plugins
+from ms_service_profiler.plugins import builtin_plugins, custom_plugins
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
-from ms_service_profiler.utils.log import logger
-from ms_service_profiler.utils.error import ParseError, ExportError, LoadDataError
+from ms_service_profiler.utils.log import logger, set_log_level
+from ms_service_profiler.utils.error import ParseError, LoadDataError
+from ms_service_profiler.utils.file_open_check import FileStat
+from ms_service_profiler.utils.check.rule import Rule
 
 
 def save_dataframe_to_csv(filtered_df, output, file_name):
@@ -72,6 +78,8 @@ def create_span_message_dict(data):
 
 
 def load_tx_data(db_path):
+    if db_path is None:
+        return None
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM MsprofTxEx")
@@ -159,9 +167,50 @@ def load_cpu_freq(info_path):
 def get_filepaths(folder_path, file_filter):
     filepaths = {}
     reverse_d = {value: key for key, value in file_filter.items()}
+    wildcard_patterns = [p for p in reverse_d.keys() if "*" in p or "?" in p]
+
+    # 精确匹配的文件路径
+    filepaths = handle_exact_match(folder_path, reverse_d)
+
+    # 创建映射
+    pattern_handlers = {
+        "msprof_*.json": handle_msprof_pattern,
+    }
+
+    # 通配符匹配的文件路径
+    for pattern in wildcard_patterns:
+        alias = reverse_d[pattern]
+        handler = pattern_handlers.get(pattern, handle_other_wildcard_patterns)
+        filepaths = handler(folder_path, alias, filepaths)
+
+    return filepaths
+
+
+def handle_exact_match(folder_path, reverse_d):
+    filepaths = {}
     for fp in Path(folder_path).rglob('*'):
         if fp.name in reverse_d:
             filepaths[reverse_d[fp.name]] = str(fp)
+    return filepaths
+
+
+def handle_msprof_pattern(folder_path, alias, filepaths):
+    regex_pattern = r'^msprof_\d+\.json$'
+    matched_files = []
+    for fp in Path(folder_path).rglob('*.json'):
+        if re.match(regex_pattern, fp.name):
+            matched_files.append(str(fp))
+    if matched_files:
+        if alias not in filepaths:
+            filepaths[alias] = []
+        filepaths[alias].extend(matched_files)
+    return filepaths
+
+
+def handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths):
+    for fp in Path(folder_path).rglob(pattern):
+        filepaths[alias] = str(fp)
+        break
     return filepaths
 
 
@@ -182,12 +231,14 @@ def load_prof(filepaths):
     cpu_data_df = load_cpu_data(filepaths.get("cpu"))
     memory_data_df = load_memory_data(filepaths.get("memory"))
     time_info = load_time_info(filepaths)
+    msprof_files = filepaths.get("msprof", [])
 
     return dict(
         tx_data_df=tx_data_df,
         cpu_data_df=cpu_data_df,
         memory_data_df=memory_data_df,
         time_info=time_info,
+        msprof_data=msprof_files
     )
 
 
@@ -199,6 +250,7 @@ def read_origin_db(db_path: str):
         "host_start": "host_start.log",
         "info": "info.json",
         "start_info": "start_info",
+        "msprof": "msprof_*.json"
     }
 
     data_list = []
@@ -213,7 +265,7 @@ def read_origin_db(db_path: str):
     return data_list
 
 
-def parse(input_path, custom_plugins, exporters):
+def parse(input_path, plugins, exporters):
     logger.info('Start to parse.')
     # 解析数据
     data = read_origin_db(input_path)
@@ -222,7 +274,7 @@ def parse(input_path, custom_plugins, exporters):
         return
     logger.info('Read origin db success.')
 
-    all_plugins = sort_plugins(builtin_plugins + custom_plugins)
+    all_plugins = sort_plugins(builtin_plugins + plugins)
     total_plugins = len(all_plugins)
     for cur_id, plugin in enumerate(all_plugins):
         try:
@@ -246,3 +298,92 @@ def parse(input_path, custom_plugins, exporters):
             except Exception as e:
                 pass  # Do nothing
     logger.info('Exporter done.')
+
+
+def gen_msprof_command(full_path):
+    try:
+        FileStat(full_path)
+    except Exception as err:
+        raise argparse.ArgumentTypeError(f"input path:{full_path} is illegal. Please check.") from err
+
+    command = "msprof --export=on "
+    output_param = f"--output={full_path}"
+    return command + output_param
+
+
+def find_file_in_dir(directory, filename):
+    count = 0
+    max_iter = 1000
+
+    for _, _, files in os.walk(directory):
+        count += len(files)
+        if count > max_iter:
+            break
+        if filename in files:
+            return True
+    return False
+
+
+def run_msprof_command(command):
+    command_list = command.split()
+    try:
+        subprocess.run(command_list, check=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"msprof error: {e}")
+    except Exception as e:
+        logger.error(f"msprof error occurred: {e}")
+
+
+def preprocess_prof_folders(input_path):
+    for root, dirs, _ in os.walk(input_path):
+        for dir_name in dirs:
+            full_path = os.path.join(root, dir_name)
+
+            if dir_name.startswith('PROF_') and not find_file_in_dir(full_path, 'msproftx.db'):
+                command = gen_msprof_command(full_path)
+                logger.info(f"{command}")
+                run_msprof_command(command)
+    if not find_file_in_dir(input_path, 'msproftx.db'):
+        raise ValueError("msprof failed! No msproftx.db file is generated.")
+
+
+def main():
+    parser = argparse.ArgumentParser(description='MS Server Profiler')
+    parser.add_argument(
+        '--input-path',
+        required=True,
+        type=check_input_path_valid,
+        help='Path to the folder containing profile data.')
+    parser.add_argument(
+        '--output-path',
+        type=check_output_path_valid,
+        default=os.path.join(os.getcwd(), 'output'),
+        help='Output file path to save results.')
+    parser.add_argument(
+        '--log-level',
+        type=str,
+        default='info',
+        choices=['debug', 'info', 'warning', 'error', 'fatal', 'critical'],
+        help='Log level to print')
+
+    args = parser.parse_args()
+
+    # 初始化日志等级
+    set_log_level(args.log_level)
+
+    # msprof预处理
+    preprocess_prof_folders(args.input_path)
+
+    # 初始化Exporter
+    exporters = ExporterFactory.create_exporters(args)
+
+    # 创建output目录
+    Path(args.output_path).mkdir(parents=True, exist_ok=True)
+    create_sqlite_db(args.output_path)
+
+    # 解析数据并导出
+    parse(args.input_path, custom_plugins, exporters)
+
+
+if __name__ == '__main__':
+    main()

@@ -19,45 +19,23 @@
 
 #include <string>
 #include <nlohmann/json.hpp>
+#include "ServiceProfilerInterface.h"
 
-using SpanHandle = uint64_t;
 using Json = nlohmann::json;
 
-#define MS_SERVICE_PROFILER_API __attribute__((visibility("default")))
-
-
-extern "C" {
-MS_SERVICE_PROFILER_API SpanHandle StartSpan();
-MS_SERVICE_PROFILER_API SpanHandle StartSpanWithName(const char *name);
-MS_SERVICE_PROFILER_API void MarkSpanAttr(const char *msg, SpanHandle spanHandle);
-MS_SERVICE_PROFILER_API void EndSpan(SpanHandle spanHandle);
-MS_SERVICE_PROFILER_API void MarkEvent(const char *msg);
-MS_SERVICE_PROFILER_API void StartServerProfiler();
-MS_SERVICE_PROFILER_API void StopServerProfiler();
-MS_SERVICE_PROFILER_API bool IsEnable(uint32_t level);
-}
-
 namespace msServiceProfiler {
-
-    enum Level : uint32_t {
-        ERROR = 10,
-        INFO = 20,
-        DETAILED = 30,
-        VERBOSE = 40,
-    };
-
     class ServiceProfilerManager {
     public:
-        MS_SERVICE_PROFILER_API static ServiceProfilerManager &GetInstance();
+        static ServiceProfilerManager &GetInstance();
 
-        MS_SERVICE_PROFILER_API inline bool IsEnable(uint32_t level) const
+        inline bool IsEnable(uint32_t level) const
         {
             return enable_ && level_ >= level;
         }
 
-        MS_SERVICE_PROFILER_API void StartProfiler();
+        void StartProfiler();
 
-        MS_SERVICE_PROFILER_API void StopProfiler();
+        void StopProfiler();
 
         static std::string ToSemName(const std::string &oriSemName);
 
@@ -105,6 +83,7 @@ namespace msServiceProfiler {
         bool isMaster_ = true;
         bool enable_ = false;
         bool started_ = false;
+        bool isAclInit_ = false;
         std::string configPath_;
         std::string profPath_;
         std::string profPathDateTail_;

@@ -106,8 +106,9 @@ void MarkEvent(const char *msg)
 {
     if (strlen(msg) > MAX_TX_MSG_LEN) {
         MarkEventLongAttr(msg);
+    } else {
+        mstxMarkA(msg, nullptr);
     }
-    mstxMarkA(msg, nullptr);
 }
 
 void StartServerProfiler()
@@ -126,16 +127,6 @@ bool IsEnable(uint32_t level)
 }
 
 namespace msServiceProfiler {
-    static inline std::string TrimStr(const std::string &str)
-    {
-        auto start = str.find_first_not_of(" \t\n\v\f\r");
-        if (start == std::string::npos) {
-            return "";
-        };
-        auto end = str.find_last_not_of(" \t\n\v\f\r");
-        return str.substr(start, end - start + 1);
-    }
-
     static inline unsigned long Str2Uint(const std::string &str)
     {
         char *endPtr;
@@ -190,10 +181,6 @@ namespace msServiceProfiler {
         ReadProfPath(configJson);
         ReadLevel(configJson);
         ReadCollectConfig(configJson);
-        aclError retInit = aclInit(nullptr);
-        if (retInit != ACL_ERROR_NONE) {
-            PROF_LOGE("acl init failed, ret = %d", retInit);
-        }
 
         if (enable_) {
             StartProfiler();
@@ -265,11 +252,15 @@ namespace msServiceProfiler {
 
     void ServiceProfilerManager::ReadEnable(const Json &config)
     {
+        enable_ = false;  // Default to false
         if (config.contains("enable")) {
-            enable_ = config["enable"] == 1;
-        } else {
-            enable_ = false;
+            if (config["enable"].is_number_integer()) {
+                enable_ = config["enable"] == 1;
+            } else {
+                PROF_LOGW("enable value is not an integer, will set false.");
+            }
         }
+        PROF_LOGD("profile enable_: %s", enable_ ? "true" : "false");
     }
 
     void ServiceProfilerManager::ReadProfPath(const Json &config)
@@ -289,15 +280,15 @@ namespace msServiceProfiler {
 
     void ServiceProfilerManager::ReadAclTaskTime(const Json &config)
     {
+        enableAclTaskTime_ = false;  // Default to false
         if (config.contains("acl_task_time")) {
             if (config["acl_task_time"].is_number_integer()) {
                 enableAclTaskTime_ = config["acl_task_time"] == 1;
-                return;
             } else {
                 PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");
             }
         }
-        enableAclTaskTime_ = false;
+        PROF_LOGD("profile enableAclTaskTime_: %s", enableAclTaskTime_ ? "true" : "false");
     }
 
     void ServiceProfilerManager::ReadLevel(const Json &config)
@@ -375,7 +366,7 @@ namespace msServiceProfiler {
 
         auto splitInfo = SplitStr(infoStr.c_str(), ',');  // 格式为： pid,目录。所以使用逗号分隔开
         if (!splitInfo.first.empty()) {
-            pid_t pid = Str2Uint(splitInfo.first); // 检查的进程 PID, 如果存在，就将和它放到一个目录中
+            pid_t pid = static_cast<pid_t>(Str2Uint(splitInfo.first)); // 检查的进程 PID, 如果存在，就将和它放到一个目录中
             if (kill(pid, 0) == 0) {
                 isMaster_ = false;
                 profPathDateTail_ = splitInfo.second;
@@ -402,8 +393,11 @@ namespace msServiceProfiler {
             time_t now = time(nullptr);
             auto ltm = std::localtime(&now);
             char pStrDateTail[tailMaxSize + 1] = {0};  // 多申请一点，保证安全
-            sprintf_s(pStrDateTail, tailMaxSize, "%02d%02d-%02d%02d/",
-                      ltm->tm_mon + 1, ltm->tm_mday, ltm->tm_hour, ltm->tm_min);
+            int ret = sprintf_s(pStrDateTail, tailMaxSize, "%02d%02d-%02d%02d/",
+                                ltm->tm_mon + 1, ltm->tm_mday, ltm->tm_hour, ltm->tm_min);
+            if (ret == -1) {
+                PROF_LOGW("ProfPathDateTail init failed.");
+            }
             profPathDateTail_ = pStrDateTail;
         }
     }
@@ -594,9 +588,14 @@ namespace msServiceProfiler {
         }
         uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
 
-        aclError retInit = aclInit(nullptr);
-        if (retInit != ACL_ERROR_NONE) {
-            PROF_LOGE("acl init failed, ret = %d", retInit);
+        if (!isAclInit_) {
+            aclError retInit = aclInit(nullptr);
+            if (retInit == ACL_SUCCESS || retInit == ACL_ERROR_REPEAT_INITIALIZE) {
+                isAclInit_ = true;
+            } else {
+                PROF_LOGE("acl init failed, ret = %d", retInit);
+                isAclInit_ = false;
+            }
         }
 
         aclError ret = aclprofInit(profPath_.c_str(), profPath_.size());
