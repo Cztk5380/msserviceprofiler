@@ -115,12 +115,16 @@ def get_wait_df(df):
     return wait_df
 
 
+def is_vaild_rid(rid):
+    return ',' in rid or '{' in rid or ':' in rid
+
+
 def get_req_base_info(df):
     req_group_df = df.groupby('rid')
     req_base_info = []
     for rid, pre_req_data in req_group_df:
         rid = str(rid)
-        if rid == "" or ',' in rid or '{' in rid or ':' in rid:
+        if rid == "" or is_vaild_rid(rid):
             continue
         new_req = {
             'rid': rid,

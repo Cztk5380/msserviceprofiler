@@ -17,13 +17,17 @@ class PluginTrace(PluginBase):
         # 解析batch，vllm数据解析modelexec自带batch_type和batch_size字段
         if 'batch_type' not in tx_data_df.columns:
             tx_data_df['batch_type'] = None
-        tx_data_df['batch_type'] = [extract_batch_type(token_list, batch_type) for token_list, batch_type in \
-            zip(tx_data_df['token_id_list'], tx_data_df['batch_type'])]
+        tx_data_df['batch_type'] = [
+            extract_batch_type(token_list, batch_type)
+            for token_list, batch_type in zip(tx_data_df['token_id_list'], tx_data_df['batch_type'])
+        ]
 
         if 'batch_size' not in tx_data_df.columns:
             tx_data_df['batch_size'] = None
-        tx_data_df['batch_size'] = [extract_batch_size(rid_list, batch_size) for rid_list, batch_size in \
-            zip(tx_data_df['rid_list'], tx_data_df['batch_size'])]
+        tx_data_df['batch_size'] = [
+            extract_batch_size(rid_list, batch_size)
+            for rid_list, batch_size in zip(tx_data_df['rid_list'], tx_data_df['batch_size'])
+        ]
 
         # PD混跑场景拆解batch size
         tx_data_df['prefill_batch_size'], tx_data_df['decode_batch_size'] = zip(
@@ -38,7 +42,7 @@ class PluginTrace(PluginBase):
 
 
 def extract_batch_type(token_list, batch_type):
-    if batch_type != None:
+    if batch_type is not None:
         return batch_type
     if token_list is None:
         return None
@@ -51,7 +55,7 @@ def extract_batch_type(token_list, batch_type):
 
 
 def extract_batch_size(rid_list, batch_size):
-    if batch_size != None:
+    if batch_size is not None:
         return batch_size
     if rid_list is None:
         return None
