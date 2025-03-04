@@ -24,14 +24,6 @@ class VllmHelper:
         return cls.vllm_req_map[rid]['batch_iter']
 
     @classmethod
-    def add_req_model_exec_iter(cls, rid):
-        if cls.vllm_req_map.get(rid) is not None:
-            cls.vllm_req_map[rid]['model_exec_iter'] += 1
-        else:
-            VllmHelper.int_req(rid)
-        return cls.vllm_req_map[rid]['model_exec_iter']
-
-    @classmethod
     def get_receive_token(cls, rid):
         if cls.vllm_req_map.get(rid) is not None:
             return cls.vllm_req_map[rid]['receiveToken']
