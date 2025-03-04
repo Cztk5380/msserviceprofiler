@@ -17,6 +17,7 @@
 #ifndef MS_SERVER_PROFILER_INTERFACE_H
 #define MS_SERVER_PROFILER_INTERFACE_H
 
+#include <cstdint>
 #include <dlfcn.h>
 
 using SpanHandle = uint64_t;
@@ -54,45 +55,45 @@ namespace msServiceProfilerCompatible {
 
         ~ServiceProfilerInterface() = default;
 
-        inline SpanHandle CallStartSpanWithName(const char *name)
+        inline SpanHandle CallStartSpanWithName(const char *name) const
         {
             return ptrStartSpanWithName_ ? ptrStartSpanWithName_(name) : 0;
         }
 
-        inline void CallMarkSpanAttr(const char *msg, SpanHandle spanHandle)
+        inline void CallMarkSpanAttr(const char *msg, SpanHandle spanHandle) const
         {
             if (ptrMarkSpanAttr_) {
                 ptrMarkSpanAttr_(msg, spanHandle);
             }
         }
 
-        inline void CallEndSpan(SpanHandle spanHandle)
+        inline void CallEndSpan(SpanHandle spanHandle) const
         {
             if (ptrEndSpan_) {
                 ptrEndSpan_(spanHandle);
             }
         }
 
-        inline void CallMarkEvent(const char *msg)
+        inline void CallMarkEvent(const char *msg) const
         {
             if (ptrMarkEvent_) {
                 ptrMarkEvent_(msg);
             }
         }
 
-        inline bool CallIsEnable(uint32_t level)
+        inline bool CallIsEnable(uint32_t level) const
         {
             return ptrIsEnable_ && ptrIsEnable_(level);
         }
 
-        inline void CallStartServerProfiler()
+        inline void CallStartServerProfiler() const
         {
             if (ptrStartServerProfiler_) {
                 ptrStartServerProfiler_();
             }
         }
 
-        inline void CallStopServerProfiler()
+        inline void CallStopServerProfiler() const
         {
             if (ptrStopServerProfiler_) {
                 ptrStopServerProfiler_();

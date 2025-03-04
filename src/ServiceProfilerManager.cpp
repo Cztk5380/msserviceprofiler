@@ -13,6 +13,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstring>
+#include <climits>
 #include <ctime>
 #include <fstream>
 #include <iostream>
@@ -170,7 +171,7 @@ namespace msServiceProfiler {
         return manager;
     }
 
-    ServiceProfilerManager::ServiceProfilerManager()
+    ServiceProfilerManager::ServiceProfilerManager() : configHandle_(nullptr)
     {
         ReadConfigPath();
         MarkFirstProcessAsMain();
@@ -221,6 +222,14 @@ namespace msServiceProfiler {
         }
 
         std::ifstream configFile; // 单独创建 std::ifstream 对象
+
+        char realConfigPath[PATH_MAX] = {0};
+        if (realpath(configPath_.c_str(), realConfigPath) == nullptr) {
+            PROF_LOGE("Failed to canonicalize path: %s", configPath_.c_str());
+            return jsonData;
+        }
+        configPath_ = realConfigPath;
+
         try {
             configFile.open(configPath_);
             if (!configFile.good()) {
@@ -306,7 +315,7 @@ namespace msServiceProfiler {
             if (profilerLevel.is_number_integer()) {
                 int level = profilerLevel.get<int>();
                 if (level >= 0) {
-                    level_ = level;
+                    level_ = static_cast<uint32_t>(level);
                 }
             } else if (profilerLevel.is_string()) {
                 std::string valueUpper = profilerLevel;
@@ -327,7 +336,7 @@ namespace msServiceProfiler {
         std::string semName = "/";
         semName.append(oriSemName);
         std::replace(++semName.begin(), semName.end(), '/', '#');
-        return std::move(semName);
+        return semName;
     }
 
     void ServiceProfilerManager::MarkFirstProcessAsMain()
