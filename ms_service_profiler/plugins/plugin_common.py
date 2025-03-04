@@ -21,6 +21,7 @@ class PluginCommon(PluginBase):
 
         tx_data_df = tx_data_df.replace(to_replace=np.nan, value=None)
         data["tx_data_df"], data["rid_link_map"] = parse_rid(tx_data_df)
+        
         return data
 
 
@@ -91,4 +92,5 @@ def parse_rid(tx_data_df):
 
     df = tx_data_df['rid'].apply(lambda x: extract_rid(x, rid_link_map))
     tx_data_df[['rid', 'rid_list', 'token_id_list']] = pd.DataFrame(df.tolist(), index=tx_data_df.index)
+
     return tx_data_df, rid_link_map
