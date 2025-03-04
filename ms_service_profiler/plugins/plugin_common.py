@@ -4,6 +4,7 @@ import json
 import pandas as pd
 import numpy as np
 from ms_service_profiler.plugins.base import PluginBase
+from ms_service_profiler.plugins.plugin_vllm import VllmHelper
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import ParseError, DataFrameMissingError, KeyMissingError, ValidationError
 
@@ -23,6 +24,13 @@ class PluginCommon(PluginBase):
         return data
 
 
+# 只有vllm框架数据解析会走这部分流程，从batchSchdule中的iter_size中获取迭代信息
+def extract_iter_from_batch(req):
+    rid = req.get('rid')
+    iter_size = req.get('iter_size')
+    return VllmHelper.add_req_batch_iter(rid, iter_size)
+
+
 def extract_ids_from_reslist(rid_from_message, rid_map):
     if not rid_from_message:
         return [], []
@@ -32,11 +40,14 @@ def extract_ids_from_reslist(rid_from_message, rid_map):
 
     for req in rid_from_message:
         if isinstance(req, int) or isinstance(req, float):
-            rid.append(req)
+            rid.append(int(req))
             token_id.append(None)
         elif isinstance(req, dict):
             rid.append(rid_map.get(req.get('rid', None), req.get('rid', None)))
-            token_id.append(req.get('iter', None))
+            if req.get('iter_size'):
+                token_id.append(extract_iter_from_batch(req))
+            else:
+                token_id.append(req.get('iter', None))
 
     return rid, token_id
 

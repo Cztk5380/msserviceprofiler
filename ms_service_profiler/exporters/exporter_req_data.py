@@ -5,7 +5,7 @@ from pathlib import Path
 import json
 import pandas as pd
 
-
+from ms_service_profiler.plugins.plugin_vllm import VllmHelper
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.exporters.base import ExporterBase
 
@@ -86,6 +86,27 @@ def process_data(req_en_queue_df, req_running_df, pending_df):
     return wait_df
 
 
+def get_vllm_wait_df(df):
+    req_waiting_info = []
+    req_group_df = df.groupby('rid')
+    for rid, pre_req_data in req_group_df:
+        new_req = {
+            'rid': rid,
+            'queue_wait_time': ''
+        }
+        begin_wait_df = pre_req_data[pre_req_data['WAITING+'] == 1]['start_time']
+        end_wait_df = pre_req_data[pre_req_data['WAITING+'] == -1]['start_time']
+        if begin_wait_df.shape[0] == end_wait_df.shape[0]:
+            wait_diff = 0
+            for i in range(begin_wait_df.shape[0]):
+                wait_diff += end_wait_df.values[i] - begin_wait_df.values[i]
+            new_req['queue_wait_time'] = wait_diff
+        else:
+            logger.warning("The shape of 'begin_wait_df' is different from 'end_wait_df', please check.")
+        req_waiting_info.append(new_req)
+    return pd.DataFrame(req_waiting_info)
+
+
 def get_wait_df(df):
     req_en_queue_df = df[df['name'] == 'Enqueue']
     req_running_df = df[df['name'] == 'RUNNING']
@@ -99,7 +120,7 @@ def get_req_base_info(df):
     req_base_info = []
     for rid, pre_req_data in req_group_df:
         rid = str(rid)
-        if ',' in rid or '{' in rid or ':' in rid:
+        if rid == "" or ',' in rid or '{' in rid or ':' in rid:
             continue
         new_req = {
             'rid': rid,
@@ -131,8 +152,17 @@ def get_req_base_info(df):
         if decode_end_df.shape[0] == 1 and 'replyTokenSize=' in decode_end_df.columns:
             new_req['replyTokenSize='] = decode_end_df.iloc[0, decode_end_df.columns.get_loc('replyTokenSize=')]
 
+        # vllm框架数据解析特有流程
+        if VllmHelper.is_vllm_parse():
+            new_req['recvTokenSize='] = VllmHelper.get_receive_token(rid)
+            new_req['replyTokenSize='] = VllmHelper.get_reply_token(rid)
+            if http_res_df is not None:
+                new_req['end_time'] = http_res_df.iloc[0, http_res_df.columns.get_loc('end_time')]
+
+        # 公用计算流程
         if new_req['start_time'] != '' and new_req['end_time'] != '':
             new_req['execution_time'] = new_req['end_time'] - new_req['start_time']
+
         req_base_info.append(new_req)
     return pd.DataFrame(req_base_info)
 
@@ -152,10 +182,15 @@ class ExporterReqData(ExporterBase):
             return
         output = cls.args.output_path
 
+        df = df[df['domain'] != 'KVCache']
         req_base_info = get_req_base_info(df)
         try:
-            df = df.rename(columns={"RUNNING+": "RUNNING", "PENDING+": "PENDING"})
-            wait_df = get_wait_df(df)
+            if VllmHelper.is_vllm_parse():
+                req_waiting_df = df[df['WAITING+'].notnull()]
+                wait_df = get_vllm_wait_df(req_waiting_df)
+            else:
+                df = df.rename(columns={"RUNNING+": "RUNNING", "PENDING+": "PENDING"})
+                wait_df = get_wait_df(df)
         except Exception as e:
             logger.error(f"An error occurred: {e}")
             return
