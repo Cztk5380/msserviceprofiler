@@ -99,6 +99,7 @@ run_test() {
 }
 
 main() {
+  export VERBOSE=1
   cd ${TEST_DIR}
   fn_build_googletest
   clean
