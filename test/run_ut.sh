@@ -18,18 +18,20 @@ clean() {
 
 function fn_build_googletest()
 {
+  cd ${CUR_DIR}/../opensource
   GTEST_DIR="${CUR_DIR}/../opensource/googletest"
   if [ ! -d "$GTEST_DIR" ]; then
-      cd ${CUR_DIR}/../opensource
       git clone https://codehub-dg-y.huawei.com/OpenSourceCenter/googletest.git googletest -b release-1.12.1
-      cd googletest-1.8.1
-      mkdir gtest_build
-      cd gtest_build
-      cmake -DCMAKE_INSTALL_PREFIX=$GTEST_DIR ..
-      make -j20
-      make install
   else
       echo "opensource/googletest already exists. no need to download."
+  fi
+  if [ ! -d "$GTEST_DIR/googletest" ]; then
+    cd googletest
+    mkdir gtest_build
+    cd gtest_build
+    cmake -DCMAKE_INSTALL_PREFIX=$GTEST_DIR ..
+    make -j20
+    make install
   fi
 }
 

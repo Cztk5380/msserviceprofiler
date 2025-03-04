@@ -27,7 +27,6 @@ if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
     add_subdirectory(${PROJECT_TOP_DIR}/3rdparty 3rdparty)
     message("${BUILD_INCLUDE_LIST}")
     include_directories(
-            ${BUILD_INCLUDE_LIST}
             ${PROJECT_TOP_DIR}/3rdparty
     )
 endif ()
