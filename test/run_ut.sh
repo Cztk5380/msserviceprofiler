@@ -25,11 +25,11 @@ function fn_build_googletest()
   else
       echo "opensource/googletest already exists. no need to download."
   fi
-  if [ ! -d "$GTEST_DIR/googletest" ]; then
+  if [ ! -d "$GTEST_DIR/googletest-1.12.1" ]; then
     cd googletest
     mkdir gtest_build
     cd gtest_build
-    cmake -DCMAKE_INSTALL_PREFIX=$GTEST_DIR ..
+    cmake -DCMAKE_INSTALL_PREFIX=$GTEST_DIR/googletest-1.12.1 ..
     make -j20
     make install
   fi
