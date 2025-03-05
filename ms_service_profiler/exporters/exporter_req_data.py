@@ -93,7 +93,7 @@ def get_wait_df(df):
     return wait_df
 
 
-def is_vaild_rid(rid):
+def is_invaild_rid(rid):
     return ',' in rid or '{' in rid or ':' in rid
 
 
@@ -102,7 +102,7 @@ def get_req_base_info(df):
     req_base_info = []
     for rid, pre_req_data in req_group_df:
         rid = str(rid)
-        if rid == "" or is_vaild_rid(rid):
+        if rid == "" or is_invaild_rid(rid):
             continue
         new_req = {
             'rid': rid,
