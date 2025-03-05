@@ -16,6 +16,12 @@ def sample_data():
             'WAITING': [1, 0, 0],
             'RUNNING': [0, 1, 0],
             'END': [0, 0, 1],
+            'PENDING': [0, 0, 1],
+            'SWAPPED': [0, 0, 1],
+            'RECOMPUTE': [0, 0, 1],
+            'SUSPENDED': [0, 0, 1],
+            'STOP': [0, 0, 1],
+            'PREFILL_HOLD': [0, 0, 1]
         })
     }
     return data
