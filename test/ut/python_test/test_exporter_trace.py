@@ -13,7 +13,8 @@ import pandas as pd
 
 from ms_service_profiler.exporters.exporter_trace import ExporterTrace, write_trace_data_to_file, \
     save_trace_data_into_json, add_flow_event, create_trace_events, sort_trace_events_by_tid, add_mem_events, \
-    load_single_prof, find_cann_pid, merge_json_data
+    load_single_prof, find_cann_pid, merge_json_data, add_npu_events, add_kvcache_events, add_cpu_events, \
+    add_pull_kvcache_events
 
 
 # Mock 数据
@@ -191,7 +192,6 @@ def test_write_trace_data_to_file():
 
 
 def test_create_trace_events(mock_data):
-
     result = create_trace_events(
         mock_data['tx_data_df'], mock_data['cpu_data_df'], mock_data['memory_data_df']
     )
@@ -274,3 +274,144 @@ def test_add_mem_events_with_nan_data():
 
     assert len(result) == 3  # 应该有 3 个事件
     assert math.isnan(result[1]['args']['Memory Usage'])
+
+
+def test_add_npu_events_valid_data():
+    data = {
+        'start_time': [1000, 2000, 3000],
+        'usage=': [0.5, 0.75, 0.25],
+    }
+    df = pd.DataFrame(data)
+
+    result = add_npu_events(df)
+
+    assert len(result) == 3
+    assert result[0]['name'] == 'NPU Usage'
+    assert result[0]["ph"] == "C"
+    assert result[0]['args'] == {'Usage': 0.5}
+    assert result[1]['args'] == {'Usage': 0.75}
+    assert result[2]['args'] == {'Usage': 0.25}
+
+
+def test_add_npu_events_none_input():
+    # 输入为 None
+    result = add_npu_events(None)
+
+    assert result == []  # 应该返回空列表
+
+
+def test_add_npu_events_empty_df():
+    # 空 DataFrame
+    df = pd.DataFrame(columns=['start_time', 'usage='])  # 没有数据的 DataFrame
+
+    result = add_npu_events(df)
+
+    assert result == []  # 应该返回空列表
+
+
+def test_add_kvcache_events_valid_data():
+    data = {
+        'start_time': [1000, 2000, 3000],
+        'deviceBlock=': [0, 1, 2],
+        'domain': ['KVCache', 'KVCache', 'KVCache'],
+        'pid': [1, 1, 1],
+    }
+    df = pd.DataFrame(data)
+
+    result = add_kvcache_events(df)
+
+    assert len(result) == 3
+    assert result[0]['name'] == 'KVCache'
+    assert result[0]['pid'] == 1
+    assert result[0]["ph"] == "C"
+    assert result[0]['args'] == {'Device Block': 0}
+    assert result[1]['args'] == {'Device Block': 1}
+    assert result[2]['args'] == {'Device Block': 2}
+
+
+def test_add_cpu_events_valid_data():
+    data = {
+        'start_time': [1000, 2000, 3000],
+        'usage': [0.5, 0.75, 0.25],
+    }
+    df = pd.DataFrame(data)
+
+    result = add_cpu_events(df)
+
+    assert len(result) == 3
+    assert result[0]['name'] == 'CPU Usage'
+    assert result[0]["ph"] == "C"
+    assert result[0]['args'] == {'CPU Usage': 0.5}
+    assert result[1]['args'] == {'CPU Usage': 0.75}
+    assert result[2]['args'] == {'CPU Usage': 0.25}
+
+
+def test_add_cpu_events_none_input():
+    # 输入为 None
+    result = add_cpu_events(None)
+
+    assert result == []  # 应该返回空列表
+
+
+def test_add_cpu_events_empty_df():
+    # 空 DataFrame
+    df = pd.DataFrame(columns=['start_time', 'usage'])  # 没有数据的 DataFrame
+
+    result = add_cpu_events(df)
+
+    assert result == []  # 应该返回空列表
+
+
+def test_add_pull_kvcache_events_valid_data():
+    data = {
+        'start_time': [1000, 2000, 3000],
+        'end_time': [1500, 2500, 3500],
+        'rank': [0, 1, 2],
+        'domain': ['PullKVCache', 'PullKVCache', 'PullKVCache'],
+        'during_time': [500, 500, 500],
+    }
+
+    df = pd.DataFrame(data)
+
+    result = add_pull_kvcache_events(df)
+
+    assert len(result) == 12
+    assert result[0]['name'] == 'PullKVCache'
+    assert result[0]['pid'] == 'PullKVCache'
+    assert result[0]["ph"] == "X"
+    assert result[0]['dur'] == 500
+    assert result[0]['args'] == {'rank': 0, 'during_time': 500, 'end_time': 1500, 'start_time': 1000}
+
+
+def test_add_pull_kvcache_events_none_input():
+    # 输入为 None
+    result = add_pull_kvcache_events(None)
+
+    assert result == []  # 应该返回空列表
+
+
+def test_add_pull_kvcache_events_empty_df():
+    # 空 DataFrame
+    df = pd.DataFrame(columns=['start_time', 'end_time', 'rank', 'domain', 'during_time'])  # 没有数据的 DataFrame
+
+    result = add_pull_kvcache_events(df)
+
+    assert result == []  # 应该返回空列表
+
+
+@mock.patch('ms_service_profiler.exporters.exporter_trace.threading.Thread')
+@mock.patch('ms_service_profiler.exporters.exporter_trace.logger')
+def test_save_trace_data_into_json(mock_logger, mock_thread):
+    save_trace_data_into_json('trace_data', 'output')
+    mock_thread.assert_called_once_with(target=write_trace_data_to_file,
+                                        args=('trace_data', os.path.join('output', 'chrome_tracing.json')))
+    mock_thread.return_value.start.assert_called_once()
+    mock_logger.info.assert_called_once()
+
+
+@mock.patch('ms_service_profiler.exporters.exporter_trace.threading.Thread')
+@mock.patch('ms_service_profiler.exporters.exporter_trace.logger')
+def test_save_trace_data_into_json_exception(mock_logger, mock_thread):
+    mock_thread.side_effect = Exception('Test exception')
+    save_trace_data_into_json('trace_data', 'output')
+    mock_logger.error.assert_called_once()
