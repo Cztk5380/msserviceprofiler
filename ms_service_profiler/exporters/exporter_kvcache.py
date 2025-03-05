@@ -135,9 +135,11 @@ class ExporterKVCacheData(ExporterBase):
             kvcache_df = df[df['domain'] == 'KVCache']
             # vllm特有字段gpuHitCache，直接获取kvcache占用率
             if 'gpuHitCache' in kvcache_df.columns:
-                kvcache_df = kvcache_df[kvcache_df['name'] == 'GetCacheHitRate']
-                kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'name', 'gpuHitCache']]
+                kvcache_df =  kvcache_df[kvcache_df['name'].isin(['GetCacheHitRate', 'AppendSlots'])]
+                kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'name', \
+                    'gpuHitCache', 'deviceBlock=']]
                 kvcache_df = kvcache_df.rename(columns={
+                    'deviceBlock=': 'device_kvcache_left',
                     'gpuHitCache': 'kvcache_usage_rate',
                     'start_time': 'start_time(microsecond)',
                     'end_time': 'end_time(microsecond)',
