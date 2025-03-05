@@ -6,6 +6,8 @@ set(CMAKE_SKIP_RPATH TRUE)
 set(CMAKE_CXX_STANDARD 14)
 set(PROJECT_TOP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
 set(TOOLKIT_BASE_PATH $ENV{ASCEND_TOOLKIT_HOME})
+set(CMAKE_CXX_FLAGS "-fprofile-arcs -ftest-coverage -lgcov")
+set(CMAKE_C_FLAGS "-fprofile-arcs -ftest-coverage -lgcov")
 
 add_compile_definitions(
         ENABLE_PROF
@@ -13,17 +15,28 @@ add_compile_definitions(
 )
 
 add_compile_options(
+        -fvisibility=default
         -fprofile-arcs
         -ftest-coverage
         -g
         -Wall
 )
+if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
+    message(AUTHOR_WARNING "no env $ASCEND_TOOLKIT_HOME")
+    set(BUILD_INCLUDE_LIST )
+    add_subdirectory(${PROJECT_TOP_DIR}/3rdparty 3rdparty)
+    message("${BUILD_INCLUDE_LIST}")
+    include_directories(
+            ${BUILD_INCLUDE_LIST}
+            ${PROJECT_TOP_DIR}/3rdparty
+    )
+endif ()
 
 include_directories(
         ${PROJECT_TOP_DIR}/include
         ${PROJECT_TOP_DIR}/include/msServiceProfiler
-        ${PROJECT_TOP_DIR}/opensource/googletest-1.8.1/googletest/include
-        ${PROJECT_TOP_DIR}/opensource/googletest-1.8.1/googlemock/include
+        ${PROJECT_TOP_DIR}/opensource/googletest/googletest/include
+        ${PROJECT_TOP_DIR}/opensource/googletest/googlemock/include
         ${PROJECT_TOP_DIR}/opensource/json/include
         ${PROJECT_TOP_DIR}/platform/securec/include
         ${TOOLKIT_BASE_PATH}/include
@@ -32,8 +45,8 @@ include_directories(
 )
 
 link_directories(
-        ${PROJECT_TOP_DIR}/opensource/googletest-1.8.1/lib
-        ${PROJECT_TOP_DIR}/opensource/googletest-1.8.1/lib64
+        ${PROJECT_TOP_DIR}/opensource/googletest/lib
+        ${PROJECT_TOP_DIR}/opensource/googletest/lib64
         ${TOOLKIT_BASE_PATH}/lib64
         ${TOOLKIT_BASE_PATH}/aarch64-linux/devlib
         ${TOOLKIT_BASE_PATH}/x86_64-linux/devlib
@@ -51,7 +64,6 @@ set(TEST_LIBS
         libgtest_main.a
         libgmock.a
         libgmock_main.a
-        libstdc++fs.a
 )
 
 add_link_options(
