@@ -26,7 +26,10 @@ class ExporterReqStatus(ExporterBase):
         df.insert(0, 'timestamp', metrics['start_datetime'])
 
         # 默认会从db文件中筛选下述列进行展示，如不存在该列需要补齐
-        show_columns = ['WAITING', 'PENDING', 'RUNNING']
+        show_columns = []
+        for status in ReqStatus:
+            show_columns.append(status.name)
+
         for column_name in show_columns:
             if column_name not in df.columns:
                 df = df.assign(**{column_name: [None] * len(df)})

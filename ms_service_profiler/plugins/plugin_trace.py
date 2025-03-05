@@ -14,7 +14,7 @@ class PluginTrace(PluginBase):
         if tx_data_df is None:
             raise ValueError("tx_data_df is None")
 
-        # 解析batch，vllm数据解析modelexec自带batch_type和batch_size字段
+        # 解析batch，vllm数据解析modelexec自带batch_type字段
         if 'batch_type' not in tx_data_df.columns:
             tx_data_df['batch_type'] = None
         tx_data_df['batch_type'] = [
@@ -22,12 +22,7 @@ class PluginTrace(PluginBase):
             for token_list, batch_type in zip(tx_data_df['token_id_list'], tx_data_df['batch_type'])
         ]
 
-        if 'batch_size' not in tx_data_df.columns:
-            tx_data_df['batch_size'] = None
-        tx_data_df['batch_size'] = [
-            extract_batch_size(rid_list, batch_size)
-            for rid_list, batch_size in zip(tx_data_df['rid_list'], tx_data_df['batch_size'])
-        ]
+        tx_data_df['batch_size'] = [extract_batch_size(x) for x in tx_data_df['rid_list']]
 
         # PD混跑场景拆解batch size
         tx_data_df['prefill_batch_size'], tx_data_df['decode_batch_size'] = zip(
@@ -54,9 +49,7 @@ def extract_batch_type(token_list, batch_type):
         return 'Decode'
 
 
-def extract_batch_size(rid_list, batch_size):
-    if batch_size is not None:
-        return batch_size
+def extract_batch_size(rid_list):
     if rid_list is None:
         return None
     return str(int(len(rid_list)))

@@ -4,7 +4,7 @@ import json
 import pandas as pd
 import numpy as np
 from ms_service_profiler.plugins.base import PluginBase
-from ms_service_profiler.plugins.plugin_vllm import VllmHelper
+from ms_service_profiler.plugins.plugin_vllm_helper import VllmHelper
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import ParseError, DataFrameMissingError, KeyMissingError, ValidationError
 
@@ -45,6 +45,7 @@ def extract_ids_from_reslist(rid_from_message, rid_map):
             token_id.append(None)
         elif isinstance(req, dict):
             rid.append(rid_map.get(req.get('rid', None), req.get('rid', None)))
+            # iter_size 为vllm数据采集特有字段
             if req.get('iter_size'):
                 token_id.append(extract_iter_from_batch(req))
             else:
