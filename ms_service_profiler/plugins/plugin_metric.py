@@ -26,7 +26,9 @@ class PluginMetric(PluginBase):
             raise ColumnMissingError(key=missing_col)
 
         metric_data_df = tx_data_df[['start_time', 'start_datetime'] + metric_cols].copy()
-        metric_data_df.loc[tx_data_df['name'] == 'httpReq', 'WAITING+'] = 1.0
+
+        if 'FINISHED+' not in metric_data_df.columns:
+            metric_data_df.loc[tx_data_df['name'] == 'httpReq', 'WAITING+'] = 1.0
 
         increase_metric_cols = [col for col in metric_cols if col[-1] == "+"]
         metric_data_df[increase_metric_cols] = cal_increase_value(metric_data_df[increase_metric_cols])   
