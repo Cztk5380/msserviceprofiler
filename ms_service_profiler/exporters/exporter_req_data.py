@@ -5,7 +5,6 @@ from pathlib import Path
 import json
 import pandas as pd
 
-
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.exporters.base import ExporterBase
 
@@ -94,12 +93,16 @@ def get_wait_df(df):
     return wait_df
 
 
+def is_invaild_rid(rid):
+    return ',' in rid or '{' in rid or ':' in rid
+
+
 def get_req_base_info(df):
     req_group_df = df.groupby('rid')
     req_base_info = []
     for rid, pre_req_data in req_group_df:
         rid = str(rid)
-        if ',' in rid or '{' in rid or ':' in rid:
+        if rid == "" or is_invaild_rid(rid):
             continue
         new_req = {
             'rid': rid,
@@ -133,6 +136,7 @@ def get_req_base_info(df):
 
         if new_req['start_time'] != '' and new_req['end_time'] != '':
             new_req['execution_time'] = new_req['end_time'] - new_req['start_time']
+
         req_base_info.append(new_req)
     return pd.DataFrame(req_base_info)
 
@@ -152,6 +156,7 @@ class ExporterReqData(ExporterBase):
             return
         output = cls.args.output_path
 
+        df = df[df['domain'] != 'KVCache']
         req_base_info = get_req_base_info(df)
         try:
             df = df.rename(columns={"RUNNING+": "RUNNING", "PENDING+": "PENDING"})

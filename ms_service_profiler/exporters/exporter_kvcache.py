@@ -119,11 +119,11 @@ def kvcache_usage_rate_calculator(kvcache_df):
 
 class ExporterKVCacheData(ExporterBase):
     name = "kvcache_data"
-
+ 
     @classmethod
     def initialize(cls, args):
         cls.args = args
-
+ 
     @classmethod
     def export(cls, data) -> None:
         df = data.get('tx_data_df')
@@ -141,15 +141,17 @@ class ExporterKVCacheData(ExporterBase):
                 'end_time': 'end_time(microsecond)',
                 'during_time': 'during_time(microsecond)'
             })
+
         except KeyError as e:
             logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
         output = cls.args.output_path
         save_dataframe_to_csv(kvcache_df, output, "kvcache.csv")
         kvcache_df['start_datetime'] = start_datetime_data
         kvcache_df = kvcache_df.rename(columns={
-        'start_datetime': 'real_start_time'
+            'start_datetime': 'real_start_time'
         })
         kvcache_df = kvcache_usage_rate_calculator(kvcache_df)
+
         db_file_path = create_sqlite_db(output)
         add_table_into_visual_db(kvcache_df, 'kvcache')
 

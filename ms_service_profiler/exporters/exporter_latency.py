@@ -56,7 +56,7 @@ def process_each_record(req_map, record):
         return
 
     for i, value in enumerate(rid_list):
-        req_rid = str(int(value))
+        req_rid = str(value)
         if req_map.get(req_rid) is None:
             print_warning_log('httpReq')
             continue

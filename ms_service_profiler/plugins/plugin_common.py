@@ -4,6 +4,7 @@ import json
 import pandas as pd
 import numpy as np
 from ms_service_profiler.plugins.base import PluginBase
+from ms_service_profiler.plugins.plugin_vllm_helper import VllmHelper
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import ParseError, DataFrameMissingError, KeyMissingError, ValidationError
 
@@ -20,7 +21,15 @@ class PluginCommon(PluginBase):
 
         tx_data_df = tx_data_df.replace(to_replace=np.nan, value=None)
         data["tx_data_df"], data["rid_link_map"] = parse_rid(tx_data_df)
+        
         return data
+
+
+# 只有vllm框架数据解析会走这部分流程，从batchSchdule中的iter_size中获取迭代信息
+def extract_iter_from_batch(req):
+    rid = req.get('rid')
+    iter_size = req.get('iter_size')
+    return VllmHelper.add_req_batch_iter(rid, iter_size)
 
 
 def extract_ids_from_reslist(rid_from_message, rid_map):
@@ -32,11 +41,15 @@ def extract_ids_from_reslist(rid_from_message, rid_map):
 
     for req in rid_from_message:
         if isinstance(req, int) or isinstance(req, float):
-            rid.append(req)
+            rid.append(int(req))
             token_id.append(None)
         elif isinstance(req, dict):
             rid.append(rid_map.get(req.get('rid', None), req.get('rid', None)))
-            token_id.append(req.get('iter', None))
+            # iter_size 为vllm数据采集特有字段
+            if req.get('iter_size'):
+                token_id.append(extract_iter_from_batch(req))
+            else:
+                token_id.append(req.get('iter', None))
 
     return rid, token_id
 
@@ -80,4 +93,5 @@ def parse_rid(tx_data_df):
 
     df = tx_data_df['rid'].apply(lambda x: extract_rid(x, rid_link_map))
     tx_data_df[['rid', 'rid_list', 'token_id_list']] = pd.DataFrame(df.tolist(), index=tx_data_df.index)
+
     return tx_data_df, rid_link_map

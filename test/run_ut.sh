@@ -18,28 +18,45 @@ clean() {
 
 function fn_build_googletest()
 {
-  GTEST_DIR="${CUR_DIR}/../opensource/googletest-1.8.1"
+  cd ${CUR_DIR}/../opensource
+  GTEST_DIR="${CUR_DIR}/../opensource/googletest"
   if [ ! -d "$GTEST_DIR" ]; then
-      cd ${CUR_DIR}/../opensource
-      git clone https://codehub-dg-y.huawei.com/OpenSourceCenter/googletest.git googletest-1.8.1 -b release-1.8.1
-      cd googletest-1.8.1
-      mkdir gtest_build
-      cd gtest_build
-      cmake -DCMAKE_INSTALL_PREFIX=$GTEST_DIR ..
-      make -j20
-      make install
+      git clone https://codehub-dg-y.huawei.com/OpenSourceCenter/googletest.git googletest -b release-1.12.1
   else
       echo "opensource/googletest already exists. no need to download."
+  fi
+  if [ ! -d "$GTEST_DIR/googletest-1.12.1" ]; then
+    cd googletest
+    mkdir gtest_build
+    cd gtest_build
+    cmake -DCMAKE_INSTALL_PREFIX=$GTEST_DIR/googletest-1.12.1 ..
+    make -j20
+    make install
   fi
 }
 
 run_test_cpp() {
   cd ${TEST_DIR}/..
   bash build.sh
+  if [ $? -ne 0 ]; then
+    echo "Build ms_service_profiler failed"
+    exit 1
+  fi
   cd ${TEST_DIR}
   mkdir -p test_build && cd test_build && rm * -rf && cmake ../ut/cpp_test && make -j 4
+  if [ $? -ne 0 ]; then
+    echo "Build test failed"
+    exit 1
+  fi
   cd ${TEST_DIR}
-  ./test_build/st_server_profiler && ./test_build/st_server_profiler && ./test_build/ut_server_profiler
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${TEST_DIR}/test_build/3rdparty
+  (./test_build/st_server_profiler & ./test_build/st_server_profiler) && ./test_build/ut_server_profiler
+
+  if [ $? -ne 0 ]; then
+    echo "Run test failed"
+    exit 1
+  fi
+
   mkdir -p coverage
   rm -rf ./coverage/*
 
@@ -47,7 +64,6 @@ run_test_cpp() {
   lcov -c -d ./test_build/CMakeFiles/st_server_profiler.dir -o ./coverage/st_server_profiler.info -b ./coverage $lcov_opt
   lcov -c -d ./test_build/CMakeFiles/ut_server_profiler.dir -o ./coverage/ut_server_profiler.info -b ./coverage $lcov_opt
   lcov -a ./coverage/ut_server_profiler.info  -a ./coverage/st_server_profiler.info  -o ./coverage/test_server_profiler.info
-
 
   lcov -r ./coverage/test_server_profiler.info '*platform*' -o ./coverage/test_server_profiler.info $lcov_opt
   lcov -r ./coverage/test_server_profiler.info '*opensource*' -o ./coverage/test_server_profiler.info $lcov_opt
@@ -64,7 +80,7 @@ run_test_cpp() {
 
 run_test_python() {
   python3 --version
-  pip3 install pytest "pandas>=2.2"
+  pip3 install pytest "pandas>=2.2" --default-timeout=20
   export PYTHONPATH=${TOP_DIR}:${PYTHONPATH}
   python3 -m coverage run --branch --source ${TOP_DIR}/'ms_service_profiler' -m pytest ${TEST_DIR}/ut/python_test
 
@@ -83,6 +99,7 @@ run_test() {
 }
 
 main() {
+  export VERBOSE=1
   cd ${TEST_DIR}
   fn_build_googletest
   clean
