@@ -98,7 +98,7 @@ namespace msServiceProfiler {
         };
 
         template <Level levelAttr = level, typename T>
-        Profiler &NumArrayAttr(const char *attrName, const T &startIter, const T &endIter)
+        inline Profiler &NumArrayAttr(const char *attrName, const T &startIter, const T &endIter)
         {
             if (!IsEnable(levelAttr)) {
                 return *this;
