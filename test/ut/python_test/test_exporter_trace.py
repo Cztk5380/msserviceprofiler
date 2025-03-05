@@ -238,14 +238,14 @@ def test_add_mem_events_empty_df():
 
     result = add_mem_events(df)
 
-    assert result == []  # 应该返回空列表
+    assert not result  # 应该返回空列表
 
 
 def test_add_mem_events_none_input():
     # 输入为 None
     result = add_mem_events(None)
 
-    assert result == []  # 应该返回空列表
+    assert not result  # 应该返回空列表
 
 
 def test_add_mem_events_with_missing_data():
@@ -297,7 +297,7 @@ def test_add_npu_events_none_input():
     # 输入为 None
     result = add_npu_events(None)
 
-    assert result == []  # 应该返回空列表
+    assert not result  # 应该返回空列表
 
 
 def test_add_npu_events_empty_df():
@@ -306,7 +306,7 @@ def test_add_npu_events_empty_df():
 
     result = add_npu_events(df)
 
-    assert result == []  # 应该返回空列表
+    assert not result  # 应该返回空列表
 
 
 def test_add_kvcache_events_valid_data():
@@ -350,7 +350,7 @@ def test_add_cpu_events_none_input():
     # 输入为 None
     result = add_cpu_events(None)
 
-    assert result == []  # 应该返回空列表
+    assert not result  # 应该返回空列表
 
 
 def test_add_cpu_events_empty_df():
@@ -359,7 +359,7 @@ def test_add_cpu_events_empty_df():
 
     result = add_cpu_events(df)
 
-    assert result == []  # 应该返回空列表
+    assert not result  # 应该返回空列表
 
 
 def test_add_pull_kvcache_events_valid_data():
@@ -387,7 +387,7 @@ def test_add_pull_kvcache_events_none_input():
     # 输入为 None
     result = add_pull_kvcache_events(None)
 
-    assert result == []  # 应该返回空列表
+    assert not result  # 应该返回空列表
 
 
 def test_add_pull_kvcache_events_empty_df():
@@ -396,7 +396,7 @@ def test_add_pull_kvcache_events_empty_df():
 
     result = add_pull_kvcache_events(df)
 
-    assert result == []  # 应该返回空列表
+    assert not result  # 应该返回空列表
 
 
 @mock.patch('ms_service_profiler.exporters.exporter_trace.threading.Thread')
