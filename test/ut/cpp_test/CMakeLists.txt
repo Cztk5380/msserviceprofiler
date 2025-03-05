@@ -27,7 +27,6 @@ if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
     add_subdirectory(${PROJECT_TOP_DIR}/3rdparty 3rdparty)
     message("${BUILD_INCLUDE_LIST}")
     include_directories(
-            ${BUILD_INCLUDE_LIST}
             ${PROJECT_TOP_DIR}/3rdparty
     )
 endif ()
@@ -35,8 +34,7 @@ endif ()
 include_directories(
         ${PROJECT_TOP_DIR}/include
         ${PROJECT_TOP_DIR}/include/msServiceProfiler
-        ${PROJECT_TOP_DIR}/opensource/googletest/googletest/include
-        ${PROJECT_TOP_DIR}/opensource/googletest/googlemock/include
+        ${PROJECT_TOP_DIR}/opensource/googletest/googletest-1.12.1/include
         ${PROJECT_TOP_DIR}/opensource/json/include
         ${PROJECT_TOP_DIR}/platform/securec/include
         ${TOOLKIT_BASE_PATH}/include
@@ -45,8 +43,7 @@ include_directories(
 )
 
 link_directories(
-        ${PROJECT_TOP_DIR}/opensource/googletest/lib
-        ${PROJECT_TOP_DIR}/opensource/googletest/lib64
+        ${PROJECT_TOP_DIR}/opensource/googletest/googletest-1.12.1/lib
         ${TOOLKIT_BASE_PATH}/lib64
         ${TOOLKIT_BASE_PATH}/aarch64-linux/devlib
         ${TOOLKIT_BASE_PATH}/x86_64-linux/devlib

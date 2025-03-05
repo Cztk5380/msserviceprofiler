@@ -18,18 +18,20 @@ clean() {
 
 function fn_build_googletest()
 {
+  cd ${CUR_DIR}/../opensource
   GTEST_DIR="${CUR_DIR}/../opensource/googletest"
   if [ ! -d "$GTEST_DIR" ]; then
-      cd ${CUR_DIR}/../opensource
       git clone https://codehub-dg-y.huawei.com/OpenSourceCenter/googletest.git googletest -b release-1.12.1
-      cd googletest-1.8.1
-      mkdir gtest_build
-      cd gtest_build
-      cmake -DCMAKE_INSTALL_PREFIX=$GTEST_DIR ..
-      make -j20
-      make install
   else
       echo "opensource/googletest already exists. no need to download."
+  fi
+  if [ ! -d "$GTEST_DIR/googletest-1.12.1" ]; then
+    cd googletest
+    mkdir gtest_build
+    cd gtest_build
+    cmake -DCMAKE_INSTALL_PREFIX=$GTEST_DIR/googletest-1.12.1 ..
+    make -j20
+    make install
   fi
 }
 
@@ -78,7 +80,7 @@ run_test_cpp() {
 
 run_test_python() {
   python3 --version
-  pip3 install pytest "pandas>=2.2"
+  pip3 install pytest "pandas>=2.2" --default-timeout=20
   export PYTHONPATH=${TOP_DIR}:${PYTHONPATH}
   python3 -m coverage run --branch --source ${TOP_DIR}/'ms_service_profiler' -m pytest ${TEST_DIR}/ut/python_test
 
@@ -97,6 +99,7 @@ run_test() {
 }
 
 main() {
+  export VERBOSE=1
   cd ${TEST_DIR}
   fn_build_googletest
   clean
