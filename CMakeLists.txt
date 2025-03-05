@@ -20,30 +20,11 @@ include_directories(
 
 if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
     message(AUTHOR_WARNING "no env $ASCEND_TOOLKIT_HOME")
-    set(BUILD_ENV_MSPROF_DEPEND_PATH /usr1/slave1/msprof/collector/dvvp/depend/inc)
-    set(BUILD_ENV_MSPROF_DEPEND_ACL_PATH /usr1/slave1/msprof/collector/dvvp/depend/inc/acl)
-    set(BUILD_ENV_MSPROF_DEPEND_API_PATH /usr1/slave1/msprof/collector/dvvp/depend/inc/profapi)
-    set(BUILD_ENV_MSPROF_PATH /usr1/slave1/msprof/collector/inc/external)
-    set(BUILD_ENV_MSTX_PATH /usr1/slave1/mstx/include)
-
-    add_library(ascendcl
-            SHARED
-            3rdparty/BuildAcl.cpp
-    )
-    add_library(msprofiler
-            SHARED
-            3rdparty/BuildAclProf.cpp
-    )
-    add_library(ms_tools_ext
-            SHARED
-            3rdparty/BuildMstx.cpp
-    )
+    set(BUILD_INCLUDE_LIST )
+    add_subdirectory(3rdparty)
+    message("${BUILD_INCLUDE_LIST}")
     include_directories(
-            ${BUILD_ENV_MSTX_PATH}
-            ${BUILD_ENV_MSPROF_PATH}
-            ${BUILD_ENV_MSPROF_DEPEND_PATH}
-            ${BUILD_ENV_MSPROF_DEPEND_ACL_PATH}
-            ${BUILD_ENV_MSPROF_DEPEND_API_PATH}
+            ${BUILD_INCLUDE_LIST}
             3rdparty
     )
 else ()
