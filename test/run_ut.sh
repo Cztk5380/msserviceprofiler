@@ -80,7 +80,7 @@ run_test_cpp() {
 
 run_test_python() {
   python3 --version
-  pip3 install pytest "pandas>=2.2"
+  pip3 install pytest "pandas>=2.2" --default-timeout=20
   export PYTHONPATH=${TOP_DIR}:${PYTHONPATH}
   python3 -m coverage run --branch --source ${TOP_DIR}/'ms_service_profiler' -m pytest ${TEST_DIR}/ut/python_test
 
