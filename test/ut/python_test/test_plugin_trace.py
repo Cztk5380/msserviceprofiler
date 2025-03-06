@@ -37,29 +37,33 @@ def sample_data():
 
 def test_extract_batch_type_when_all_prefill():
     token_id_list = [0, 0, 0, 0]
+    batch_type = None
 
-    result = extract_batch_type(token_id_list)
+    result = extract_batch_type(token_id_list, batch_type)
     assert result == 'Prefill'
 
 
 def test_extract_batch_type_when_all_decode():
     token_id_list = [1, 2, 3, 4]
+    batch_type = None
 
-    result = extract_batch_type(token_id_list)
+    result = extract_batch_type(token_id_list, batch_type)
     assert result == 'Decode'
 
 
 def test_extract_batch_type_when_valid():
     token_id_list = [0, 1, 2, 3]
+    batch_type = None
 
-    result = extract_batch_type(token_id_list)
+    result = extract_batch_type(token_id_list, batch_type)
     assert result == 'Prefill, Decode'
 
 
 def test_extract_batch_type_when_none():
     token_id_list = None
+    batch_type = None
 
-    result = extract_batch_type(token_id_list)
+    result = extract_batch_type(token_id_list, batch_type)
     assert result is None
 
 
