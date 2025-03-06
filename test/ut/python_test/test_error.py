@@ -1,3 +1,5 @@
+# Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
+
 import pytest
 from ms_service_profiler.utils.error import ExportError, ValidationError, ParseError
 

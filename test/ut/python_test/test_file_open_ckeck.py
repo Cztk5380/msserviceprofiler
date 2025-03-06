@@ -1,3 +1,5 @@
+# Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
+
 import pytest
 import sys
 import os
@@ -94,8 +96,6 @@ class TestCSVSanitization:
         else:
             assert sanitize_csv_value(value, error_mode) == expected
 
-
-# new
 
 class TestMsOpen:
     def test_read_mode_file_size_exceeded(self):
