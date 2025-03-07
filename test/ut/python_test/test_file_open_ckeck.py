@@ -243,20 +243,6 @@ class TestFileStatProperties:
 
 
 class TestFileStatInit:
-    @pytest.fixture
-    def mock_os_functions(self, monkeypatch):
-        monkeypatch.setattr(os.path, "exists", lambda x: True)
-        mock_stat = MagicMock(st_mode=0o777, st_uid=1000, st_gid=1000)
-        monkeypatch.setattr(os, "stat", lambda x: mock_stat)
-        monkeypatch.setattr(os.path, "realpath", lambda x: x)
-        return mock_stat
-
-    @patch('ms_service_profiler.utils.file_open_check.is_legal_path_length', return_value=True)
-    @patch('ms_service_profiler.utils.file_open_check.is_match_path_white_list', return_value=True)
-    def test_path_with_spaces(self, mock_white, mock_legal):
-        fs = FileStat("/path with spaces/file.txt")
-        assert fs.file == "/path with spaces/file.txt"
-
     @staticmethod
     def test_stat_permission_error(monkeypatch):
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_legal_path_length", lambda x: True)
@@ -271,6 +257,20 @@ class TestFileStatInit:
 
         with pytest.raises(PermissionError):
             FileStat("/no/permission/path")
+
+    @pytest.fixture
+    def mock_os_functions(self, monkeypatch):
+        monkeypatch.setattr(os.path, "exists", lambda x: True)
+        mock_stat = MagicMock(st_mode=0o777, st_uid=1000, st_gid=1000)
+        monkeypatch.setattr(os, "stat", lambda x: mock_stat)
+        monkeypatch.setattr(os.path, "realpath", lambda x: x)
+        return mock_stat
+
+    @patch('ms_service_profiler.utils.file_open_check.is_legal_path_length', return_value=True)
+    @patch('ms_service_profiler.utils.file_open_check.is_match_path_white_list', return_value=True)
+    def test_path_with_spaces(self, mock_white, mock_legal):
+        fs = FileStat("/path with spaces/file.txt")
+        assert fs.file == "/path with spaces/file.txt"
 
 
 class TestLegalArgsPathString:
@@ -307,17 +307,6 @@ class TestIsBasicallyLegal:
 
 
 class TestCheckBasicPermission:
-    @pytest.fixture
-    def setup_softlink(self, monkeypatch):
-        monkeypatch.setattr(os.path, "exists", lambda x: True)
-        monkeypatch.setattr(os.path, "islink", lambda x: True)
-
-        mock_stat = MagicMock(st_mode=stat.S_IFLNK)
-        monkeypatch.setattr(os, "stat", lambda x: mock_stat)
-
-        monkeypatch.setattr(os, "readlink", lambda x: "/fake/target")
-        monkeypatch.setattr(os.path, "abspath", lambda x: x)
-        monkeypatch.setattr(os.path, "normpath", lambda x: x)
 
     @staticmethod
     def test_softlink_validation(setup_softlink, monkeypatch):
@@ -352,8 +341,36 @@ class TestCheckBasicPermission:
                 "/non/existent/path"
             )
 
+    @pytest.fixture
+    def setup_softlink(self, monkeypatch):
+        monkeypatch.setattr(os.path, "exists", lambda x: True)
+        monkeypatch.setattr(os.path, "islink", lambda x: True)
+
+        mock_stat = MagicMock(st_mode=stat.S_IFLNK)
+        monkeypatch.setattr(os, "stat", lambda x: mock_stat)
+
+        monkeypatch.setattr(os, "readlink", lambda x: "/fake/target")
+        monkeypatch.setattr(os.path, "abspath", lambda x: x)
+        monkeypatch.setattr(os.path, "normpath", lambda x: x)
+
 
 class TestCheckLinuxPermission:
+
+    @staticmethod
+    def test_not_owner_or_group(mock_file_stat, mock_non_owner, monkeypatch):
+        monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_legal_path_length", lambda x: True)
+        monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_match_path_white_list", lambda x: True)
+
+        fs = FileStat("/valid/path")
+        with patch("ms_service_profiler.utils.file_open_check.logger.error") as mock_logger, \
+                patch("ms_service_profiler.utils.file_open_check.solution_log") as mock_solution:
+            assert fs.check_linux_permission() is False
+            mock_logger.assert_called_once_with(
+                "current user isn't path: %s's owner or ownergroup",
+                "/valid/path"
+            )
+            mock_solution.assert_called_once_with(OWNER_ERROR_SOLUTION)
+
     @pytest.fixture
     def mock_file_stat(self, monkeypatch):
         mock_stat = MagicMock(
@@ -374,21 +391,6 @@ class TestCheckLinuxPermission:
     def mock_non_owner(self, monkeypatch):
         monkeypatch.setattr(os, "geteuid", lambda: 2000)
         monkeypatch.setattr(os, "getgroups", lambda: [2000])
-
-    @staticmethod
-    def test_not_owner_or_group(mock_file_stat, mock_non_owner, monkeypatch):
-        monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_legal_path_length", lambda x: True)
-        monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_match_path_white_list", lambda x: True)
-
-        fs = FileStat("/valid/path")
-        with patch("ms_service_profiler.utils.file_open_check.logger.error") as mock_logger, \
-                patch("ms_service_profiler.utils.file_open_check.solution_log") as mock_solution:
-            assert fs.check_linux_permission() is False
-            mock_logger.assert_called_once_with(
-                "current user isn't path: %s's owner or ownergroup",
-                "/valid/path"
-            )
-            mock_solution.assert_called_once_with(OWNER_ERROR_SOLUTION)
 
     @pytest.mark.parametrize("perm_mode,strict", [
         ("read", True),
