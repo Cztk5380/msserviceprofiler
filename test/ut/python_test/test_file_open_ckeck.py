@@ -19,8 +19,6 @@ from ms_service_profiler.utils.file_open_check import (
     UmaskWrapper,
     solution_log,
     solution_log_win,
-    SOLUTION_LEVEL,
-    SOLUTION_LEVEL_WIN,
     is_legal_args_path_string, OpenException, check_file_exists_and_type, check_file_size, check_file_size,
     check_file_owner
 )
@@ -160,7 +158,8 @@ class TestMsOpen:
 
 
 class TestUmaskWrapper:
-    def test_umask_behavior(self):
+    @staticmethod
+    def test_umask_behavior():
         original = os.umask(0o022)
         try:
             with UmaskWrapper(umask=0o027):
@@ -173,22 +172,23 @@ class TestUmaskWrapper:
 
 
 class TestHelpers:
-    def test_solution_logging(self):
+    @staticmethod
+    def test_solution_logging():
         handlers = logger.handlers[:]
         for handler in handlers:
             logger.removeHandler(handler)
 
         with patch.object(logger, "log") as mock_log:
-            SOLUTION_LEVEL = 35
-            SOLUTION_LEVEL_WIN = 45
+            solution_level = 35
+            solution_level_win = 45
 
             solution_log("test_path")
             solution_log_win("test_win_path")
 
 
             expected_calls = [
-                call(SOLUTION_LEVEL, "visit %s for detailed solution", "test_path"),
-                call(SOLUTION_LEVEL_WIN, "visit %s for detailed solution", "test_win_path")
+                call(solution_level, "visit %s for detailed solution", "test_path"),
+                call(solution_level_win, "visit %s for detailed solution", "test_win_path")
             ]
 
             mock_log.assert_has_calls(expected_calls, any_order=True)
@@ -257,7 +257,8 @@ class TestFileStatInit:
         fs = FileStat("/path with spaces/file.txt")
         assert fs.file == "/path with spaces/file.txt"
 
-    def test_stat_permission_error(self, monkeypatch):
+    @staticmethod
+    def test_stat_permission_error(monkeypatch):
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_legal_path_length", lambda x: True)
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_match_path_white_list", lambda x: True)
 
@@ -318,7 +319,8 @@ class TestCheckBasicPermission:
         monkeypatch.setattr(os.path, "abspath", lambda x: x)
         monkeypatch.setattr(os.path, "normpath", lambda x: x)
 
-    def test_softlink_validation(self, setup_softlink, monkeypatch):
+    @staticmethod
+    def test_softlink_validation(setup_softlink, monkeypatch):
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_legal_path_length", lambda x: True)
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_match_path_white_list", lambda x: True)
 
@@ -334,7 +336,8 @@ class TestCheckBasicPermission:
             )
             mock_solution.assert_called_once_with(SOFT_LINK_SUB_CHAPTER)
 
-    def test_nonexistent_file(self, monkeypatch):
+    @staticmethod
+    def test_nonexistent_file(monkeypatch):
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_legal_path_length", lambda x: True)
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_match_path_white_list", lambda x: True)
 
@@ -372,7 +375,8 @@ class TestCheckLinuxPermission:
         monkeypatch.setattr(os, "geteuid", lambda: 2000)
         monkeypatch.setattr(os, "getgroups", lambda: [2000])
 
-    def test_not_owner_or_group(self, mock_file_stat, mock_non_owner, monkeypatch):
+    @staticmethod
+    def test_not_owner_or_group(mock_file_stat, mock_non_owner, monkeypatch):
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_legal_path_length", lambda x: True)
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_match_path_white_list", lambda x: True)
 

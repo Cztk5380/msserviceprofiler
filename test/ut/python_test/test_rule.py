@@ -1,7 +1,8 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-import pytest
 from unittest.mock import Mock, patch
+import pytest
+
 from ms_service_profiler.utils.check.rule import Rule
 
 
