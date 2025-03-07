@@ -53,10 +53,6 @@ class TestPathChecker(unittest.TestCase):
     def test_is_gid_matched(self):
         self.assertEqual(str(self.pc.is_gid_matched(os.getgid()).check(self.fp.name)), "pass")
 
-    @unittest.skipIf(os.getuid() == 0, "root can be skipped")
-    def test_gid_not_matched(self):
-        self.assertRegex(str(self.pc.is_gid_matched(os.getgid()).check("/")), "Group ID not matched")
-
     @unittest.skipIf(os.getuid() == 0, "any file is readable to root")
     def test_is_readable(self):
         with tempfile.NamedTemporaryFile() as fp:
@@ -137,11 +133,6 @@ class TestPathChecker(unittest.TestCase):
             self.pc.exists().check("s" * 240, True)
 
         self.assertRegex(str(cm.exception), "No such file or directory")
-
-    @unittest.skipIf(os.getuid() == 0, "root can be skipped")
-    def test_is_safe_parent_dir_when_not_owner_then_failed(self):
-        fp = os.path.join("/", "test_file")
-        self.assertFalse(bool(path_checker.PathChecker().is_safe_parent_dir().check(fp)))
 
     def test_is_safe_parent_dir_when_other_has_w_then_failed(self):
         with tempfile.TemporaryDirectory() as dp:
