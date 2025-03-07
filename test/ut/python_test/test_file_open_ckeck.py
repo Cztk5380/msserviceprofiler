@@ -1,14 +1,14 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-import pytest
-import sys
 import os
 import stat
 from stat import S_ISREG, S_ISDIR
 from os import stat_result
-from ms_service_profiler.utils.log import logger
 from unittest.mock import patch, mock_open, MagicMock, call, Mock
+import sys
+import pytest
 
+from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.file_open_check import (
     is_legal_path_length,
     is_match_path_white_list,
@@ -33,15 +33,17 @@ MAX_SIZE_UNLIMITE = -1
 
 class TestPathValidation:
     @pytest.mark.parametrize("platform,path,expected", [
-        ("linux", "/" + "/".join(["a" * 255 for _ in range(16)]), True),
-        ("linux", "/" + "a" * 256, False),
-        ("linux", "/" + "a" * 4097, False),
-        ("linux", "/" + "/".join(["a" * 255 for _ in range(17)]), False),
+        # Linux 测试用例
+        ("linux", os.path.join("/", *["a" * 255 for _ in range(16)]), True),
+        ("linux", os.path.join("/", "a" * 256), False),
+        ("linux", os.path.join("/", "a" * 4097), False),
+        ("linux", os.path.join("/", *["a" * 255 for _ in range(17)]), False),
 
-        ("win32", "C:\\" + "a" * 256, False),
-        ("win32", "C:\\" + "a" * 257, False),
-        ("win32", "C:\\" + "a" * 252, True),
-        ("win32", "C:\\" + "a" * 258, False)
+        # Windows 测试用例
+        ("win32", os.path.join("C:\\", "a" * 256), False),
+        ("win32", os.path.join("C:\\", "a" * 257), False),
+        ("win32", os.path.join("C:\\", "a" * 252), True),
+        ("win32", os.path.join("C:\\", "a" * 258), False)
     ])
     def test_legal_path_length(self, platform, path, expected, monkeypatch):
         monkeypatch.setattr(sys, "platform", platform)
@@ -98,7 +100,8 @@ class TestCSVSanitization:
 
 
 class TestMsOpen:
-    def test_read_mode_file_size_exceeded(self):
+    @staticmethod
+    def test_read_mode_file_size_exceeded():
         with patch("os.path.exists", return_value=True), \
                 patch("os.path.isfile", return_value=True), \
                 patch("os.path.isdir", return_value=False), \
@@ -115,7 +118,8 @@ class TestMsOpen:
                     pass
             assert "exceeded" in str(exc.value).lower()
 
-    def test_write_mode_permission_denied(self):
+    @staticmethod
+    def test_write_mode_permission_denied():
         with patch("os.path.exists", return_value=True), \
                 patch("os.path.isfile", return_value=True), \
                 patch("os.path.isdir", return_value=False), \
@@ -131,7 +135,8 @@ class TestMsOpen:
                     pass
             assert "owner is inconsistent" in str(exc.value).lower()
 
-    def test_append_mode_directory_path(self):
+    @staticmethod
+    def test_append_mode_directory_path():
         with patch("os.path.exists", return_value=True), \
                 patch("os.path.isfile", return_value=False), \
                 patch("os.path.isdir", return_value=True), \

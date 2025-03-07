@@ -1,8 +1,8 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-import pytest
 from unittest.mock import Mock
 from enum import Enum
+import pytest
 from ms_service_profiler.utils.check.checker import CheckerInstence, CheckResult
 
 
