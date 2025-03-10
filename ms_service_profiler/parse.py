@@ -307,7 +307,7 @@ def gen_msprof_command(full_path):
         raise argparse.ArgumentTypeError(f"input path:{full_path} is illegal. Please check.") from err
 
     if len(full_path.split()) != 1:
-        raise ValueError(f"{full_path} is invaild.")
+        raise ValueError(f"{full_path} is invalid.")
 
     command = "msprof --export=on "
     output_param = f"--output={full_path}"
