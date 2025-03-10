@@ -306,6 +306,9 @@ def gen_msprof_command(full_path):
     except Exception as err:
         raise argparse.ArgumentTypeError(f"input path:{full_path} is illegal. Please check.") from err
 
+    if len(full_path.split()) != 1:
+        raise ValueError(f"{full_path} is invaild.")
+
     command = "msprof --export=on "
     output_param = f"--output={full_path}"
     return command + output_param
@@ -326,9 +329,6 @@ def find_file_in_dir(directory, filename):
 
 def run_msprof_command(command):
     command_list = command.split()
-    if len(command_list) != 3:
-        logger.error(f"msprof command error: {command}")
-
     try:
         subprocess.run(command_list, check=True)
     except subprocess.CalledProcessError as e:
