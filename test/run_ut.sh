@@ -20,6 +20,7 @@ clean() {
 
 function fn_build_googletest()
 {
+  mkdir -p ${CUR_DIR}/../opensource
   cd ${CUR_DIR}/../opensource
   GTEST_DIR="${CUR_DIR}/../opensource/googletest"
   if [ ! -d "$GTEST_DIR" ]; then
@@ -39,6 +40,7 @@ function fn_build_googletest()
 
 function fn_build_mock_cpp()
 {
+  mkdir -p ${CUR_DIR}/../opensource
   cd ${CUR_DIR}/../opensource
   MOCK_CPP_DIR="${CUR_DIR}/../opensource/mock_cpp"
   if [ ! -d "$MOCK_CPP_DIR" ]; then
@@ -47,9 +49,9 @@ function fn_build_mock_cpp()
       echo "opensource/mock_cpp already exists. no need to download."
   fi
 
-  if [ ! -d "$MOCK_CPP_DIR/lib" ]; then
+  if [ ! -d "$MOCK_CPP_DIR/mockcpp" ]; then
     cd mock_cpp
-    mkdir build
+    mkdir -p build
     cd build
     cmake -DCMAKE_INSTALL_PREFIX=$MOCK_CPP_DIR/mockcpp -DMOCKCPP_XUNIT=gtest \
       -DMOCKCPP_XUNIT_HOME=${CUR_DIR}/../opensource/googletest ..
@@ -98,14 +100,16 @@ run_test_cpp() {
 
   lcov -r ./coverage/test_server_profiler.info '*platform*' -o ./coverage/test_server_profiler.info $lcov_opt -q
   lcov -r ./coverage/test_server_profiler.info '*opensource*' -o ./coverage/test_server_profiler.info $lcov_opt -q
-  lcov -r ./coverage/test_server_profiler.info '*test*' -o ./coverage/test_server_profiler.info $lcov_opt -q
+  lcov -r ./coverage/test_server_profiler.info '*cpp_test*' -o ./coverage/test_server_profiler.info $lcov_opt -q
   lcov -r ./coverage/test_server_profiler.info '*c++*' -o ./coverage/test_server_profiler.info $lcov_opt -q
   lcov -r ./coverage/test_server_profiler.info '/usr/include/*' -o ./coverage/test_server_profiler.info $lcov_opt -q
   lcov -r ./coverage/test_server_profiler.info '*nlohmann*' -o ./coverage/test_server_profiler.info $lcov_opt -q
+  lcov -r ./coverage/test_server_profiler.info '*mockcpp*' -o ./coverage/test_server_profiler.info $lcov_opt -q
+  lcov -r ./coverage/test_server_profiler.info '*googletest*' -o ./coverage/test_server_profiler.info $lcov_opt -q
 
   genhtml ./coverage/test_server_profiler.info -o ./coverage/report --branch-coverage
   cd coverage
-  tar -zcvf report.tar.gz ./report  -q
+  tar -zcvf report.tar.gz ./report
   echo show report using cmd: python -m http.server -d ./coverage/report
 }
 

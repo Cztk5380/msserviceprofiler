@@ -45,7 +45,7 @@ include_directories(
 
 link_directories(
         ${PROJECT_TOP_DIR}/opensource/googletest/googletest-1.12.1/lib
-        # ${PROJECT_TOP_DIR}/opensource/mock_cpp/mockcpp/lib
+        ${PROJECT_TOP_DIR}/opensource/mock_cpp/mockcpp/lib
         ${TOOLKIT_BASE_PATH}/lib64
         ${TOOLKIT_BASE_PATH}/aarch64-linux/devlib
         ${TOOLKIT_BASE_PATH}/x86_64-linux/devlib
