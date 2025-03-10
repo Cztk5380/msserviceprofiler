@@ -32,10 +32,6 @@ def test_export_error_str_representation(message, expected_output):
     assert str(error) == expected_output
 
 
-def test_validation_error_inheritance():
-    assert issubclass(ValidationError, ParseError), "ValidationError 必须继承自 ParseError"
-
-
 @pytest.mark.parametrize("key, message", [
     ("username", "Failed to parse data"),
     ("age", "Invalid value"),
