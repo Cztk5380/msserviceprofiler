@@ -35,6 +35,7 @@ include_directories(
         ${PROJECT_TOP_DIR}/include
         ${PROJECT_TOP_DIR}/include/msServiceProfiler
         ${PROJECT_TOP_DIR}/opensource/googletest/googletest-1.12.1/include
+        ${PROJECT_TOP_DIR}/opensource/mock_cpp/mockcpp/include
         ${PROJECT_TOP_DIR}/opensource/json/include
         ${PROJECT_TOP_DIR}/platform/securec/include
         ${TOOLKIT_BASE_PATH}/include
@@ -44,6 +45,7 @@ include_directories(
 
 link_directories(
         ${PROJECT_TOP_DIR}/opensource/googletest/googletest-1.12.1/lib
+        # ${PROJECT_TOP_DIR}/opensource/mock_cpp/mockcpp/lib
         ${TOOLKIT_BASE_PATH}/lib64
         ${TOOLKIT_BASE_PATH}/aarch64-linux/devlib
         ${TOOLKIT_BASE_PATH}/x86_64-linux/devlib
@@ -61,6 +63,7 @@ set(TEST_LIBS
         libgtest_main.a
         libgmock.a
         libgmock_main.a
+        libmockcpp.a
 )
 
 add_link_options(
@@ -74,6 +77,8 @@ add_subdirectory(${PROJECT_TOP_DIR}/platform platform)
 add_executable(ut_server_profiler
         testServiceProfilerManager.cpp
         ${PROFILER_SRC}
+        # testNpuMemoryUsage.cpp
+        testProfiler.cpp
 )
 
 add_executable(st_server_profiler
