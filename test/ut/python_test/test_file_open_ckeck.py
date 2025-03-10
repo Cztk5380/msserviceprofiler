@@ -39,7 +39,6 @@ class TestPathValidation:
 
         # Windows 测试用例
         ("win32", os.path.join("C:\\", "a" * 256), False),
-        ("win32", os.path.join("C:\\", "a" * 257), False),
         ("win32", os.path.join("C:\\", "a" * 252), True),
         ("win32", os.path.join("C:\\", "a" * 258), False)
     ])
