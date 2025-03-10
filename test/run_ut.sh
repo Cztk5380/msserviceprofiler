@@ -109,7 +109,7 @@ run_test_cpp() {
 
   genhtml ./coverage/test_server_profiler.info -o ./coverage/report --branch-coverage
   cd coverage
-  tar -zcvf report.tar.gz ./report
+  tar -zcf report.tar.gz ./report
   echo show report using cmd: python -m http.server -d ./coverage/report
 }
 
