@@ -1,15 +1,15 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
+from unittest.mock import patch, MagicMock
+import json
 import os
-import pandas as pd
+import re
+import shutil
 import sqlite3
 from pathlib import Path
-import json
-import re
-from unittest.mock import patch, MagicMock
-import pytest
-import shutil
 
+import pandas as pd
+import pytest
 
 from ms_service_profiler.parse import (
     read_origin_db,
@@ -84,7 +84,7 @@ def setup_test_directory(tmp_path):
     db_path = prof_dir / "msproftx.db"
     build_msproftx_db(db_path)
 
-    yield tmp_path  # 这里使用 yield 来返回 tmp_path，并允许在退出前执行清理操作
+    yield tmp_path  # 使用 yield 来返回 tmp_path，并允许在退出前执行清理操作
 
     # 清理操作：删除 tmp_path 目录下的所有文件和子目录，然后删除 tmp_path 目录本身
     for filename in tmp_path.rglob('*'):
@@ -197,6 +197,7 @@ def test_load_start_time(setup_test_directory):
 
     result = load_start_time(start_info_path)
     assert result == 123456.789
+
 
 def test_load_tx_data(setup_test_directory):
     db_path = setup_test_directory / "PROF_test" / "msproftx.db"

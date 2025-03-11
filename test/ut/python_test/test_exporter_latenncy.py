@@ -18,6 +18,7 @@ from ms_service_profiler.exporters.exporter_latency import (
     ExporterLatency
 )
 
+
 class TestTimestampConverter(unittest.TestCase):
     def test_process_each_record_request(self):
         req_map = {}
