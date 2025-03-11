@@ -329,7 +329,7 @@ TEST_F(TestProfiler, MetricProfDisable)
 TEST_F(TestProfiler, MetricProfEnable)
 {
     auto prof = PROF(INFO, Metric("key", TEST_NUMER_123));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^key=^:12,");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^key=^:123,");
 }
 
 TEST_F(TestProfiler, MetricScopeProfDisable)
