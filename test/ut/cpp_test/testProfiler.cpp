@@ -6,12 +6,13 @@
 #include <mockcpp/mockcpp.hpp>
 
 
-int Multi(int paramA, int paramB) {
+int Multi(int paramA, int paramB)
+{
     return paramA * paramB;
 }
 
 TEST(TestMock, TestMock) {
-    MOCKER(multi).stubs().will(returnValue(100000));
+    MOCKER(Multi).stubs().will(returnValue(100000));
 
-    EXPECT_EQ(100000, multi(1, 2));
+    EXPECT_EQ(100000, Multi(1, 2));
 }
