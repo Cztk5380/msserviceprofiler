@@ -11,7 +11,6 @@ set(CMAKE_C_FLAGS "-fprofile-arcs -ftest-coverage -lgcov")
 
 add_compile_definitions(
         ENABLE_PROF
-        ENABLE_SERVICE_PROF_UNIT_TEST
 )
 
 add_compile_options(
@@ -20,6 +19,7 @@ add_compile_options(
         -ftest-coverage
         -g
         -Wall
+        -fpermissive
 )
 if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
     message(AUTHOR_WARNING "no env $ASCEND_TOOLKIT_HOME")
@@ -75,10 +75,17 @@ aux_source_directory(${PROJECT_TOP_DIR}/src/ PROFILER_SRC)
 add_subdirectory(${PROJECT_TOP_DIR}/platform platform)
 
 add_executable(ut_server_profiler
-        testServiceProfilerManager.cpp
         ${PROFILER_SRC}
-        # testNpuMemoryUsage.cpp
+        testServiceProfilerInterface.cpp
         testProfiler.cpp
+)
+
+target_link_libraries(ut_server_profiler
+        ${TEST_LIBS}
+)
+
+target_compile_options(ut_server_profiler PRIVATE
+        -fno-access-control
 )
 
 add_executable(st_server_profiler
@@ -86,14 +93,10 @@ add_executable(st_server_profiler
         ${PROFILER_SRC}
 )
 
-target_link_libraries(ut_server_profiler
-        ${TEST_LIBS}
-)
-
 target_link_libraries(st_server_profiler
         ${TEST_LIBS}
 )
 
-target_compile_options(ut_server_profiler PRIVATE
-        -fno-access-control
+target_compile_definitions(st_server_profiler PUBLIC
+        ENABLE_SERVICE_PROF_UNIT_TEST
 )
