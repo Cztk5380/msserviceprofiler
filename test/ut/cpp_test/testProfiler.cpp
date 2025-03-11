@@ -151,18 +151,21 @@ TEST_F(TestProfiler, ArrayAttrProfDisable)
     int *pArray = array;
     auto prof = PROF(DETAILED, Domain("test"));
 
-    prof.ArrayAttr("key", pArray, pArray + 2, [](decltype(prof) *x, int y) -> void { x->Attr("value", y); });
+    prof.ArrayAttr("key", pArray, pArray + TEST_NUMER_ARRAY_LEN,
+                   [](decltype(prof) *x, int y) -> void { x->Attr("value", y); });
     EXPECT_STREQ(prof.GetMsg().c_str(), "");
 
     ServiceProfilerInterface::GetInstance().ptrIsEnable_ = nullptr;
 
     auto prof_null_info = PROF(INFO, Domain("test"));
-    prof_null_info.ArrayAttr("key", pArray, pArray + 2, [](decltype(prof) *x, int y) -> void { x->Attr("value", y); });
+    prof_null_info.ArrayAttr("key", pArray, pArray + TEST_NUMER_ARRAY_LEN,
+                             [](decltype(prof) *x, int y) -> void { x->Attr("value", y); });
     EXPECT_STREQ(prof_null_info.GetMsg().c_str(), "");
 
     auto prof_null_detailed = PROF(DETAILED, Domain("test"));
     prof_null_detailed.ArrayAttr(
-        "key", pArray, pArray + 2, [](decltype(prof) *x, int y) -> void { x->Attr("value", y); });
+        "key", pArray, pArray + TEST_NUMER_ARRAY_LEN,
+        [](decltype(prof) *x, int y) -> void { x->Attr("value", y); });
     EXPECT_STREQ(prof_null_detailed.GetMsg().c_str(), "");
     ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
 }
@@ -216,7 +219,6 @@ TEST_F(TestProfiler, AttrProfEnableFloat)
 
 TEST_F(TestProfiler, AttrProfDisableNumber)
 {
-
     auto prof = PROF(INFO, Attr("key", TEST_NUMER_6));
     EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:0.600000,");
 

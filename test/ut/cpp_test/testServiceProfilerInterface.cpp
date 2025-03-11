@@ -13,7 +13,7 @@ using namespace msServiceProfilerCompatible;
 using namespace msServiceProfiler;
 
 // Test fixture
-class ServiceProfilerInterfaceTest : public ::testing::Test {
+class TestServiceProfilerInterface : public ::testing::Test {
 protected:
     void SetUp() override
     {}
@@ -22,7 +22,7 @@ protected:
     {}
 };
 
-TEST_F(ServiceProfilerInterfaceTest, CallStartSpanWithNameNotFoundLib)
+TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameNotFoundLib)
 {
     MOCKER(StartSpanWithName).expects(never());
     MOCKER(dlopen).stubs().will(returnValue((void *)nullptr));
@@ -33,7 +33,7 @@ TEST_F(ServiceProfilerInterfaceTest, CallStartSpanWithNameNotFoundLib)
     GlobalMockObject::reset();
 }
 
-TEST_F(ServiceProfilerInterfaceTest, CallStartSpanWithNameFoundLib)
+TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameFoundLib)
 {
     SpanHandle mockSpanHandle = 100;
     MOCKER(StartSpanWithName).stubs().will(returnValue(mockSpanHandle));
@@ -47,7 +47,7 @@ TEST_F(ServiceProfilerInterfaceTest, CallStartSpanWithNameFoundLib)
     GlobalMockObject::reset();
 }
 
-TEST_F(ServiceProfilerInterfaceTest, CallMarkSpanAttrNotFoundLib)
+TEST_F(TestServiceProfilerInterface, CallMarkSpanAttrNotFoundLib)
 {
     MOCKER(MarkSpanAttr).expects(never());
     ServiceProfilerInterface &spi = ServiceProfilerInterface::GetInstance();
@@ -56,7 +56,7 @@ TEST_F(ServiceProfilerInterfaceTest, CallMarkSpanAttrNotFoundLib)
     GlobalMockObject::verify();
 }
 
-TEST_F(ServiceProfilerInterfaceTest, CallMarkSpanAttrFoundLib)
+TEST_F(TestServiceProfilerInterface, CallMarkSpanAttrFoundLib)
 {
     MOCKER(MarkSpanAttr).expects(once());
     ServiceProfilerInterface &spi = ServiceProfilerInterface::GetInstance();
@@ -65,7 +65,7 @@ TEST_F(ServiceProfilerInterfaceTest, CallMarkSpanAttrFoundLib)
     GlobalMockObject::verify();
 }
 
-TEST_F(ServiceProfilerInterfaceTest, CallEndSpanNotFoundLib)
+TEST_F(TestServiceProfilerInterface, CallEndSpanNotFoundLib)
 {
     MOCKER(MarkSpanAttr).expects(never());
     ServiceProfilerInterface &spi = ServiceProfilerInterface::GetInstance();
@@ -74,7 +74,7 @@ TEST_F(ServiceProfilerInterfaceTest, CallEndSpanNotFoundLib)
     GlobalMockObject::verify();
 }
 
-TEST_F(ServiceProfilerInterfaceTest, CallEndSpanFoundLib)
+TEST_F(TestServiceProfilerInterface, CallEndSpanFoundLib)
 {
     MOCKER(EndSpan).expects(once());
     ServiceProfilerInterface &spi = ServiceProfilerInterface::GetInstance();
@@ -83,7 +83,7 @@ TEST_F(ServiceProfilerInterfaceTest, CallEndSpanFoundLib)
     GlobalMockObject::verify();
 }
 
-TEST_F(ServiceProfilerInterfaceTest, CallMarkEventNotFoundLib)
+TEST_F(TestServiceProfilerInterface, CallMarkEventNotFoundLib)
 {
     MOCKER(MarkSpanAttr).expects(never());
     ServiceProfilerInterface &spi = ServiceProfilerInterface::GetInstance();
@@ -92,7 +92,7 @@ TEST_F(ServiceProfilerInterfaceTest, CallMarkEventNotFoundLib)
     GlobalMockObject::verify();
 }
 
-TEST_F(ServiceProfilerInterfaceTest, CallMarkEventFoundLib)
+TEST_F(TestServiceProfilerInterface, CallMarkEventFoundLib)
 {
     MOCKER(MarkEvent).expects(once());
     ServiceProfilerInterface &spi = ServiceProfilerInterface::GetInstance();
@@ -101,7 +101,7 @@ TEST_F(ServiceProfilerInterfaceTest, CallMarkEventFoundLib)
     GlobalMockObject::verify();
 }
 
-TEST_F(ServiceProfilerInterfaceTest, CallIsEnableNotFoundLib)
+TEST_F(TestServiceProfilerInterface, CallIsEnableNotFoundLib)
 {
     MOCKER(MarkSpanAttr).expects(never());
     ServiceProfilerInterface &spi = ServiceProfilerInterface::GetInstance();
@@ -110,7 +110,7 @@ TEST_F(ServiceProfilerInterfaceTest, CallIsEnableNotFoundLib)
     GlobalMockObject::verify();
 }
 
-TEST_F(ServiceProfilerInterfaceTest, CallIsEnableFoundLib)
+TEST_F(TestServiceProfilerInterface, CallIsEnableFoundLib)
 {
     GlobalMockObject::reset();
     // mockcpp not support: MOCKER(IsEnable).expects(atLeast(1));
