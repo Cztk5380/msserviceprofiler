@@ -9,7 +9,6 @@
 #include <chrono>
 #include <mockcpp/mockcpp.hpp>
 #include <nlohmann/json.hpp>
-#include <stdio.h>
 
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
@@ -58,9 +57,9 @@ TEST(ProfilerTest, StopServerProfiler)
 
 TEST(ProfilerTest, TestServiceProfilerManager)
 {
-    char mock_realpath[] = "aa";
+    char mockRealpath[] = "aa";
     MOCKER(access).stubs().will(returnValue(0));
-    MOCKER(realpath).stubs().will(returnValue((char*)mock_realpath));
+    MOCKER(realpath).stubs().will(returnValue((char*)mockRealpath));
     MOCKER(stat).stubs().will(returnValue(1));
     
     // set Profiling env name
@@ -119,8 +118,8 @@ TEST(ProfilerTest, TestDynamicControlStart2Stop)
     MOCKER(stat).stubs().will(returnValue(0));
 
     std::string configPath_ = "aaa";
-    int lastUpdate_ = 123;
-    bool enable_ = true;
+    manager.lastUpdate_ = 123;
+    manager.enable_ = true;
     
     // set Profiling env name
     setenv("SERVICE_PROF_CONFIG_PATH", "/ut_test/prof.json", 1);
