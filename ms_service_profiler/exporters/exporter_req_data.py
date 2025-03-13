@@ -113,13 +113,13 @@ def get_req_base_info(df):
             'execution_time': ''
         }
 
-        # 获取httpRes
+        # 获取httpReq
         http_req_df = pre_req_data[pre_req_data['name'] == 'httpReq']
         if not http_req_df.empty:
-            last_row = http_req_df.iloc[0]
-            new_req['start_time'] = last_row.get("start_time", 0)
+            first_row = http_req_df.iloc[0]
+            new_req['start_time'] = first_row.get("start_time", 0)
 
-        # 获取httpRes
+        # 获取 httpRes
         http_res_df = pre_req_data[pre_req_data['name'] == 'httpRes']
         if not http_res_df.empty:
             last_row = http_res_df.iloc[-1]
@@ -130,7 +130,7 @@ def get_req_base_info(df):
             # 获取当replyTokenSize列中值不为空时，获取其中的第一个值
             new_req['replyTokenSize='] = pre_req_data['replyTokenSize='].dropna().iloc[0]
 
-        # 获取recvTokenSize=
+        # 获取 recvTokenSize=
         if 'recvTokenSize=' in pre_req_data.columns and pre_req_data['recvTokenSize='].notna().any():
             # 获取当replyTokenSize列中值不为空时，获取其中的第一个值
             new_req['recvTokenSize='] = pre_req_data['recvTokenSize='].dropna().iloc[0]
