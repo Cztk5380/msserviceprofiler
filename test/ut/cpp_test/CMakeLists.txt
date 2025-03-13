@@ -77,6 +77,7 @@ add_subdirectory(${PROJECT_TOP_DIR}/platform platform)
 add_executable(ut_server_profiler
         ${PROFILER_SRC}
         testServiceProfilerInterface.cpp
+        testServiceProfilerManager.cpp
         testProfiler.cpp
 )
 
