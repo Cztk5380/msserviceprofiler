@@ -112,28 +112,30 @@ def get_req_base_info(df):
             'replyTokenSize=': '',
             'execution_time': ''
         }
+
+        # 获取httpReq
         http_req_df = pre_req_data[pre_req_data['name'] == 'httpReq']
-        encode_df = pre_req_data[pre_req_data['name'] == 'encode']
-        decode_end_df = pre_req_data[pre_req_data['name'] == 'DecodeEnd']
-        http_res_df = None
-        if pre_req_data[pre_req_data['domain'] == 'PDSplit'].empty:
-            http_res_df = pre_req_data[pre_req_data['name'] == 'httpRes']
-        elif 'replyTokenSize=' in pre_req_data.columns:
-            http_res_df = pre_req_data[(pre_req_data['name'] == 'httpRes') & (pre_req_data['replyTokenSize='].notna())]
+        if not http_req_df.empty:
+            first_row = http_req_df.iloc[0]
+            new_req['start_time'] = first_row.get("start_time", 0)
 
-        if http_req_df.shape[0] == 1:
-            new_req['start_time'] = http_req_df.iloc[0, http_req_df.columns.get_loc('start_time')]
+        # 获取 httpRes
+        http_res_df = pre_req_data[pre_req_data['name'] == 'httpRes']
+        if not http_res_df.empty:
+            last_row = http_res_df.iloc[-1]
+            new_req['end_time'] = last_row.get("end_time", 0)
 
-        if encode_df.shape[0] == 1 and 'recvTokenSize=' in encode_df.columns:
-            new_req['recvTokenSize='] = encode_df.iloc[0, encode_df.columns.get_loc('recvTokenSize=')]
+        # 获取replyTokenSize
+        if 'replyTokenSize=' in pre_req_data.columns and pre_req_data['replyTokenSize='].notna().any():
+            # 获取当replyTokenSize列中值不为空时，获取其中的第一个值
+            new_req['replyTokenSize='] = pre_req_data['replyTokenSize='].dropna().iloc[0]
 
-        if http_res_df is not None and http_res_df.shape[0] == 1 and 'replyTokenSize=' in http_res_df.columns:
-            new_req['end_time'] = http_res_df.iloc[0, http_res_df.columns.get_loc('end_time')]
-            new_req['replyTokenSize='] = http_res_df.iloc[0, http_res_df.columns.get_loc('replyTokenSize=')]
+        # 获取 recvTokenSize=
+        if 'recvTokenSize=' in pre_req_data.columns and pre_req_data['recvTokenSize='].notna().any():
+            # 获取当replyTokenSize列中值不为空时，获取其中的第一个值
+            new_req['recvTokenSize='] = pre_req_data['recvTokenSize='].dropna().iloc[0]
 
-        if decode_end_df.shape[0] == 1 and 'replyTokenSize=' in decode_end_df.columns:
-            new_req['replyTokenSize='] = decode_end_df.iloc[0, decode_end_df.columns.get_loc('replyTokenSize=')]
-
+        # 计算 execution_time
         if new_req['start_time'] != '' and new_req['end_time'] != '':
             new_req['execution_time'] = new_req['end_time'] - new_req['start_time']
 
