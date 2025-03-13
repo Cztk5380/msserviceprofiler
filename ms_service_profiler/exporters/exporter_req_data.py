@@ -101,7 +101,6 @@ def get_req_base_info(df):
     req_group_df = df.groupby('rid')
     req_base_info = []
     for rid, pre_req_data in req_group_df:
-        pre_req_data.to_csv(f"{rid}_pre_req_data.csv")
         rid = str(rid)
         if rid == "" or is_invaild_rid(rid):
             continue
