@@ -82,7 +82,7 @@ def load_tx_data(db_path):
         return None
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM MsprofTxEx")
+    cursor.execute("SELECT pid, tid, event_type, start_time, end_time, mark_id, message FROM MsprofTxEx")
     all_data = cursor.fetchall()
 
     columns = [description[0] if description[0] != "message" else "ori_msg" for description in cursor.description]
