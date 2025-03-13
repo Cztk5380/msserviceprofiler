@@ -76,6 +76,7 @@ add_subdirectory(${PROJECT_TOP_DIR}/platform platform)
 
 add_executable(ut_server_profiler
         ${PROFILER_SRC}
+        testNpuMemoryUsage.cpp
         testServiceProfilerInterface.cpp
         testProfiler.cpp
 )
