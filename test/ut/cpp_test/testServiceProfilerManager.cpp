@@ -10,6 +10,9 @@
 #include <mockcpp/mockcpp.hpp>
 #include <nlohmann/json.hpp>
 
+#include "acl/acl_prof.h"
+#include "acl/acl.h"
+
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
 
@@ -192,3 +195,102 @@ TEST(ProfilerTest, TestMarkFirstProcessAsMainFtruncateFailed)
 
     GlobalMockObject::reset();
 }
+
+TEST(ProfilerTest, TestReadConfigFailed)
+{
+    MOCKER(access).stubs().will(returnValue(0));
+
+    ServiceProfilerManager manager = ServiceProfilerManager();
+    manager.ReadConfig();
+
+    GlobalMockObject::reset();
+}
+
+TEST(ProfilerTest, TestMarkFirstProcessAsMainMmapFailed)
+{
+    ServiceProfilerManager manager = ServiceProfilerManager();
+    manager.MarkFirstProcessAsMain();
+}
+
+TEST(ProfilerTest, TestReadConfigFileFailed)
+{
+    ServiceProfilerManager manager = ServiceProfilerManager();
+    manager.configPath_ = "/home";
+    manager.ReadConfig();
+}
+
+TEST(ProfilerTest, TestDynamicControlReadConfigFileStatFailed)
+{
+    MOCKER(stat).stubs().will(returnValue(1));
+
+    ServiceProfilerManager manager = ServiceProfilerManager();
+    manager.DynamicControl();
+
+    GlobalMockObject::reset();
+}
+
+TEST(ProfilerTest, TestStartProfilerCreatConfigFailed)
+{
+    MOCKER(aclInit).stubs().will(returnValue(222));
+    MOCKER(aclprofInit).stubs().will(returnValue(222));
+
+    ServiceProfilerManager manager = ServiceProfilerManager();
+    manager.started_ = false;
+    manager.enableAclTaskTime_ = true;
+    manager.StartProfiler();
+
+    GlobalMockObject::reset();
+}
+
+TEST(ProfilerTest, TestStartProfilerAclProfStartFailed)
+{
+    MOCKER(aclInit).stubs().will(returnValue(222));
+    MOCKER(aclprofInit).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclprofCreateConfig).stubs().will(returnValue((aclprofConfig*)1));
+    MOCKER(aclprofStart).stubs().will(returnValue(222));
+
+    ServiceProfilerManager manager = ServiceProfilerManager();
+    manager.started_ = false;
+    manager.enableAclTaskTime_ = true;
+    manager.StartProfiler();
+
+    GlobalMockObject::reset();
+}
+
+TEST(ProfilerTest, TestStopProfilerAclProfStopFailed)
+{
+    MOCKER(aclprofStop).stubs().will(returnValue(222));
+    MOCKER(aclprofDestroyConfig).stubs().will(returnValue(222));
+
+    ServiceProfilerManager manager = ServiceProfilerManager();
+    manager.started_ = true;
+    manager.StopProfiler();
+
+    GlobalMockObject::reset();
+}
+
+TEST(ProfilerTest, TestStopProfilerAclDestroyConfigFailed)
+{
+    MOCKER(aclprofStop).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclprofDestroyConfig).stubs().will(returnValue(222));
+
+    ServiceProfilerManager manager = ServiceProfilerManager();
+    manager.started_ = true;
+    manager.StopProfiler();
+
+    GlobalMockObject::reset();
+}
+
+TEST(ProfilerTest, TestStopProfilerAclFrofFinalizeFailed)
+{
+    MOCKER(aclprofStop).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclprofDestroyConfig).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclprofFinalize).stubs().will(returnValue(222));
+
+    ServiceProfilerManager manager = ServiceProfilerManager();
+    manager.started_ = true;
+    manager.StopProfiler();
+
+    GlobalMockObject::reset();
+}
+
