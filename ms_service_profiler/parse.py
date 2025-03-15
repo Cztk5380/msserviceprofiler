@@ -24,6 +24,13 @@ from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.check.rule import Rule
 
 
+def save_dataframe_to_csv(filtered_df, output, file_name):
+    if output is not None:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path = output_path / file_name
+        filtered_df.to_csv(file_path, index=False)
+
 
 def load_start_cnt(config_path):
     cntvct = 0
