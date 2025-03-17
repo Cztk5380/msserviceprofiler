@@ -541,8 +541,8 @@ namespace msServiceProfiler {
     {
         msServiceProfiler::NpuMemoryUsage npuMemoryUsage = msServiceProfiler::NpuMemoryUsage();
         int ret = npuMemoryUsage.InitDcmiCardAndDevices();
-        if (ret == 1) {
-            PROF_LOGE("Empty DCMI handler. Check whether a NPU server or if NPU driver installed.");
+        if (ret != EXITCODE_SUCCESS) {
+            PROF_LOGE("InitDcmiCardAndDevices failed. Check whether a NPU server or if NPU driver installed.");
             return;
         }
         while (g_threadRunFlag) {
