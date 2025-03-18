@@ -48,7 +48,10 @@ def test_create_sqlite_db_success(tmpdir, cleanup_db_file):
     os.makedirs(output_dir, exist_ok=True)
     os.chmod(output_dir, 0o740)
     create_sqlite_db(str(output_dir))
-    assert os.path.exists(os.path.join(str(output_dir), 'profiler.db'))
+    db_fp = Path(output_dir, 'profiler.db')
+    conn = sqlite3.connect(db_fp)
+    conn.close()
+    assert os.path.exists(str(db_fp))
 
 
 def test_add_table_into_visual_db_failure(tmpdir, sample_dataframe, cleanup_db_file):
