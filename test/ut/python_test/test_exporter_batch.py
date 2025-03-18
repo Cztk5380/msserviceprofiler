@@ -5,16 +5,18 @@ import logging
 import os
 import io
 from pathlib import Path
+import shutil
+from unittest import mock
 from unittest.mock import patch
 import pandas as pd
-from ms_service_profiler.exporters.utils import save_dataframe_to_csv
+from ms_service_profiler.exporters.utils import save_dataframe_to_csv, create_sqlite_db
 from ms_service_profiler.exporters.exporter_batch import ExporterBatchData
 
 
 class TestExporterBatchData(unittest.TestCase):
     def setUp(self):
-        current_dir = os.getcwd()
-        self.args = type('Args', (object,), {'output_path': current_dir})
+        test_path = os.path.join(os.getcwd(), "output_test")
+        self.args = type('Args', (object,), {'output_path': test_path})
         self.data = {
             'tx_data_df': self.create_df()
         }
@@ -43,33 +45,56 @@ class TestExporterBatchData(unittest.TestCase):
         }
         return pd.DataFrame(data)
 
+
     def test_export(self):
         try:
+            # 设置模拟方法返回安全父目录
+            test_path = os.path.join(os.getcwd(), "output_test")
+            
+            # 创建目录
+            os.makedirs(test_path, exist_ok=True)
+            
+            # 设置权限为640
+            os.chmod(test_path, 0o740)
+            
             # 设置日志记录
+            file_path = Path(test_path, 'batch.csv')
             logging.basicConfig(level=logging.ERROR)
             # 初始化args
             ExporterBatchData.initialize(self.args)
+            create_sqlite_db(test_path)
             # 调用export方法
             ExporterBatchData.export(self.data)
             # 验证CSV文件是否生成
-            file_path = Path(os.path.join(os.getcwd(), 'batch.csv'))
+            
             self.assertTrue(file_path.is_file())
         finally:
             # 清理
-            file_path.unlink()
+            shutil.rmtree(test_path)
 
     @patch('ms_service_profiler.exporters.exporter_batch.ExporterBatchData.export')
     def test_export_with_missing_tx_data_df(self, mock_export):
         # 设置日志记录
-        logging.basicConfig(level=logging.ERROR)
-        # 初始化args
-        ExporterBatchData.initialize(self.args)
-        # 调用export方法，但模拟tx_data_df不存在的情况
-        self.data['tx_data_df'] = None
-        ExporterBatchData.export(self.data)
-        # 验证方法是否正确处理了tx_data_df不存在的情况
-        mock_export.assert_called_once_with(self.data)
-        # 验证CSV文件是否生成
-        file_path = Path(os.path.join(os.getcwd(), 'batch.csv'))
-        self.assertFalse(file_path.is_file())
+        try:
+            logging.basicConfig(level=logging.ERROR)
+            test_path = os.path.join(os.getcwd(), "output_test")
+                
+            # 创建目录
+            os.makedirs(test_path, exist_ok=True)
+                
+            # 设置权限为640
+            os.chmod(test_path, 0o740)
+            # 初始化args
+            ExporterBatchData.initialize(self.args)
+            # 调用export方法，但模拟tx_data_df不存在的情况
+            self.data['tx_data_df'] = None
+            ExporterBatchData.export(self.data)
+            # 验证方法是否正确处理了tx_data_df不存在的情况
+            mock_export.assert_called_once_with(self.data)
+            # 验证CSV文件是否生成
+            file_path = Path(os.path.join(os.getcwd(), 'batch.csv'))
+            self.assertFalse(file_path.is_file())
+        finally:
+            # 清理
+            shutil.rmtree(test_path)
     
