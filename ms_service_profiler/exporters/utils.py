@@ -49,7 +49,6 @@ def save_dataframe_to_csv(filtered_df, output, file_name):
         file_path = output_path / file_name
         file_path = str(file_path)
         with ms_open(file_path, "w") as f:
-            print(file_path)
             filtered_df.to_csv(f, index=False)
 
 
