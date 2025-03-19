@@ -477,7 +477,8 @@ namespace msServiceProfiler {
                 }
             } catch (const std::exception &e) {
                 PROF_LOGE(
-                "fail to convert npu_memory_usage_freq config to uint, will not collect npu memory usage.");  // LCOV_EXCL_LINE
+                "fail to convert npu_memory_usage_freq config to uint, \
+                will not collect npu memory usage.");  // LCOV_EXCL_LINE
                 npuMemoryUsage_ = false;
                 ret = false;
             }
