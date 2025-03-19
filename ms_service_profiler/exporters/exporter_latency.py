@@ -11,16 +11,6 @@ from ms_service_profiler.utils.log import logger
 from ms_service_profiler.exporters.utils import add_table_into_visual_db
 
 
-def timestamp_converter(timestamp):
-    timestamp_sci = timestamp
-    timestamp_normal = Decimal(timestamp_sci)
-
-    # 1000000: 将Decimal类型转换为浮点数类型，以便后续能被fromtimestamp函数正确使用
-    timestamp_seconds = float(timestamp_normal / 1000000)
-    date_time = datetime.datetime.fromtimestamp(timestamp_seconds)
-    return date_time.strftime("%Y-%m-%d %H:%M:%S:%f")
-
-
 def is_contained_vaild_iter_info(rid_list, token_id_list):
     if rid_list is None or token_id_list is None or len(rid_list) != len(token_id_list):
         return False
@@ -56,7 +46,7 @@ def process_each_record(req_map, record):
         return
 
     for i, value in enumerate(rid_list):
-        req_rid = str(int(value))
+        req_rid = str(value)
         if req_map.get(req_rid) is None:
             print_warning_log('httpReq')
             continue
@@ -166,20 +156,20 @@ def gen_exporter_results(all_data_df):
         # 生成首token时延
         if record.get('batch_type') == 'Prefill':
             avg, p50, p90, p99 = calculate_first_token_latency(req_map)
-            cur_timestamp = timestamp_converter(record.get('end_time'))
+            cur_timestamp = record.get('end_datetime')
             first_token_latency_views.append({'timestamp': cur_timestamp, \
                 'avg': avg, 'p99': p99, 'p90': p90, 'p50': p50})
 
         # 生成请求端到端时延
         if record.get('name') == 'httpRes':
             avg, p50, p90, p99 = calculate_req_latency(req_map)
-            cur_timestamp = timestamp_converter(record.get('end_time'))
+            cur_timestamp = record.get('end_datetime')
             req_latency_views.append({'timestamp': cur_timestamp, \
                 'avg': avg, 'p99': p99, 'p90': p90, 'p50': p50})
 
         # 生成token平均时延
         if is_contained_vaild_iter_info(record.get('rid_list'), record.get('token_id_list')):
-            cur_timestamp = timestamp_converter(record.get('end_time'))
+            cur_timestamp = record.get('end_datetime')
             if record.get('batch_type') == 'Prefill':
                 avg, p50, p90, p99 = calculate_gen_token_speed_latency(req_map, True)
                 prefill_gen_speed_views.append({'timestamp': cur_timestamp, \

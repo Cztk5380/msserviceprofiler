@@ -4,11 +4,10 @@ import sqlite3
 import argparse
 from pathlib import Path
 import multiprocessing
-
 from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.check.rule import Rule
 from ms_service_profiler.utils.error import DatabaseError
-
+from ms_service_profiler.utils.file_open_check import ms_open
 visual_db_fp = ''
 db_write_lock = multiprocessing.Lock()
 
@@ -33,13 +32,14 @@ def create_sqlite_db(output):
 
 def add_table_into_visual_db(df, table_name):
     with db_write_lock:
-        try:
-            conn = sqlite3.connect(visual_db_fp)
-            df.to_sql(table_name, conn, if_exists='replace', index=False)
-            conn.commit()
-            conn.close()
-        except Exception as ex:
-            raise DatabaseError("Cannot update sqlite database.") from ex
+        with ms_open(visual_db_fp, "w") as f:
+            try:
+                conn = sqlite3.connect(visual_db_fp)
+                df.to_sql(table_name, conn, if_exists='replace', index=False)
+                conn.commit()
+                conn.close()
+            except Exception as ex:
+                raise DatabaseError("Cannot update sqlite database.") from ex
 
 
 def save_dataframe_to_csv(filtered_df, output, file_name):
@@ -47,7 +47,9 @@ def save_dataframe_to_csv(filtered_df, output, file_name):
         output_path = Path(output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         file_path = output_path / file_name
-        filtered_df.to_csv(file_path, index=False)
+        file_path = str(file_path)
+        with ms_open(file_path, "w") as f:
+            filtered_df.to_csv(f, index=False)
 
 
 def check_input_path_valid(path):

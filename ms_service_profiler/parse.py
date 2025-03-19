@@ -83,7 +83,7 @@ def load_tx_data(db_path):
         return None
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM MsprofTxEx")
+    cursor.execute("SELECT pid, tid, event_type, start_time, end_time, mark_id, message FROM MsprofTxEx")
     all_data = cursor.fetchall()
 
     columns = [description[0] if description[0] != "message" else "ori_msg" for description in cursor.description]
@@ -323,6 +323,9 @@ def gen_msprof_command(full_path):
         FileStat(full_path)
     except Exception as err:
         raise argparse.ArgumentTypeError(f"input path:{full_path} is illegal. Please check.") from err
+
+    if len(full_path.split()) != 1:
+        raise ValueError(f"{full_path} is invalid.")
 
     command = "msprof --export=on "
     output_param = f"--output={full_path}"

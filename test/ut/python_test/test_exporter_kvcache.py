@@ -5,6 +5,7 @@ import logging
 import os
 import io
 from pathlib import Path
+import shutil
 from unittest.mock import patch
 import pandas as pd
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
@@ -37,8 +38,8 @@ lKVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252
 
 class TestExporterBatchData(unittest.TestCase):
     def setUp(self):
-        current_dir = os.getcwd()
-        self.args = type('Args', (object,), {'output_path': current_dir})
+        test_path = os.path.join(os.getcwd(), "output_test")
+        self.args = type('Args', (object,), {'output_path': test_path})
         self.data = {
             'tx_data_df': self.create_df()
         }
@@ -59,20 +60,27 @@ class TestExporterBatchData(unittest.TestCase):
 
     def test_export(self):
         try:
+            test_path = os.path.join(os.getcwd(), "output_test")
+            os.makedirs(test_path, exist_ok=True)
+            os.chmod(test_path, 0o740)
+            # 设置日志记录
+            file_path = Path(test_path, 'kvcache.csv')
             # 初始化args
             ExporterKVCacheData.initialize(self.args)
             # 调用export方法
             ExporterKVCacheData.export(self.data)
             # 验证CSV文件是否生成
-            file_path = Path(os.path.join(os.getcwd(), 'kvcache.csv'))
             self.assertTrue(file_path.is_file())
         finally:
             # 清理
-            file_path.unlink()
+            shutil.rmtree(test_path)
 
     def test_export_pd_separate(self):
-        file_path_kvcache = Path(os.path.join(os.getcwd(), 'kvcache.csv'))
-        file_path_pd_separate_kvcache = Path(os.path.join(os.getcwd(), 'pd_separate_kvcache.csv'))
+        test_path = os.path.join(os.getcwd(), "output_test")
+        os.makedirs(test_path, exist_ok=True)
+        os.chmod(test_path, 0o740)
+        file_path_kvcache = Path(test_path, 'kvcache.csv')
+        file_path_pd_separate_kvcache = Path(test_path, 'pd_separate_kvcache.csv')
         data = {'tx_data_df': pd.read_csv(io.StringIO(PD_SEPARATE_PULL_KV_DATA))}
         try:
             # 初始化args
@@ -83,14 +91,14 @@ class TestExporterBatchData(unittest.TestCase):
             self.assertTrue(file_path_pd_separate_kvcache.is_file())
         finally:
             # 清理
-            if file_path_kvcache.is_file():
-                file_path_kvcache.unlink()
-            if file_path_pd_separate_kvcache.is_file():
-                file_path_pd_separate_kvcache.unlink()
+            shutil.rmtree(test_path)
 
     def test_export_pd_separate_missing_key(self):
-        file_path_kvcache = Path(os.path.join(os.getcwd(), 'kvcache.csv'))
-        file_path_pd_separate_kvcache = Path(os.path.join(os.getcwd(), 'pd_separate_kvcache.csv'))
+        test_path = os.path.join(os.getcwd(), "output_test")
+        os.makedirs(test_path, exist_ok=True)
+        os.chmod(test_path, 0o740)
+        file_path_kvcache = Path(test_path, 'kvcache.csv')
+        file_path_pd_separate_kvcache = Path(test_path, 'pd_separate_kvcache.csv')
         data = {'tx_data_df': pd.read_csv(io.StringIO(PD_SEPARATE_PULL_KV_DATA_MISSING_KEY))}
         try:
             # 初始化args
@@ -101,23 +109,27 @@ class TestExporterBatchData(unittest.TestCase):
             self.assertTrue(file_path_pd_separate_kvcache.is_file())
         finally:
             # 清理
-            if file_path_kvcache.is_file():
-                file_path_kvcache.unlink()
-            if file_path_pd_separate_kvcache.is_file():
-                file_path_pd_separate_kvcache.unlink()
+            shutil.rmtree(test_path)
 
     @patch('ms_service_profiler.exporters.exporter_kvcache.ExporterKVCacheData.export')
     def test_export_with_missing_tx_data_df(self, mock_export):
-        # 设置日志记录
-        logging.basicConfig(level=logging.ERROR)
-        # 初始化args
-        ExporterKVCacheData.initialize(self.args)
-        # 调用export方法，但模拟tx_data_df不存在的情况
-        self.data['tx_data_df'] = None
-        ExporterKVCacheData.export(self.data)
-        # 验证方法是否正确处理了tx_data_df不存在的情况
-        mock_export.assert_called_once_with(self.data)
-        # 验证CSV文件是否生成
-        file_path = Path(os.path.join(os.getcwd(), 'kvcache.csv'))
-        self.assertFalse(file_path.is_file())
+        try:
+            test_path = os.path.join(os.getcwd(), "output_test")
+            os.makedirs(test_path, exist_ok=True)
+            os.chmod(test_path, 0o740)
+            # 设置日志记录
+            logging.basicConfig(level=logging.ERROR)
+            # 初始化args
+            ExporterKVCacheData.initialize(self.args)
+            # 调用export方法，但模拟tx_data_df不存在的情况
+            self.data['tx_data_df'] = None
+            ExporterKVCacheData.export(self.data)
+            # 验证方法是否正确处理了tx_data_df不存在的情况
+            mock_export.assert_called_once_with(self.data)
+            # 验证CSV文件是否生成
+            file_path = Path(test_path, 'kvcache.csv')
+            self.assertFalse(file_path.is_file())
+        finally:
+            # 清理
+            shutil.rmtree(test_path)
     
