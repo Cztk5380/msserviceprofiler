@@ -39,7 +39,8 @@ class PluginReqStatus(PluginBase):
         }
         tx_data_df = tx_data_df.rename(columns=rename_mapping)
         req_status = list(rename_mapping.values())
-        tx_data_df = rename_req_status(tx_data_df, req_status)
+        if req_status:
+            tx_data_df = rename_req_status(tx_data_df, req_status)
 
         # 填充domain和name
         if 'domain' in tx_data_df.columns:

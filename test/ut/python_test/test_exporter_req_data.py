@@ -4,6 +4,7 @@ import unittest
 import os
 from pathlib import Path
 from unittest.mock import patch
+import shutil
 import pandas as pd
 from ms_service_profiler.parse import parse
 from ms_service_profiler.exporters.base import ExporterBase
@@ -67,8 +68,8 @@ class TestProcessData(unittest.TestCase):
 
 class TestExporterReqData(unittest.TestCase):
     def setUp(self):
-        current_dir = os.getcwd()
-        self.args = type('Args', (object,), {'output_path': current_dir})
+        test_path = os.path.join(os.getcwd(), "output_test")
+        self.args = type('Args', (object,), {'output_path': test_path})
         self.data = {
             'tx_data_df': self.create_df()
         }
@@ -102,29 +103,39 @@ class TestExporterReqData(unittest.TestCase):
 
     def test_export(self):
         try:
+            test_path = os.path.join(os.getcwd(), "output_test")
+            os.makedirs(test_path, exist_ok=True)
+            os.chmod(test_path, 0o740)
+            file_path = Path(test_path, 'request.csv')
             # 初始化args
             ExporterReqData.initialize(self.args)
             # 调用export方法
             ExporterReqData.export(self.data)
             # 验证CSV文件是否生成
-            file_path = Path(os.path.join(os.getcwd(), 'request.csv'))
+            
             self.assertTrue(file_path.is_file())
         finally:
             # 清理
-            file_path.unlink()
+            shutil.rmtree(test_path)
 
     @patch('ms_service_profiler.exporters.exporter_req_data.ExporterReqData.export')
     def test_export_with_missing_tx_data_df(self, mock_export):
-        # 初始化args
-        ExporterReqData.initialize(self.args)
-        # 调用export方法，但模拟tx_data_df不存在的情况
-        self.data['tx_data_df'] = None
-        ExporterReqData.export(self.data)
-        # 验证方法是否正确处理了tx_data_df不存在的情况
-        mock_export.assert_called_once_with(self.data)
-        # 验证CSV文件是否生成
-        file_path = Path(os.path.join(os.getcwd(), 'request.csv'))
-        self.assertFalse(file_path.is_file())
+        try:
+            test_path = os.path.join(os.getcwd(), "output_test")
+            os.makedirs(test_path, exist_ok=True)
+            os.chmod(test_path, 0o740)
+            file_path = Path(test_path, 'request.csv')
+            # 初始化args
+            ExporterReqData.initialize(self.args)
+            # 调用export方法，但模拟tx_data_df不存在的情况
+            self.data['tx_data_df'] = None
+            ExporterReqData.export(self.data)
+            # 验证方法是否正确处理了tx_data_df不存在的情况
+            mock_export.assert_called_once_with(self.data)
+            self.assertFalse(file_path.is_file())
+        finally:
+            # 清理
+            shutil.rmtree(test_path)
 
 
 if __name__ == '__main__':

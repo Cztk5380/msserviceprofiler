@@ -4,7 +4,7 @@ import os
 import sqlite3
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-
+import shutil
 import pytest
 import pandas as pd
 from ms_service_profiler.utils.error import DatabaseError
@@ -44,31 +44,46 @@ def sample_dataframe():
 
 def test_create_sqlite_db_success(tmpdir, cleanup_db_file):
     """测试成功创建SQLite数据库"""
-    output_dir = "."
+    output_dir = os.path.join(os.getcwd(), "output_test")
+    os.makedirs(output_dir, exist_ok=True)
+    os.chmod(output_dir, 0o740)
     create_sqlite_db(str(output_dir))
-    assert os.path.exists(os.path.join(str(output_dir), 'profiler.db'))
+    db_fp = Path(output_dir, 'profiler.db')
+    conn = sqlite3.connect(db_fp)
+    conn.close()
+    assert os.path.exists(str(db_fp))
 
 
 def test_add_table_into_visual_db_failure(tmpdir, sample_dataframe, cleanup_db_file):
-    """测试添加表到SQLite数据库失败"""
-    output_dir = tmpdir.mkdir("test_output")
-    create_sqlite_db(str(output_dir))
+    try:
+        """测试添加表到SQLite数据库失败"""
+        output_dir = tmpdir.mkdir("test_output")
+        create_sqlite_db(str(output_dir))
 
-    with patch('pandas.DataFrame.to_sql', side_effect=Exception("Insert failed")):
-        with pytest.raises(DatabaseError, match="Cannot update sqlite database."):
-            add_table_into_visual_db(sample_dataframe, 'test_table')
+        with patch('pandas.DataFrame.to_sql', side_effect=Exception("Insert failed")):
+            with pytest.raises(DatabaseError, match="Cannot update sqlite database."):
+                add_table_into_visual_db(sample_dataframe, 'test_table')
+    finally:
+        # 清理
+        shutil.rmtree(output_dir)
 
 
 def test_save_dataframe_to_csv_success(tmpdir, sample_dataframe):
-    """测试成功保存DataFrame到CSV文件"""
-    output_dir = tmpdir.mkdir("test_output")
-    file_name = "test.csv"
-    save_dataframe_to_csv(sample_dataframe, str(output_dir), file_name)
+    try:
+        """测试成功保存DataFrame到CSV文件"""
+        output_dir = os.path.join(os.getcwd(), "output_test")
+        os.makedirs(output_dir, exist_ok=True)
+        os.chmod(output_dir, 0o740)
+        file_name = "test.csv"
+        save_dataframe_to_csv(sample_dataframe, str(output_dir), file_name)
 
-    file_path = os.path.join(str(output_dir), file_name)
-    assert os.path.exists(file_path)
-    df = pd.read_csv(file_path)
-    assert df.equals(sample_dataframe)
+        file_path = os.path.join(str(output_dir), file_name)
+        assert os.path.exists(file_path)
+        df = pd.read_csv(file_path)
+        assert df.equals(sample_dataframe)
+    finally:
+        # 清理
+        shutil.rmtree(output_dir)
 
 
 def test_save_dataframe_to_csv_none_output(sample_dataframe):

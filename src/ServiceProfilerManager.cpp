@@ -540,7 +540,11 @@ namespace msServiceProfiler {
     void ServiceProfilerManager::ThreadFunction()
     {
         msServiceProfiler::NpuMemoryUsage npuMemoryUsage = msServiceProfiler::NpuMemoryUsage();
-        npuMemoryUsage.InitDcmiCardAndDevices();
+        int ret = npuMemoryUsage.InitDcmiCardAndDevices();
+        if (ret != EXITCODE_SUCCESS) {
+            PROF_LOGE("InitDcmiCardAndDevices failed. Check whether a NPU server or if NPU driver installed.");
+            return;
+        }
         while (g_threadRunFlag) {
             // dynamic start_and_stop
             DynamicControl();

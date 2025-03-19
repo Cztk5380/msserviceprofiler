@@ -7,24 +7,19 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 from ms_service_profiler.exporters.exporter_latency import (
-    timestamp_converter,
     process_each_record,
     get_percentile_results,
     calculate_gen_token_speed_latency,
+    is_contained_vaild_iter_info,
     calculate_first_token_latency,
     calculate_req_latency,
     gen_exporter_results,
+    print_warning_log,
     ExporterLatency
 )
 
 
 class TestTimestampConverter(unittest.TestCase):
-    def test_timestamp_converter_suss(self):
-        # 测试正常的时间戳
-        timestamp = 1577836800000000
-        result = timestamp_converter(timestamp)
-        self.assertIn('2020-01-01', result)
-
     def test_process_each_record_request(self):
         req_map = {}
         record = {'name': 'httpReq', 'rid': '1', 'start_time': '1577836800000000', \
@@ -150,39 +145,47 @@ class TestTimestampConverter(unittest.TestCase):
         self.assertEqual(p99, 1)
 
 
-    @patch('ms_service_profiler.exporters.exporter_latency.timestamp_converter')
     @patch('ms_service_profiler.exporters.exporter_latency.calculate_gen_token_speed_latency')
     @patch('ms_service_profiler.exporters.exporter_latency.calculate_req_latency')
     @patch('ms_service_profiler.exporters.exporter_latency.calculate_first_token_latency')
     @patch('ms_service_profiler.exporters.exporter_latency.process_each_record')
-    def test_gen_exporter_results(self, mock_timestamp_converter, mock_calculate_gen_token_speed_latency, \
-        mock_calculate_req_latency, mock_calculate_first_token_latency, mock_process_each_record):
-        mock_data = {
-            'batch_type': ['Prefill', 'Prefill', 'httpRes', 'httpRes', None],
-            'name': ['Prefill', 'Prefill', 'httpRes', 'httpRes', 'httpRes'],
-            'rid_list': [['1', '2'], None, None, None, None],
-            'token_id_list': [['0', '1'], None, None, None, None],
-            'end_time': ['1577836800001000', '1577836800002000', '1577836800003000', \
-            '1577836800004000', '1577836800005000']
-        }
-        all_data_df = pd.DataFrame(mock_data)
+    def test_gen_exporter_results(self, mock_process_each_record, mock_calculate_gen_token_speed_latency, \
+        mock_calculate_req_latency, mock_calculate_first_token_latency):
+        data = {'batch_type': ['Prefill', 'Decode', 'Decode'],
+                'name': ['httpRes', 'httpRes', 'httpRes'],
+                'end_datetime': ['2020-01-01', '2020-01-02', '2020-01-03'],
+                'rid_list': [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9']],
+                'token_id_list': [['0', '0', '0'], ['4', '5', '6'], ['7', '8', '9']]}
+        df = pd.DataFrame(data)
 
         # 设置模拟函数的返回值
-        mock_timestamp_converter.return_value = '2020-01-01'
-        mock_process_each_record.return_value = None
-        mock_calculate_first_token_latency.return_value = (1, 2, 3, 4)
-        mock_calculate_req_latency.return_value = (1, 2, 3, 4)
-        mock_calculate_gen_token_speed_latency.return_value = (1, 2, 3, 4)
+        mock_calculate_first_token_latency.return_value = (100, 100, 100, 100)
+        mock_calculate_req_latency.return_value = (200, 200, 200, 200)
+        mock_calculate_gen_token_speed_latency.return_value = (300, 300, 300, 300)
 
-        first_token_latency_views, req_latency_views, prefill_gen_speed_views, decode_gen_speed_views = \
-            gen_exporter_results(all_data_df)
+        # 调用函数
+        first_token_latency_views, req_latency_views, prefill_gen_speed_views, \
+            decode_gen_speed_views = gen_exporter_results(df)
 
+        # 检查结果
+        self.assertEqual(len(first_token_latency_views), 1)
+        self.assertEqual(len(req_latency_views), 3)
+        self.assertEqual(len(prefill_gen_speed_views), 1)
+        self.assertEqual(len(decode_gen_speed_views), 2)
+
+        # 检查模拟函数是否被正确调用
         mock_process_each_record.assert_called()
         mock_calculate_first_token_latency.assert_called()
         mock_calculate_req_latency.assert_called()
         mock_calculate_gen_token_speed_latency.assert_called()
-        mock_timestamp_converter.assert_called()
 
 
-if __name__ == '__main__':
-    unittest.main()
+    @patch.object(ExporterLatency, 'get_err_log_flag')
+    @patch.object(ExporterLatency, 'set_err_log_flag')
+    @patch('ms_service_profiler.exporters.exporter_latency.logger')
+    def test_print_warning_log_no_error(self, mock_logger, mock_set_err_log_flag, mock_get_err_log_flag):
+        # 测试当get_err_log_flag返回False时，是否正确地打印警告日志并设置错误日志标志
+        mock_get_err_log_flag.return_value = False
+        print_warning_log('test_log')
+        mock_logger.warning.assert_called_once_with("The 'test_log' field info is missing, please check.")
+        mock_set_err_log_flag.assert_called_once_with('test_log', True)
