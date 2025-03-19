@@ -217,7 +217,8 @@ namespace msServiceProfiler {
             return jsonData;
         }
         if (access(configPath_.c_str(), F_OK) != 0) {
-            PROF_LOGE("SERVICE_PROF_CONFIG_PATH : %s is not file or Permission Denied", configPath_.c_str());  // LCOV_EXCL_LINE
+            PROF_LOGE("SERVICE_PROF_CONFIG_PATH : %s is not file or Permission Denied",
+                      configPath_.c_str());  // LCOV_EXCL_LINE
             return jsonData;
         }
 
@@ -475,7 +476,8 @@ namespace msServiceProfiler {
                     ret = false;
                 }
             } catch (const std::exception &e) {
-                PROF_LOGE("fail to convert npu_memory_usage_freq config to uint, will not collect npu memory usage.");  // LCOV_EXCL_LINE
+                PROF_LOGE(
+                "fail to convert npu_memory_usage_freq config to uint, will not collect npu memory usage.");  // LCOV_EXCL_LINE
                 npuMemoryUsage_ = false;
                 ret = false;
             }
@@ -542,7 +544,8 @@ namespace msServiceProfiler {
         msServiceProfiler::NpuMemoryUsage npuMemoryUsage = msServiceProfiler::NpuMemoryUsage();
         int ret = npuMemoryUsage.InitDcmiCardAndDevices();
         if (ret != EXITCODE_SUCCESS) {
-            PROF_LOGE("InitDcmiCardAndDevices failed. Check whether a NPU server or if NPU driver installed.");  // LCOV_EXCL_LINE
+            PROF_LOGE(
+            "InitDcmiCardAndDevices failed. Check whether a NPU server or if NPU driver installed.");  // LCOV_EXCL_LINE
             return;
         }
         while (g_threadRunFlag) {

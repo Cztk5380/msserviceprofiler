@@ -14,7 +14,7 @@
 using namespace msServiceProfiler;
 
 
-int dcmiStub()
+int DcmiStub()
 {
     int retSuccess = 1;
     return retSuccess;
@@ -91,7 +91,7 @@ TEST(NPUTest, TestGetByDcmi)
 TEST(NPUTest, TestDcmiInitSuccess)
 {
     MOCKER(dlopen).stubs().will(returnValue((void*)(1)));
-    MOCKER(dlsym).stubs().will(returnValue((void*)dcmiStub));
+    MOCKER(dlsym).stubs().will(returnValue((void*)DcmiStub));
 
     int cardNum[] = {1};
     int cardList[] = {0};
