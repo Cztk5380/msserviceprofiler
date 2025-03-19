@@ -56,6 +56,34 @@ def save_dataframe_to_csv(filtered_df, output, file_name):
             filtered_df.to_csv(f, index=False)
 
 
+def _check_directory(dir_path, iteration_count):
+    """检查单个文件夹的安全性"""
+    try:
+        # 检查循环数
+        iteration_count += 1
+        if iteration_count > MAX_ITERATIONS:
+            raise argparse.ArgumentTypeError(f"Maximum iteration count ({MAX_ITERATIONS}) exceeded.")
+
+        # 校验文件夹
+        traverse_dir_common_check(dir_path)
+    except argparse.ArgumentTypeError as e:
+        raise argparse.ArgumentTypeError(f"Directory is NOT safe")
+
+
+def _check_file(file_path, iteration_count):
+    """检查单个文件的安全性"""
+    try:
+        # 检查循环数
+        iteration_count += 1
+        if iteration_count > MAX_ITERATIONS:
+            raise argparse.ArgumentTypeError(f"Maximum iteration count ({MAX_ITERATIONS}) exceeded.")
+
+        # 校验文件
+        read_file_common_check(file_path)
+    except argparse.ArgumentTypeError as e:
+        raise argparse.ArgumentTypeError(f"File is NOT safe")
+
+
 def check_input_path_valid(path):
     try:
         # 首先校验传入路径是否为目录，并确保目录可遍历
@@ -69,31 +97,12 @@ def check_input_path_valid(path):
             # 检查文件夹
             for dir_name in dirs:
                 dir_path = os.path.join(root, dir_name)
-                try:
-                    # 检查循环数
-                    iteration_count += 1
-                    if iteration_count > MAX_ITERATIONS:
-                        raise argparse.ArgumentTypeError(f"Maximum iteration count ({MAX_ITERATIONS}) exceeded.")
-
-                    # 校验文件夹
-                    traverse_dir_common_check(dir_path)
-                except argparse.ArgumentTypeError as e:
-                    # 直接抛出异常，不在内部记录日志
-                    raise argparse.ArgumentTypeError(f"Directory is NOT safe")
+                _check_directory(dir_path, iteration_count)
 
             # 检查文件
             for file_name in files:
                 file_path = os.path.join(root, file_name)
-                try:
-                    # 检查循环数
-                    iteration_count += 1
-                    if iteration_count > MAX_ITERATIONS:
-                        raise argparse.ArgumentTypeError(f"Maximum iteration count ({MAX_ITERATIONS}) exceeded.")
-
-                    # 校验文件
-                    read_file_common_check(file_path)
-                except argparse.ArgumentTypeError as e:
-                    raise argparse.ArgumentTypeError(f"File is NOT safe")
+                _check_file(file_path, iteration_count)
 
         return safe_path
 
