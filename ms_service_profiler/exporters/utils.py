@@ -8,8 +8,15 @@ from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.check.rule import Rule
 from ms_service_profiler.utils.error import DatabaseError
 from ms_service_profiler.utils.file_open_check import ms_open
+from ms_service_profiler.utils.log import logger
+
+from ms_service_profiler_ext.common.sec import traverse_dir_common_check, read_file_common_check
+
 visual_db_fp = ''
 db_write_lock = multiprocessing.Lock()
+
+# 定义最大循环数常量
+MAX_ITERATIONS = 10000
 
 
 def create_sqlite_db(output):
@@ -54,12 +61,47 @@ def save_dataframe_to_csv(filtered_df, output, file_name):
 
 def check_input_path_valid(path):
     try:
-        file_stat = FileStat(path)
-    except Exception as err:
-        raise argparse.ArgumentTypeError(f"input path:{path} is illegal. Please check.")
-    if not file_stat.is_dir:
-        raise argparse.ArgumentTypeError(f"Path is not a valid directory: {path}")
-    return path
+        # 首先校验传入路径是否为目录，并确保目录可遍历
+        safe_path = traverse_dir_common_check(path)
+
+        # 初始化计数器
+        iteration_count = 0
+
+        # 递归检查目录下的所有文件和文件夹
+        for root, dirs, files in os.walk(safe_path):
+            # 检查文件夹
+            for dir_name in dirs:
+                dir_path = os.path.join(root, dir_name)
+                try:
+                    # 检查循环数
+                    iteration_count += 1
+                    if iteration_count > MAX_ITERATIONS:
+                        raise argparse.ArgumentTypeError(f"Maximum iteration count ({MAX_ITERATIONS}) exceeded.")
+
+                    # 校验文件夹
+                    traverse_dir_common_check(dir_path)
+                except argparse.ArgumentTypeError as e:
+                    # 直接抛出异常，不在内部记录日志
+                    raise argparse.ArgumentTypeError(f"Directory is NOT safe")
+
+            # 检查文件
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
+                try:
+                    # 检查循环数
+                    iteration_count += 1
+                    if iteration_count > MAX_ITERATIONS:
+                        raise argparse.ArgumentTypeError(f"Maximum iteration count ({MAX_ITERATIONS}) exceeded.")
+
+                    # 校验文件
+                    read_file_common_check(file_path)
+                except argparse.ArgumentTypeError as e:
+                    raise argparse.ArgumentTypeError(f"File is NOT safe")
+
+        return safe_path
+
+    except argparse.ArgumentTypeError as e:
+        raise argparse.ArgumentTypeError(f"Input path is illegal. {str(e)}")
 
 
 def check_output_path_valid(path):
