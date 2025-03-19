@@ -61,9 +61,10 @@ def convert_syscnt_to_ts(cnt, time_info):
             频率不为空，获取的是计数，需要除以频率；
             频率为空，获取的是monotonic，可以直接计算
             collection_time_begin单位为us，其他数据单位为ns
+            (cnt - collection_cnt_begin) / cpu_frequency 单位为s
         '''
         if cpu_frequency != 0:
-            return collection_time_begin + ((cnt - collection_cnt_begin) / cpu_frequency + \
+            return collection_time_begin + ((cnt - collection_cnt_begin) / cpu_frequency  * NS_PER_SECOND + \
                 host_clock_monotonic_raw - start_clock_monotonic_raw) / NS_PER_US
         else:
             return collection_time_begin + (cnt - start_clock_monotonic_raw) / NS_PER_US

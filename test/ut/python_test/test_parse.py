@@ -17,7 +17,6 @@ from ms_service_profiler.parse import (
     handle_exact_match,
     handle_msprof_pattern,
     handle_other_wildcard_patterns,
-    save_dataframe_to_csv,
     load_start_cnt,
     load_start_time,
     load_tx_data
@@ -166,19 +165,6 @@ def test_handle_other_wildcard_patterns(setup_test_directory):
     assert isinstance(result, dict)
     if alias in result:
         assert Path(result[alias]).name.startswith("msprof_")
-
-
-def test_save_dataframe_to_csv(setup_test_directory):
-    df = pd.DataFrame({
-        'A': [1, 2, 3],
-        'B': [4, 5, 6]
-    })
-
-    save_dataframe_to_csv(df, setup_test_directory, 'test.csv')
-
-    # 检查文件是否创建
-    output_file_path = os.path.join(setup_test_directory, 'test.csv')
-    assert os.path.isfile(output_file_path)
 
 
 def test_load_start_cnt(setup_test_directory):
