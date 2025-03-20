@@ -36,7 +36,7 @@ def create_sqlite_db(output):
 
 def add_table_into_visual_db(df, table_name):
     with db_write_lock:
-        with ms_open(visual_db_fp, "w") as f:
+        with ms_open(visual_db_fp, "a") as f:
             try:
                 conn = sqlite3.connect(visual_db_fp)
                 df.to_sql(table_name, conn, if_exists='replace', index=False)
