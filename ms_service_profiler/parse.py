@@ -150,13 +150,12 @@ def load_cpu_freq(info_path):
         if 'CPU' not in data or not isinstance(data['CPU'], list) or len(data['CPU']) == 0:
             raise ValueError(f"Invalid or missing 'CPU' data in {info_path}.")
         cpu_data = data['CPU'][0]
-        cpu_frequency = cpu_data.get('Frequency', None)
+        cpu_frequency = cpu_data.get('Frequency', 0)
         if cpu_frequency != "":
-            return float(cpu_frequency)
+            return float(cpu_frequency) * US_PER_SECOND
 
     logger.warning(f"Missing 'Frequency' value in 'CPU' data.")
-    return 0
-
+    return cpu_frequency
 
 def get_filepaths(folder_path, file_filter):
     filepaths = {}

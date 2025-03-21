@@ -3,7 +3,7 @@
 import datetime
 import psutil
 
-from ms_service_profiler.constant import US_PER_SECOND, NS_PER_US
+from ms_service_profiler.constant import US_PER_SECOND, NS_PER_US, NS_PER_SECOND
 from ms_service_profiler.plugins.base import PluginBase
 
 
