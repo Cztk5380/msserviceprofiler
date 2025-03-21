@@ -155,7 +155,7 @@ def load_cpu_freq(info_path):
             return float(cpu_frequency) * US_PER_SECOND
 
     logger.warning(f"Missing 'Frequency' value in 'CPU' data.")
-    return cpu_frequency
+    return 0
 
 
 def get_filepaths(folder_path, file_filter):
