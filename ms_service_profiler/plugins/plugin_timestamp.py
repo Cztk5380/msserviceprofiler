@@ -20,7 +20,7 @@ class PluginTimeStampHelper(PluginBase):
         msprof_data_df = data.get('msprof_data')
 
         if time_info is None:
-            raise ValueError("There is no time infomation, please check data.")
+            raise ValueError("There is no time information, please check data.")
 
         calculate_timestamp(tx_data_df, time_info, prof_type='system_count')
         calculate_timestamp(cpu_data_df, time_info, prof_type='system_timestamp')

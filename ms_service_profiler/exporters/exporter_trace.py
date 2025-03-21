@@ -19,17 +19,17 @@ class ExporterTrace(ExporterBase):
     @classmethod
     def export(cls, data) -> None:
         cpu_data_df, memory_data_df = data['cpu_data_df'], data['memory_data_df']
+        tids = set(str(x) for x in set(data["tx_data_df"]["tid"]))
         all_data_df = data['tx_data_df'].copy()
         all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
         msprof_data_df = data['msprof_data']
-        cann_data = [load_single_prof(pf) for pf in msprof_data_df]
+        cann_data = [load_single_prof(pf, tids) for pf in msprof_data_df]
         output = cls.args.output_path
         trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df)
         merged_data = merge_json_data(trace_data, cann_data)
         save_trace_data_into_json(merged_data, output)
 
-
-def load_single_prof(pf):
+def load_single_prof(pf, tids):
     try:
         with open(pf, 'r', encoding='utf-8') as file:
             trace_events = json.load(file)
@@ -40,14 +40,10 @@ def load_single_prof(pf):
         logger.warning(f"The msprof.json file is not in a valid JSON format.")
         return {"traceEvents": []}
 
-    cann_pid = find_cann_pid(trace_events)
-    if cann_pid is None:
-        return {"traceEvents": []}
-
     filtered_trace_events = [
         event
         for event in trace_events
-        if event.get("pid") == cann_pid
+        if str(event.get("pid")) not in tids
     ]
 
     merged_dict = {

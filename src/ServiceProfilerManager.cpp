@@ -138,7 +138,7 @@ namespace msServiceProfiler {
     {
         auto start = str.find_first_of(splitChar);
         if (start == std::string::npos) {
-            return {"", ""};
+            return {str, ""};
         } else {
             return {str.substr(0, start), str.substr(start + 1)};
         }
@@ -342,7 +342,7 @@ namespace msServiceProfiler {
     void ServiceProfilerManager::MarkFirstProcessAsMain()
     {
         const size_t mmapSize = 1024; // 共享内存对象的大小
-        const size_t infoMaxSize = 128; // 内存中信息的最大大小
+        const size_t infoMaxSize = 1000; // 内存中信息的最大大小
 
         std::string &semNameTouchTime = GetConfigPath();
 
@@ -373,12 +373,12 @@ namespace msServiceProfiler {
         char *pInfoStr = static_cast<char *>(mmapPtr);
         std::string infoStr(pInfoStr, infoMaxSize);
 
-        auto splitInfo = SplitStr(infoStr.c_str(), ',');  // 格式为： pid,目录。所以使用逗号分隔开
-        if (!splitInfo.first.empty()) {
+        auto splitInfo = SplitStr(infoStr, ',');  // 格式为： pid,目录。所以使用逗号分隔开
+        if (!splitInfo.second.empty()) {
             pid_t pid = static_cast<pid_t>(Str2Uint(splitInfo.first)); // 检查的进程 PID, 如果存在，就将和它放到一个目录中
             if (kill(pid, 0) == 0) {
                 isMaster_ = false;
-                profPathDateTail_ = splitInfo.second;
+                profPathDateTail_ = std::string(splitInfo.second.c_str());
                 PROF_LOGD("is not Master");
             }
         }
@@ -596,10 +596,19 @@ namespace msServiceProfiler {
         PROF_LOGD("prof path: %s", profPath_.c_str());
 
         uint32_t profSwitch = ACL_PROF_MSPROFTX;
-        if (enableAclTaskTime_) {
-            profSwitch |= ACL_PROF_TASK_TIME_L0;
-        }
+
         uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
+        uint32_t deviceNums = 0;
+        int32_t deviceID = -1;
+        if (ACL_SUCCESS == aclrtGetDevice(&deviceID)) {
+            deviceNums = 1;
+            deviceIdList[0] = deviceID;
+            if (enableAclTaskTime_) {
+                profSwitch |= ACL_PROF_TASK_TIME_L0;
+            }
+        }
+
+        PROF_LOGD("devices: %d , num: %d", deviceID, deviceNums);
 
         if (!isAclInit_) {
             aclError retInit = aclInit(nullptr);
@@ -617,7 +626,7 @@ namespace msServiceProfiler {
             return;
         }
 
-        auto profConfig = aclprofCreateConfig(deviceIdList, 1, ACL_AICORE_NONE, nullptr, profSwitch);
+        auto profConfig = aclprofCreateConfig(deviceIdList, deviceNums, ACL_AICORE_NONE, nullptr, profSwitch);
         if (profConfig == nullptr) {
             PROF_LOGE("acl prof create config failed.");
             enable_ = false;
