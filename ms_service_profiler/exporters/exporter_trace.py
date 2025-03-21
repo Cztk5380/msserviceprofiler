@@ -19,7 +19,7 @@ class ExporterTrace(ExporterBase):
     @classmethod
     def export(cls, data) -> None:
         cpu_data_df, memory_data_df = data['cpu_data_df'], data['memory_data_df']
-        tids = set(str(x) for x in set(data["tx_data_df"]["tid"]))
+        tids = set(str(x) for x in set(data["tx_data_df"]["tid"])) if "tid" in data["tx_data_df"] else {}
         all_data_df = data['tx_data_df'].copy()
         all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
         msprof_data_df = data['msprof_data']
@@ -44,7 +44,7 @@ def load_single_prof(pf, tids):
     filtered_trace_events = [
         event
         for event in trace_events
-        if str(event.get("pid")) not in tids
+        if str(event.get("tid")) not in tids
     ]
 
     merged_dict = {

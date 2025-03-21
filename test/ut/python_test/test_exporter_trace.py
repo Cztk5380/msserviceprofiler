@@ -92,11 +92,11 @@ def test_load_single_prof_valid_file():
     mock_json_content = json.dumps([
         {"name": "process_name", "args": {"name": "CANN"}, "pid": 123},
         {"name": "event1", "pid": 123},
-        {"name": "event2", "pid": 456}
+        {"name": "event2", "pid": 456, "tid": 123}
     ])
 
     with patch("builtins.open", mock_open(read_data=mock_json_content)):
-        result = load_single_prof("dummy_path.json")
+        result = load_single_prof("dummy_path.json", ["123"])
         assert result == {"traceEvents": [
             {"name": "process_name", "args": {"name": "CANN"}, "pid": 123},
             {"name": "event1", "pid": 123}
@@ -106,14 +106,14 @@ def test_load_single_prof_valid_file():
 def test_load_single_prof_file_not_found():
     # 模拟文件未找到的情况
     with patch("builtins.open", side_effect=FileNotFoundError):
-        result = load_single_prof("nonexistent_path.json")
+        result = load_single_prof("nonexistent_path.json", [])
         assert result == {"traceEvents": []}
 
 
 def test_load_single_prof_invalid_json():
     # 模拟无效的 JSON 文件内容
     with patch("builtins.open", mock_open(read_data="invalid json")):
-        result = load_single_prof("invalid_path.json")
+        result = load_single_prof("invalid_path.json", [])
         assert result == {"traceEvents": []}
 
 
@@ -138,14 +138,14 @@ def test_integration(mock_data):
     # 集成测试：模拟多个文件的加载和合并
     mock_json_content = json.dumps([
         {"name": "process_name", "args": {"name": "CANN"}, "pid": 123},
-        {"name": "event1", "pid": 123},
+        {"name": "event1", "pid": 123, "tid": 123},
         {"name": "event2", "pid": 456}
     ])
 
     with patch("builtins.open", mock_open(read_data=mock_json_content)):
         trace_data = {"traceEvents": []}
         for pf in mock_data["msprof_data"]:
-            result = load_single_prof(pf)
+            result = load_single_prof(pf, ["123"])
             trace_data = merge_json_data(trace_data, [result])
 
         assert len(trace_data["traceEvents"]) == 6
