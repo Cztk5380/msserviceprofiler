@@ -42,6 +42,7 @@ aclError aclInit(const char *configPath);
 aclError aclrtSetDevice(int32_t deviceId);
 aclError aclrtCreateContext(aclrtContext *context, int32_t deviceId);
 aclError aclrtCreateStream(aclrtStream *stream);
+aclError aclrtGetDevice(int32_t *deviceId);
 #ifdef __cplusplus
 }
 #endif

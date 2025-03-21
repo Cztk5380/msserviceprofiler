@@ -27,3 +27,7 @@ aclError aclrtCreateStream(aclrtStream *stream)
     return 0;
 }
 
+aclError aclrtGetDevice(int32_t *deviceId)
+{
+    return 0;
+}

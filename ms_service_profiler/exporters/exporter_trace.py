@@ -29,6 +29,7 @@ class ExporterTrace(ExporterBase):
         merged_data = merge_json_data(trace_data, cann_data)
         save_trace_data_into_json(merged_data, output)
 
+
 def load_single_prof(pf, tids):
     try:
         with open(pf, 'r', encoding='utf-8') as file:

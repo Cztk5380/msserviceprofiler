@@ -589,16 +589,8 @@ namespace msServiceProfiler {
                          strlen(std::to_string(hostFreq_).c_str()));
     }
 
-    void ServiceProfilerManager::StartProfiler()
+    aclprofConfig* ServiceProfilerManager::ProfCreateConfig()
     {
-        if (started_) {
-            return;
-        }
-        if (!MakeDirs(profPath_)) {
-            PROF_LOGE("create path(%s) failed", profPath_.c_str());  // LCOV_EXCL_LINE
-        }
-        PROF_LOGD("prof path: %s", profPath_.c_str());  // LCOV_EXCL_LINE
-
         uint32_t profSwitch = ACL_PROF_MSPROFTX;
 
         uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
@@ -613,6 +605,25 @@ namespace msServiceProfiler {
         }
 
         PROF_LOGD("devices: %d , num: %d", deviceID, deviceNums);
+
+        auto profConfig = aclprofCreateConfig(deviceIdList, deviceNums, ACL_AICORE_NONE, nullptr, profSwitch);
+        if (profConfig == nullptr) {
+            PROF_LOGE("acl prof create config failed.");  // LCOV_EXCL_LINE
+        } else {
+            this->configHandle_ = profConfig;
+        }
+        return profConfig;
+    }
+
+    void ServiceProfilerManager::StartProfiler()
+    {
+        if (started_) {
+            return;
+        }
+        if (!MakeDirs(profPath_)) {
+            PROF_LOGE("create path(%s) failed", profPath_.c_str());  // LCOV_EXCL_LINE
+        }
+        PROF_LOGD("prof path: %s", profPath_.c_str());  // LCOV_EXCL_LINE
 
         if (!isAclInit_) {
             aclError retInit = aclInit(nullptr);
@@ -630,16 +641,14 @@ namespace msServiceProfiler {
             return;
         }
 
-        auto profConfig = aclprofCreateConfig(deviceIdList, deviceNums, ACL_AICORE_NONE, nullptr, profSwitch);
-        if (profConfig == nullptr) {
-            PROF_LOGE("acl prof create config failed.");  // LCOV_EXCL_LINE
-            enable_ = false;
-            return;
-        }
-        this->configHandle_ = profConfig;
-
         if (ret == ACL_ERROR_NONE && isMaster_) {
             SetAclProfHostSysConfig();
+        }
+
+        auto profConfig = ProfCreateConfig();
+        if (profConfig == nullptr) {
+            enable_ = false;
+            return;
         }
 
         PROF_LOGD("begin to start profiling");  // LCOV_EXCL_LINE

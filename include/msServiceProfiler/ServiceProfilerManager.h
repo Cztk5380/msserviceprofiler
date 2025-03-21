@@ -79,6 +79,8 @@ namespace msServiceProfiler {
 
         void InitProfPathDateTail(bool forceReinit = false);
 
+        aclprofConfig* ProfCreateConfig();
+
     private:
         bool isMaster_ = true;
         bool enable_ = false;
