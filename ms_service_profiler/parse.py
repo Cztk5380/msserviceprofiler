@@ -157,6 +157,7 @@ def load_cpu_freq(info_path):
     logger.warning(f"Missing 'Frequency' value in 'CPU' data.")
     return cpu_frequency
 
+
 def get_filepaths(folder_path, file_filter):
     filepaths = {}
     reverse_d = {value: key for key, value in file_filter.items()}
@@ -256,7 +257,8 @@ def read_origin_db(db_path: str):
                start_info: collectionTimeBegin(起始时间戳, 只有这个是us级, 其他都为ns级), clockMonotonicRaw(逻辑时钟计数)
                host_start: cntvct(起始时间计数), clock_monotonic_raw(逻辑时钟计数)
     时间戳计算方法: 1. Frequency能正常获取, 则 
-        [(当前计数 - cntvct) / Frequency + clock_monotonic_raw - clockMonotonicRaw] / NS_PER_US + collectionTimeBegin
+        [(当前计数 - cntvct) / Frequency * NS_PER_SECOND + 
+            clock_monotonic_raw - clockMonotonicRaw] / NS_PER_US + collectionTimeBegin
                    2. Frequency不能正常获取, 则
         [当前计数 - clockMonotonicRaw] / NS_PER_US + collectionTimeBegin
     '''

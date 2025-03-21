@@ -76,7 +76,8 @@ def setup_test_directory(tmp_path):
         clock_monotonic_raw: 456
     """)
     (prof_dir / "info.json").write_text('{"key": "value"}')
-    (prof_dir / "start_info").write_text('{"collectionTimeBegin": "123456.789"}')
+    (prof_dir / "start_info").write_text(
+        '{"collectionTimeBegin": "123456.789", "clockMonotonicRaw": "0"}')
     (prof_dir / "msprof_20250211122756.json").write_text('{"data": "example data"}')
 
     # 创建测试数据库文件
@@ -182,7 +183,7 @@ def test_load_start_time(setup_test_directory):
     start_info_path = setup_test_directory / "PROF_test" / "start_info"
 
     result = load_start_time(start_info_path)
-    assert result == 123456.789
+    assert result == (123456.789, 0)
 
 
 def test_load_tx_data(setup_test_directory):

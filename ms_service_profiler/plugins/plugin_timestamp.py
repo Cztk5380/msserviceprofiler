@@ -64,7 +64,7 @@ def convert_syscnt_to_ts(cnt, time_info):
             (cnt - collection_cnt_begin) / cpu_frequency 单位为s
         '''
         if cpu_frequency != 0:
-            return collection_time_begin + ((cnt - collection_cnt_begin) / cpu_frequency  * NS_PER_SECOND + \
+            return collection_time_begin + ((cnt - collection_cnt_begin) / cpu_frequency * NS_PER_SECOND + \
                 host_clock_monotonic_raw - start_clock_monotonic_raw) / NS_PER_US
         else:
             return collection_time_begin + (cnt - start_clock_monotonic_raw) / NS_PER_US
