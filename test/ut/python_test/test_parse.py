@@ -17,7 +17,6 @@ from ms_service_profiler.parse import (
     handle_exact_match,
     handle_msprof_pattern,
     handle_other_wildcard_patterns,
-    save_dataframe_to_csv,
     load_start_cnt,
     load_start_time,
     load_tx_data
@@ -77,7 +76,8 @@ def setup_test_directory(tmp_path):
         clock_monotonic_raw: 456
     """)
     (prof_dir / "info.json").write_text('{"key": "value"}')
-    (prof_dir / "start_info").write_text('{"collectionTimeBegin": "123456.789"}')
+    (prof_dir / "start_info").write_text(
+        '{"collectionTimeBegin": "123456.789", "clockMonotonicRaw": "0"}')
     (prof_dir / "msprof_20250211122756.json").write_text('{"data": "example data"}')
 
     # 创建测试数据库文件
@@ -168,19 +168,6 @@ def test_handle_other_wildcard_patterns(setup_test_directory):
         assert Path(result[alias]).name.startswith("msprof_")
 
 
-def test_save_dataframe_to_csv(setup_test_directory):
-    df = pd.DataFrame({
-        'A': [1, 2, 3],
-        'B': [4, 5, 6]
-    })
-
-    save_dataframe_to_csv(df, setup_test_directory, 'test.csv')
-
-    # 检查文件是否创建
-    output_file_path = os.path.join(setup_test_directory, 'test.csv')
-    assert os.path.isfile(output_file_path)
-
-
 def test_load_start_cnt(setup_test_directory):
     config_path = setup_test_directory / "PROF_test" / "host_start.log"
 
@@ -196,7 +183,7 @@ def test_load_start_time(setup_test_directory):
     start_info_path = setup_test_directory / "PROF_test" / "start_info"
 
     result = load_start_time(start_info_path)
-    assert result == 123456.789
+    assert result == (123456.789, 0)
 
 
 def test_load_tx_data(setup_test_directory):

@@ -24,14 +24,6 @@ from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.check.rule import Rule
 
 
-def save_dataframe_to_csv(filtered_df, output, file_name):
-    if output is not None:
-        output_path = Path(output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path = output_path / file_name
-        filtered_df.to_csv(file_path, index=False)
-
-
 def load_start_cnt(config_path):
     cntvct = 0
     clock_monotonic_raw = 0
@@ -50,10 +42,11 @@ def load_start_time(start_info_path):
     file_description = os.open(start_info_path, os.O_RDONLY)
     with os.fdopen(file_description, 'r') as info:
         data = json.load(info)
-        if 'collectionTimeBegin' not in data:
+        if 'collectionTimeBegin' not in data or 'clockMonotonicRaw' not in data:
             raise ValueError(f"Invalid or missing 'CPU' data in {start_info_path}.")
         collection_time_begin = float(data['collectionTimeBegin'])
-    return collection_time_begin
+        clock_monotonic_raw = float(data['clockMonotonicRaw'])
+    return collection_time_begin, clock_monotonic_raw
 
 
 def create_span_message_dict(data):
@@ -157,11 +150,12 @@ def load_cpu_freq(info_path):
         if 'CPU' not in data or not isinstance(data['CPU'], list) or len(data['CPU']) == 0:
             raise ValueError(f"Invalid or missing 'CPU' data in {info_path}.")
         cpu_data = data['CPU'][0]
-        cpu_frequency = cpu_data.get('Frequency', None)
-        if cpu_frequency is None:
-            raise KeyError(f"Missing 'Frequency' value in 'CPU' data.")
-        cpu_frequency = float(cpu_frequency) * US_PER_SECOND
-    return cpu_frequency
+        cpu_frequency = cpu_data.get('Frequency', 0)
+        if cpu_frequency != "":
+            return float(cpu_frequency) * US_PER_SECOND
+
+    logger.warning(f"Missing 'Frequency' value in 'CPU' data.")
+    return 0
 
 
 def get_filepaths(folder_path, file_filter):
@@ -215,13 +209,14 @@ def handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths):
 
 
 def load_time_info(filepaths):
-    cntvct, clock_monotonic_raw = load_start_cnt(filepaths.get("host_start"))
+    cntvct, host_clock_monotonic_raw = load_start_cnt(filepaths.get("host_start"))
     cpu_frequency = load_cpu_freq(filepaths.get("info"))
-    collection_time_begin = load_start_time(filepaths.get("start_info"))
+    collection_time_begin, start_clock_monotonic_raw = load_start_time(filepaths.get("start_info"))
     return dict(
         cntvct=cntvct,
-        clock_monotonic_raw=clock_monotonic_raw,
+        host_clock_monotonic_raw=host_clock_monotonic_raw,
         collection_time_begin=collection_time_begin,
+        start_clock_monotonic_raw=start_clock_monotonic_raw,
         cpu_frequency=cpu_frequency
     )
 
@@ -255,6 +250,18 @@ def read_origin_db(db_path: str):
 
     data_list = []
 
+    '''
+    data是各PROF文件夹下的数据构成的列表
+    time_info: 包含 info.json, start_info, host_start 文件信息
+               info.json: Frequency(CPU 频率)
+               start_info: collectionTimeBegin(起始时间戳, 只有这个是us级, 其他都为ns级), clockMonotonicRaw(逻辑时钟计数)
+               host_start: cntvct(起始时间计数), clock_monotonic_raw(逻辑时钟计数)
+    时间戳计算方法: 1. Frequency能正常获取, 则 
+        [(当前计数 - cntvct) / Frequency * NS_PER_SECOND + 
+            clock_monotonic_raw - clockMonotonicRaw] / NS_PER_US + collectionTimeBegin
+                   2. Frequency不能正常获取, 则
+        [当前计数 - clockMonotonicRaw] / NS_PER_US + collectionTimeBegin
+    '''
     for dp in Path(db_path).glob("**/PROF_*"):
         filepaths = get_filepaths(dp, file_filter)
         try:
@@ -267,13 +274,15 @@ def read_origin_db(db_path: str):
 
 def parse(input_path, plugins, exporters):
     logger.info('Start to parse.')
-    # 解析数据
+
+    # 加载原始db数据
     data = read_origin_db(input_path)
     if not data:
         logger.info("Read origin db %s is empty, please check.", input_path)
         return
     logger.info('Read origin db success.')
 
+    # plugins通用解析
     all_plugins = sort_plugins(builtin_plugins + plugins)
     total_plugins = len(all_plugins)
     for cur_id, plugin in enumerate(all_plugins):
@@ -281,10 +290,12 @@ def parse(input_path, plugins, exporters):
             data = plugin.parse(data)
             logger.info(f'[{cur_id + 1}/{total_plugins}] {plugin.name} success.')
         except ParseError as ex:
+            # 关键plugins失败，程序执行结束
             if plugin.name in ['plugin_timestamp', 'plugin_concat']:
                 logger.exception(f'{plugin.name} failure. Program stopped.')
                 return
             else:
+                # 非关键plugins失败，程序继续执行
                 logger.exception(f'{plugin.name} failure. Skip it.')
         except Exception as ex:
             logger.exception(f'{plugin.name} failure. Skip it.')
@@ -316,7 +327,7 @@ def gen_msprof_command(full_path):
 
 def find_file_in_dir(directory, filename):
     count = 0
-    max_iter = 1000
+    max_iter = 10000
 
     for _, _, files in os.walk(directory):
         count += len(files)

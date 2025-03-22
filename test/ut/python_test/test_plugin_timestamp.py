@@ -23,6 +23,8 @@ def sample_time_info():
         'collection_time_begin': 1000000,  # 1秒，单位微秒
         'cntvct': 500,  # 系统计数起始值
         'clock_monotonic_raw': 2000000000,  # 2秒，单位纳秒
+        'host_clock_monotonic_raw': 2000000000,
+        'start_clock_monotonic_raw': 2000000000
     }
 
 
