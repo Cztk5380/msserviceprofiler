@@ -327,7 +327,7 @@ def gen_msprof_command(full_path):
 
 def find_file_in_dir(directory, filename):
     count = 0
-    max_iter = 1000
+    max_iter = 10000
 
     for _, _, files in os.walk(directory):
         count += len(files)
