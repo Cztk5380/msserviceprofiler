@@ -132,17 +132,15 @@ class ExporterKVCacheData(ExporterBase):
             return
         start_datetime_data = df['start_datetime'].copy()
         try:
-            kvcache_df_tmp = df[df['domain'] == 'KVCache']
-            kvcache_df = kvcache_df_tmp[['domain', 'rid', 'start_time', 'end_time', 'name', \
-                'deviceBlock=', 'during_time']]
+            kvcache_df = df[df['domain'] == 'KVCache']
+            kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'name', \
+                                     'deviceBlock=', 'during_time']]
             kvcache_df = kvcache_df.rename(columns={
                 'deviceBlock=': 'device_kvcache_left',
                 'start_time': 'start_time(microsecond)',
                 'end_time': 'end_time(microsecond)',
                 'during_time': 'during_time(microsecond)'
             })
-            if 'hitCache' in kvcache_df_tmp.columns:
-                kvcache_df['kvcache_usage_rate'] = kvcache_df_tmp['hitCache']
 
         except KeyError as e:
             logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
@@ -152,8 +150,7 @@ class ExporterKVCacheData(ExporterBase):
         kvcache_df = kvcache_df.rename(columns={
             'start_datetime': 'real_start_time'
         })
-        if 'kvcache_usage_rate' not in kvcache_df.columns:
-            kvcache_df = kvcache_usage_rate_calculator(kvcache_df)
+        kvcache_df = kvcache_usage_rate_calculator(kvcache_df)
 
         db_file_path = create_sqlite_db(output)
         add_table_into_visual_db(kvcache_df, 'kvcache')
