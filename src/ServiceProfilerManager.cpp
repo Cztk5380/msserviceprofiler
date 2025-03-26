@@ -592,7 +592,7 @@ namespace msServiceProfiler {
     aclprofConfig* ServiceProfilerManager::ProfCreateConfig()
     {
         uint32_t profSwitch = ACL_PROF_MSPROFTX;
- 
+
         uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
         uint32_t deviceNums = 0;
         int32_t deviceID = -1;
@@ -603,9 +603,9 @@ namespace msServiceProfiler {
                 profSwitch |= ACL_PROF_TASK_TIME_L0;
             }
         }
- 
+
         PROF_LOGD("devices: %d , num: %d", deviceID, deviceNums);
- 
+
         auto profConfig = aclprofCreateConfig(deviceIdList, deviceNums, ACL_AICORE_NONE, nullptr, profSwitch);
         if (profConfig == nullptr) {
             PROF_LOGE("acl prof create config failed.");  // LCOV_EXCL_LINE
@@ -650,7 +650,7 @@ namespace msServiceProfiler {
             enable_ = false;
             return;
         }
-        
+
         PROF_LOGD("begin to start profiling");  // LCOV_EXCL_LINE
         ret = aclprofStart(profConfig);
         if (ret != ACL_ERROR_NONE) {
