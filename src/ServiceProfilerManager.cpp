@@ -24,7 +24,6 @@
 #include <cmath>
 #include <csignal>
 
-#include "acl/acl_prof.h"
 #include "acl/acl.h"
 #include "mstx/ms_tools_ext.h"
 #include "securec.h"
