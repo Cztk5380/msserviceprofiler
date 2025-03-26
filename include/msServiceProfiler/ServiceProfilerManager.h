@@ -18,6 +18,7 @@
 #define MS_SERVER_PROFILER_MARKER_H
 
 #include <string>
+#include "acl/acl_prof.h"
 #include <nlohmann/json.hpp>
 #include "ServiceProfilerInterface.h"
 
