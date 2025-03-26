@@ -19,6 +19,7 @@
 
 #include <string>
 #include <nlohmann/json.hpp>
+#include "acl/acl_prof.h"
 #include "ServiceProfilerInterface.h"
 
 using Json = nlohmann::json;
