@@ -24,6 +24,7 @@
 #include <cmath>
 #include <csignal>
 
+#include "acl/acl_prof.h"
 #include "acl/acl.h"
 #include "mstx/ms_tools_ext.h"
 #include "securec.h"
@@ -595,15 +596,15 @@ namespace msServiceProfiler {
         uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
         uint32_t deviceNums = 0;
         int32_t deviceID = -1;
-        if (aclrtGetDevice(&deviceID) == ACL_SUCCESS) {
+        if (ACL_SUCCESS == aclrtGetDevice(&deviceID)) {
             deviceNums = 1;
-            deviceIdList[0] = static_cast<uint32_t>(deviceID);
+            deviceIdList[0] = deviceID;
             if (enableAclTaskTime_) {
                 profSwitch |= ACL_PROF_TASK_TIME_L0;
             }
         }
 
-        PROF_LOGD("devices: %d , num: %u", deviceID, deviceNums);
+        PROF_LOGD("devices: %d , num: %d", deviceID, deviceNums);
 
         auto profConfig = aclprofCreateConfig(deviceIdList, deviceNums, ACL_AICORE_NONE, nullptr, profSwitch);
         if (profConfig == nullptr) {
