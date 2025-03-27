@@ -24,6 +24,7 @@
 using Json = nlohmann::json;
 
 namespace msServiceProfiler {
+    typedef struct aclprofConfig aclprofConfig;
     class ServiceProfilerManager {
     public:
         static ServiceProfilerManager &GetInstance();
