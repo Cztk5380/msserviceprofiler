@@ -21,8 +21,8 @@
 #include <nlohmann/json.hpp>
 #include "ServiceProfilerInterface.h"
 
-typedef nlohmann::json Json;
-typedef struct aclprofConfig aclprofConfig;
+using Json = nlohmann::json;
+using aclprofConfig = struct aclprofConfig;
 
 namespace msServiceProfiler {
     class ServiceProfilerManager {
