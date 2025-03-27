@@ -24,9 +24,9 @@
 using Json = nlohmann::json;
 
 namespace msServiceProfiler {
-    struct aclprofConfig;
     class ServiceProfilerManager {
     public:
+        struct aclprofConfig;
         static ServiceProfilerManager &GetInstance();
 
         inline bool IsEnable(uint32_t level) const
