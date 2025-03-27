@@ -140,6 +140,6 @@ def test_extract_rid_with_invalid_input():
     rid_from_message = None
     rid_map = None
     rid, rid_list, token_id_list = extract_rid(rid_from_message, rid_map)
-    assert rid == None
-    assert rid_list == None
-    assert token_id_list == None
+    assert rid is None
+    assert rid_list is None
+    assert token_id_list is None
