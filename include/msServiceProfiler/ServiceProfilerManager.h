@@ -22,9 +22,9 @@
 #include "ServiceProfilerInterface.h"
 
 using Json = nlohmann::json;
-using aclprofConfig = struct aclprofConfig;
 
 namespace msServiceProfiler {
+    struct aclprofConfig;
     class ServiceProfilerManager {
     public:
         static ServiceProfilerManager &GetInstance();
