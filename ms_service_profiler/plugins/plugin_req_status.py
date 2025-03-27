@@ -41,6 +41,11 @@ class PluginReqStatus(PluginBase):
         req_status = list(rename_mapping.values())
         if req_status:
             tx_data_df = rename_req_status(tx_data_df, req_status)
+        else:
+            vllm_req_status = ['WAITING+', 'RUNNING+', 'FINISHED+']
+            # 筛选出tx_data_df中真实存在的列
+            valid_cols = [col for col in vllm_req_status if col in tx_data_df.columns]
+            tx_data_df = rename_req_status(tx_data_df, valid_cols)
 
         # 填充domain和name
         if 'domain' in tx_data_df.columns:

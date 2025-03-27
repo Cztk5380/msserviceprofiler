@@ -89,6 +89,9 @@ def get_wait_df(df):
     req_en_queue_df = df[df['name'] == 'Enqueue']
     req_running_df = df[df['name'] == 'RUNNING']
     pending_df = df[df['name'] == 'PENDING']
+    if pending_df.empty:
+        # vllm采集不到PENDING，用WAITING替代
+        pending_df = df[df['name'] == 'WAITING']
     wait_df = process_data(req_en_queue_df, req_running_df, pending_df)
     return wait_df
 
