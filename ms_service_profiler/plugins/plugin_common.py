@@ -50,6 +50,8 @@ def extract_ids_from_reslist(rid_from_message, rid_map):
                 token_id.append(extract_iter_from_batch(req))
             else:
                 token_id.append(req.get('iter', None))
+        elif isinstance(req, str):
+            rid.append(req)
 
     return rid, token_id
 
