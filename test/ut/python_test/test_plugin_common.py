@@ -76,11 +76,12 @@ def test_parse_with_empty_rid_from_message():
 
 
 def test_parse_with_string_rid_from_message():
-    rid_from_message = ['1', '2']
+    rid_from_message = ['a', 'b']
     rid_map = {1: 1, 2: 2}
     rid, token_id = extract_ids_from_reslist(rid_from_message, rid_map)
-    assert len(rid) == 0
-    assert len(token_id) == 0
+    assert rid == ['a', 'b']
+    assert len(rid) == 2
+    assert len(token_id) == 2
 
 
 def test_parse_with_list_rid_from_message():
@@ -136,9 +137,9 @@ def test_extract_rid_with_list_input():
 
 
 def test_extract_rid_with_invalid_input():
-    rid_from_message = ['a', 'b']
-    rid_map = {1: 1, 2: 2}
+    rid_from_message = None
+    rid_map = None
     rid, rid_list, token_id_list = extract_rid(rid_from_message, rid_map)
-    assert rid == ''
-    assert rid_list == []
-    assert token_id_list == []
+    assert rid == None
+    assert rid_list == None
+    assert token_id_list == None
