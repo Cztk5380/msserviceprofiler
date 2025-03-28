@@ -24,6 +24,7 @@
 using Json = nlohmann::json;
 
 namespace msServiceProfiler {
+    using AclprofConfig = struct aclprofConfig;
     class ServiceProfilerManager {
     public:
         static ServiceProfilerManager &GetInstance();
@@ -79,7 +80,7 @@ namespace msServiceProfiler {
 
         void InitProfPathDateTail(bool forceReinit = false);
 
-        aclprofConfig* ProfCreateConfig();
+        AclprofConfig* ProfCreateConfig();
 
     private:
         bool isMaster_ = true;

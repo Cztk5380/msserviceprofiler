@@ -589,22 +589,22 @@ namespace msServiceProfiler {
                          strlen(std::to_string(hostFreq_).c_str()));
     }
 
-    aclprofConfig* ServiceProfilerManager::ProfCreateConfig()
+    AclprofConfig* ServiceProfilerManager::ProfCreateConfig()
     {
         uint32_t profSwitch = ACL_PROF_MSPROFTX;
 
         uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
         uint32_t deviceNums = 0;
         int32_t deviceID = -1;
-        if (ACL_SUCCESS == aclrtGetDevice(&deviceID)) {
+        if (aclrtGetDevice(&deviceID) == ACL_SUCCESS) {
             deviceNums = 1;
-            deviceIdList[0] = deviceID;
+            deviceIdList[0] = static_cast<uint32_t>(deviceID);
             if (enableAclTaskTime_) {
                 profSwitch |= ACL_PROF_TASK_TIME_L0;
             }
         }
 
-        PROF_LOGD("devices: %d , num: %d", deviceID, deviceNums);
+        PROF_LOGD("devices: %d , num: %u", deviceID, deviceNums);
 
         auto profConfig = aclprofCreateConfig(deviceIdList, deviceNums, ACL_AICORE_NONE, nullptr, profSwitch);
         if (profConfig == nullptr) {
@@ -673,7 +673,7 @@ namespace msServiceProfiler {
         }
         enable_ = false;
 
-        auto profConfig = (aclprofConfig *)this->configHandle_;
+        auto profConfig = (AclprofConfig *)this->configHandle_;
 
         auto ret = aclprofStop(profConfig);
         if (ret != ACL_ERROR_NONE) {
