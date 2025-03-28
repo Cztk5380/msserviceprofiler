@@ -589,7 +589,7 @@ namespace msServiceProfiler {
                          strlen(std::to_string(hostFreq_).c_str()));
     }
 
-    aclprofConfig* ServiceProfilerManager::ProfCreateConfig()
+    AclprofConfig* ServiceProfilerManager::ProfCreateConfig()
     {
         uint32_t profSwitch = ACL_PROF_MSPROFTX;
 
@@ -673,7 +673,7 @@ namespace msServiceProfiler {
         }
         enable_ = false;
 
-        auto profConfig = (aclprofConfig *)this->configHandle_;
+        auto profConfig = (AclprofConfig *)this->configHandle_;
 
         auto ret = aclprofStop(profConfig);
         if (ret != ACL_ERROR_NONE) {
