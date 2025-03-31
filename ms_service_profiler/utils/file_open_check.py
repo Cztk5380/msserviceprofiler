@@ -382,5 +382,5 @@ def get_valid_lib_path(so_name: str) -> Optional[str]:
         return real_path
     else:
         logging.warning(f"Fallback to default: {so_name}")
-        return so_name  # 路径无效，回退原名称
+        return None
 
