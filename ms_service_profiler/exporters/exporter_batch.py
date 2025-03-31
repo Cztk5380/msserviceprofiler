@@ -24,7 +24,9 @@ class ExporterBatchData(ExporterBase):
         if df is None:
             logger.warning("The data is empty, please check")
             return
-        batch_df = df[(df['name'] == 'BatchSchedule') | (df['name'] == 'modelExec')]
+        # mindie 330将BatchScheduler打点修改为batchFrameworkProcessing，此处做新旧版本的兼容处理
+        batch_df = df[(df['name'] == 'BatchSchedule') | (df['name'] == 'modelExec') | \
+            (df['name'] == 'batchFrameworkProcessing')]
         if batch_df.empty:
             logger.warning("No batch data found. Please check msproftx.db.")
             return
