@@ -1,7 +1,7 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
 import ctypes
-from utils.file_open_check import get_valid_lib_path
+from ms_service_profiler.utils.file_open_check import get_valid_lib_path
 
 
 class LibServiceProfiler:
