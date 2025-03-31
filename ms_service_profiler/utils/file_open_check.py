@@ -7,6 +7,7 @@ import re
 import logging
 
 from enum import Enum
+from typing import Optional
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.constants import PATH_WHITE_LIST_REGEX
 from ms_service_profiler.utils.check.rule import Rule
@@ -356,3 +357,30 @@ class UmaskWrapper:
 
     def __exit__(self, exc_type=None, exc_val=None, exc_tb=None):
         os.umask(self.ori_umask)
+
+
+def get_valid_lib_path(so_name: str) -> Optional[str]:
+    """校验并返回有效的库路径"""
+    # 白名单校验
+    allowed_libs = {
+        "libms_service_profiler.so"
+    }
+    if so_name not in allowed_libs:
+        logging.error(f"{so_name} is not allowed")
+        return ""
+
+    # 环境变量路径拼接
+    ascend_home = os.getenv("ASCEND_HOME_PATH")
+    if not ascend_home:
+        logging.error(f"ascend_home is not found")
+
+    candidate_path = os.path.join(ascend_home, "aarch64-linux", "lib64", so_name)
+    real_path = os.path.realpath(candidate_path)
+
+    # 路径有效性检查
+    if os.path.exists(real_path) and os.access(real_path, os.R_OK):
+        return real_path
+    else:
+        logging.warning(f"Fallback to default: {so_name}")
+        return so_name  # 路径无效，回退原名称
+
