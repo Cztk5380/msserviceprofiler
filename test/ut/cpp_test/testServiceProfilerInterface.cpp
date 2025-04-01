@@ -37,7 +37,7 @@ TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameFoundLib)
 {
     SpanHandle mockSpanHandle = 100;
     const char* mockPath = "/home/usr/Ascend/ascend-toolkit/latest";
-    MOCKER(getenv)
+    MOCKER(MyGetEnv)
         .stubs()
         .with(eq(static_cast<const char*>("ASCEND_HOME_PATH")))
         .will(returnValue(const_cast<char*>(mockPath)));
