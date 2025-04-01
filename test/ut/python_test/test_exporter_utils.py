@@ -121,5 +121,5 @@ def test_check_output_path_valid_failure_not_writable(tmpdir):
     test_dir = tmpdir.mkdir("test_output")
     os.chmod(str(test_dir), 0o444)  # 只读权限
 
-    with pytest.raises(argparse.ArgumentTypeError, match="Output path is not writable:"):
+    with pytest.raises(argparse.ArgumentTypeError, match="File is not writable"):
         check_output_path_valid(str(test_dir))

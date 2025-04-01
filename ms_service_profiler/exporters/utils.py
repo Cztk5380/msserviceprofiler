@@ -118,6 +118,4 @@ def check_output_path_valid(path):
         check_path = Rule.output_dir().check(path)
         if not check_path:
             raise argparse.ArgumentTypeError("Output path %r is incorrect due to %s, please check", path, check_path)
-    if not os.access(path, os.W_OK):
-        raise argparse.ArgumentTypeError(f"Output path is not writable: {path}")
     return path
