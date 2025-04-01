@@ -348,7 +348,7 @@ def run_msprof_command(command):
         logger.error(f"msprof error occurred: {e}")
 
 
-def preprocess_prof_folders(input_path):
+def preprocess_prof_folders(input_path, max_parallel=8):
     msprof_commnds = []
     for root, dirs, _ in os.walk(input_path):
         for dir_name in dirs:
@@ -359,7 +359,7 @@ def preprocess_prof_folders(input_path):
                 logger.info(f"{command}")
                 msprof_commnds.append(command)
 
-    with ProcessPoolExecutor(max_workers=min(8, os.cpu_count() or 1)) as executor:
+    with ProcessPoolExecutor(max_workers=min(max_parallel, os.cpu_count() or max_parallel)) as executor:
         futures = {cmd: executor.submit(run_msprof_command, cmd) for cmd in msprof_commnds}
         for cmd, future in futures.items():
             try:
