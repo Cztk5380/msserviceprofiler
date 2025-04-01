@@ -360,24 +360,22 @@ class UmaskWrapper:
 
 
 def get_valid_lib_path(so_name: str) -> str:
-    allowed_libs = {
-        "libms_service_profiler.so"
-    }
+    allowed_libs = {"libms_service_profiler.so"}
 
-    # 白名单校验（若不在列表返回空字符串）
+    # 白名单校验
     if so_name not in allowed_libs:
         logging.error(f"{so_name} is invalid.")
         return ""
 
-    # 环境变量检查（未设置直接返回so_name）
+    # 环境变量检查
     ascend_home = os.getenv("ASCEND_HOME_PATH")
     if not ascend_home:
         return so_name
 
+    # 路径拼接与校验
     candidate_path = os.path.join(ascend_home, "aarch64-linux", "lib64", so_name)
     real_path = os.path.realpath(candidate_path)
 
-    # 路径有效性检查
     if os.path.exists(real_path) and os.access(real_path, os.R_OK):
         return real_path
     else:
