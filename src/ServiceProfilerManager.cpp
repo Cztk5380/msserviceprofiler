@@ -28,6 +28,7 @@
 #include "acl/acl.h"
 #include "mstx/ms_tools_ext.h"
 #include "securec.h"
+#include "file.h"
 
 #include "../include/msServiceProfiler/NpuMemoryUsage.h"
 #include "../include/msServiceProfiler/Profiler.h"
@@ -131,7 +132,12 @@ namespace msServiceProfiler {
     static inline unsigned long Str2Uint(const std::string &str)
     {
         char *endPtr;
-        return std::strtoul(str.c_str(), &endPtr, STRING_TO_UINT_BASE);
+        long ret;
+        ret = std::strtoul(str.c_str(), &endPtr, STRING_TO_UINT_BASE);
+        if (ret == ULONG_MAX) {
+            ret = 0;
+        }
+        return ret;
     }
 
     static inline std::pair<std::string, std::string> SplitStr(const std::string &str, char splitChar)
@@ -200,10 +206,22 @@ namespace msServiceProfiler {
 
     void ServiceProfilerManager::ReadConfigPath()
     {
+        const int maxFileSize = 1048576; // 1MB
         configPath_ = getenv("SERVICE_PROF_CONFIG_PATH") ? getenv("SERVICE_PROF_CONFIG_PATH") : "";
         if (configPath_.empty()) {
             configPath_ = getenv("PROF_CONFIG_PATH") ? getenv("PROF_CONFIG_PATH") : "";
             if (access(configPath_.c_str(), F_OK) != 0) {
+                configPath_ = "";
+            }
+        }
+        if (not configPath_.empty()) {
+            if (not PathLenCheckValid) {
+                PROF_LOGE("SERVICE_PROF_CONFIG_PATH length invalid..");
+                configPath_ = "";
+                return ;
+            }
+            if (GetFileSize(configPath_) > maxFileSize) {
+                PROF_LOGE("SERVICE_PROF_CONFIG_PATH : %s is too large.", configPath_.c_str());
                 configPath_ = "";
             }
         }
