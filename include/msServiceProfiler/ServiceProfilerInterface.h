@@ -17,7 +17,7 @@
 #ifndef MS_SERVER_PROFILER_INTERFACE_H
 #define MS_SERVER_PROFILER_INTERFACE_H
 
-#include <stdio.h>
+#include <cstdio>
 #include <cstdint>
 #include <dlfcn.h>
 
@@ -118,14 +118,13 @@ private:
         ptrStartServerProfiler_ = StartServerProfiler;
         ptrStopServerProfiler_ = StopServerProfiler;
 #else
-        char* ascendHomePath = getenv("ASCEND_HOME_PATH");
+        std::string ascendHomePath = getenv("ASCEND_HOME_PATH");
         if (ascendHomePath == nullptr) {
             printf("Get ASCEND_HOME_PATH failed.Please check that the cann package is installed. \
                     Please run 'source set_env.sh' in the CANN installation path.");
             return ;
         }
-        std::string soName;
-        soName = std::string(ascendHomePath) + "/lib64/libms_service_profiler.so";
+        std::string soName = std::string(ascendHomePath) + "/lib64/libms_service_profiler.so";
         auto handle = dlopen(soName.c_str(), RTLD_LAZY);
         if (handle) {
             ptrIsEnable_ = (decltype(IsEnable) *)dlsym(handle, "IsEnable");

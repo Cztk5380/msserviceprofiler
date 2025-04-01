@@ -132,8 +132,7 @@ namespace msServiceProfiler {
     static inline unsigned long Str2Uint(const std::string &str)
     {
         char *endPtr;
-        long ret;
-        ret = std::strtoul(str.c_str(), &endPtr, STRING_TO_UINT_BASE);
+        long ret = std::strtoul(str.c_str(), &endPtr, STRING_TO_UINT_BASE);
         if (ret == ULONG_MAX) {
             ret = 0;
         }

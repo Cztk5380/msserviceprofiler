@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifndef VOS_INCLUDE_FILE_H
+#define VOS_INCLUDE_FILE_H
 
 const int DIR_NAME_LENGTH_LIMIT = 1024;
 const int FILE_NAME_LENGTH_LIMIT = 255;
