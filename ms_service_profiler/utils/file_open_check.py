@@ -365,7 +365,7 @@ def get_valid_lib_path(so_name: str) -> Optional[str]:
     # 白名单校验
     if so_name not in allowed_libs:
         logging.error(f"{so_name} is invalid.")
-        return ""
+        return None
 
     # 环境变量检查
     ascend_home = os.getenv("ASCEND_HOME_PATH")
