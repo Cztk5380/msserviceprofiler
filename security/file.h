@@ -17,12 +17,36 @@
 #ifndef VOS_INCLUDE_FILE_H
 #define VOS_INCLUDE_FILE_H
 
-const int DIR_NAME_LENGTH_LIMIT = 1024;
-const int FILE_NAME_LENGTH_LIMIT = 255;
+#include <string>
+#include <vector>
 
+namespace vos {
+    // 使用 inline constexpr 定义常量（避免多文件包含时重复定义）
+    inline constexpr int DIR_NAME_LENGTH_LIMIT = 1024;
+    inline constexpr int FILE_NAME_LENGTH_LIMIT = 255;
 
-class File {
-public:
-    size_t GetFileSize();
-    bool PathLenCheckValid();
+    class File {
+    public:
+        size_t GetFileSize(const std::string& filePath);
+        bool PathLenCheckValid(const std::string& checkPath);
+    };
+
+    template<typename Iterator>
+    void Split(std::string const &str, Iterator it, std::string const &seps = "/") {
+        std::string::size_type fast = 0;
+        if (!seps.empty() && str.rfind(seps, 0) == 0) {
+            *it = "";
+            ++it;
+        }
+        std::string::size_type slow = str.find_first_not_of(seps);
+        for (; fast < str.length(); slow = str.find_first_not_of(seps, fast)) {
+            fast = str.find_first_of(seps, slow);
+            if (fast != slow) {
+                *it = str.substr(slow, fast - slow);
+                ++it;
+            }
+        }
+    }
 }
+
+#endif

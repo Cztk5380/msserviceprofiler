@@ -16,54 +16,29 @@
 
 
 #include "file.h"
+#include <sys/stat.h>
+#include <unistd.h>
 
-
-size_t File::GetFileSize(const std::string &filePath)
-{
-    if (!IsExist(filePath)) {
-        return 0;
+namespace vos {
+    size_t File::GetFileSize(const std::string& filePath) {
+        struct stat fileStat;
+        if (stat(filePath.c_str(), &fileStat) != 0 || !S_ISREG(fileStat.st_mode)) {
+            return 0;
+        }
+        return static_cast<size_t>(fileStat.st_size);
     }
-    struct stat fileStat;
-    if (stat(filePath.c_str(), &fileStat) != 0 || !S_ISREG(fileStat.st_mode)) {
-        return 0;
-    }
-    struct stat sBuf;
-    stat(filePath.data(), &sBuf);
-    size_t filesize = static_cast<size_t>(sBuf.st_size);
-    return filesize;
-}
 
-
-bool File::PathLenCheckValid(const std::string &checkPath)
-{
-    if (checkPath.length() > DIR_NAME_LENGTH_LIMIT) {
-        return false;
-    }
-    std::vector<std::string> dirs;
-    Split(checkPath, std::back_inserter(dirs), PATH_SEP);
-    for (const auto &it : dirs) {
-        if (it.length() > FILE_NAME_LENGTH_LIMIT) {
+    bool File::PathLenCheckValid(const std::string& checkPath) {
+        if (checkPath.length() > DIR_NAME_LENGTH_LIMIT) {
             return false;
         }
-    }
-    return true;
-}
-
-
-template<typename Iterator>
-void Split(std::string const &str, Iterator it, std::string const &seps)
-{
-    std::string::size_type fast = 0;
-    if (!seps.empty() && str.rfind(seps, 0) == 0) {
-        *it = "";
-        ++it;
-    }
-    std::string::size_type slow = str.find_first_not_of(seps);
-    for (; fast < str.length(); slow = str.find_first_not_of(seps, fast)) {
-        fast = str.find_first_of(seps, slow);
-        if (fast != slow) {
-            *it = str.substr(slow, fast - slow);
-            ++it;
+        std::vector<std::string> dirs;
+        Split(checkPath, std::back_inserter(dirs), PATH_SEP);
+        for (const auto& dir : dirs) {
+            if (dir.length() > FILE_NAME_LENGTH_LIMIT) {
+                return false;
+            }
         }
+        return true;
     }
 }
