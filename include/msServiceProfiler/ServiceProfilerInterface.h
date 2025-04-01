@@ -106,10 +106,7 @@ private:
     {
         OpenLib();
     };
-    char* MyGetEnv()
-    {
-        return getenv("ASCEND_HOME_PATH");
-    }
+
     void OpenLib()
     {
 #ifdef ENABLE_SERVICE_PROF_UNIT_TEST
@@ -121,7 +118,7 @@ private:
         ptrStartServerProfiler_ = StartServerProfiler;
         ptrStopServerProfiler_ = StopServerProfiler;
 #else
-        char* ascendHomePathPtr = MyGetEnv();
+        char* ascendHomePathPtr = getenv("ASCEND_HOME_PATH");
         if (ascendHomePathPtr == nullptr) {
             printf("Get ASCEND_HOME_PATH failed. Please check that the CANN package is installed.\n"
                 "Run 'source set_env.sh' in the CANN installation path.\n");
