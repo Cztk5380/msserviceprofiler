@@ -359,7 +359,7 @@ class UmaskWrapper:
         os.umask(self.ori_umask)
 
 
-def get_valid_lib_path(so_name: str) -> str:
+def get_valid_lib_path(so_name: str) -> Optional[str]:
     allowed_libs = {"libms_service_profiler.so"}
 
     # 白名单校验
