@@ -359,20 +359,20 @@ class UmaskWrapper:
         os.umask(self.ori_umask)
 
 
-def get_valid_lib_path(so_name: str) -> Optional[str]:
-    """校验并返回有效的库路径"""
-    # 白名单校验
+def get_valid_lib_path(so_name: str) -> str:
     allowed_libs = {
         "libms_service_profiler.so"
     }
-    if so_name not in allowed_libs:
-        logging.error(f"{so_name} is not allowed")
-        return so_name
 
-    # 环境变量路径拼接
+    # 白名单校验（若不在列表返回空字符串）
+    if so_name not in allowed_libs:
+        logging.error(f"{so_name} is invalid.")
+        return ""
+
+    # 环境变量检查（未设置直接返回so_name）
     ascend_home = os.getenv("ASCEND_HOME_PATH")
     if not ascend_home:
-        logging.error(f"ascend_home is not found")
+        return so_name
 
     candidate_path = os.path.join(ascend_home, "aarch64-linux", "lib64", so_name)
     real_path = os.path.realpath(candidate_path)
@@ -381,6 +381,5 @@ def get_valid_lib_path(so_name: str) -> Optional[str]:
     if os.path.exists(real_path) and os.access(real_path, os.R_OK):
         return real_path
     else:
-        logging.warning(f"Fallback to default: {so_name}")
         return so_name
 
