@@ -39,8 +39,8 @@ TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameFoundLib)
     const char* mockPath = "/home/usr/Ascend/ascend-toolkit/latest";
     MOCKER(getenv)
         .stubs()
-        .with(eq("ASCEND_HOME_PATH"))
-        .will(returnValue(const_cast<char*>(mockPath)));
+        .with(eq(static_cast<const char*>("ASCEND_HOME_PATH")))
+        .will(returnValue(...));
     MOCKER(dlopen)
         .stubs()
         .with(any(), eq(RTLD_LAZY))
