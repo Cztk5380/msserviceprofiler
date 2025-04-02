@@ -169,6 +169,8 @@ def calculate_first_token_latency(df):
         valid_ids = []
         raw_ids = token_ids if isinstance(token_ids, list) else str(token_ids).split(',')
         for tid in raw_ids:
+            if tid is None:
+                continue
             try:
                 valid_ids.append(int(tid))
             except ValueError as e:
