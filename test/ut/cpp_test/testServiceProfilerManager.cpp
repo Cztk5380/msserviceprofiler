@@ -14,6 +14,7 @@
 #include "acl/acl.h"
 
 #include "msServiceProfiler/msServiceProfiler.h"
+#include "../include/msServiceProfiler/DeviceState.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
 
 void MarkEventLongAttr(const char *msg);
@@ -50,6 +51,7 @@ TEST(ProfilerTest, EndSpan)
 
 TEST(ProfilerTest, StartServerProfiler)
 {
+    g_deviceID = 0;
     StartServerProfiler();
 }
 
@@ -234,6 +236,7 @@ TEST(ProfilerTest, TestStartProfilerCreatConfigFailed)
     MOCKER(aclInit).stubs().will(returnValue(222));
     MOCKER(aclprofInit).stubs().will(returnValue(222));
 
+    g_deviceID = 0;
     ServiceProfilerManager manager = ServiceProfilerManager();
     manager.started_ = false;
     manager.enableAclTaskTime_ = true;
@@ -249,6 +252,7 @@ TEST(ProfilerTest, TestStartProfilerAclProfStartFailed)
     MOCKER(aclprofCreateConfig).stubs().will(returnValue((aclprofConfig*)1));
     MOCKER(aclprofStart).stubs().will(returnValue(222));
 
+    g_deviceID = 0;
     ServiceProfilerManager manager = ServiceProfilerManager();
     manager.started_ = false;
     manager.enableAclTaskTime_ = true;
