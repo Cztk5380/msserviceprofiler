@@ -47,9 +47,9 @@ void RegisterSetDeviceCallback()
 
     using ProfSetDeviceHandle = int32_t (*)(VOID_PTR, uint32_t);
     using ProfRegDeviceStateCallbackFunc = int32_t (*)(ProfSetDeviceHandle);
-    ProfRegDeviceStateCallbackFunc profRegDeviceStateCallback_ =
+    ProfRegDeviceStateCallbackFunc profRegDeviceStateCallback =
         (ProfRegDeviceStateCallbackFunc)dlsym(handle, "profRegDeviceStateCallback");
 
-    profRegDeviceStateCallback_(MsprofSetDeviceCallbackImpl);
+    profRegDeviceStateCallback(MsprofSetDeviceCallbackImpl);
 }
 }
