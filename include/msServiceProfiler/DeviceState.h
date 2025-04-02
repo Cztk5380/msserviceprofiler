@@ -22,6 +22,7 @@ namespace msServiceProfiler {
 #pragma once
 extern uint32_t g_deviceID;
 
+using VOID_PTR = void *;
 const uint32_t INVALID_DEVICE_ID = static_cast<uint32_t>(-1);
 const int EXITCODE_DEVICE_STATE_SUCCESS = 0;
 const int EXITCODE_DEVICE_STATE_INVALID_DATA = 1;
@@ -32,7 +33,7 @@ struct ProfSetDevPara {
     bool isOpen;
 };
 
-int32_t MsprofSetDeviceCallbackImpl(void * data, uint32_t len);
-void registerSetDeviceCallback();
+int32_t MsprofSetDeviceCallbackImpl(VOID_PTR data, uint32_t len);
+void RegisterSetDeviceCallback();
 }
 #endif  // DEVICE_STATE_H

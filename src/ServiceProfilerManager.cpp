@@ -31,8 +31,8 @@
 
 #include "../include/msServiceProfiler/NpuMemoryUsage.h"
 #include "../include/msServiceProfiler/Profiler.h"
-#include "../include/msServiceProfiler/ServiceProfilerManager.h"
 #include "../include/msServiceProfiler/DeviceState.h"
+#include "../include/msServiceProfiler/ServiceProfilerManager.h"
 
 
 #define PROF_LOGD(...)       \
@@ -628,8 +628,8 @@ namespace msServiceProfiler {
             return;
         }
 
-        registerSetDeviceCallback();
-        while (g_threadRunFlag && g_deviceID == INVALID_DEVICE_ID) {
+        RegisterSetDeviceCallback();
+        while (!isMaster_ && g_threadRunFlag && g_deviceID == INVALID_DEVICE_ID) {
             std::this_thread::sleep_for(std::chrono::milliseconds(this->npuMemorySleepMilliseconds_));
         }
         if (!g_threadRunFlag) {
@@ -665,7 +665,7 @@ namespace msServiceProfiler {
         }
 
         if (!MakeDirs(profPath_)) {
-          PROF_LOGE("create path(%s) failed", profPath_.c_str());  // LCOV_EXCL_LINE
+            PROF_LOGE("create path(%s) failed", profPath_.c_str());  // LCOV_EXCL_LINE
         }
         PROF_LOGD("prof path: %s", profPath_.c_str());  // LCOV_EXCL_LINE
 
@@ -682,6 +682,7 @@ namespace msServiceProfiler {
         if (!started_) {
             return;
         }
+
         enable_ = false;
 
         auto profConfig = (AclprofConfig *)this->configHandle_;

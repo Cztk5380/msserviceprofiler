@@ -23,7 +23,7 @@
 namespace msServiceProfiler {
 uint32_t g_deviceID = INVALID_DEVICE_ID;
 
-int32_t MsprofSetDeviceCallbackImpl(void * data, uint32_t len)
+int32_t MsprofSetDeviceCallbackImpl(VOID_PTR data, uint32_t len)
 {
     if (len != sizeof(ProfSetDevPara)) {
         return EXITCODE_DEVICE_STATE_INVALID_DATA;
@@ -36,7 +36,7 @@ int32_t MsprofSetDeviceCallbackImpl(void * data, uint32_t len)
     return EXITCODE_DEVICE_STATE_SUCCESS;
 }
 
-void registerSetDeviceCallback()
+void RegisterSetDeviceCallback()
 {
     void *handle = dlopen("libprofapi.so", RTLD_LAZY | RTLD_LOCAL);
     if (handle == nullptr) {
@@ -45,7 +45,7 @@ void registerSetDeviceCallback()
         return;
     }
 
-    using ProfSetDeviceHandle = int32_t (*)(void *, uint32_t);
+    using ProfSetDeviceHandle = int32_t (*)(VOID_PTR, uint32_t);
     using ProfRegDeviceStateCallbackFunc = int32_t (*)(ProfSetDeviceHandle);
     ProfRegDeviceStateCallbackFunc profRegDeviceStateCallback_ =
         (ProfRegDeviceStateCallbackFunc)dlsym(handle, "profRegDeviceStateCallback");
