@@ -36,16 +36,6 @@ TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameNotFoundLib)
 TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameFoundLib)
 {
     SpanHandle mockSpanHandle = 100;
-    const char* mockPath = "/home/usr/Ascend/ascend-toolkit/latest";
-    MOCKER(getenv)
-        .stubs()
-        .invoked(atLeast(0))
-        .with(eq(std::string("ASCEND_HOME_PATH")))
-        .will(returnValue(nullptr));
-    MOCKER(dlopen)
-        .stubs()
-        .with(any(), eq(RTLD_LAZY))
-        .will(returnValue(reinterpret_cast<void*>(&mockSpanHandle)));
     MOCKER(StartSpanWithName).stubs().will(returnValue(mockSpanHandle));
     MOCKER(dlopen).stubs().will(returnValue((void *)&mockSpanHandle));
     MOCKER(dlsym).stubs().will(returnValue((void *)StartSpanWithName));
