@@ -3,10 +3,12 @@
 from enum import Enum
 from pathlib import Path
 import json
+from collections import defaultdict
 import pandas as pd
 
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.exporters.base import ExporterBase
+from ms_service_profiler.exporters.exporter_latency import is_contained_vaild_iter_info
 
 from ms_service_profiler.utils.log import logger
 
@@ -101,19 +103,29 @@ def is_invaild_rid(rid):
 
 
 def get_req_base_info(df):
+    # 计算首 Token 时延
+    latency_df = calculate_first_token_latency(df)
+
+    # 原有分组逻辑
     req_group_df = df.groupby('rid')
     req_base_info = []
     for rid, pre_req_data in req_group_df:
         rid = str(rid)
         if rid == "" or is_invaild_rid(rid):
             continue
+
+        current_rids = [r.strip() for r in rid.split(',')]
+        total_latency = latency_df[latency_df['rid'].isin(current_rids)]['first_token_latency'].sum()
+
+        # 构造请求信息
         new_req = {
             'rid': rid,
             'start_time': '',
             'end_time': '',
             'recvTokenSize=': '',
             'replyTokenSize=': '',
-            'execution_time': ''
+            'execution_time': '',
+            'first_token_latency': total_latency if not pd.isna(total_latency) else 0
         }
 
         # 获取httpReq
@@ -144,6 +156,43 @@ def get_req_base_info(df):
 
         req_base_info.append(new_req)
     return pd.DataFrame(req_base_info)
+
+
+def calculate_first_token_latency(df):
+    latency_df = df.copy()
+
+    latency_df['rid_list'] = latency_df['rid_list'].apply(
+        lambda x: list(map(str, x)) if isinstance(x, list) else list(map(str, str(x).split(',')))
+    )
+
+    def safe_convert_token_ids(token_ids):
+        valid_ids = []
+        raw_ids = token_ids if isinstance(token_ids, list) else str(token_ids).split(',')
+        for tid in raw_ids:
+            try:
+                valid_ids.append(int(tid))
+            except:
+                pass
+        return valid_ids
+
+    latency_df['token_id_list'] = latency_df['token_id_list'].apply(safe_convert_token_ids)
+
+    mask = latency_df.apply(
+        lambda row: len(row['rid_list']) == len(row['token_id_list']),
+        axis=1
+    )
+    latency_df = latency_df[mask]
+
+    latency_df = latency_df.explode(['rid_list', 'token_id_list'])
+    latency_df['rid_list'] = latency_df['rid_list'].astype(str)  # 确保 rid 为字符串
+    latency_df['token_id_list'] = latency_df['token_id_list'].astype(int)  # 确保 token_id 为整数
+
+    latency_df = latency_df[latency_df['token_id_list'] == 0]
+
+    latency_df = latency_df.groupby('rid_list')['during_time'].sum().reset_index()
+    latency_df.columns = ['rid', 'first_token_latency']
+
+    return latency_df
 
 
 class ExporterReqData(ExporterBase):
@@ -177,8 +226,10 @@ class ExporterReqData(ExporterBase):
         df_merged = pd.merge(req_base_info, wait_df, on='rid', how='outer', indicator=True)
         df_merged.drop(columns=['_merge'], inplace=True)
 
-        filtered_df = df_merged[['rid', 'start_time', 'recvTokenSize=', 'replyTokenSize=', \
-            'execution_time', 'queue_wait_time']]
+        filtered_df = df_merged[[
+            'rid', 'start_time', 'recvTokenSize=', 'replyTokenSize=',
+            'execution_time', 'queue_wait_time', 'first_token_latency'
+        ]]
         filtered_df = filtered_df.rename(columns={
             'rid': 'http_rid',
             'recvTokenSize=': 'recv_token_size',
