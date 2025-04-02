@@ -171,8 +171,8 @@ def calculate_first_token_latency(df):
         for tid in raw_ids:
             try:
                 valid_ids.append(int(tid))
-            except:
-                pass
+            except ValueError as e:
+                continue
         return valid_ids
 
     latency_df['token_id_list'] = latency_df['token_id_list'].apply(safe_convert_token_ids)
