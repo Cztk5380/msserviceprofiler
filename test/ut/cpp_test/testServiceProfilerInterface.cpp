@@ -40,7 +40,7 @@ TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameFoundLib)
     MOCKER(getenv)
         .stubs()
         .with(eq(std::string("ASCEND_HOME_PATH")))
-        .will(returnValue(char*(nullptr)));
+        .will(returnValue(static_cast<char*>(nullptr)));
     MOCKER(dlopen)
         .stubs()
         .with(any(), eq(RTLD_LAZY))
