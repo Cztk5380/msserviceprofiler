@@ -150,11 +150,11 @@ void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
     }
     DATA_PTR setCfg = static_cast<DATA_PTR>(data);
     if (setCfg->deviceId != g_deviceID && IsEnable(msServiceProfiler::Level::INFO)) {
-        g_deviceID = setCfg->isOpen ? setCfg->deviceId : INVALID_DEVICE_ID;
+        g_deviceID = setCfg->deviceId;
         StopServerProfiler();
         StartServerProfiler();
     } else {
-        g_deviceID = setCfg->isOpen ? setCfg->deviceId : INVALID_DEVICE_ID;
+        g_deviceID = setCfg->deviceId;
     }
     return;
 }
