@@ -10,6 +10,7 @@ import sqlite3
 from pathlib import Path
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
+from json import JSONDecodeError
 
 import pandas as pd
 
@@ -22,6 +23,7 @@ from ms_service_profiler.utils.log import logger, set_log_level
 from ms_service_profiler.utils.error import ParseError, LoadDataError
 from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.check.rule import Rule
+from ms_service_profiler.utils.file_open_check import ms_open
 
 
 def load_start_cnt(config_path):
@@ -226,9 +228,15 @@ def load_time_info(filepaths):
 
 def load_host_name(tx_data_df, info_path):
     cpu_frequency = None
-    file_description = os.open(info_path, os.O_RDONLY)
-    with os.fdopen(file_description, 'r') as info:
-        data = json.load(info)
+    with ms_open(info_path, 'r') as info:
+        try:
+            data = json.load(info)
+        except JSONDecodeError as ex:
+            logger.error(f"file {info_path} is not a json file. ")
+            data = {
+                "hostname": "",
+                "hostUid": ""
+            }
         host_name = data.get("hostname")
         host_uid = data.get("hostUid")
     
