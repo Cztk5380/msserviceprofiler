@@ -125,11 +125,6 @@ void MarkEvent(const char *msg)
     }
 }
 
-void StartAclProfiler()
-{
-    msServiceProfiler::ServiceProfilerManager::GetInstance().StartAclProfiler();
-}
-
 void StartServerProfiler()
 {
     msServiceProfiler::ServiceProfilerManager::GetInstance().StartProfiler();
@@ -154,10 +149,10 @@ void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
         return;
     }
     ProfSetDevPara *setCfg = (DATA_PTR)data;
-    if (setCfg->deviceId != g_deviceID) {
+    if (setCfg->deviceId != g_deviceID && IsEnable(msServiceProfiler::Level::INFO)) {
         g_deviceID = setCfg->isOpen ? setCfg->deviceId : INVALID_DEVICE_ID;
-        // StopServerProfiler();
-        StartAclProfiler();
+        StopServerProfiler();
+        StartServerProfiler();
     } else {
         g_deviceID = setCfg->isOpen ? setCfg->deviceId : INVALID_DEVICE_ID;
     }
@@ -435,7 +430,6 @@ namespace msServiceProfiler {
             if (kill(pid, 0) == 0) {
                 isMaster_ = false;
                 profPathDateTail_ = std::string(splitInfo.second.c_str());
-                PROF_LOGD("is not Master");  // LCOV_EXCL_LINE
             }
         }
 
@@ -589,8 +583,6 @@ namespace msServiceProfiler {
             PROF_LOGD("Profiler Disabled...");  // LCOV_EXCL_LINE
             StopServerProfiler();
             PROF_LOGD("Profiler Disabled Successfully!");  // LCOV_EXCL_LINE
-        } else {
-            PROF_LOGD("Profiler Not Changed.");  // LCOV_EXCL_LINE
         }
     }
 
@@ -659,14 +651,6 @@ namespace msServiceProfiler {
               profSwitch |= ACL_PROF_TASK_TIME_L0;
             }
         }
-        auto ret = g_deviceID == INVALID_DEVICE_ID;
-        PROF_LOGD("devices: %d , num: %u, result: %d", g_deviceID, deviceNums, ret);
-
-        if (this->configHandle_ != nullptr) {
-            auto profConfig = (AclprofConfig *)this->configHandle_;
-            aclprofStop(profConfig);
-            aclprofDestroyConfig(profConfig);
-        }
 
         auto profConfig = aclprofCreateConfig(deviceIdList, deviceNums, ACL_AICORE_NONE, nullptr, profSwitch);
         if (profConfig == nullptr) {
@@ -675,57 +659,6 @@ namespace msServiceProfiler {
             this->configHandle_ = profConfig;
         }
         return profConfig;
-    }
-
-    void ServiceProfilerManager::StartAclProfiler()
-    {
-        PROF_LOGD("started_: %d, isAclPorfStartedOnDevice: %d", started_, isAclPorfStartedOnDevice);
-        if (!started_ || isAclPorfStartedOnDevice) {
-            return;
-        }
-
-        if (!isAclInit_) {
-            aclError retInit = aclInit(nullptr);
-            if (retInit == ACL_SUCCESS || retInit == ACL_ERROR_REPEAT_INITIALIZE) {
-                isAclInit_ = true;
-            } else {
-                PROF_LOGE("acl init failed, ret = %d", retInit);  // LCOV_EXCL_LINE
-                isAclInit_ = false;
-            }
-        }
-
-        aclError ret = ACL_ERROR_NONE;
-        if (!isAclPorfInit_) {
-            ret = aclprofInit(profPath_.c_str(), profPath_.size());
-            if (ret != ACL_ERROR_NONE) {
-                PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
-                return;
-            }
-            isAclPorfInit_ = true;
-        }
-
-        if (ret == ACL_ERROR_NONE && isMaster_) {
-            SetAclProfHostSysConfig();
-        }
-
-        auto profConfig = ProfCreateConfig();
-        if (profConfig == nullptr) {
-            enable_ = false;
-            return;
-        }
-
-        PROF_LOGD("begin to start profiling");  // LCOV_EXCL_LINE
-        ret = aclprofStart(profConfig);
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            enable_ = false;
-            return;
-        }
-
-        // 设置标志位
-        isAclPorfStartedOnDevice = g_deviceID == INVALID_DEVICE_ID ? false : true;
-        PROF_LOGD("isAclPorfStartedOnDevice: %d", isAclPorfStartedOnDevice);  // LCOV_EXCL_LINE
-        enable_ = true;
     }
 
     void ServiceProfilerManager::StartProfiler()
@@ -739,14 +672,49 @@ namespace msServiceProfiler {
         }
         PROF_LOGD("prof path: %s", profPath_.c_str());  // LCOV_EXCL_LINE
 
+        if (!isAclInit_) {
+            aclError retInit = aclInit(nullptr);
+            if (retInit == ACL_SUCCESS || retInit == ACL_ERROR_REPEAT_INITIALIZE) {
+                isAclInit_ = true;
+            } else {
+                PROF_LOGE("acl init failed, ret = %d", retInit);  // LCOV_EXCL_LINE
+                isAclInit_ = false;
+            }
+        }
+
+        aclError ret = aclprofInit(profPath_.c_str(), profPath_.size());
+        if (ret != ACL_ERROR_NONE) {
+            PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
+            return;
+        }
+
+        if (ret == ACL_ERROR_NONE && isMaster_) {
+            SetAclProfHostSysConfig();
+        }
+
+        auto profConfig = ProfCreateConfig();
+        if (profConfig == nullptr) {
+            enable_ = false;
+            return;
+        }
+
+        PROF_LOGD("begin to start profiling, device_id: %d", g_deviceID);  // LCOV_EXCL_LINE
+        ret = aclprofStart(profConfig);
+        if (ret != ACL_ERROR_NONE) {
+            PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
+            enable_ = false;
+            return;
+        }
+
+        // 设置标志位
+        enable_ = true;
         started_ = true;
         g_threadRunFlag = true;
-        StartAclProfiler();
     }
 
     void ServiceProfilerManager::StopProfiler()
     {
-        if (!started_ || !isAclPorfInit_) {
+        if (!started_) {
             return;
         }
 
@@ -773,8 +741,6 @@ namespace msServiceProfiler {
             return;
         }
 
-        isAclPorfInit_ = false;
-        isAclPorfStartedOnDevice = false;
         started_ = false;
     }
 }  // namespace msServiceProfiler
