@@ -148,7 +148,7 @@ void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
     if (data == nullptr) {
         return;
     }
-    ProfSetDevPara *setCfg = (DATA_PTR)data;
+    DATA_PTR setCfg = static_cast<DATA_PTR>(data);
     if (setCfg->deviceId != g_deviceID && IsEnable(msServiceProfiler::Level::INFO)) {
         g_deviceID = setCfg->isOpen ? setCfg->deviceId : INVALID_DEVICE_ID;
         StopServerProfiler();
@@ -648,7 +648,7 @@ namespace msServiceProfiler {
             deviceNums = 1;  // On device process
             deviceIdList[0] = g_deviceID;
             if (enableAclTaskTime_) {
-              profSwitch |= ACL_PROF_TASK_TIME_L0;
+                profSwitch |= ACL_PROF_TASK_TIME_L0;
             }
         }
 
