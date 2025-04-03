@@ -315,13 +315,14 @@ def test_add_kvcache_events_valid_data():
         'deviceBlock=': [0, 1, 2],
         'domain': ['KVCache', 'KVCache', 'KVCache'],
         'pid': [1, 1, 1],
+        "scope#dp": [0, 0, 0],
     }
     df = pd.DataFrame(data)
 
     result = add_kvcache_events(df)
 
     assert len(result) == 3
-    assert result[0]['name'] == 'KVCache'
+    assert result[0]['name'] == 'KVCache-dp0'
     assert result[0]['pid'] == 1
     assert result[0]["ph"] == "C"
     assert result[0]['args'] == {'Device Block': 0}

@@ -75,7 +75,10 @@ def load_tx_data(db_path):
         return None
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT pid, tid, event_type, start_time, end_time, mark_id, message FROM MsprofTxEx")
+    cursor.execute(
+        "SELECT DISTINCT pid, tid, event_type, start_time, end_time, mark_id, message "
+        "FROM MsprofTxEx order by start_time "
+    )
     all_data = cursor.fetchall()
 
     columns = [description[0] if description[0] != "message" else "ori_msg" for description in cursor.description]
@@ -221,12 +224,25 @@ def load_time_info(filepaths):
     )
 
 
+def load_host_name(tx_data_df, info_path):
+    cpu_frequency = None
+    file_description = os.open(info_path, os.O_RDONLY)
+    with os.fdopen(file_description, 'r') as info:
+        data = json.load(info)
+        host_name = data.get("hostname")
+        host_uid = data.get("hostUid")
+    
+    tx_data_df["hostname"] = host_name
+    tx_data_df["hostuid"] = host_uid
+
+
 def load_prof(filepaths):
     tx_data_df = load_tx_data(filepaths.get("tx"))
     cpu_data_df = load_cpu_data(filepaths.get("cpu"))
     memory_data_df = load_memory_data(filepaths.get("memory"))
     time_info = load_time_info(filepaths)
     msprof_files = filepaths.get("msprof", [])
+    load_host_name(tx_data_df, filepaths.get("info"))
 
     return dict(
         tx_data_df=tx_data_df,
