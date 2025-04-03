@@ -31,6 +31,7 @@
 
 #include "../include/msServiceProfiler/NpuMemoryUsage.h"
 #include "../include/msServiceProfiler/Profiler.h"
+#include "../include/msServiceProfiler/DeviceState.h"
 #include "../include/msServiceProfiler/ServiceProfilerManager.h"
 
 
@@ -593,18 +594,12 @@ namespace msServiceProfiler {
     {
         uint32_t profSwitch = ACL_PROF_MSPROFTX;
 
-        uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
-        uint32_t deviceNums = 0;
-        int32_t deviceID = -1;
-        if (aclrtGetDevice(&deviceID) == ACL_SUCCESS) {
-            deviceNums = 1;
-            deviceIdList[0] = static_cast<uint32_t>(deviceID);
-            if (enableAclTaskTime_) {
-                profSwitch |= ACL_PROF_TASK_TIME_L0;
-            }
+        uint32_t deviceIdList[MAX_DEVICE_NUM] = {g_deviceID};
+        uint32_t deviceNums = 1;
+        if (enableAclTaskTime_) {
+            profSwitch |= ACL_PROF_TASK_TIME_L0;
         }
-
-        PROF_LOGD("devices: %d , num: %u", deviceID, deviceNums);
+        PROF_LOGD("devices: %d , num: %u", g_deviceID, deviceNums);
 
         auto profConfig = aclprofCreateConfig(deviceIdList, deviceNums, ACL_AICORE_NONE, nullptr, profSwitch);
         if (profConfig == nullptr) {
@@ -615,16 +610,8 @@ namespace msServiceProfiler {
         return profConfig;
     }
 
-    void ServiceProfilerManager::StartProfiler()
+    void ServiceProfilerManager::AclThreadFunction()
     {
-        if (started_) {
-            return;
-        }
-        if (!MakeDirs(profPath_)) {
-            PROF_LOGE("create path(%s) failed", profPath_.c_str());  // LCOV_EXCL_LINE
-        }
-        PROF_LOGD("prof path: %s", profPath_.c_str());  // LCOV_EXCL_LINE
-
         if (!isAclInit_) {
             aclError retInit = aclInit(nullptr);
             if (retInit == ACL_SUCCESS || retInit == ACL_ERROR_REPEAT_INITIALIZE) {
@@ -638,6 +625,14 @@ namespace msServiceProfiler {
         aclError ret = aclprofInit(profPath_.c_str(), profPath_.size());
         if (ret != ACL_ERROR_NONE) {
             PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
+            return;
+        }
+
+        RegisterSetDeviceCallback();
+        while (!isMaster_ && g_threadRunFlag && g_deviceID == INVALID_DEVICE_ID) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(this->npuMemorySleepMilliseconds_));
+        }
+        if (!g_threadRunFlag) {
             return;
         }
 
@@ -660,9 +655,25 @@ namespace msServiceProfiler {
         }
 
         // 设置标志位
-        g_threadRunFlag = true;
-
         enable_ = true;
+    }
+
+    void ServiceProfilerManager::StartProfiler()
+    {
+        if (started_) {
+            return;
+        }
+
+        if (!MakeDirs(profPath_)) {
+            PROF_LOGE("create path(%s) failed", profPath_.c_str());  // LCOV_EXCL_LINE
+        }
+        PROF_LOGD("prof path: %s", profPath_.c_str());  // LCOV_EXCL_LINE
+
+        auto t = std::thread(&ServiceProfilerManager::AclThreadFunction, this);
+        t.detach();
+
+        // 设置标志位
+        g_threadRunFlag = true;
         started_ = true;
     }
 
@@ -671,6 +682,7 @@ namespace msServiceProfiler {
         if (!started_) {
             return;
         }
+
         enable_ = false;
 
         auto profConfig = (AclprofConfig *)this->configHandle_;

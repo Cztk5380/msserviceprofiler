@@ -74,6 +74,8 @@ namespace msServiceProfiler {
 
         void ThreadFunction();
 
+        void AclThreadFunction();
+
         void ReadConfigPath();
 
         void MarkFirstProcessAsMain();
