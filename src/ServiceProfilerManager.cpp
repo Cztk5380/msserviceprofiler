@@ -31,24 +31,26 @@
 
 #include "../include/msServiceProfiler/NpuMemoryUsage.h"
 #include "../include/msServiceProfiler/Profiler.h"
-#include "../include/msServiceProfiler/DeviceState.h"
 #include "../include/msServiceProfiler/ServiceProfilerManager.h"
 
 
 #define PROF_LOGD(...)       \
     do {                     \
+        printf("[msservice_profiler] [PID:%d] [DEBUG] [%s:%d] ", getpid(), __func__, __LINE__); \
         printf(__VA_ARGS__); \
         printf("\n");        \
     } while (0)
 
 #define PROF_LOGW(...)       \
     do {                     \
+        printf("[msservice_profiler] [PID:%d] [WARNING] [%s:%d] ", getpid(), __func__, __LINE__); \
         printf(__VA_ARGS__); \
         printf("\n");        \
     } while (0)
 
 #define PROF_LOGE(...)       \
     do {                     \
+        printf("[msservice_profiler] [PID:%d] [ERROR] [%s:%d] ", getpid(), __func__, __LINE__); \
         printf(__VA_ARGS__); \
         printf("\n");        \
     } while (0)
@@ -58,9 +60,19 @@ constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
 constexpr int STRING_TO_UINT_BASE = 10;
 constexpr int MILLISECONDS_IN_SECOND = 1000;
+constexpr uint32_t INVALID_DEVICE_ID = static_cast<uint32_t>(-1);
+
+using DATA_PTR = struct ProfSetDevPara *;
+
+struct ProfSetDevPara {
+    uint32_t chipId;
+    uint32_t deviceId;
+    bool isOpen;
+};
 
 // 全局标志位，用于控制线程退出
 std::atomic<bool> g_threadRunFlag(true);
+uint32_t g_deviceID = INVALID_DEVICE_ID;
 } // end of anonymous namespace
 
 static void MarkEventLongAttr(const char *msg)
@@ -113,6 +125,11 @@ void MarkEvent(const char *msg)
     }
 }
 
+void StartAclProfiler()
+{
+    msServiceProfiler::ServiceProfilerManager::GetInstance().StartAclProfiler();
+}
+
 void StartServerProfiler()
 {
     msServiceProfiler::ServiceProfilerManager::GetInstance().StartProfiler();
@@ -126,6 +143,42 @@ void StopServerProfiler()
 bool IsEnable(uint32_t level)
 {
     return msServiceProfiler::ServiceProfilerManager::GetInstance().IsEnable(level);
+}
+
+void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
+{
+    if (len != sizeof(ProfSetDevPara)) {
+        return;
+    }
+    if (data == nullptr) {
+        return;
+    }
+    ProfSetDevPara *setCfg = (DATA_PTR)data;
+    if (setCfg->deviceId != g_deviceID) {
+        g_deviceID = setCfg->isOpen ? setCfg->deviceId : INVALID_DEVICE_ID;
+        // StopServerProfiler();
+        StartAclProfiler();
+    } else {
+        g_deviceID = setCfg->isOpen ? setCfg->deviceId : INVALID_DEVICE_ID;
+    }
+    return;
+}
+
+void RegisterSetDeviceCallback()
+{
+    void *handle = dlopen("libprofapi.so", RTLD_LAZY | RTLD_LOCAL);
+    if (handle == nullptr) {
+        std::cerr << "[WARNING] failed to dlopen libprofapi.so. Will be not able to get MPU usage data. " <<
+            "Check whether a NPU server or if NPU driver installed." << std::endl;
+        return;
+    }
+
+    using ProfSetDeviceHandle = void (*)(DATA_PTR, uint32_t);
+    using ProfRegDeviceStateCallbackFunc = int32_t (*)(ProfSetDeviceHandle);
+    ProfRegDeviceStateCallbackFunc profRegDeviceStateCallback =
+        (ProfRegDeviceStateCallbackFunc)dlsym(handle, "profRegDeviceStateCallback");
+
+    profRegDeviceStateCallback(MsprofSetDeviceCallbackImpl);
 }
 
 namespace msServiceProfiler {
@@ -184,6 +237,7 @@ namespace msServiceProfiler {
         ReadLevel(configJson);
         ReadCollectConfig(configJson);
 
+        RegisterSetDeviceCallback();
         if (enable_) {
             StartProfiler();
         }
@@ -594,12 +648,25 @@ namespace msServiceProfiler {
     {
         uint32_t profSwitch = ACL_PROF_MSPROFTX;
 
-        uint32_t deviceIdList[MAX_DEVICE_NUM] = {g_deviceID};
+        uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
         uint32_t deviceNums = 1;
-        if (enableAclTaskTime_) {
-            profSwitch |= ACL_PROF_TASK_TIME_L0;
+        if (g_deviceID == INVALID_DEVICE_ID) {
+            deviceNums = 0;  // On host process
+        } else {
+            deviceNums = 1;  // On device process
+            deviceIdList[0] = g_deviceID;
+            if (enableAclTaskTime_) {
+              profSwitch |= ACL_PROF_TASK_TIME_L0;
+            }
         }
-        PROF_LOGD("devices: %d , num: %u", g_deviceID, deviceNums);
+        auto ret = g_deviceID == INVALID_DEVICE_ID;
+        PROF_LOGD("devices: %d , num: %u, result: %d", g_deviceID, deviceNums, ret);
+
+        if (this->configHandle_ != nullptr) {
+            auto profConfig = (AclprofConfig *)this->configHandle_;
+            aclprofStop(profConfig);
+            aclprofDestroyConfig(profConfig);
+        }
 
         auto profConfig = aclprofCreateConfig(deviceIdList, deviceNums, ACL_AICORE_NONE, nullptr, profSwitch);
         if (profConfig == nullptr) {
@@ -610,8 +677,13 @@ namespace msServiceProfiler {
         return profConfig;
     }
 
-    void ServiceProfilerManager::AclThreadFunction()
+    void ServiceProfilerManager::StartAclProfiler()
     {
+        PROF_LOGD("started_: %d, isAclPorfStartedOnDevice: %d", started_, isAclPorfStartedOnDevice);
+        if (!started_ || isAclPorfStartedOnDevice) {
+            return;
+        }
+
         if (!isAclInit_) {
             aclError retInit = aclInit(nullptr);
             if (retInit == ACL_SUCCESS || retInit == ACL_ERROR_REPEAT_INITIALIZE) {
@@ -622,18 +694,14 @@ namespace msServiceProfiler {
             }
         }
 
-        aclError ret = aclprofInit(profPath_.c_str(), profPath_.size());
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            return;
-        }
-
-        RegisterSetDeviceCallback();
-        while (!isMaster_ && g_threadRunFlag && g_deviceID == INVALID_DEVICE_ID) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(this->npuMemorySleepMilliseconds_));
-        }
-        if (!g_threadRunFlag) {
-            return;
+        aclError ret = ACL_ERROR_NONE;
+        if (!isAclPorfInit_) {
+            ret = aclprofInit(profPath_.c_str(), profPath_.size());
+            if (ret != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                return;
+            }
+            isAclPorfInit_ = true;
         }
 
         if (ret == ACL_ERROR_NONE && isMaster_) {
@@ -655,6 +723,8 @@ namespace msServiceProfiler {
         }
 
         // 设置标志位
+        isAclPorfStartedOnDevice = g_deviceID == INVALID_DEVICE_ID ? false : true;
+        PROF_LOGD("isAclPorfStartedOnDevice: %d", isAclPorfStartedOnDevice);  // LCOV_EXCL_LINE
         enable_ = true;
     }
 
@@ -669,17 +739,14 @@ namespace msServiceProfiler {
         }
         PROF_LOGD("prof path: %s", profPath_.c_str());  // LCOV_EXCL_LINE
 
-        auto t = std::thread(&ServiceProfilerManager::AclThreadFunction, this);
-        t.detach();
-
-        // 设置标志位
-        g_threadRunFlag = true;
         started_ = true;
+        g_threadRunFlag = true;
+        StartAclProfiler();
     }
 
     void ServiceProfilerManager::StopProfiler()
     {
-        if (!started_) {
+        if (!started_ || !isAclPorfInit_) {
             return;
         }
 
@@ -692,6 +759,7 @@ namespace msServiceProfiler {
             PROF_LOGE("acl prof stop failed, ret = %d", ret);  // LCOV_EXCL_LINE
             return;
         }
+
         ret = aclprofDestroyConfig(profConfig);
         if (ret != ACL_ERROR_NONE) {
             PROF_LOGE("acl prof destroy config failed, ret = %d", ret);  // LCOV_EXCL_LINE
@@ -705,6 +773,8 @@ namespace msServiceProfiler {
             return;
         }
 
+        isAclPorfInit_ = false;
+        isAclPorfStartedOnDevice = false;
         started_ = false;
     }
 }  // namespace msServiceProfiler
