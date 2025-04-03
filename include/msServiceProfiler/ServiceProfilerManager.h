@@ -89,8 +89,6 @@ namespace msServiceProfiler {
         bool enable_ = false;
         bool started_ = false;
         bool isAclInit_ = false;
-        bool isAclPorfInit_ = false;
-        bool isAclPorfStartedOnDevice = false;
         std::string configPath_;
         std::string profPath_;
         std::string profPathDateTail_;
