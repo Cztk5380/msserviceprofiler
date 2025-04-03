@@ -115,7 +115,7 @@ def add_flow_event(flow_event_df):
     return flow_trace_events
 
 
-def create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map):
+def create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map=None):
     metric_event = ['npu', 'KVCache', 'PullKVCache']
 
     # 普通事件

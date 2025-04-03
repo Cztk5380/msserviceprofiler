@@ -4,6 +4,7 @@ import pandas as pd
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.utils.log import logger
 
+
 class PluginProcessName(PluginBase):
     name = "plugin_process_name"
     depends = ["plugin_common"]
@@ -20,7 +21,7 @@ class PluginProcessName(PluginBase):
         # 从kvcache 中获取 rid 和 dp 的键值对
         kvcache_df = tx_data_df[tx_data_df['domain'] == 'KVCache']
         kvcache_df = kvcache_df.drop_duplicates(subset='rid', keep='first')
-        rid_dp_df = kvcache_df[['scope#dp' , 'rid']]
+        rid_dp_df = kvcache_df[['scope#dp', 'rid']]
         rid_dp_dict = rid_dp_df.set_index('rid')['scope#dp'].to_dict()
 
         pid_label_map = {}
