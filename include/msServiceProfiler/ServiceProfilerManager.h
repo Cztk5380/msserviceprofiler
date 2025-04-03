@@ -34,6 +34,8 @@ namespace msServiceProfiler {
             return enable_ && level_ >= level;
         }
 
+        void StartAclProfiler();
+
         void StartProfiler();
 
         void StopProfiler();
@@ -74,8 +76,6 @@ namespace msServiceProfiler {
 
         void ThreadFunction();
 
-        void AclThreadFunction();
-
         void ReadConfigPath();
 
         void MarkFirstProcessAsMain();
@@ -89,12 +89,14 @@ namespace msServiceProfiler {
         bool enable_ = false;
         bool started_ = false;
         bool isAclInit_ = false;
+        bool isAclPorfInit_ = false;
+        bool isAclPorfStartedOnDevice = false;
         std::string configPath_;
         std::string profPath_;
         std::string profPathDateTail_;
         uint32_t level_ = Level::INFO;
         bool enableAclTaskTime_ = false;
-        void *configHandle_;
+        void *configHandle_ = nullptr;
         int lastUpdate_ = 0;
 
         bool hostCpuUsage_ = false;
