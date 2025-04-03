@@ -34,8 +34,6 @@ namespace msServiceProfiler {
             return enable_ && level_ >= level;
         }
 
-        void StartAclProfiler();
-
         void StartProfiler();
 
         void StopProfiler();

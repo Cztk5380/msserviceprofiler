@@ -708,8 +708,8 @@ namespace msServiceProfiler {
 
         // 设置标志位
         enable_ = true;
-        started_ = true;
         g_threadRunFlag = true;
+        started_ = true;
     }
 
     void ServiceProfilerManager::StopProfiler()
@@ -727,7 +727,6 @@ namespace msServiceProfiler {
             PROF_LOGE("acl prof stop failed, ret = %d", ret);  // LCOV_EXCL_LINE
             return;
         }
-
         ret = aclprofDestroyConfig(profConfig);
         if (ret != ACL_ERROR_NONE) {
             PROF_LOGE("acl prof destroy config failed, ret = %d", ret);  // LCOV_EXCL_LINE
