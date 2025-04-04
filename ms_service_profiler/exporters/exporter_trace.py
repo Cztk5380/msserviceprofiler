@@ -21,11 +21,15 @@ class ExporterTrace(ExporterBase):
         cpu_data_df, memory_data_df = data['cpu_data_df'], data['memory_data_df']
         tids = set(str(x) for x in set(data["tx_data_df"]["tid"])) if "tid" in data["tx_data_df"] else {}
         all_data_df = data['tx_data_df'].copy()
+        if 'pid_label_map' in data:
+            pid_label_map = data['pid_label_map']
+        else:
+            pid_label_map = None
         all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
         msprof_data_df = data['msprof_data']
         cann_data = [load_single_prof(pf, tids) for pf in msprof_data_df]
         output = cls.args.output_path
-        trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df)
+        trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
         merged_data = merge_json_data(trace_data, cann_data)
         save_trace_data_into_json(merged_data, output)
 
@@ -111,7 +115,7 @@ def add_flow_event(flow_event_df):
     return flow_trace_events
 
 
-def create_trace_events(all_data_df, cpu_data_df, memory_data_df):
+def create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map=None):
     metric_event = ['npu', 'KVCache', 'PullKVCache']
 
     # 普通事件
@@ -139,9 +143,43 @@ def create_trace_events(all_data_df, cpu_data_df, memory_data_df):
     flow_trace_events = add_flow_event(flow_event_df)
     trace_events.extend(flow_trace_events)
     trace_events = sort_trace_events_by_tid(trace_events)
+    if pid_label_map is not None:
+        trace_events.extend(sort_trace_events_by_pid(pid_label_map))
 
     trace_data = {"traceEvents": trace_events}
     return trace_data
+
+
+def sort_trace_events_by_pid(pid_label_map):
+    pid_sorting_meta = []
+    pid_sorting = []
+    for pid, item in pid_label_map.items():
+        host_name = item.get("hostname", "")
+        dp = item.get("dp", -1)
+        pid_sorting.append((pid, host_name, dp))
+    
+    pid_sorting.sort(key=lambda x: (x[2], x[1]))
+
+    for index, item in enumerate(pid_sorting):
+        pid, host_name, dp = item
+        pid_sorting_meta.append(dict(
+            name="process_sort_index",
+            ph="M",
+            pid=pid,
+            args=dict(sort_index=index))
+        )
+        if dp == -1:
+            labels = [host_name]
+        else:
+            labels = [host_name, f"dp{int(dp)}"]
+        pid_sorting_meta.append(dict(
+            name="process_labels",
+            ph="M",
+            pid=pid,
+            args=dict(labels=','.join(labels)))
+        )
+    
+    return pid_sorting_meta
 
 
 def sort_trace_events_by_tid(trace_events):
@@ -256,7 +294,10 @@ def add_kvcache_events(kv_data_df):
     if 'deviceBlock=' not in kv_data_df:
         return []
     kv_trace_df = kv_data_df.copy()
-    kv_trace_df['name'] = kv_data_df['domain']
+    if "scope#dp" in kv_trace_df:
+        kv_trace_df['name'] = kv_trace_df['domain'] + '-dp' + kv_trace_df["scope#dp"].astype(int).astype(str)
+    else:
+        kv_trace_df['name'] = kv_trace_df['domain']
     kv_trace_df['ph'] = 'C'
     kv_trace_df['ts'] = kv_data_df['start_time']
     kv_trace_df['tid'] = kv_data_df['domain']

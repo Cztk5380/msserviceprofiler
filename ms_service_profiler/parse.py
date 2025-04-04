@@ -10,6 +10,7 @@ import sqlite3
 from pathlib import Path
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
+from json import JSONDecodeError
 
 import pandas as pd
 
@@ -22,6 +23,7 @@ from ms_service_profiler.utils.log import logger, set_log_level
 from ms_service_profiler.utils.error import ParseError, LoadDataError
 from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.check.rule import Rule
+from ms_service_profiler.utils.file_open_check import ms_open
 
 
 def load_start_cnt(config_path):
@@ -75,7 +77,10 @@ def load_tx_data(db_path):
         return None
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT pid, tid, event_type, start_time, end_time, mark_id, message FROM MsprofTxEx")
+    cursor.execute(
+        "SELECT DISTINCT pid, tid, event_type, start_time, end_time, mark_id, message "
+        "FROM MsprofTxEx order by start_time "
+    )
     all_data = cursor.fetchall()
 
     columns = [description[0] if description[0] != "message" else "ori_msg" for description in cursor.description]
@@ -221,12 +226,31 @@ def load_time_info(filepaths):
     )
 
 
+def load_host_name(tx_data_df, info_path):
+    cpu_frequency = None
+    with ms_open(info_path, 'r') as info:
+        try:
+            data = json.load(info)
+        except JSONDecodeError as ex:
+            logger.error(f"file {info_path} is not a json file. ")
+            data = {
+                "hostname": "",
+                "hostUid": ""
+            }
+        host_name = data.get("hostname")
+        host_uid = data.get("hostUid")
+    
+    tx_data_df["hostname"] = host_name
+    tx_data_df["hostuid"] = host_uid
+
+
 def load_prof(filepaths):
     tx_data_df = load_tx_data(filepaths.get("tx"))
     cpu_data_df = load_cpu_data(filepaths.get("cpu"))
     memory_data_df = load_memory_data(filepaths.get("memory"))
     time_info = load_time_info(filepaths)
     msprof_files = filepaths.get("msprof", [])
+    load_host_name(tx_data_df, filepaths.get("info"))
 
     return dict(
         tx_data_df=tx_data_df,
