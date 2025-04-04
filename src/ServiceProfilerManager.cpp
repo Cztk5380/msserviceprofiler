@@ -31,24 +31,26 @@
 
 #include "../include/msServiceProfiler/NpuMemoryUsage.h"
 #include "../include/msServiceProfiler/Profiler.h"
-#include "../include/msServiceProfiler/DeviceState.h"
 #include "../include/msServiceProfiler/ServiceProfilerManager.h"
 
 
 #define PROF_LOGD(...)       \
     do {                     \
+        printf("[msservice_profiler] [PID:%d] [DEBUG] [%s:%d] ", getpid(), __func__, __LINE__); \
         printf(__VA_ARGS__); \
         printf("\n");        \
     } while (0)
 
 #define PROF_LOGW(...)       \
     do {                     \
+        printf("[msservice_profiler] [PID:%d] [WARNING] [%s:%d] ", getpid(), __func__, __LINE__); \
         printf(__VA_ARGS__); \
         printf("\n");        \
     } while (0)
 
 #define PROF_LOGE(...)       \
     do {                     \
+        printf("[msservice_profiler] [PID:%d] [ERROR] [%s:%d] ", getpid(), __func__, __LINE__); \
         printf(__VA_ARGS__); \
         printf("\n");        \
     } while (0)
@@ -58,9 +60,19 @@ constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
 constexpr int STRING_TO_UINT_BASE = 10;
 constexpr int MILLISECONDS_IN_SECOND = 1000;
+constexpr uint32_t INVALID_DEVICE_ID = static_cast<uint32_t>(-1);
+
+using DATA_PTR = struct ProfSetDevPara *;
+
+struct ProfSetDevPara {
+    uint32_t chipId;
+    uint32_t deviceId;
+    bool isOpen;
+};
 
 // 全局标志位，用于控制线程退出
 std::atomic<bool> g_threadRunFlag(true);
+uint32_t g_deviceID = INVALID_DEVICE_ID;
 } // end of anonymous namespace
 
 static void MarkEventLongAttr(const char *msg)
@@ -128,6 +140,42 @@ bool IsEnable(uint32_t level)
     return msServiceProfiler::ServiceProfilerManager::GetInstance().IsEnable(level);
 }
 
+void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
+{
+    if (len != sizeof(ProfSetDevPara)) {
+        return;
+    }
+    if (data == nullptr) {
+        return;
+    }
+    DATA_PTR setCfg = static_cast<DATA_PTR>(data);
+    if (setCfg->deviceId != g_deviceID && IsEnable(msServiceProfiler::Level::INFO)) {
+        g_deviceID = setCfg->deviceId;
+        StopServerProfiler();
+        StartServerProfiler();
+    } else {
+        g_deviceID = setCfg->deviceId;
+    }
+    return;
+}
+
+void RegisterSetDeviceCallback()
+{
+    void *handle = dlopen("libprofapi.so", RTLD_LAZY | RTLD_LOCAL);
+    if (handle == nullptr) {
+        std::cerr << "[WARNING] failed to dlopen libprofapi.so. Will be not able to get MPU usage data. " <<
+            "Check whether a NPU server or if NPU driver installed." << std::endl;
+        return;
+    }
+
+    using ProfSetDeviceHandle = void (*)(DATA_PTR, uint32_t);
+    using ProfRegDeviceStateCallbackFunc = int32_t (*)(ProfSetDeviceHandle);
+    ProfRegDeviceStateCallbackFunc profRegDeviceStateCallback =
+        (ProfRegDeviceStateCallbackFunc)dlsym(handle, "profRegDeviceStateCallback");
+
+    profRegDeviceStateCallback(MsprofSetDeviceCallbackImpl);
+}
+
 namespace msServiceProfiler {
     static inline unsigned long Str2Uint(const std::string &str)
     {
@@ -184,6 +232,7 @@ namespace msServiceProfiler {
         ReadLevel(configJson);
         ReadCollectConfig(configJson);
 
+        RegisterSetDeviceCallback();
         if (enable_) {
             StartProfiler();
         }
@@ -381,7 +430,6 @@ namespace msServiceProfiler {
             if (kill(pid, 0) == 0) {
                 isMaster_ = false;
                 profPathDateTail_ = std::string(splitInfo.second.c_str());
-                PROF_LOGD("is not Master");  // LCOV_EXCL_LINE
             }
         }
 
@@ -535,8 +583,6 @@ namespace msServiceProfiler {
             PROF_LOGD("Profiler Disabled...");  // LCOV_EXCL_LINE
             StopServerProfiler();
             PROF_LOGD("Profiler Disabled Successfully!");  // LCOV_EXCL_LINE
-        } else {
-            PROF_LOGD("Profiler Not Changed.");  // LCOV_EXCL_LINE
         }
     }
 
@@ -594,12 +640,17 @@ namespace msServiceProfiler {
     {
         uint32_t profSwitch = ACL_PROF_MSPROFTX;
 
-        uint32_t deviceIdList[MAX_DEVICE_NUM] = {g_deviceID};
+        uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
         uint32_t deviceNums = 1;
-        if (enableAclTaskTime_) {
-            profSwitch |= ACL_PROF_TASK_TIME_L0;
+        if (g_deviceID == INVALID_DEVICE_ID) {
+            deviceNums = 0;  // On host process
+        } else {
+            deviceNums = 1;  // On device process
+            deviceIdList[0] = g_deviceID;
+            if (enableAclTaskTime_) {
+                profSwitch |= ACL_PROF_TASK_TIME_L0;
+            }
         }
-        PROF_LOGD("devices: %d , num: %u", g_deviceID, deviceNums);
 
         auto profConfig = aclprofCreateConfig(deviceIdList, deviceNums, ACL_AICORE_NONE, nullptr, profSwitch);
         if (profConfig == nullptr) {
@@ -610,8 +661,17 @@ namespace msServiceProfiler {
         return profConfig;
     }
 
-    void ServiceProfilerManager::AclThreadFunction()
+    void ServiceProfilerManager::StartProfiler()
     {
+        if (started_) {
+            return;
+        }
+
+        if (!MakeDirs(profPath_)) {
+            PROF_LOGE("create path(%s) failed", profPath_.c_str());  // LCOV_EXCL_LINE
+        }
+        PROF_LOGD("prof path: %s", profPath_.c_str());  // LCOV_EXCL_LINE
+
         if (!isAclInit_) {
             aclError retInit = aclInit(nullptr);
             if (retInit == ACL_SUCCESS || retInit == ACL_ERROR_REPEAT_INITIALIZE) {
@@ -628,14 +688,6 @@ namespace msServiceProfiler {
             return;
         }
 
-        RegisterSetDeviceCallback();
-        while (!isMaster_ && g_threadRunFlag && g_deviceID == INVALID_DEVICE_ID) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(this->npuMemorySleepMilliseconds_));
-        }
-        if (!g_threadRunFlag) {
-            return;
-        }
-
         if (ret == ACL_ERROR_NONE && isMaster_) {
             SetAclProfHostSysConfig();
         }
@@ -646,7 +698,7 @@ namespace msServiceProfiler {
             return;
         }
 
-        PROF_LOGD("begin to start profiling");  // LCOV_EXCL_LINE
+        PROF_LOGD("begin to start profiling, device_id: %d", g_deviceID);  // LCOV_EXCL_LINE
         ret = aclprofStart(profConfig);
         if (ret != ACL_ERROR_NONE) {
             PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
@@ -656,23 +708,6 @@ namespace msServiceProfiler {
 
         // 设置标志位
         enable_ = true;
-    }
-
-    void ServiceProfilerManager::StartProfiler()
-    {
-        if (started_) {
-            return;
-        }
-
-        if (!MakeDirs(profPath_)) {
-            PROF_LOGE("create path(%s) failed", profPath_.c_str());  // LCOV_EXCL_LINE
-        }
-        PROF_LOGD("prof path: %s", profPath_.c_str());  // LCOV_EXCL_LINE
-
-        auto t = std::thread(&ServiceProfilerManager::AclThreadFunction, this);
-        t.detach();
-
-        // 设置标志位
         g_threadRunFlag = true;
         started_ = true;
     }

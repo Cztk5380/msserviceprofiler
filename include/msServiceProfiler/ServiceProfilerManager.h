@@ -74,8 +74,6 @@ namespace msServiceProfiler {
 
         void ThreadFunction();
 
-        void AclThreadFunction();
-
         void ReadConfigPath();
 
         void MarkFirstProcessAsMain();
@@ -94,7 +92,7 @@ namespace msServiceProfiler {
         std::string profPathDateTail_;
         uint32_t level_ = Level::INFO;
         bool enableAclTaskTime_ = false;
-        void *configHandle_;
+        void *configHandle_ = nullptr;
         int lastUpdate_ = 0;
 
         bool hostCpuUsage_ = false;
