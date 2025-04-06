@@ -250,7 +250,8 @@ def load_prof(filepaths):
     memory_data_df = load_memory_data(filepaths.get("memory"))
     time_info = load_time_info(filepaths)
     msprof_files = filepaths.get("msprof", [])
-    load_host_name(tx_data_df, filepaths.get("info"))
+    if tx_data_df is not None:
+        load_host_name(tx_data_df, filepaths.get("info"))
 
     return dict(
         tx_data_df=tx_data_df,
@@ -332,6 +333,7 @@ def parse(input_path, plugins, exporters):
                 future.result()
             except Exception as e:
                 logger.error(f"Error raise from exporter: {exporter_name}, message: {e}")
+
     logger.info('Exporter done.')
 
 

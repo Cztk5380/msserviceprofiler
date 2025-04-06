@@ -73,6 +73,7 @@ struct ProfSetDevPara {
 // 全局标志位，用于控制线程退出
 std::atomic<bool> g_threadRunFlag(true);
 uint32_t g_deviceID = INVALID_DEVICE_ID;
+bool g_enableFlag = false;
 } // end of anonymous namespace
 
 static void MarkEventLongAttr(const char *msg)
@@ -149,7 +150,7 @@ void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
         return;
     }
     DATA_PTR setCfg = static_cast<DATA_PTR>(data);
-    if (setCfg->deviceId != g_deviceID && IsEnable(msServiceProfiler::Level::INFO)) {
+    if (setCfg->deviceId != g_deviceID && g_enableFlag) {
         g_deviceID = setCfg->deviceId;
         StopServerProfiler();
         StartServerProfiler();
@@ -321,6 +322,7 @@ namespace msServiceProfiler {
             }
         }
         PROF_LOGD("profile enable_: %s", enable_ ? "true" : "false");  // LCOV_EXCL_LINE
+        g_enableFlag = enable_;
     }
 
     void ServiceProfilerManager::ReadProfPath(const Json &config)
@@ -695,6 +697,7 @@ namespace msServiceProfiler {
         auto profConfig = ProfCreateConfig();
         if (profConfig == nullptr) {
             enable_ = false;
+            g_enableFlag = enable_;
             return;
         }
 
@@ -703,11 +706,13 @@ namespace msServiceProfiler {
         if (ret != ACL_ERROR_NONE) {
             PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
             enable_ = false;
+            g_enableFlag = enable_;
             return;
         }
 
         // 设置标志位
         enable_ = true;
+        g_enableFlag = enable_;
         g_threadRunFlag = true;
         started_ = true;
     }
@@ -719,6 +724,7 @@ namespace msServiceProfiler {
         }
 
         enable_ = false;
+        g_enableFlag = enable_;
 
         auto profConfig = (AclprofConfig *)this->configHandle_;
 
