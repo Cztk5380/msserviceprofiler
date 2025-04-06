@@ -295,7 +295,8 @@ def add_kvcache_events(kv_data_df):
         return []
     kv_trace_df = kv_data_df.copy()
     if "scope#dp" in kv_trace_df:
-        kv_trace_df['name'] = kv_trace_df['domain'] + '-dp' + kv_trace_df["scope#dp"].astype(int, errors='ignore').astype(str)
+        kv_trace_df['name'] = kv_trace_df['domain'] + '-dp' + kv_trace_df["scope#dp"].astype(int,
+                                                                                            errors='ignore').astype(str)
     else:
         kv_trace_df['name'] = kv_trace_df['domain']
     kv_trace_df['ph'] = 'C'
