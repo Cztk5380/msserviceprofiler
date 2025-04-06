@@ -42,7 +42,7 @@ def load_single_prof(pf, tids):
         logger.warning(f"The msprof.json file was not found. Please check the file path.")
         return {"traceEvents": []}
     except json.JSONDecodeError:
-        logger.warning(f"The msprof.json file is not in a valid JSON format.")
+        logger.warning(f"The msprof.json file is not in a valid JSON format. {pf}")
         return {"traceEvents": []}
 
     filtered_trace_events = [
@@ -295,7 +295,7 @@ def add_kvcache_events(kv_data_df):
         return []
     kv_trace_df = kv_data_df.copy()
     if "scope#dp" in kv_trace_df:
-        kv_trace_df['name'] = kv_trace_df['domain'] + '-dp' + kv_trace_df["scope#dp"].astype(int).astype(str)
+        kv_trace_df['name'] = kv_trace_df['domain'] + '-dp' + kv_trace_df["scope#dp"].astype(int, errors='ignore').astype(str)
     else:
         kv_trace_df['name'] = kv_trace_df['domain']
     kv_trace_df['ph'] = 'C'
