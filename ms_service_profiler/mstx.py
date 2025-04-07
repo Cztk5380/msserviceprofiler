@@ -1,13 +1,23 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
 import ctypes
+from ms_service_profiler.utils.file_open_check import get_valid_lib_path
 
 
 class LibServiceProfiler:
     lib_service_profiler = None
 
     def __init__(self) -> None:
-        fp = "libms_service_profiler.so"
+        so_name = "libms_service_profiler.so"
+        fp = get_valid_lib_path(so_name)
+
+        if fp == "":
+            self.lib = None
+            return
+        elif not fp:
+            self.lib = None
+            return
+
         try:
             self.lib = ctypes.cdll.LoadLibrary(fp)
         except Exception as ex:
