@@ -118,7 +118,19 @@ private:
         ptrStartServerProfiler_ = StartServerProfiler;
         ptrStopServerProfiler_ = StopServerProfiler;
 #else
-        auto handle = dlopen("libms_service_profiler.so", RTLD_LAZY);
+        char* ascendHomePathPtr = getenv("ASCEND_HOME_PATH");
+        if (ascendHomePathPtr == nullptr) {
+            printf("Get ASCEND_HOME_PATH failed. Please check that the CANN package is installed.\n"
+                "Run 'source set_env.sh' in the CANN installation path.\n");
+            return;
+        }
+        std::string ascendHomePath(ascendHomePathPtr);
+        if (ascendHomePath.empty()) {
+            printf("ASCEND_HOME_PATH is empty.\n");
+            return;
+        }
+        std::string soName = ascendHomePath + "/lib64/libms_service_profiler.so";
+        auto handle = dlopen(soName.c_str(), RTLD_LAZY);
         if (handle) {
             ptrIsEnable_ = (decltype(IsEnable) *)dlsym(handle, "IsEnable");
             ptrStartSpanWithName_ = (decltype(StartSpanWithName) *)dlsym(handle, "StartSpanWithName");

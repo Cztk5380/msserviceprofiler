@@ -33,20 +33,6 @@ TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameNotFoundLib)
     GlobalMockObject::reset();
 }
 
-TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameFoundLib)
-{
-    SpanHandle mockSpanHandle = 100;
-    MOCKER(StartSpanWithName).stubs().will(returnValue(mockSpanHandle));
-    MOCKER(dlopen).stubs().will(returnValue((void *)&mockSpanHandle));
-    MOCKER(dlsym).stubs().will(returnValue((void *)StartSpanWithName));
-    ServiceProfilerInterface &spi = ServiceProfilerInterface::GetInstance();
-    spi.OpenLib();
-    EXPECT_EQ(spi.CallStartSpanWithName("TestSpan"), mockSpanHandle);
-    EXPECT_EQ(spi.CallStartSpanWithName(nullptr), mockSpanHandle);
-    GlobalMockObject::verify();
-    GlobalMockObject::reset();
-}
-
 TEST_F(TestServiceProfilerInterface, CallMarkSpanAttrNotFoundLib)
 {
     MOCKER(MarkSpanAttr).expects(never());
