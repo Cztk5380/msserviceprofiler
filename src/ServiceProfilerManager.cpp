@@ -143,7 +143,7 @@ bool IsEnable(uint32_t level)
 
 void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
 {
-    if (len != sizeof(ProfSetDevPara)) {
+    if (len != sizeof(::ProfSetDevPara)) {
         return;
     }
     if (data == nullptr) {
