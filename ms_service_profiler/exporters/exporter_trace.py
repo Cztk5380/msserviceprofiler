@@ -184,7 +184,9 @@ def sort_trace_events_by_pid(pid_label_map):
 
 def sort_trace_events_by_tid(trace_events):
     req_status_names = list(ReqStatus.__members__.keys())
-    tid_sorting_order = ['http', 'Queue'] + req_status_names + ['BatchSchedule', 'modelExec']
+    # mindie 330将BatchScheduler打点修改为batchFrameworkProcessing，此处做新旧版本的兼容处理
+    tid_sorting_order = ['http', 'Queue'] + req_status_names + \
+        ['BatchSchedule', 'modelExec', 'batchFrameworkProcessing']
     main_pid = 0
     for event_info in trace_events:
         if event_info.get("cat") in tid_sorting_order:

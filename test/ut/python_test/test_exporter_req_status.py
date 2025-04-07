@@ -15,14 +15,20 @@ def sample_data():
         'metric_data_df': pd.DataFrame({
             'start_datetime': [1696321692, 1696321693, 1696321694],
             'WAITING': [1, 0, 0],
+            'PENDING': [1, 0, 0],
             'RUNNING': [0, 1, 0],
-            'END': [0, 0, 1],
-            'PENDING': [0, 0, 1],
+            'RUNNING2': [0, 1, 0],
             'SWAPPED': [0, 0, 1],
             'RECOMPUTE': [0, 0, 1],
             'SUSPENDED': [0, 0, 1],
+            'END': [0, 0, 1],
             'STOP': [0, 0, 1],
-            'PREFILL_HOLD': [0, 0, 1]
+            'PREFILL_HOLD': [0, 0, 1],
+            'END_PRE': [0, 0, 1],
+            'STOP_PRE': [0, 0, 1],
+            'WAITING_PULL': [0, 0, 1],
+            'PULLING': [0, 0, 1],
+            'PULLED': [0, 0, 1]
         })
     }
     return data

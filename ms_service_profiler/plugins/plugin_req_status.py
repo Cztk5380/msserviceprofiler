@@ -10,15 +10,21 @@ from ms_service_profiler.plugins.plugin_metric import is_metric
 
 
 class ReqStatus(Enum):
-    WAITING = 0
-    PENDING = 1
-    RUNNING = 2
-    SWAPPED = 3
-    RECOMPUTE = 4
-    SUSPENDED = 5
-    END = 6
-    STOP = 7
-    PREFILL_HOLD = 8
+    WAITING = 0       # Waiting to Prefill
+    PENDING = 1       # Waiting to Decode  KV Cache not swapped  Associated with Instance
+    RUNNING = 2       # Executing Prefill or Decode  Associated with Instance
+    RUNNING2 = 3      # Executing Prefill or Decode  Associated with Instance  using in async schedule
+    SWAPPED = 4       # Waiting to Decode  KV Cache swapped
+    RECOMPUTE = 5     # KV cache is released and will later be WAITING
+    SUSPENDED = 6     # Waiting for the next INFER control calling to make it resume
+    END = 7           # Execute end
+    STOP = 8          # User Control State  Stop Sequence iteration
+    PREFILL_HOLD = 9  # Waiting for the decode to pull cache
+    END_PRE = 10      # Execute end using in async schedule
+    STOP_PRE = 11     # Waiting for RUNNING2 request back in async schedule
+    WAITING_PULL = 12 # Decode do H2H pull
+    PULLING = 13      # Executing H2H pull
+    PULLED = 14       # H2H pull is done and ready for H2D
 
 
 class PluginReqStatus(PluginBase):
