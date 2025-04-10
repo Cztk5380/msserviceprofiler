@@ -53,7 +53,8 @@ def mock_data():
             'deviceBlock=': [5, 10],
             'res_list': [['res1'], ['res2']],
             'rid': [[0], [1]],
-            'pid': [[0], [1]],
+            'pid': [0, 1],
+            'tid': [0, 1],
             'message': [{'rid': 0, 'PENDING+': 1, 'RUNNING+': -1, 'name': 'ReqState', 'type': 0},
                         {'rid': 1, 'PENDING+': 1, 'RUNNING+': -1, 'name': 'ReqState', 'type': 0}]
         }),
