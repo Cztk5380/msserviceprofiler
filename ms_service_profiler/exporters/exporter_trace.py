@@ -221,19 +221,20 @@ def add_trace_events(valid_name_df):
     trace_event_df['tid'] = valid_name_df['domain']
     trace_event_df['dur'] = valid_name_df['during_time']
     args_list = []
-    for start, end, batch_type, batch_size, res_list, rid, message in zip(
+    for start, end, batch_type, batch_size, res_list, rid, message, tid, in zip(
             valid_name_df['start_datetime'],
             valid_name_df['end_datetime'],
             valid_name_df['batch_type'],
             valid_name_df['batch_size'],
             valid_name_df['res_list'],
             valid_name_df['rid'],
-            valid_name_df['message']
+            valid_name_df['message'],
+            valid_name_df['tid']
     ):
         args_dict = dict(**{k: v for k, v in message.items() if k not in ["domain", "name", "type", "rid"]}, **{
             'start_datetime': start,
             'end_datetime': end,
-
+            'tid': tid
         })
         if batch_size is not None:
             args_dict.update({
