@@ -160,8 +160,7 @@ def calculate_first_token_latency(df):
     latency_df = df.copy()
 
     latency_df['rid_list'] = latency_df['rid_list'].apply(
-        lambda x: list(map(str, x)) if isinstance(x, list)
-        else str(x).split(',')
+        lambda x: list(map(str, x)) if isinstance(x, list) else str(x).split(',')
     )
 
     def safe_convert_token_ids(token_ids):
