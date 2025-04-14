@@ -3,12 +3,10 @@
 from enum import Enum
 from pathlib import Path
 import json
-from collections import defaultdict
 import pandas as pd
 
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.exporters.base import ExporterBase
-from ms_service_profiler.exporters.exporter_latency import is_contained_vaild_iter_info
 
 from ms_service_profiler.utils.log import logger
 
