@@ -80,7 +80,7 @@ def status_index_to_status_name(metric):
 
     # 确保索引在 ReqStatus 的范围内
     if index not in [status.value for status in ReqStatus]:
-        raise ValueError(f"Invalid status index: {index}")
+        return metric
 
     return f"{ReqStatus(index).name}{metric[-1]}"
 
