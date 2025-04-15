@@ -42,19 +42,14 @@ def load_single_prof(pf, tids):
         logger.warning(f"The msprof.json file was not found. Please check the file path.")
         return {"traceEvents": []}
     except json.JSONDecodeError:
-        logger.warning(f"The msprof.json file is not in a valid JSON format. {pf}")
+        logger.warning(
+            "%r is not in a valid JSON format, " \
+            "which might be normal and probably because this file stores 'mstx' data only",
+            pf
+        )
         return {"traceEvents": []}
 
-    filtered_trace_events = [
-        event
-        for event in trace_events
-        if str(event.get("tid")) not in tids
-    ]
-
-    merged_dict = {
-        "traceEvents": filtered_trace_events
-    }
-    return merged_dict
+    return {"traceEvents": trace_events}
 
 
 def find_cann_pid(trace_events):

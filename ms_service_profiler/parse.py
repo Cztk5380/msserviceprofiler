@@ -16,7 +16,8 @@ from json import JSONDecodeError
 import pandas as pd
 
 from ms_service_profiler.exporters.factory import ExporterFactory
-from ms_service_profiler.constant import US_PER_SECOND
+from ms_service_profiler.exporters.utils import create_sqlite_db, check_input_path_valid, check_output_path_valid
+from ms_service_profiler.constant import US_PER_SECOND, MSPROF_REPORTS_PATH
 from ms_service_profiler.plugins import builtin_plugins, custom_plugins
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
 from ms_service_profiler.utils.log import logger, set_log_level
@@ -345,15 +346,20 @@ def gen_msprof_command(full_path):
     if len(full_path.split()) != 1:
         raise ValueError(f"{full_path} is invalid.")
 
-    command = "msprof --export=on "
-    output_param = f"--output={full_path}"
-    return command + output_param
+    config_path = os.path.join(os.path.dirname(__file__), config, MSPROF_REPORTS_PATH)
+    if not os.path.isfile(config_path):
+        logger.error("File not found: %r, please re-install the ascend-toolkit", config_path)
+        raise OSError
+
+    command = f"msprof --export=on --reports={config_path} --output={full_path}"
+    logger.debug("command: %s", command)
+    return command
 
 
 def run_msprof_command(command):
     command_list = command.split()
     try:
-        subprocess.run(command_list, check=True)
+        subprocess.run(command_list, stdout=subprocess.DEVNULL, check=True)
     except subprocess.CalledProcessError as e:
         logger.error(f"msprof error: {e}")
     except Exception as e:
