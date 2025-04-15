@@ -4,6 +4,7 @@ import sqlite3
 import argparse
 from pathlib import Path
 import multiprocessing
+import pandas as pd
 from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.check.rule import Rule
 from ms_service_profiler.utils.error import DatabaseError
@@ -35,6 +36,9 @@ def create_sqlite_db(output):
 
 
 def add_table_into_visual_db(df, table_name):
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+        logger.warning("Writing table %r failed due to invalid dateframe:\n\t%s", table_name, df)
+        return
     with db_write_lock:
         with ms_open(visual_db_fp, "a") as f:
             try:
