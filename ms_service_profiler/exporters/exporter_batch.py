@@ -51,3 +51,5 @@ class ExporterBatchData(ExporterBase):
                 model_df[col] = model_df[col].astype(float)
 
         add_table_into_visual_db(model_df, 'batch')
+        add_table_into_visual_db(data.get('batch_req_df'), 'batch_req')
+        add_table_into_visual_db(data.get('batch_exec_df'), 'batch_exec')

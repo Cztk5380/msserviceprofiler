@@ -1,5 +1,6 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 import os
+import shutil
 import argparse
 import subprocess
 from pathlib import Path
@@ -374,6 +375,29 @@ def run_msprof_command(command):
         logger.error(f"msprof error occurred: {e}")
 
 
+def find_msprof_output_dirs(full_path):
+    count = 0
+    max_iter = 1000
+
+    for root, dirs, _ in os.walk(full_path):
+        count += len(dirs)
+        if count > max_iter:
+            break
+        for d in dirs:
+            if d.endswith('output'):
+                dir_path = os.path.join(root, d)
+                return dir_path
+    return None
+
+
+def clear_last_msprof_output(full_path):
+    msprof_output_path = find_msprof_output_dirs(full_path)
+    if msprof_output_path is None:
+        return
+    logger.info('Clear %r', msprof_output_path)
+    shutil.rmtree(msprof_output_path)
+
+
 def preprocess_prof_folders(input_path, max_parallel=8):
     msprof_commnds = []
     for root, dirs, _ in os.walk(input_path):
@@ -383,6 +407,7 @@ def preprocess_prof_folders(input_path, max_parallel=8):
             if dir_name.startswith('PROF_') and not find_file_in_dir(full_path, 'msproftx.db'):
                 command = gen_msprof_command(full_path)
                 logger.info(f"{command}")
+                clear_last_msprof_output(full_path)
                 msprof_commnds.append(command)
 
     with ProcessPoolExecutor(max_workers=min(max_parallel, os.cpu_count() or max_parallel)) as executor:
