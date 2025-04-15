@@ -394,7 +394,7 @@ def clear_last_msprof_output(full_path):
     msprof_output_path = find_msprof_output_dirs(full_path)
     if msprof_output_path is None:
         return
-    logger.info(f'Clear {msprof_output_path}')
+    logger.info('Clear %r', msprof_output_path)
     shutil.rmtree(msprof_output_path)
 
 
