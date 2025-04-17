@@ -1,5 +1,6 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 import os
+import shutil
 import sqlite3
 import argparse
 from pathlib import Path
@@ -123,3 +124,31 @@ def check_output_path_valid(path):
         if not check_path:
             raise argparse.ArgumentTypeError("Output path %r is incorrect due to %s, please check", path, check_path)
     return path
+
+
+def find_file_in_dir(directory, filename):
+    count = 0
+    max_iter = 10000
+ 
+    for _, _, files in os.walk(directory):
+        count += len(files)
+        if count > max_iter:
+            break
+        if filename in files:
+            return True
+    return False
+ 
+ 
+def delete_dir_safely(path):
+    # 删除文件安全校验
+    try:
+        check_input_path_valid(path)
+    except Exception as e:
+        logger.error(f'check_input_path_valid {path} failed, due to {e}')
+        return
+ 
+    try:
+        shutil.rmtree(path)
+        logger.info(f"Delete {path}")
+    except Exception as e:
+        logger.error(f"Delete failed: {path}, error: {e}")
