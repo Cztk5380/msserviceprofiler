@@ -16,7 +16,6 @@ from json import JSONDecodeError
 import pandas as pd
 
 from ms_service_profiler.exporters.factory import ExporterFactory
-from ms_service_profiler.exporters.utils import create_sqlite_db, check_input_path_valid, check_output_path_valid
 from ms_service_profiler.constant import US_PER_SECOND, MSPROF_REPORTS_PATH
 from ms_service_profiler.plugins import builtin_plugins, custom_plugins
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
@@ -346,7 +345,7 @@ def gen_msprof_command(full_path):
     if len(full_path.split()) != 1:
         raise ValueError(f"{full_path} is invalid.")
 
-    config_path = os.path.join(os.path.dirname(__file__), config, MSPROF_REPORTS_PATH)
+    config_path = os.path.join(os.path.dirname(__file__), "config", MSPROF_REPORTS_PATH)
     if not os.path.isfile(config_path):
         logger.error("File not found: %r, please re-install the ascend-toolkit", config_path)
         raise OSError

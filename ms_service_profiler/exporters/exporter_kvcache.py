@@ -130,6 +130,13 @@ class ExporterKVCacheData(ExporterBase):
         if df is None:
             logger.error("The data is empty, please check")
             return
+
+        if not df['domain'].str.casefold().str.contains(r'kvcache', regex=True).any():
+            logger.warning(
+                "No 'KVCache' related fields found in data base. If this is unexpected, please check the 'msproftx.db'"
+            )
+            return
+
         start_datetime_data = df['start_datetime'].copy()
         try:
             kvcache_df = df[df['domain'] == 'KVCache']

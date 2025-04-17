@@ -5,13 +5,16 @@ import sqlite3
 import argparse
 from pathlib import Path
 import multiprocessing
+
 import pandas as pd
+
 from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.check.rule import Rule
 from ms_service_profiler.utils.error import DatabaseError
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.sec import traverse_dir_common_check, read_file_common_check
+
 
 visual_db_fp = ''
 db_write_lock = multiprocessing.Lock()
