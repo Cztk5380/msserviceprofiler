@@ -16,7 +16,6 @@ from json import JSONDecodeError
 import pandas as pd
 
 from ms_service_profiler.exporters.factory import ExporterFactory
-from ms_service_profiler.exporters.utils import create_sqlite_db, check_input_path_valid, check_output_path_valid
 from ms_service_profiler.constant import US_PER_SECOND
 from ms_service_profiler.plugins import builtin_plugins, custom_plugins
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
@@ -25,6 +24,10 @@ from ms_service_profiler.utils.error import ParseError, LoadDataError
 from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.check.rule import Rule
 from ms_service_profiler.utils.file_open_check import ms_open
+from ms_service_profiler.exporters.utils import (
+    create_sqlite_db, check_input_path_valid, check_output_path_valid,
+    find_file_in_dir, delete_dir_safely
+)
 
 
 def load_start_cnt(config_path):
@@ -339,30 +342,12 @@ def parse(input_path, plugins, exporters):
 
 
 def gen_msprof_command(full_path):
-    try:
-        FileStat(full_path)
-    except Exception as err:
-        raise argparse.ArgumentTypeError(f"input path:{full_path} is illegal. Please check.") from err
-
     if len(full_path.split()) != 1:
         raise ValueError(f"{full_path} is invalid.")
 
     command = "msprof --export=on "
     output_param = f"--output={full_path}"
     return command + output_param
-
-
-def find_file_in_dir(directory, filename):
-    count = 0
-    max_iter = 10000
-
-    for _, _, files in os.walk(directory):
-        count += len(files)
-        if count > max_iter:
-            break
-        if filename in files:
-            return True
-    return False
 
 
 def run_msprof_command(command):
@@ -375,27 +360,15 @@ def run_msprof_command(command):
         logger.error(f"msprof error occurred: {e}")
 
 
-def find_msprof_output_dirs(full_path):
-    count = 0
-    max_iter = 1000
-
-    for root, dirs, _ in os.walk(full_path):
-        count += len(dirs)
-        if count > max_iter:
-            break
-        for d in dirs:
-            if d.endswith('output'):
-                dir_path = os.path.join(root, d)
-                return dir_path
-    return None
-
-
 def clear_last_msprof_output(full_path):
-    msprof_output_path = find_msprof_output_dirs(full_path)
-    if msprof_output_path is None:
+    # 调用msprof前删除mindstudio_profiler_output文件夹
+    msprof_output_path = os.path.join(full_path, 'mindstudio_profiler_output')
+ 
+    #  如果不存在mindstudio_profiler_output文件夹，则不需要清理
+    if not os.path.isdir(msprof_output_path):
         return
-    logger.info('Clear %r', msprof_output_path)
-    shutil.rmtree(msprof_output_path)
+ 
+    delete_dir_safely(msprof_output_path)
 
 
 def preprocess_prof_folders(input_path, max_parallel=8):
@@ -403,6 +376,10 @@ def preprocess_prof_folders(input_path, max_parallel=8):
     for root, dirs, _ in os.walk(input_path):
         for dir_name in dirs:
             full_path = os.path.join(root, dir_name)
+            try:
+                FileStat(full_path)
+            except Exception as err:
+                raise argparse.ArgumentTypeError(f"msprof path:{full_path} is illegal. Please check.") from err
 
             if dir_name.startswith('PROF_') and not find_file_in_dir(full_path, 'msproftx.db'):
                 command = gen_msprof_command(full_path)
