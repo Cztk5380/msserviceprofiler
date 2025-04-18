@@ -262,8 +262,12 @@ namespace msServiceProfiler {
         if (!exitSemName.empty()) {
             shm_unlink(ServiceProfilerManager::ToSemName(exitSemName).c_str());
         }
-    }
 
+        if (this->thread_.joinable()) {
+            g_threadRunFlag = false;
+            this->thread_.join();
+        }
+    }
 
     void ServiceProfilerManager::ReadConfigPath()
     {
@@ -480,8 +484,7 @@ namespace msServiceProfiler {
 
     void ServiceProfilerManager::LaunchThread()
     {
-        auto t = std::thread(&ServiceProfilerManager::ThreadFunction, this);
-        t.detach();
+        this->thread_ = std::thread(&ServiceProfilerManager::ThreadFunction, this);
     }
 
     bool ServiceProfilerManager::ReadCollectConfig(const Json &config)

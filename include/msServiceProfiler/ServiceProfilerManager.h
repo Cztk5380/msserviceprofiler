@@ -18,7 +18,10 @@
 #define MS_SERVER_PROFILER_MARKER_H
 
 #include <string>
+#include <thread>
+
 #include <nlohmann/json.hpp>
+
 #include "ServiceProfilerInterface.h"
 
 using Json = nlohmann::json;
@@ -27,6 +30,9 @@ namespace msServiceProfiler {
     using AclprofConfig = struct aclprofConfig;
     class ServiceProfilerManager {
     public:
+        ServiceProfilerManager(const ServiceProfilerManager &) = delete;
+        ServiceProfilerManager& operator=(const ServiceProfilerManager &) = delete;
+
         static ServiceProfilerManager &GetInstance();
 
         inline bool IsEnable(uint32_t level) const
@@ -106,6 +112,8 @@ namespace msServiceProfiler {
         uint32_t npuMemoryFreqMin_ = 1;
         uint32_t npuMemoryFreqMax_ = 50;
         uint32_t npuMemorySleepMilliseconds_ = 1000;
+
+        std::thread thread_;
     };
 }  // namespace msServiceProfiler
 
