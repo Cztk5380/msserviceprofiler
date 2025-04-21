@@ -78,6 +78,9 @@ bool g_startFlag = false;
 
 static void MarkEventLongAttr(const char *msg)
 {
+    if (msg == nullptr) {
+        return;
+    }
     auto spanHandle = StartSpan();
     MarkSpanAttr(msg, spanHandle);
 }
@@ -89,11 +92,19 @@ SpanHandle StartSpan()
 
 SpanHandle StartSpanWithName(const char *name)
 {
+    if (name == nullptr) {
+        return StartSpan();
+    }
+
     return mstxRangeStartA(name, nullptr);
 }
 
 void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
 {
+    if (msg == nullptr) {
+        return;
+    }
+
     std::string spanTag;
     spanTag.reserve(MAX_TX_MSG_LEN);
     spanTag.append("span=").append(std::to_string(spanHandle)).append("*");
@@ -105,8 +116,9 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
     }
     const char *oriMsgStart = msg;
     while (static_cast<decltype(msgLen)>(oriMsgStart - msg) < msgLen) {
-        spanTag.append(oriMsgStart, maxMarkSize);
-        oriMsgStart += maxMarkSize;
+        auto markSize = std::min(maxMarkSize, msgLen); // prevent out-of-bounds accessing
+        spanTag.append(oriMsgStart, markSize);
+        oriMsgStart += markSize;
         MarkEvent(spanTag.c_str());
         spanTag.resize(spanTagSize);
     }
@@ -119,6 +131,10 @@ void EndSpan(SpanHandle spanHandle)
 
 void MarkEvent(const char *msg)
 {
+    if (msg == nullptr) {
+        return;
+    }
+
     if (strlen(msg) > MAX_TX_MSG_LEN) {
         MarkEventLongAttr(msg);
     } else {
@@ -246,8 +262,12 @@ namespace msServiceProfiler {
         if (!exitSemName.empty()) {
             shm_unlink(ServiceProfilerManager::ToSemName(exitSemName).c_str());
         }
-    }
 
+        if (this->thread_.joinable()) {
+            g_threadRunFlag = false;
+            this->thread_.join();
+        }
+    }
 
     void ServiceProfilerManager::ReadConfigPath()
     {
@@ -464,8 +484,7 @@ namespace msServiceProfiler {
 
     void ServiceProfilerManager::LaunchThread()
     {
-        auto t = std::thread(&ServiceProfilerManager::ThreadFunction, this);
-        t.detach();
+        this->thread_ = std::thread(&ServiceProfilerManager::ThreadFunction, this);
     }
 
     bool ServiceProfilerManager::ReadCollectConfig(const Json &config)
