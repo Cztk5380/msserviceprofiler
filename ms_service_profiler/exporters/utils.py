@@ -152,6 +152,6 @@ def delete_dir_safely(path):
  
     try:
         shutil.rmtree(path)
-        logger.info(f"Delete {path}")
+        logger.warning(f"Delete {path}")
     except Exception as e:
         logger.error(f"Delete failed: {path}, error: {e}")
