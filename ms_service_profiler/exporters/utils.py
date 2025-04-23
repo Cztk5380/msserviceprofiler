@@ -1,15 +1,20 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 import os
+import shutil
 import sqlite3
 import argparse
 from pathlib import Path
 import multiprocessing
+
+import pandas as pd
+
 from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.check.rule import Rule
 from ms_service_profiler.utils.error import DatabaseError
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.sec import traverse_dir_common_check, read_file_common_check
+
 
 visual_db_fp = ''
 db_write_lock = multiprocessing.Lock()
@@ -35,6 +40,9 @@ def create_sqlite_db(output):
 
 
 def add_table_into_visual_db(df, table_name):
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+        logger.warning("Writing table %r failed due to invalid dateframe:\n\t%s", table_name, df)
+        return
     with db_write_lock:
         with ms_open(visual_db_fp, "a") as f:
             try:
@@ -119,3 +127,31 @@ def check_output_path_valid(path):
         if not check_path:
             raise argparse.ArgumentTypeError("Output path %r is incorrect due to %s, please check", path, check_path)
     return path
+
+
+def find_file_in_dir(directory, filename):
+    count = 0
+    max_iter = 10000
+ 
+    for _, _, files in os.walk(directory):
+        count += len(files)
+        if count > max_iter:
+            break
+        if filename in files:
+            return True
+    return False
+ 
+ 
+def delete_dir_safely(path):
+    # 删除文件安全校验
+    try:
+        check_input_path_valid(path)
+    except Exception as e:
+        logger.error(f'check_input_path_valid {path} failed, due to {e}')
+        return
+ 
+    try:
+        shutil.rmtree(path)
+        logger.warning(f"Delete {path}")
+    except Exception as e:
+        logger.error(f"Delete failed: {path}, error: {e}")

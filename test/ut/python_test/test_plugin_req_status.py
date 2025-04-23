@@ -68,8 +68,8 @@ def test_status_index_to_status_name():
 
 
 def test_status_index_to_status_name_invalid():
-    with pytest.raises(ValueError, match="Invalid status index: 999"):
-        status_index_to_status_name('999+')
+    metric = '999+'
+    assert metric == status_index_to_status_name(metric)
 
 
 @pytest.mark.parametrize("metric, expected", [

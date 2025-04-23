@@ -7,6 +7,7 @@ import pandas as pd
 
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.plugins.plugin_metric import is_metric
+from ms_service_profiler.utils.log import logger
 
 
 class ReqStatus(Enum):
@@ -51,6 +52,13 @@ class PluginReqStatus(PluginBase):
             vllm_req_status = ['WAITING+', 'RUNNING+', 'FINISHED+']
             # 筛选出tx_data_df中真实存在的列
             valid_cols = [col for col in vllm_req_status if col in tx_data_df.columns]
+
+            if not valid_cols:
+                logger.warning(
+                    "No 'request status' is found in data base, if this is unexpected, please check 'msproftx.db'"
+                )
+                return data
+
             tx_data_df = rename_req_status(tx_data_df, valid_cols)
 
         # 填充domain和name
@@ -80,7 +88,7 @@ def status_index_to_status_name(metric):
 
     # 确保索引在 ReqStatus 的范围内
     if index not in [status.value for status in ReqStatus]:
-        raise ValueError(f"Invalid status index: {index}")
+        return metric
 
     return f"{ReqStatus(index).name}{metric[-1]}"
 

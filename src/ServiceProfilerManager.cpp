@@ -52,11 +52,14 @@ struct ProfSetDevPara {
 // 全局标志位，用于控制线程退出
 std::atomic<bool> g_threadRunFlag(true);
 uint32_t g_deviceID = INVALID_DEVICE_ID;
-bool g_enableFlag = false;
+bool g_startFlag = false;
 } // end of anonymous namespace
 
 static void MarkEventLongAttr(const char *msg)
 {
+    if (msg == nullptr) {
+        return;
+    }
     auto spanHandle = StartSpan();
     MarkSpanAttr(msg, spanHandle);
 }
@@ -68,11 +71,19 @@ SpanHandle StartSpan()
 
 SpanHandle StartSpanWithName(const char *name)
 {
+    if (name == nullptr) {
+        return StartSpan();
+    }
+
     return mstxRangeStartA(name, nullptr);
 }
 
 void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
 {
+    if (msg == nullptr) {
+        return;
+    }
+
     std::string spanTag;
     spanTag.reserve(MAX_TX_MSG_LEN);
     spanTag.append("span=").append(std::to_string(spanHandle)).append("*");
@@ -84,8 +95,9 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
     }
     const char *oriMsgStart = msg;
     while (static_cast<decltype(msgLen)>(oriMsgStart - msg) < msgLen) {
-        spanTag.append(oriMsgStart, maxMarkSize);
-        oriMsgStart += maxMarkSize;
+        auto markSize = std::min(maxMarkSize, msgLen); // prevent out-of-bounds accessing
+        spanTag.append(oriMsgStart, markSize);
+        oriMsgStart += markSize;
         MarkEvent(spanTag.c_str());
         spanTag.resize(spanTagSize);
     }
@@ -98,6 +110,10 @@ void EndSpan(SpanHandle spanHandle)
 
 void MarkEvent(const char *msg)
 {
+    if (msg == nullptr) {
+        return;
+    }
+
     if (strlen(msg) > MAX_TX_MSG_LEN) {
         MarkEventLongAttr(msg);
     } else {
@@ -129,7 +145,7 @@ void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
         return;
     }
     DATA_PTR setCfg = static_cast<DATA_PTR>(data);
-    if (setCfg->deviceId != g_deviceID && g_enableFlag) {
+    if (setCfg->deviceId != g_deviceID && g_startFlag) {
         g_deviceID = setCfg->deviceId;
         StopServerProfiler();
         StartServerProfiler();
@@ -226,8 +242,12 @@ namespace msServiceProfiler {
         if (!exitSemName.empty()) {
             shm_unlink(ServiceProfilerManager::ToSemName(exitSemName).c_str());
         }
-    }
 
+        if (this->thread_.joinable()) {
+            g_threadRunFlag = false;
+            this->thread_.join();
+        }
+    }
 
     void ServiceProfilerManager::ReadConfigPath()
     {
@@ -304,7 +324,6 @@ namespace msServiceProfiler {
             }
         }
         PROF_LOGI("profile enable_: %s", enable_ ? "true" : "false");  // LCOV_EXCL_LINE
-        g_enableFlag = enable_;
     }
 
     void ServiceProfilerManager::ReadProfPath(const Json &config)
@@ -448,8 +467,7 @@ namespace msServiceProfiler {
 
     void ServiceProfilerManager::LaunchThread()
     {
-        auto t = std::thread(&ServiceProfilerManager::ThreadFunction, this);
-        t.detach();
+        this->thread_ = std::thread(&ServiceProfilerManager::ThreadFunction, this);
     }
 
     bool ServiceProfilerManager::ReadCollectConfig(const Json &config)
@@ -683,7 +701,6 @@ namespace msServiceProfiler {
         auto profConfig = ProfCreateConfig();
         if (profConfig == nullptr) {
             enable_ = false;
-            g_enableFlag = enable_;
             return;
         }
 
@@ -692,15 +709,14 @@ namespace msServiceProfiler {
         if (ret != ACL_ERROR_NONE) {
             PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
             enable_ = false;
-            g_enableFlag = enable_;
             return;
         }
 
         // 设置标志位
         enable_ = true;
-        g_enableFlag = enable_;
         g_threadRunFlag = true;
         started_ = true;
+        g_startFlag = true;
     }
 
     void ServiceProfilerManager::StopProfiler()
@@ -710,8 +726,6 @@ namespace msServiceProfiler {
         }
 
         enable_ = false;
-        g_enableFlag = enable_;
-
         auto profConfig = (AclprofConfig *)this->configHandle_;
 
         auto ret = aclprofStop(profConfig);
@@ -733,5 +747,6 @@ namespace msServiceProfiler {
         }
 
         started_ = false;
+        g_startFlag = false;
     }
 }  // namespace msServiceProfiler

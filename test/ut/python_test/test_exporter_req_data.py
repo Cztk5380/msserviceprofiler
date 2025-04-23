@@ -96,7 +96,9 @@ class TestExporterReqData(unittest.TestCase):
             'RUNNING+':['', '', '', 1, '', 1, '', ''],
             'PENDING+':['', '', '', '', 1, '', '', ''],
             'during_time':[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
-            'domain':['', '', '', '', '', '', '', '']
+            'domain':['', '', '', '', '', '', '', ''],
+            'rid_list':[1, 1, 1, 1, 1, 1, 1, 1],
+            'token_id_list':[0, 0, 0, 0, 0, 0, 0, 0]
         }
 
         return pd.DataFrame(data)

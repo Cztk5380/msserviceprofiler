@@ -1,5 +1,6 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 import os
+import shutil
 import argparse
 import subprocess
 from pathlib import Path
@@ -15,8 +16,7 @@ from json import JSONDecodeError
 import pandas as pd
 
 from ms_service_profiler.exporters.factory import ExporterFactory
-from ms_service_profiler.exporters.utils import create_sqlite_db, check_input_path_valid, check_output_path_valid
-from ms_service_profiler.constant import US_PER_SECOND
+from ms_service_profiler.constant import US_PER_SECOND, MSPROF_REPORTS_PATH
 from ms_service_profiler.plugins import builtin_plugins, custom_plugins
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
 from ms_service_profiler.utils.log import logger, set_log_level
@@ -24,6 +24,10 @@ from ms_service_profiler.utils.error import ParseError, LoadDataError
 from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.check.rule import Rule
 from ms_service_profiler.utils.file_open_check import ms_open
+from ms_service_profiler.exporters.utils import (
+    create_sqlite_db, check_input_path_valid, check_output_path_valid,
+    find_file_in_dir, delete_dir_safely
+)
 
 
 def load_start_cnt(config_path):
@@ -338,40 +342,38 @@ def parse(input_path, plugins, exporters):
 
 
 def gen_msprof_command(full_path):
-    try:
-        FileStat(full_path)
-    except Exception as err:
-        raise argparse.ArgumentTypeError(f"input path:{full_path} is illegal. Please check.") from err
-
     if len(full_path.split()) != 1:
         raise ValueError(f"{full_path} is invalid.")
 
-    command = "msprof --export=on "
-    output_param = f"--output={full_path}"
-    return command + output_param
+    config_path = os.path.join(os.path.dirname(__file__), "config", MSPROF_REPORTS_PATH)
+    if not os.path.isfile(config_path):
+        logger.error("File not found: %r, please re-install the ascend-toolkit", config_path)
+        raise OSError
 
-
-def find_file_in_dir(directory, filename):
-    count = 0
-    max_iter = 10000
-
-    for _, _, files in os.walk(directory):
-        count += len(files)
-        if count > max_iter:
-            break
-        if filename in files:
-            return True
-    return False
+    command = f"msprof --export=on --reports={config_path} --output={full_path}"
+    logger.debug("command: %s", command)
+    return command
 
 
 def run_msprof_command(command):
     command_list = command.split()
     try:
-        subprocess.run(command_list, check=True)
+        subprocess.run(command_list, stdout=subprocess.DEVNULL, check=True)
     except subprocess.CalledProcessError as e:
         logger.error(f"msprof error: {e}")
     except Exception as e:
         logger.error(f"msprof error occurred: {e}")
+
+
+def clear_last_msprof_output(full_path):
+    # 调用msprof前删除mindstudio_profiler_output文件夹
+    msprof_output_path = os.path.join(full_path, 'mindstudio_profiler_output')
+ 
+    #  如果不存在mindstudio_profiler_output文件夹，则不需要清理
+    if not os.path.isdir(msprof_output_path):
+        return
+ 
+    delete_dir_safely(msprof_output_path)
 
 
 def preprocess_prof_folders(input_path, max_parallel=8):
@@ -379,10 +381,15 @@ def preprocess_prof_folders(input_path, max_parallel=8):
     for root, dirs, _ in os.walk(input_path):
         for dir_name in dirs:
             full_path = os.path.join(root, dir_name)
+            try:
+                FileStat(full_path)
+            except Exception as err:
+                raise argparse.ArgumentTypeError(f"msprof path:{full_path} is illegal. Please check.") from err
 
             if dir_name.startswith('PROF_') and not find_file_in_dir(full_path, 'msproftx.db'):
                 command = gen_msprof_command(full_path)
                 logger.info(f"{command}")
+                clear_last_msprof_output(full_path)
                 msprof_commnds.append(command)
 
     with ProcessPoolExecutor(max_workers=min(max_parallel, os.cpu_count() or max_parallel)) as executor:

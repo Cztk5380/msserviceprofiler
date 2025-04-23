@@ -68,7 +68,7 @@ TEST(ProfilerTest, TestServiceProfilerManager)
     // set Profiling env name
     setenv("SERVICE_PROF_CONFIG_PATH", "/ut_test/prof.json", 1);
 
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
 
     GlobalMockObject::reset();
 }
@@ -91,7 +91,7 @@ TEST(ProfilerTest, TestReadEnableYes)
     configTest3["npu_memory_usage_freq"] = 99999;
     
 
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
     manager.ReadEnable(configTest);
     manager.ReadProfPath(configTest);
     manager.ReadAclTaskTime(configTest);
@@ -116,7 +116,7 @@ TEST(ProfilerTest, TestDynamicControlStart2Stop)
 {
     nlohmann::json configTest = nlohmann::json::object();
     configTest["enable"] = 1;
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
 
     MOCKER(stat).stubs().will(returnValue(0));
 
@@ -134,7 +134,7 @@ TEST(ProfilerTest, TestDynamicControlStart2Stop)
 
 TEST(ProfilerTest, TestSetAclProfHostSysConfig1)
 {
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
 
     manager.hostCpuUsage_ = true;
     manager.hostMemoryUsage_ = true;
@@ -143,7 +143,7 @@ TEST(ProfilerTest, TestSetAclProfHostSysConfig1)
 
 TEST(ProfilerTest, TestSetAclProfHostSysConfig2)
 {
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
 
     manager.hostCpuUsage_ = true;
     manager.hostMemoryUsage_ = false;
@@ -152,7 +152,7 @@ TEST(ProfilerTest, TestSetAclProfHostSysConfig2)
 
 TEST(ProfilerTest, TestSetAclProfHostSysConfig3)
 {
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
 
     manager.hostCpuUsage_ = false;
     manager.hostMemoryUsage_ = true;
@@ -161,7 +161,7 @@ TEST(ProfilerTest, TestSetAclProfHostSysConfig3)
 
 TEST(ProfilerTest, TestSetAclProfHostSysConfig4)
 {
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
 
     manager.hostCpuUsage_ = false;
     manager.hostMemoryUsage_ = false;
@@ -170,7 +170,7 @@ TEST(ProfilerTest, TestSetAclProfHostSysConfig4)
 
 TEST(ProfilerTest, TestStopProfiler)
 {
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
 
     manager.started_ = true;
     manager.StopProfiler();
@@ -180,7 +180,7 @@ TEST(ProfilerTest, TestMarkFirstProcessAsMainShmOpenFailed)
 {
     MOCKER(shm_open).stubs().will(returnValue(-1));
 
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
     manager.MarkFirstProcessAsMain();
 
     GlobalMockObject::reset();
@@ -190,7 +190,7 @@ TEST(ProfilerTest, TestMarkFirstProcessAsMainFtruncateFailed)
 {
     MOCKER(ftruncate).stubs().will(returnValue(-1));
 
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
     manager.MarkFirstProcessAsMain();
 
     GlobalMockObject::reset();
@@ -200,7 +200,7 @@ TEST(ProfilerTest, TestReadConfigFailed)
 {
     MOCKER(access).stubs().will(returnValue(0));
 
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
     manager.ReadConfig();
 
     GlobalMockObject::reset();
@@ -208,13 +208,13 @@ TEST(ProfilerTest, TestReadConfigFailed)
 
 TEST(ProfilerTest, TestMarkFirstProcessAsMainMmapFailed)
 {
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
     manager.MarkFirstProcessAsMain();
 }
 
 TEST(ProfilerTest, TestReadConfigFileFailed)
 {
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
     manager.configPath_ = "/home";
     manager.ReadConfig();
 }
@@ -223,7 +223,7 @@ TEST(ProfilerTest, TestDynamicControlReadConfigFileStatFailed)
 {
     MOCKER(stat).stubs().will(returnValue(1));
 
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
     manager.DynamicControl();
 
     GlobalMockObject::reset();
@@ -234,7 +234,7 @@ TEST(ProfilerTest, TestStartProfilerCreatConfigFailed)
     MOCKER(aclInit).stubs().will(returnValue(222));
     MOCKER(aclprofInit).stubs().will(returnValue(222));
 
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
     manager.started_ = false;
     manager.enableAclTaskTime_ = true;
     manager.StartProfiler();
@@ -249,7 +249,7 @@ TEST(ProfilerTest, TestStartProfilerAclProfStartFailed)
     MOCKER(aclprofCreateConfig).stubs().will(returnValue((aclprofConfig*)1));
     MOCKER(aclprofStart).stubs().will(returnValue(222));
 
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
     manager.started_ = false;
     manager.enableAclTaskTime_ = true;
     manager.StartProfiler();
@@ -262,7 +262,7 @@ TEST(ProfilerTest, TestStopProfilerAclProfStopFailed)
     MOCKER(aclprofStop).stubs().will(returnValue(222));
     MOCKER(aclprofDestroyConfig).stubs().will(returnValue(222));
 
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
     manager.started_ = true;
     manager.StopProfiler();
 
@@ -274,7 +274,7 @@ TEST(ProfilerTest, TestStopProfilerAclDestroyConfigFailed)
     MOCKER(aclprofStop).stubs().will(returnValue(ACL_ERROR_NONE));
     MOCKER(aclprofDestroyConfig).stubs().will(returnValue(222));
 
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
     manager.started_ = true;
     manager.StopProfiler();
 
@@ -287,7 +287,7 @@ TEST(ProfilerTest, TestStopProfilerAclFrofFinalizeFailed)
     MOCKER(aclprofDestroyConfig).stubs().will(returnValue(ACL_ERROR_NONE));
     MOCKER(aclprofFinalize).stubs().will(returnValue(222));
 
-    ServiceProfilerManager manager = ServiceProfilerManager();
+    ServiceProfilerManager manager;
     manager.started_ = true;
     manager.StopProfiler();
 
