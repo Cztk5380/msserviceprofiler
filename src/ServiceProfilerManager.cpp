@@ -660,7 +660,7 @@ namespace msServiceProfiler {
         if (!MakeDirs(profPath_)) {
             PROF_LOGE("create path(%s) failed", profPath_.c_str());  // LCOV_EXCL_LINE
         }
-        PROF_LOGD("prof path: %s", profPath_.c_str());  // LCOV_EXCL_LINE
+        PROF_LOGI("prof path: %s", profPath_.c_str());  // LCOV_EXCL_LINE
 
         if (!isAclInit_) {
             aclError retInit = aclInit(nullptr);
