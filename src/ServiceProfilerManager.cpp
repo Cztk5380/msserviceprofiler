@@ -272,7 +272,7 @@ namespace msServiceProfiler {
             }
         } catch (const std::exception &e) {
             LOG_ONCE_E("Fail to open config file: %s, error: %s",
-                      configPath_.c_str(), e.what());  // LCOV_EXCL_LINE
+                configPath_.c_str(), e.what());  // LCOV_EXCL_LINE
             return jsonData;
         }
 
