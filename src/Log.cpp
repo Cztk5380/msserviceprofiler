@@ -7,7 +7,6 @@
 #include "msServiceProfiler/Log.h"
 
 namespace {
-    // 静态全局变量存储当前日志级别
     ProfLogLevel g_profLogLevel = ProfLogLevel::PROF_LOG_INFO;
 }
 
