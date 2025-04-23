@@ -205,6 +205,7 @@ namespace msServiceProfiler {
 
     ServiceProfilerManager::ServiceProfilerManager() : configHandle_(nullptr)
     {
+        ProfLogInit();
         ReadConfigPath();
         MarkFirstProcessAsMain();
         InitProfPathDateTail();
@@ -560,18 +561,18 @@ namespace msServiceProfiler {
         auto configJson = ReadConfig();
         auto enableFromConfig = configJson["enable"] == 1;
         if (enableFromConfig && !enable_) {
-            PROF_LOGD("Profiler Enabled...");  // LCOV_EXCL_LINE
+            PROF_LOGI("Profiler Enabled...");  // LCOV_EXCL_LINE
             ReadEnable(configJson);
             ReadLevel(configJson);
             ReadProfPath(configJson);
             ReadAclTaskTime(configJson);
             ReadCollectConfig(configJson);
             StartServerProfiler();
-            PROF_LOGD("Profiler Enabled Successfully!");  // LCOV_EXCL_LINE
+            PROF_LOGI("Profiler Enabled Successfully!");  // LCOV_EXCL_LINE
         } else if (!enableFromConfig && enable_) {
-            PROF_LOGD("Profiler Disabled...");  // LCOV_EXCL_LINE
+            PROF_LOGI("Profiler Disabled...");  // LCOV_EXCL_LINE
             StopServerProfiler();
-            PROF_LOGD("Profiler Disabled Successfully!");  // LCOV_EXCL_LINE
+            PROF_LOGI("Profiler Disabled Successfully!");  // LCOV_EXCL_LINE
         }
     }
 

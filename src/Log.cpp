@@ -1,38 +1,40 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
+ */
+
 #include <cstdlib>
 #include <cstring>
 #include "msServiceProfiler/Log.h"
 
-namespace {
-    // 静态全局变量存储当前日志级别
-    ProfLogLevel g_prof_log_level = PROF_LOG_INFO;
-}
-
-void prof_log_init() {
-    const char* env_level = getenv("PROF_LOG_LEVEL");
-    if (env_level == nullptr) {
-        g_prof_log_level = PROF_LOG_INFO; // 默认级别
+void ProfLogInit()
+{
+    const char* envLevel = getenv("PROF_LOG_LEVEL");
+    if (envLevel == nullptr) {
+        g_prof_log_level = ProfLogLevel::PROF_LOG_INFO; // 默认级别
         return;
     }
 
-    if (strcmp(env_level, "DEBUG") == 0) {
-        g_prof_log_level = PROF_LOG_DEBUG;
-    } else if (strcmp(env_level, "INFO") == 0) {
-        g_prof_log_level = PROF_LOG_INFO;
-    } else if (strcmp(env_level, "WARNING") == 0) {
-        g_prof_log_level = PROF_LOG_WARNING;
-    } else if (strcmp(env_level, "ERROR") == 0) {
-        g_prof_log_level = PROF_LOG_ERROR;
-    } else if (strcmp(env_level, "NONE") == 0) {
-        g_prof_log_level = PROF_LOG_NONE;
+    if (strcmp(envLevel, "DEBUG") == 0) {
+        g_prof_log_level = ProfLogLevel::PROF_LOG_DEBUG;
+    } else if (strcmp(envLevel, "INFO") == 0) {
+        g_prof_log_level = ProfLogLevel::PROF_LOG_INFO;
+    } else if (strcmp(envLevel, "WARNING") == 0) {
+        g_prof_log_level = ProfLogLevel::PROF_LOG_WARNING;
+    } else if (strcmp(envLevel, "ERROR") == 0) {
+        g_prof_log_level = ProfLogLevel::PROF_LOG_ERROR;
+    } else if (strcmp(envLevel, "NONE") == 0) {
+        g_prof_log_level = ProfLogLevel::PROF_LOG_NONE;
     } else {
-        g_prof_log_level = PROF_LOG_INFO; // 默认级别
+        g_prof_log_level = ProfLogLevel::PROF_LOG_INFO; // 默认级别
     }
 }
 
-ProfLogLevel prof_log_get_level() {
+ProfLogLevel ProfLogGetLevel()
+{
     return g_prof_log_level;
 }
 
-void prof_log_set_level(ProfLogLevel level) {
+void prof_log_set_level(ProfLogLevel level)
+{
     g_prof_log_level = level;
 }
