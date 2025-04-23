@@ -303,7 +303,7 @@ namespace msServiceProfiler {
                 PROF_LOGW("enable value is not an integer, will set false.");  // LCOV_EXCL_LINE
             }
         }
-        PROF_LOGD("profile enable_: %s", enable_ ? "true" : "false");  // LCOV_EXCL_LINE
+        PROF_LOGI("profile enable_: %s", enable_ ? "true" : "false");  // LCOV_EXCL_LINE
         g_enableFlag = enable_;
     }
 
@@ -332,7 +332,7 @@ namespace msServiceProfiler {
                 PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");  // LCOV_EXCL_LINE
             }
         }
-        PROF_LOGD("profile enableAclTaskTime_: %s", enableAclTaskTime_ ? "true" : "false");  // LCOV_EXCL_LINE
+        PROF_LOGI("profile enableAclTaskTime_: %s", enableAclTaskTime_ ? "true" : "false");  // LCOV_EXCL_LINE
     }
 
     void ServiceProfilerManager::ReadLevel(const Json &config)
