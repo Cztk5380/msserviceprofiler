@@ -36,18 +36,3 @@ ProfLogLevel prof_log_get_level() {
 void prof_log_set_level(ProfLogLevel level) {
     g_prof_log_level = level;
 }
-
-int main() {
-    // 初始化日志系统（从环境变量读取级别）
-    prof_log_init();
-
-    // 也可以手动设置日志级别
-    // prof_log_set_level(PROF_LOG_DEBUG);
-
-    PROF_LOGD("Debug message: %s", "This will show if level is DEBUG");
-    PROF_LOGI("Info message: %d", 42);
-    PROF_LOGW("Warning message");
-    PROF_LOGE("Error message");
-
-    return 0;
-}

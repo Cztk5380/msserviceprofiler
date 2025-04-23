@@ -59,4 +59,31 @@ void prof_log_set_level(ProfLogLevel level);
         } \
     } while (0)
 
+#define LOG_ONCE_D(...) \
+    do { \
+        static bool logged_##__LINE__ = false; \
+        if (!logged_##__LINE__) { \
+            PROF_LOGD(__VA_ARGS__); \
+            logged_##__LINE__ = true; \
+        } \
+    } while(0)
+
+#define LOG_ONCE_W(...) \
+    do { \
+        static bool logged_##__LINE__ = false; \
+        if (!logged_##__LINE__) { \
+            PROF_LOGW(__VA_ARGS__); \
+            logged_##__LINE__ = true; \
+        } \
+    } while(0)
+
+#define LOG_ONCE_E(...) \
+    do { \
+        static bool logged_##__LINE__ = false; \
+        if (!logged_##__LINE__) { \
+            PROF_LOGE(__VA_ARGS__); \
+            logged_##__LINE__ = true; \
+        } \
+    } while(0)
+
 #endif // PROFILER_LOG_H

@@ -17,18 +17,21 @@
 #include <iostream>
 #include <vector>
 #include <dlfcn.h>
+#include "../include/msServiceProfiler/Log.h"
 #include "msServiceProfiler/NpuMemoryUsage.h"
 
 namespace msServiceProfiler {
+
 NpuMemoryUsage::NpuMemoryUsage()
 {
     const std::string soName = "/usr/local/Ascend/driver/lib64/driver/libdcmi.so";
     handleDcmi = dlopen(soName.c_str(), RTLD_LAZY | RTLD_LOCAL);
     if (handleDcmi == nullptr) {
-        std::cerr << "[WARNING] failed to dlopen libdcmi.so. Will be not able to get NPU usage data. " <<
-            "Check whether a NPU server or if NPU driver installed." << std::endl;
+        PROF_LOGW("Failed to dlopen libdcmi.so. Will be not able to get NPU usage data. "
+            "Check whether a NPU server or if NPU driver installed.");
     }
 }
+
 NpuMemoryUsage::~NpuMemoryUsage()
 {
     if (handleDcmi != nullptr) {
@@ -36,6 +39,7 @@ NpuMemoryUsage::~NpuMemoryUsage()
         handleDcmi = nullptr;
     }
 }
+
 int NpuMemoryUsage::DcmiInit() const
 {
     using DcmiInitFunc = int (*)();

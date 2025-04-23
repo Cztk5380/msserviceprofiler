@@ -31,57 +31,8 @@
 
 #include "../include/msServiceProfiler/NpuMemoryUsage.h"
 #include "../include/msServiceProfiler/Profiler.h"
+#include "../include/msServiceProfiler/Log.h"
 #include "../include/msServiceProfiler/ServiceProfilerManager.h"
-
-
-#define PROF_LOGD(...)       \
-    do {                     \
-        printf("[msservice_profiler] [PID:%d] [DEBUG] [%s:%d] ", getpid(), __func__, __LINE__); \
-        printf(__VA_ARGS__); \
-        printf("\n");        \
-    } while (0)
-
-#define PROF_LOGW(...)       \
-    do {                     \
-        printf("[msservice_profiler] [PID:%d] [WARNING] [%s:%d] ", getpid(), __func__, __LINE__); \
-        printf(__VA_ARGS__); \
-        printf("\n");        \
-    } while (0)
-
-#define PROF_LOGE(...)       \
-    do {                     \
-        printf("[msservice_profiler] [PID:%d] [ERROR] [%s:%d] ", getpid(), __func__, __LINE__); \
-        printf(__VA_ARGS__); \
-        printf("\n");        \
-    } while (0)
-
-#define LOG_ONCE_D(...) \
-    do { \
-        static bool logged_##__LINE__ = false; \
-        if (!logged_##__LINE__) { \
-            PROF_LOGD(__VA_ARGS__); \
-            logged_##__LINE__ = true; \
-        } \
-    } while(0)
-
-#define LOG_ONCE_W(...) \
-    do { \
-        static bool logged_##__LINE__ = false; \
-        if (!logged_##__LINE__) { \
-            PROF_LOGW(__VA_ARGS__); \
-            logged_##__LINE__ = true; \
-        } \
-    } while(0)
-
-#define LOG_ONCE_E(...) \
-    do { \
-        static bool logged_##__LINE__ = false; \
-        if (!logged_##__LINE__) { \
-            PROF_LOGE(__VA_ARGS__); \
-            logged_##__LINE__ = true; \
-        } \
-    } while(0)
-
 
 namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
@@ -98,17 +49,8 @@ struct ProfSetDevPara {
     bool isOpen;
 };
 
-// 日志级别枚举
-enum LogLevel {
-    PROF_LOG_NONE = 0,
-    PROF_LOG_ERROR,
-    PROF_LOG_WARNING,
-    PROF_LOG_INFO,
-    PROF_LOG_DEBUG
-};
-
 // 全局日志级别变量
-extern LogLevel g_prof_log_level;
+extern ProfLogLevel g_prof_log_level;
 
 // 全局标志位，用于控制线程退出
 std::atomic<bool> g_threadRunFlag(true);
@@ -204,8 +146,8 @@ void RegisterSetDeviceCallback()
 {
     void *handle = dlopen("libprofapi.so", RTLD_LAZY | RTLD_LOCAL);
     if (handle == nullptr) {
-        std::cerr << "[WARNING] failed to dlopen libprofapi.so. Will be not able to get device profiling data. " <<
-            "Check whether a NPU server or if cann toolkit installed." << std::endl;
+        PROF_LOGW("Failed to dlopen libprofapi.so. Will be not able to get device profiling data. "
+            "Check whether a NPU server or if cann toolkit installed.");
         return;
     }
 
@@ -308,16 +250,18 @@ namespace msServiceProfiler {
             return jsonData;
         }
         if (access(configPath_.c_str(), F_OK) != 0) {
-            PROF_LOGE("SERVICE_PROF_CONFIG_PATH : %s is not file or Permission Denied",
+            LOG_ONCE_E("SERVICE_PROF_CONFIG_PATH : %s is not file or Permission Denied",
                       configPath_.c_str());  // LCOV_EXCL_LINE
             return jsonData;
+        } else {
+            LOG_ONCE_D("SERVICE_PROF_CONFIG_PATH : %s", configPath_.c_str());
         }
 
         std::ifstream configFile; // 单独创建 std::ifstream 对象
 
         char realConfigPath[PATH_MAX] = {0};
         if (realpath(configPath_.c_str(), realConfigPath) == nullptr) {
-            PROF_LOGE("Failed to get real path of: %s", configPath_.c_str());  // LCOV_EXCL_LINE
+            LOG_ONCE_E("Failed to get real path of: %s", configPath_.c_str());  // LCOV_EXCL_LINE
             return jsonData;
         }
         configPath_ = realConfigPath;
@@ -325,11 +269,11 @@ namespace msServiceProfiler {
         try {
             configFile.open(configPath_);
             if (!configFile.good()) {
-                PROF_LOGE("fail to open: %s", configPath_.c_str());  // LCOV_EXCL_LINE
+                LOG_ONCE_E("Fail to open: %s", configPath_.c_str());  // LCOV_EXCL_LINE
                 return jsonData;
             }
         } catch (const std::exception &e) {
-            PROF_LOGE("fail to open config file: %s, error: %s",
+            LOG_ONCE_E("Fail to open config file: %s, error: %s",
                       configPath_.c_str(), e.what());  // LCOV_EXCL_LINE
             return jsonData;
         }
@@ -337,7 +281,7 @@ namespace msServiceProfiler {
         try {
             configFile >> jsonData; // 尝试解析 JSON 数据
         } catch (const std::exception &e) {
-            PROF_LOGE("fail to parse file content as json object, config path: %s, error: %s",
+            PROF_LOGE("Fail to parse file content as json object, config path: %s, error: %s",
                       configPath_.c_str(), e.what());  // LCOV_EXCL_LINE
             configFile.close(); // 确保文件关闭
             return jsonData;
@@ -345,7 +289,7 @@ namespace msServiceProfiler {
 
         configFile.close(); // 成功解析后关闭文件
         if (jsonData.empty()) {
-            PROF_LOGE("paresd json object is empty, config path: %s", configPath_.c_str());  // LCOV_EXCL_LINE
+            PROF_LOGE("Paresd json object is empty, config path: %s", configPath_.c_str());  // LCOV_EXCL_LINE
             return jsonData;
         }
         return jsonData;
@@ -422,6 +366,7 @@ namespace msServiceProfiler {
                 }
             }
         }
+        PROF_LOGD("profiler_level: %u", level_);
     }
 
     std::string ServiceProfilerManager::ToSemName(const std::string &oriSemName)
@@ -527,7 +472,7 @@ namespace msServiceProfiler {
                     hostCpuUsage_ = true;
                     hostMemoryUsage_ = true;
                 } else {
-                    PROF_LOGE(
+                    LOG_ONCE_E(
                         "host_system_usage_freq must be between %u and %u, "
                         "will not collect host cpu or host memory usage.",
                         hostFreqMin_,
@@ -537,7 +482,7 @@ namespace msServiceProfiler {
                     ret = false;
                 }
             } catch (const std::exception &e) {
-                PROF_LOGE("fail to convert host_system_usage_freq config to uint,"
+                LOG_ONCE_E("fail to convert host_system_usage_freq config to uint,"
                           "will not collect host cpu or host memory usage.");  // LCOV_EXCL_LINE
                 hostCpuUsage_ = false;
                 hostMemoryUsage_ = false;
@@ -546,6 +491,7 @@ namespace msServiceProfiler {
         } else {
             ret = false;
         }
+        PROF_LOGD("host_system_usage_freq %s", ret ? "Enabled" : "Disabled");
         return ret;
     }
 
@@ -559,7 +505,7 @@ namespace msServiceProfiler {
                     npuMemoryFreq_ = npuMemoryFreq;
                     npuMemoryUsage_ = true;
                 } else {
-                    PROF_LOGE(
+                    LOG_ONCE_E(
                             "npu_memory_usage_freq must be between %u and %u, will not collect npu memory usage.",
                             npuMemoryFreqMin_,
                             npuMemoryFreqMax_);  // LCOV_EXCL_LINE
@@ -567,7 +513,7 @@ namespace msServiceProfiler {
                     ret = false;
                 }
             } catch (const std::exception &e) {
-                PROF_LOGE(
+                LOG_ONCE_E(
                 "fail to convert npu_memory_usage_freq config to uint, \
                 will not collect npu memory usage.");  // LCOV_EXCL_LINE
                 npuMemoryUsage_ = false;
@@ -577,6 +523,7 @@ namespace msServiceProfiler {
         } else {
             ret = false;
         }
+        PROF_LOGD("npu_memory_usage_freq %s", ret ? "Enabled" : "Disabled");
         return ret;
     }
 
@@ -606,7 +553,7 @@ namespace msServiceProfiler {
                 lastUpdate_ = configFileStat.st_mtime;
             }
         } else {
-            PROF_LOGE("fail to get stat of %s", configPath_.c_str());  // LCOV_EXCL_LINE
+            LOG_ONCE_E("fail to get stat of %s", configPath_.c_str());  // LCOV_EXCL_LINE
             return;
         }
 
