@@ -307,7 +307,7 @@ namespace msServiceProfiler {
 
         configFile.close(); // 成功解析后关闭文件
         if (jsonData.empty()) {
-            PROF_LOGE("Paresd json object is empty, config path: %s", configPath_.c_str());  // LCOV_EXCL_LINE
+            PROF_LOGE("Parsed json object is empty, config path: %s", configPath_.c_str());  // LCOV_EXCL_LINE
             return jsonData;
         }
         return jsonData;
