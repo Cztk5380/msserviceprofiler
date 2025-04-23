@@ -49,9 +49,6 @@ struct ProfSetDevPara {
     bool isOpen;
 };
 
-// 全局日志级别变量
-extern ProfLogLevel g_prof_log_level;
-
 // 全局标志位，用于控制线程退出
 std::atomic<bool> g_threadRunFlag(true);
 uint32_t g_deviceID = INVALID_DEVICE_ID;
@@ -252,7 +249,7 @@ namespace msServiceProfiler {
         }
         if (access(configPath_.c_str(), F_OK) != 0) {
             LOG_ONCE_E("SERVICE_PROF_CONFIG_PATH : %s is not file or Permission Denied",
-                      configPath_.c_str());  // LCOV_EXCL_LINE
+                configPath_.c_str());  // LCOV_EXCL_LINE
             return jsonData;
         } else {
             LOG_ONCE_D("SERVICE_PROF_CONFIG_PATH : %s", configPath_.c_str());
@@ -507,16 +504,15 @@ namespace msServiceProfiler {
                     npuMemoryUsage_ = true;
                 } else {
                     LOG_ONCE_E(
-                            "npu_memory_usage_freq must be between %u and %u, will not collect npu memory usage.",
-                            npuMemoryFreqMin_,
-                            npuMemoryFreqMax_);  // LCOV_EXCL_LINE
+                        "npu_memory_usage_freq must be between %u and %u, will not collect npu memory usage.",
+                        npuMemoryFreqMin_, npuMemoryFreqMax_);  // LCOV_EXCL_LINE
                     npuMemoryUsage_ = false;
                     ret = false;
                 }
             } catch (const std::exception &e) {
                 LOG_ONCE_E(
-                "fail to convert npu_memory_usage_freq config to uint, \
-                will not collect npu memory usage.");  // LCOV_EXCL_LINE
+                    "Fail to convert npu_memory_usage_freq config to uint, "
+                    "will not collect npu memory usage.");  // LCOV_EXCL_LINE
                 npuMemoryUsage_ = false;
                 ret = false;
             }
@@ -583,9 +579,11 @@ namespace msServiceProfiler {
         int ret = npuMemoryUsage.InitDcmiCardAndDevices();
         if (ret != EXITCODE_SUCCESS) {
             PROF_LOGE(
-            "InitDcmiCardAndDevices failed. Check whether a NPU server or if NPU driver installed.");  // LCOV_EXCL_LINE
+                "InitDcmiCardAndDevices failed. Check whether a NPU server "
+                "or if NPU driver installed.");  // LCOV_EXCL_LINE
             return;
         }
+
         while (g_threadRunFlag) {
             // dynamic start_and_stop
             DynamicControl();

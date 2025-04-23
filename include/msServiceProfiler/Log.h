@@ -17,11 +17,6 @@ enum class ProfLogLevel {
     PROF_LOG_DEBUG
 };
 
-namespace {
-    // 静态全局变量存储当前日志级别
-    ProfLogLevel g_prof_log_level = ProfLogLevel::PROF_LOG_INFO;
-}
-
 // 初始化日志系统
 void ProfLogInit();
 
@@ -29,7 +24,7 @@ void ProfLogInit();
 ProfLogLevel ProfLogGetLevel();
 
 // 设置日志级别
-void prof_log_set_level(ProfLogLevel level);
+void ProfLogSetLevel(ProfLogLevel level);
 
 // 日志宏定义
 #define PROF_LOGD(...) \
