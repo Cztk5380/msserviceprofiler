@@ -55,6 +55,34 @@
         printf("\n");        \
     } while (0)
 
+#define LOG_ONCE_D(...) \
+    do { \
+        static bool logged_##__LINE__ = false; \
+        if (!logged_##__LINE__) { \
+            PROF_LOGD(__VA_ARGS__); \
+            logged_##__LINE__ = true; \
+        } \
+    } while(0)
+
+#define LOG_ONCE_W(...) \
+    do { \
+        static bool logged_##__LINE__ = false; \
+        if (!logged_##__LINE__) { \
+            PROF_LOGW(__VA_ARGS__); \
+            logged_##__LINE__ = true; \
+        } \
+    } while(0)
+
+#define LOG_ONCE_E(...) \
+    do { \
+        static bool logged_##__LINE__ = false; \
+        if (!logged_##__LINE__) { \
+            PROF_LOGE(__VA_ARGS__); \
+            logged_##__LINE__ = true; \
+        } \
+    } while(0)
+
+
 namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
@@ -69,6 +97,18 @@ struct ProfSetDevPara {
     uint32_t deviceId;
     bool isOpen;
 };
+
+// 日志级别枚举
+enum LogLevel {
+    PROF_LOG_NONE = 0,
+    PROF_LOG_ERROR,
+    PROF_LOG_WARNING,
+    PROF_LOG_INFO,
+    PROF_LOG_DEBUG
+};
+
+// 全局日志级别变量
+extern LogLevel g_prof_log_level;
 
 // 全局标志位，用于控制线程退出
 std::atomic<bool> g_threadRunFlag(true);
@@ -164,8 +204,8 @@ void RegisterSetDeviceCallback()
 {
     void *handle = dlopen("libprofapi.so", RTLD_LAZY | RTLD_LOCAL);
     if (handle == nullptr) {
-        std::cerr << "[WARNING] failed to dlopen libprofapi.so. Will be not able to get MPU usage data. " <<
-            "Check whether a NPU server or if NPU driver installed." << std::endl;
+        std::cerr << "[WARNING] failed to dlopen libprofapi.so. Will be not able to get device profiling data. " <<
+            "Check whether a NPU server or if cann toolkit installed." << std::endl;
         return;
     }
 
@@ -277,7 +317,7 @@ namespace msServiceProfiler {
 
         char realConfigPath[PATH_MAX] = {0};
         if (realpath(configPath_.c_str(), realConfigPath) == nullptr) {
-            PROF_LOGE("Failed to canonicalize path: %s", configPath_.c_str());  // LCOV_EXCL_LINE
+            PROF_LOGE("Failed to get real path of: %s", configPath_.c_str());  // LCOV_EXCL_LINE
             return jsonData;
         }
         configPath_ = realConfigPath;
