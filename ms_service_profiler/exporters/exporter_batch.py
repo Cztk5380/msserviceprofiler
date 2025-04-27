@@ -23,8 +23,8 @@ def is_contained_vaild_dp_batch_info(rid_list, dp_id_list):
 
 def exporter_db_batch(dp_batch_df):
     all_dp_batch_df = dp_batch_df.copy()
-    all_dp_batch_df.loc[all_dp_batch_df['name'] == 'dbBatch', 'dpIds'] = \
-        all_dp_batch_df.loc[all_dp_batch_df['name'] == 'dbBatch', 'dpIds'].apply(extract_dp_values)
+    all_dp_batch_df.loc[all_dp_batch_df['name'] == 'dpBatch', 'dpIds'] = \
+        all_dp_batch_df.loc[all_dp_batch_df['name'] == 'dpBatch', 'dpIds'].apply(extract_dp_values)
 
     model_exec_indices = all_dp_batch_df[all_dp_batch_df['name'] == 'modelExec'].index
     batch_indices = all_dp_batch_df[all_dp_batch_df['name'] == 'batchFrameworkProcessing'].index
@@ -34,7 +34,7 @@ def exporter_db_batch(dp_batch_df):
     dp_batch_indices = None
     dp_batch_df_list = all_dp_batch_df.groupby('pid')
     for pid, dp_batch_df in dp_batch_df_list:
-        dp_batch_indices = dp_batch_df[dp_batch_df['name'] == 'dbBatch'].index
+        dp_batch_indices = dp_batch_df[dp_batch_df['name'] == 'dpBatch'].index
         if len(dp_batch_indices) != 0:
             logger.debug(f"dp-batch pid:{pid}")
             break
@@ -53,13 +53,10 @@ def exporter_db_batch(dp_batch_df):
             continue
         for i, value in enumerate(dp_id_list):
             value = str(value)
-            rid_name = 'dp' + value + '-rid'
-            rid_size = 'dp' + value + '-size'
-            if rid_name not in pre_dp_map:
-                pre_dp_map[rid_name] = []
-                pre_dp_map[rid_size] = 0
-            pre_dp_map[rid_name].append(str(rid_list[i]))
-            pre_dp_map[rid_size] += 1
+            dp_name = 'dp' + value
+            if dp_name not in pre_dp_map:
+                pre_dp_map[dp_name] = []
+            pre_dp_map[dp_name].append(rid_list[i])
 
         # if model_index < len(model_exec_indices) and \
         #     all_dp_batch_df.loc[model_exec_indices[model_index]]['start_time'] > dp_batch_row['end_time']:
@@ -72,8 +69,12 @@ def exporter_db_batch(dp_batch_df):
         #         all_dp_batch_df.loc[batch_indices[batch_index], key] = value
         #     batch_index += 1
         for key, value in pre_dp_map.items():
-            all_dp_batch_df.loc[model_exec_indices[db_batch_index], key] = value
-            all_dp_batch_df.loc[batch_indices[db_batch_index], key] = value
+            rid_name = key + '-rid'
+            size_name = key + '-size'
+            all_dp_batch_df.loc[model_exec_indices[db_batch_index], rid_name] = str(value)
+            all_dp_batch_df.loc[model_exec_indices[db_batch_index], size_name] = len(value)
+            all_dp_batch_df.loc[batch_indices[db_batch_index], rid_name] = str(value)
+            all_dp_batch_df.loc[batch_indices[db_batch_index], size_name] = len(value)
 
     return all_dp_batch_df
 
@@ -93,7 +94,7 @@ class ExporterBatchData(ExporterBase):
             return
         # mindie 330将BatchScheduler打点修改为batchFrameworkProcessing，此处做新旧版本的兼容处理
         batch_df = df[(df['name'] == 'BatchSchedule') | (df['name'] == 'modelExec') | \
-            (df['name'] == 'batchFrameworkProcessing') | (df['name'] == 'dbBatch')]
+            (df['name'] == 'batchFrameworkProcessing') | (df['name'] == 'dpBatch')]
         if batch_df.empty:
             logger.warning("No batch data found. Please check msproftx.db.")
             return
