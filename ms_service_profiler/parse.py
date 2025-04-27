@@ -199,20 +199,14 @@ def handle_exact_match(folder_path, reverse_d):
 
 def handle_msprof_pattern(folder_path, alias, filepaths):
     regex_pattern = r'^msprof_\d+\.json$'
-    max_file_timestamp = -1
-    matched_files = None
-
+    matched_files = []
     for fp in Path(folder_path).rglob('*.json'):
-        file_match = re.match(regex_pattern, fp.name)
-        # 当存在多个msprof_xxx.json时，取时间戳最大的json文件
-        if file_match:
-            file_timestamp = int(matched_files.group(1))
-            if file_timestamp > max_file_timestamp:
-                max_file_timestamp = file_timestamp
-                matched_files = str(fp)
-
-    if matched_files and alias in filepaths:
-        filepaths[alias] = matched_files
+        if re.match(regex_pattern, fp.name):
+            matched_files.append(str(fp))
+    if matched_files:
+        if alias not in filepaths:
+            filepaths[alias] = []
+        filepaths[alias].extend(matched_files)
     return filepaths
 
 
