@@ -34,29 +34,16 @@ def get_forward_df(df):
         for df_index, df in enumerate(forward_df_list):
             current_during_time = df.loc[row_index, 'during_time']
             current_dp_rank_id = df.loc[row_index, 'rid']
-            print(df.loc[row_index])
-            print(current_during_time)
-            print(current_dp_rank_id)
-            print('\n')
             if current_dp_rank_id not in max_during_time or current_during_time > max_during_time[current_dp_rank_id]:
                 max_during_time[current_dp_rank_id] = current_during_time
                 max_df_index[current_dp_rank_id] = df_index
-            print(max_during_time)
-            print(max_df_index)
-            print('\n')
 
-
-        print("************************")
-        print(max_during_time)
-        print(max_df_index)
-        print('\n')
         for key, value in max_df_index.items():
-            print(key)
             select_row = forward_df_list[value].loc[row_index]
             dp_name = 'dp' + key + '-forward'
             max_forward_during_time[dp_name] = select_row.get('during_time')
         all_max_forward_during_time.append(max_forward_during_time)
-        print(all_max_forward_during_time)
+
     return all_max_forward_during_time
 
 
@@ -81,8 +68,6 @@ def exporter_db_batch(input_dp_batch_df):
 
     try:
         forward_info = get_forward_df(all_dp_batch_df)
-        print("==============================================================================================")
-        print(forward_info[0])
         logger.debug(f"forward_info_length:{len(forward_info)},content:{forward_info}")
     except Exception as e:
         logger.error(f'get forward info error: {e}')
@@ -166,7 +151,6 @@ class ExporterBatchData(ExporterBase):
             new_order.append(dp_rid)
             new_order.append(dp_size)
             new_order.append(dp_forward)
-        print(new_order)
         # 创建过滤后的顺序列表
         existing_cols = [col for col in new_order if col in model_df.columns]
         remaining_cols = [col for col in model_df.columns if col not in new_order]
