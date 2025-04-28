@@ -21,6 +21,34 @@ def is_contained_vaild_dp_batch_info(rid_list, dp_id_list):
     return True
 
 
+def get_forward_df(df):
+    forward_df = df[df['name'] == 'forward']
+
+    df_list = forward_df.groupby('pid')
+    forward_df_list = []
+    for _, pre_df in df_list:
+        forward_df_list.append(pre_df.reset_index(drop=True))
+
+    if len(forward_df_list) <= 0:
+        logger.warning("msproftx.db has no forward info, please check.")
+        return None
+
+    # 初始化一个字典来存储每行的最大time值及其对应的DataFrame索引
+    max_forward_during_time = []
+
+    for row_index in forward_df_list[0].index:  # 假设所有DataFrame的行索引相同
+        max_during_time = -1
+        max_df_index = -1
+        for df_index, df in enumerate(forward_df_list):
+            current_time = df.loc[row_index, 'during_time']
+            if current_time > max_during_time:
+                max_during_time = current_time
+                max_df_index = df_index
+        select_row = forward_df_list[max_df_index].loc[row_index]
+        max_forward_during_time.append({'forward': select_row.get('during_time')})
+    return max_forward_during_time
+
+
 def exporter_db_batch(dp_batch_df):
     all_dp_batch_df = dp_batch_df.copy()
     all_dp_batch_df.loc[all_dp_batch_df['name'] == 'dpBatch', 'dpIds'] = \
@@ -42,6 +70,7 @@ def exporter_db_batch(dp_batch_df):
 
     # model_index = 0
     # batch_index = 0
+    forward_info = get_forward_df(dp_batch_df)
     for db_batch_index in range(len(dp_batch_indices)):
         dp_batch_row = all_dp_batch_df.loc[dp_batch_indices[db_batch_index]]
 
@@ -76,6 +105,10 @@ def exporter_db_batch(dp_batch_df):
             all_dp_batch_df.loc[batch_indices[db_batch_index], rid_name] = str(value)
             all_dp_batch_df.loc[batch_indices[db_batch_index], size_name] = len(value)
 
+        for key, value in forward_info[db_batch_index].items():
+            all_dp_batch_df.loc[model_exec_indices[db_batch_index], key] = str(value)
+            all_dp_batch_df.loc[batch_indices[db_batch_index], key] = str(value)
+
     return all_dp_batch_df
 
 
@@ -94,13 +127,13 @@ class ExporterBatchData(ExporterBase):
             return
         # mindie 330将BatchScheduler打点修改为batchFrameworkProcessing，此处做新旧版本的兼容处理
         batch_df = df[(df['name'] == 'BatchSchedule') | (df['name'] == 'modelExec') | \
-            (df['name'] == 'batchFrameworkProcessing') | (df['name'] == 'dpBatch')]
+            (df['name'] == 'batchFrameworkProcessing') | (df['name'] == 'dpBatch') | (df['name'] == 'forward')]
         if batch_df.empty:
             logger.warning("No batch data found. Please check msproftx.db.")
             return
         try:
             model_df = batch_df[['name', 'res_list', 'start_time', 'end_time', 'batch_size', \
-                'batch_type', 'during_time', 'dpIds', 'pid', 'rid_list',]]
+                'batch_type', 'during_time', 'dpIds', 'pid', 'rid_list']]
             model_df = exporter_db_batch(model_df)
             model_df = model_df[(model_df['name'] == 'BatchSchedule') | (model_df['name'] == 'modelExec') | \
             (model_df['name'] == 'batchFrameworkProcessing')]
