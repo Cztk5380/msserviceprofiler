@@ -33,15 +33,18 @@ def get_forward_df(df):
     max_forward_during_time = []
 
     for row_index in forward_df_list[0].index:  # 假设所有DataFrame的行索引相同
-        max_during_time = -1
-        max_df_index = -1
+        max_during_time = {}
+        max_df_index = {}
         for df_index, df in enumerate(forward_df_list):
-            current_time = df.loc[row_index, 'during_time']
-            if current_time > max_during_time:
-                max_during_time = current_time
-                max_df_index = df_index
-        select_row = forward_df_list[max_df_index].loc[row_index]
-        max_forward_during_time.append({'forward': select_row.get('during_time')})
+            current_during_time = df.loc[row_index, 'during_time']
+            current_dp_rank_id = df.loc[row_index, 'rid']
+            if current_dp_rank_id not in max_during_time or current_during_time > max_during_time[current_dp_rank_id]:
+                max_during_time[current_dp_rank_id] = current_during_time
+                max_df_index[current_dp_rank_id] = df_index
+        for key, value in max_df_index.items():
+            select_row = forward_df_list[value].loc[row_index]
+            dp_name = 'dp' + key + 'forward'
+            max_forward_during_time.append({dp_name: select_row.get('during_time')})
     return max_forward_during_time
 
 
@@ -65,12 +68,11 @@ def exporter_db_batch(dp_batch_df):
     logger.debug(f"dp_batch_indices_length:{len(dp_batch_indices)},content:{dp_batch_indices}")
     logger.debug(f"dp_rank_id_indices_length:{len(dp_rank_id_indices)},content:{dp_rank_id_indices}")
 
-
     try:
         forward_info = get_forward_df(dp_batch_df)
         logger.debug(f"forward_info_length:{len(forward_info)},content:{forward_info}")
     except Exception as e:
-        logger.error(f'set forward info error: {e}')
+        logger.error(f'get forward info error: {e}')
 
     for db_batch_index in range(len(dp_batch_indices)):
         dp_batch_row = all_dp_batch_df.loc[dp_batch_indices[db_batch_index]]
@@ -129,7 +131,7 @@ class ExporterBatchData(ExporterBase):
             return
         try:
             model_df = batch_df[['name', 'res_list', 'start_time', 'end_time', 'batch_size', \
-                'batch_type', 'during_time', 'pid', 'rid_list']]
+                'batch_type', 'during_time', 'pid', 'rid_list', 'rid']]
             model_df = exporter_db_batch(model_df)
             model_df = model_df[(model_df['name'] == 'BatchSchedule') | (model_df['name'] == 'modelExec') | \
             (model_df['name'] == 'batchFrameworkProcessing')]
