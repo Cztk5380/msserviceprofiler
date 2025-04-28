@@ -69,8 +69,8 @@ def exporter_db_batch(dp_batch_df):
     try:
         forward_info = get_forward_df(dp_batch_df)
         logger.debug(f"forward_info_length:{len(forward_info)},content:{forward_info}")
-    except :
-        logger.error('get forward info error')
+    except Exception as e:
+        logger.error(f'set forward info error: {e}')
 
     for db_batch_index in range(len(dp_batch_indices)):
         dp_batch_row = all_dp_batch_df.loc[dp_batch_indices[db_batch_index]]
@@ -97,12 +97,12 @@ def exporter_db_batch(dp_batch_df):
             all_dp_batch_df.loc[batch_indices[db_batch_index], rid_name] = str(value)
             all_dp_batch_df.loc[batch_indices[db_batch_index], size_name] = len(value)
 
-        for key, value in forward_info[db_batch_index].items():
-            all_dp_batch_df.loc[model_exec_indices[db_batch_index], key] = str(value)
-            all_dp_batch_df.loc[batch_indices[db_batch_index], key] = str(value)
-
-        
-
+        try:
+            for key, value in forward_info[db_batch_index].items():
+                all_dp_batch_df.loc[model_exec_indices[db_batch_index], key] = str(value)
+                all_dp_batch_df.loc[batch_indices[db_batch_index], key] = str(value)
+        except Exception as e:
+            logger.error(f'set forward info error: {e}')
 
     return all_dp_batch_df
 
