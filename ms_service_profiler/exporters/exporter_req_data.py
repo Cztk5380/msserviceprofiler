@@ -133,7 +133,8 @@ def get_req_base_info(df):
             new_req['start_time'] = first_row.get("start_time", 0)
 
         # 获取 httpRes
-        http_res_df = pre_req_data[pre_req_data['name'] == 'httpRes']
+        # 由于存在httpRes提前被调用，导致请求结束时间过早的情况，所以当前取httpRes和DecodeEnd中最晚一个点作为请求结束时间
+        http_res_df = pre_req_data[pre_req_data['name'].isin(['httpRes', 'DecodeEnd'])]
         if not http_res_df.empty:
             last_row = http_res_df.iloc[-1]
             new_req['end_time'] = last_row.get("end_time", 0)

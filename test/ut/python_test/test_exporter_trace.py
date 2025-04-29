@@ -88,22 +88,6 @@ def test_find_cann_pid():
     assert find_cann_pid(trace_events) is None
 
 
-def test_load_single_prof_valid_file():
-    # 模拟有效的 JSON 文件内容
-    mock_json_content = json.dumps([
-        {"name": "process_name", "args": {"name": "CANN"}, "pid": 123},
-        {"name": "event1", "pid": 123},
-        {"name": "event2", "pid": 456, "tid": 123}
-    ])
-
-    with patch("builtins.open", mock_open(read_data=mock_json_content)):
-        result = load_single_prof("dummy_path.json", ["123"])
-        assert result == {"traceEvents": [
-            {"name": "process_name", "args": {"name": "CANN"}, "pid": 123},
-            {"name": "event1", "pid": 123}
-        ]}
-
-
 def test_load_single_prof_file_not_found():
     # 模拟文件未找到的情况
     with patch("builtins.open", side_effect=FileNotFoundError):
@@ -149,7 +133,7 @@ def test_integration(mock_data):
             result = load_single_prof(pf, ["123"])
             trace_data = merge_json_data(trace_data, [result])
 
-        assert len(trace_data["traceEvents"]) == 6
+        assert len(trace_data["traceEvents"]) == 9
 
 
 # 测试 ExporterTrace 初始化

@@ -31,29 +31,8 @@
 
 #include "../include/msServiceProfiler/NpuMemoryUsage.h"
 #include "../include/msServiceProfiler/Profiler.h"
+#include "../include/msServiceProfiler/Log.h"
 #include "../include/msServiceProfiler/ServiceProfilerManager.h"
-
-
-#define PROF_LOGD(...)       \
-    do {                     \
-        printf("[msservice_profiler] [PID:%d] [DEBUG] [%s:%d] ", getpid(), __func__, __LINE__); \
-        printf(__VA_ARGS__); \
-        printf("\n");        \
-    } while (0)
-
-#define PROF_LOGW(...)       \
-    do {                     \
-        printf("[msservice_profiler] [PID:%d] [WARNING] [%s:%d] ", getpid(), __func__, __LINE__); \
-        printf(__VA_ARGS__); \
-        printf("\n");        \
-    } while (0)
-
-#define PROF_LOGE(...)       \
-    do {                     \
-        printf("[msservice_profiler] [PID:%d] [ERROR] [%s:%d] ", getpid(), __func__, __LINE__); \
-        printf(__VA_ARGS__); \
-        printf("\n");        \
-    } while (0)
 
 namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
@@ -78,6 +57,9 @@ bool g_startFlag = false;
 
 static void MarkEventLongAttr(const char *msg)
 {
+    if (msg == nullptr) {
+        return;
+    }
     auto spanHandle = StartSpan();
     MarkSpanAttr(msg, spanHandle);
 }
@@ -89,11 +71,19 @@ SpanHandle StartSpan()
 
 SpanHandle StartSpanWithName(const char *name)
 {
+    if (name == nullptr) {
+        return StartSpan();
+    }
+
     return mstxRangeStartA(name, nullptr);
 }
 
 void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
 {
+    if (msg == nullptr) {
+        return;
+    }
+
     std::string spanTag;
     spanTag.reserve(MAX_TX_MSG_LEN);
     spanTag.append("span=").append(std::to_string(spanHandle)).append("*");
@@ -105,8 +95,9 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
     }
     const char *oriMsgStart = msg;
     while (static_cast<decltype(msgLen)>(oriMsgStart - msg) < msgLen) {
-        spanTag.append(oriMsgStart, maxMarkSize);
-        oriMsgStart += maxMarkSize;
+        auto markSize = std::min(maxMarkSize, msgLen); // prevent out-of-bounds accessing
+        spanTag.append(oriMsgStart, markSize);
+        oriMsgStart += markSize;
         MarkEvent(spanTag.c_str());
         spanTag.resize(spanTagSize);
     }
@@ -119,6 +110,10 @@ void EndSpan(SpanHandle spanHandle)
 
 void MarkEvent(const char *msg)
 {
+    if (msg == nullptr) {
+        return;
+    }
+
     if (strlen(msg) > MAX_TX_MSG_LEN) {
         MarkEventLongAttr(msg);
     } else {
@@ -164,8 +159,8 @@ void RegisterSetDeviceCallback()
 {
     void *handle = dlopen("libprofapi.so", RTLD_LAZY | RTLD_LOCAL);
     if (handle == nullptr) {
-        std::cerr << "[WARNING] failed to dlopen libprofapi.so. Will be not able to get MPU usage data. " <<
-            "Check whether a NPU server or if NPU driver installed." << std::endl;
+        PROF_LOGW("Failed to dlopen libprofapi.so. Will be not able to get device profiling data. "
+            "Check whether a NPU server or if cann toolkit installed.");
         return;
     }
 
@@ -223,6 +218,7 @@ namespace msServiceProfiler {
 
     ServiceProfilerManager::ServiceProfilerManager() : configHandle_(nullptr)
     {
+        ProfLogInit();
         ReadConfigPath();
         MarkFirstProcessAsMain();
         InitProfPathDateTail();
@@ -246,8 +242,12 @@ namespace msServiceProfiler {
         if (!exitSemName.empty()) {
             shm_unlink(ServiceProfilerManager::ToSemName(exitSemName).c_str());
         }
-    }
 
+        if (this->thread_.joinable()) {
+            g_threadRunFlag = false;
+            this->thread_.join();
+        }
+    }
 
     void ServiceProfilerManager::ReadConfigPath()
     {
@@ -268,16 +268,18 @@ namespace msServiceProfiler {
             return jsonData;
         }
         if (access(configPath_.c_str(), F_OK) != 0) {
-            PROF_LOGE("SERVICE_PROF_CONFIG_PATH : %s is not file or Permission Denied",
-                      configPath_.c_str());  // LCOV_EXCL_LINE
+            LOG_ONCE_E("SERVICE_PROF_CONFIG_PATH : %s is not file or Permission Denied",
+                configPath_.c_str());  // LCOV_EXCL_LINE
             return jsonData;
+        } else {
+            LOG_ONCE_D("SERVICE_PROF_CONFIG_PATH : %s", configPath_.c_str());
         }
 
         std::ifstream configFile; // 单独创建 std::ifstream 对象
 
         char realConfigPath[PATH_MAX] = {0};
         if (realpath(configPath_.c_str(), realConfigPath) == nullptr) {
-            PROF_LOGE("Failed to canonicalize path: %s", configPath_.c_str());  // LCOV_EXCL_LINE
+            LOG_ONCE_E("Failed to get real path of: %s", configPath_.c_str());  // LCOV_EXCL_LINE
             return jsonData;
         }
         configPath_ = realConfigPath;
@@ -285,19 +287,19 @@ namespace msServiceProfiler {
         try {
             configFile.open(configPath_);
             if (!configFile.good()) {
-                PROF_LOGE("fail to open: %s", configPath_.c_str());  // LCOV_EXCL_LINE
+                LOG_ONCE_E("Fail to open: %s", configPath_.c_str());  // LCOV_EXCL_LINE
                 return jsonData;
             }
         } catch (const std::exception &e) {
-            PROF_LOGE("fail to open config file: %s, error: %s",
-                      configPath_.c_str(), e.what());  // LCOV_EXCL_LINE
+            LOG_ONCE_E("Fail to open config file: %s, error: %s",
+                configPath_.c_str(), e.what());  // LCOV_EXCL_LINE
             return jsonData;
         }
 
         try {
             configFile >> jsonData; // 尝试解析 JSON 数据
         } catch (const std::exception &e) {
-            PROF_LOGE("fail to parse file content as json object, config path: %s, error: %s",
+            PROF_LOGE("Fail to parse file content as json object, config path: %s, error: %s",
                       configPath_.c_str(), e.what());  // LCOV_EXCL_LINE
             configFile.close(); // 确保文件关闭
             return jsonData;
@@ -305,7 +307,7 @@ namespace msServiceProfiler {
 
         configFile.close(); // 成功解析后关闭文件
         if (jsonData.empty()) {
-            PROF_LOGE("paresd json object is empty, config path: %s", configPath_.c_str());  // LCOV_EXCL_LINE
+            PROF_LOGE("Parsed json object is empty, config path: %s", configPath_.c_str());  // LCOV_EXCL_LINE
             return jsonData;
         }
         return jsonData;
@@ -321,7 +323,7 @@ namespace msServiceProfiler {
                 PROF_LOGW("enable value is not an integer, will set false.");  // LCOV_EXCL_LINE
             }
         }
-        PROF_LOGD("profile enable_: %s", enable_ ? "true" : "false");  // LCOV_EXCL_LINE
+        PROF_LOGI("profile enable_: %s", enable_ ? "true" : "false");  // LCOV_EXCL_LINE
     }
 
     void ServiceProfilerManager::ReadProfPath(const Json &config)
@@ -349,7 +351,7 @@ namespace msServiceProfiler {
                 PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");  // LCOV_EXCL_LINE
             }
         }
-        PROF_LOGD("profile enableAclTaskTime_: %s", enableAclTaskTime_ ? "true" : "false");  // LCOV_EXCL_LINE
+        PROF_LOGI("profile enableAclTaskTime_: %s", enableAclTaskTime_ ? "true" : "false");  // LCOV_EXCL_LINE
     }
 
     void ServiceProfilerManager::ReadLevel(const Json &config)
@@ -381,6 +383,7 @@ namespace msServiceProfiler {
                 }
             }
         }
+        PROF_LOGD("profiler_level: %u", level_);
     }
 
     std::string ServiceProfilerManager::ToSemName(const std::string &oriSemName)
@@ -464,8 +467,7 @@ namespace msServiceProfiler {
 
     void ServiceProfilerManager::LaunchThread()
     {
-        auto t = std::thread(&ServiceProfilerManager::ThreadFunction, this);
-        t.detach();
+        this->thread_ = std::thread(&ServiceProfilerManager::ThreadFunction, this);
     }
 
     bool ServiceProfilerManager::ReadCollectConfig(const Json &config)
@@ -486,7 +488,7 @@ namespace msServiceProfiler {
                     hostCpuUsage_ = true;
                     hostMemoryUsage_ = true;
                 } else {
-                    PROF_LOGE(
+                    LOG_ONCE_E(
                         "host_system_usage_freq must be between %u and %u, "
                         "will not collect host cpu or host memory usage.",
                         hostFreqMin_,
@@ -496,7 +498,7 @@ namespace msServiceProfiler {
                     ret = false;
                 }
             } catch (const std::exception &e) {
-                PROF_LOGE("fail to convert host_system_usage_freq config to uint,"
+                LOG_ONCE_E("fail to convert host_system_usage_freq config to uint,"
                           "will not collect host cpu or host memory usage.");  // LCOV_EXCL_LINE
                 hostCpuUsage_ = false;
                 hostMemoryUsage_ = false;
@@ -505,6 +507,7 @@ namespace msServiceProfiler {
         } else {
             ret = false;
         }
+        PROF_LOGD("host_system_usage_freq %s", ret ? "Enabled" : "Disabled");
         return ret;
     }
 
@@ -518,17 +521,16 @@ namespace msServiceProfiler {
                     npuMemoryFreq_ = npuMemoryFreq;
                     npuMemoryUsage_ = true;
                 } else {
-                    PROF_LOGE(
-                            "npu_memory_usage_freq must be between %u and %u, will not collect npu memory usage.",
-                            npuMemoryFreqMin_,
-                            npuMemoryFreqMax_);  // LCOV_EXCL_LINE
+                    LOG_ONCE_E(
+                        "npu_memory_usage_freq must be between %u and %u, will not collect npu memory usage.",
+                        npuMemoryFreqMin_, npuMemoryFreqMax_);  // LCOV_EXCL_LINE
                     npuMemoryUsage_ = false;
                     ret = false;
                 }
             } catch (const std::exception &e) {
-                PROF_LOGE(
-                "fail to convert npu_memory_usage_freq config to uint, \
-                will not collect npu memory usage.");  // LCOV_EXCL_LINE
+                LOG_ONCE_E(
+                    "Fail to convert npu_memory_usage_freq config to uint, "
+                    "will not collect npu memory usage.");  // LCOV_EXCL_LINE
                 npuMemoryUsage_ = false;
                 ret = false;
             }
@@ -536,6 +538,7 @@ namespace msServiceProfiler {
         } else {
             ret = false;
         }
+        PROF_LOGD("npu_memory_usage_freq %s", ret ? "Enabled" : "Disabled");
         return ret;
     }
 
@@ -565,25 +568,25 @@ namespace msServiceProfiler {
                 lastUpdate_ = configFileStat.st_mtime;
             }
         } else {
-            PROF_LOGE("fail to get stat of %s", configPath_.c_str());  // LCOV_EXCL_LINE
+            LOG_ONCE_E("fail to get stat of %s", configPath_.c_str());  // LCOV_EXCL_LINE
             return;
         }
 
         auto configJson = ReadConfig();
         auto enableFromConfig = configJson["enable"] == 1;
         if (enableFromConfig && !enable_) {
-            PROF_LOGD("Profiler Enabled...");  // LCOV_EXCL_LINE
+            PROF_LOGI("Profiler Enabled...");  // LCOV_EXCL_LINE
             ReadEnable(configJson);
             ReadLevel(configJson);
             ReadProfPath(configJson);
             ReadAclTaskTime(configJson);
             ReadCollectConfig(configJson);
             StartServerProfiler();
-            PROF_LOGD("Profiler Enabled Successfully!");  // LCOV_EXCL_LINE
+            PROF_LOGI("Profiler Enabled Successfully!");  // LCOV_EXCL_LINE
         } else if (!enableFromConfig && enable_) {
-            PROF_LOGD("Profiler Disabled...");  // LCOV_EXCL_LINE
+            PROF_LOGI("Profiler Disabled...");  // LCOV_EXCL_LINE
             StopServerProfiler();
-            PROF_LOGD("Profiler Disabled Successfully!");  // LCOV_EXCL_LINE
+            PROF_LOGI("Profiler Disabled Successfully!");  // LCOV_EXCL_LINE
         }
     }
 
@@ -594,9 +597,11 @@ namespace msServiceProfiler {
         int ret = npuMemoryUsage.InitDcmiCardAndDevices();
         if (ret != EXITCODE_SUCCESS) {
             PROF_LOGE(
-            "InitDcmiCardAndDevices failed. Check whether a NPU server or if NPU driver installed.");  // LCOV_EXCL_LINE
+                "InitDcmiCardAndDevices failed. Check whether a NPU server "
+                "or if NPU driver installed.");  // LCOV_EXCL_LINE
             return;
         }
+
         while (g_threadRunFlag) {
             // dynamic start_and_stop
             DynamicControl();
@@ -671,7 +676,7 @@ namespace msServiceProfiler {
         if (!MakeDirs(profPath_)) {
             PROF_LOGE("create path(%s) failed", profPath_.c_str());  // LCOV_EXCL_LINE
         }
-        PROF_LOGD("prof path: %s", profPath_.c_str());  // LCOV_EXCL_LINE
+        PROF_LOGI("prof path: %s", profPath_.c_str());  // LCOV_EXCL_LINE
 
         if (!isAclInit_) {
             aclError retInit = aclInit(nullptr);

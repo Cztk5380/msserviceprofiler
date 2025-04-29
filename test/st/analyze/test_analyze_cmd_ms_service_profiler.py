@@ -32,6 +32,9 @@ def check_kvcache_csv_content(output_path, csv_file_name):
     df = pd.read_csv(csv_file)
     actual_columns = df.columns.tolist()
     check_column(actual_columns, expected_csv_columns, context=csv_file_name)
+    check_no_empty_lines_before_first_line(df, context=csv_file_name)
+    check_no_empty_lines_between_first_last_line(df, context=csv_file_name)
+    
 
     def is_whole_number(n):
         if n == int(n):
@@ -87,6 +90,8 @@ def check_pullkvcache_csv_content(csv_file):
     df = pd.read_csv(csv_file)
     actual_columns = df.columns.tolist()
     check_column(actual_columns, expected_csv_columns, context=csv_file)
+    check_no_empty_lines_before_first_line(df, context=csv_file)
+    check_no_empty_lines_between_first_last_line(df, context=csv_file)
 
 
 def check_has_vaild_table(cursor, table_name, columns_to_check):
@@ -159,6 +164,25 @@ def check_column(actual_columns, expected_columns, context=""):
     # 检查是否有缺失的列
     missing_columns = set(expected_columns) - set(actual_columns)
     pytest.assume(not missing_columns, f"{context} 表中缺少列: {missing_columns}")
+
+
+def check_no_empty_lines_before_first_line(dataframe, context=""):
+    empty_line = 0
+    # 检查是否有空行
+    for _, row in dataframe.iterrows():
+        if row.isnull().all():
+            empty_line += 1
+        else:
+            break
+    
+    pytest.assume(empty_line == 0, f"{context} table has {empty_line} empty lines.")
+
+
+def check_no_empty_lines_between_first_last_line(dataframe, context=""):
+    # 计算非空行的数量
+    empty_rows = dataframe.eq('').all(axis=1)
+    num_empty_rows = empty_rows.sum()
+    pytest.assume(num_empty_rows == 0, f"{context} table has empty lines.")
 
 
 def check_chrome_tracing_valid(output_path):
@@ -332,6 +356,9 @@ class TestAnalyzeCmd(TestCase):
 
         # 检查列名是否正确
         check_column(df.columns.tolist(), expected_header, context='batch.csv')
+        # 检查是否有多余空行
+        check_no_empty_lines_before_first_line(df, context='batch.csv')
+        check_no_empty_lines_between_first_last_line(df, context='batch.csv')
 
         # 定义一个函数，用于检查res_list的格式
         def is_valid_res_list(res_list_str):
@@ -357,6 +384,9 @@ class TestAnalyzeCmd(TestCase):
         expected_header = ['http_rid', 'start_time_httpReq(microsecond)', 'recv_token_size', 'reply_token_size', \
                            'execution_time(microsecond)', 'queue_wait_time(microsecond)']
         check_column(df.columns.tolist(), expected_header, context='request.csv')
+        # 检查是否有多余空行
+        check_no_empty_lines_before_first_line(df, context='request.csv')
+        check_no_empty_lines_between_first_last_line(df, context='request.csv')
 
         def is_whole_number(n):
             if n == int(n):
