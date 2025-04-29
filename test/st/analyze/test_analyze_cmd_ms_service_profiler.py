@@ -270,14 +270,14 @@ def collect_db_stats(root_dir: str, fields: List[str], table_name: str) -> Dict[
 
     # 递归查找PROF目录
     prof_dirs = [
-        d.rstrip(os.sep) for d in
-        glob.glob(os.path.join(root_dir, "**/PROF_*/"), recursive=True)
+        d.rstrip(os.sep)
+        for d in glob.glob(os.path.join(root_dir, "**/PROF_*/"), recursive=True)
         if os.path.isdir(d)
     ]
 
     assert prof_dirs, f"根目录下未发现任何PROF目录 | path={root_dir}"
 
-    for idx, prof_dir in enumerate(prof_dirs, 1):
+    for _, prof_dir in enumerate(prof_dirs, 1):
         dir_name = os.path.basename(prof_dir)
         db_path = os.path.join(prof_dir, "host", "sqlite", "msproftx.db")
 
@@ -443,6 +443,16 @@ class TestAnalyzeCmd(TestCase):
         with self.subTest():
             check_chrome_tracing_content_valid(self.OUTPUT_PATH)
 
+    def test_parse_data_in_pd_separate(self):
+        # 校验msserviceprofiler打点PD分离数据解析功能是否正常解析，校验输出文件及内容
+        cmd = ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH_PD_SEPARATE, \
+            "--output-path", self.OUTPUT_PATH]
+        if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
+            self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
+
+        with self.subTest("Check pullkvcache csv content"):
+            check_pullkvcache_csv_content(os.path.join(self.OUTPUT_PATH, "pd_separate_kvcache.csv"))
+
     def _validate_db_consistency(self):
         """数据库与CSV总值一致性校验"""
 
@@ -517,14 +527,4 @@ class TestAnalyzeCmd(TestCase):
             return len(df)
 
         except Exception as e:
-            self.fail(f"读取CSV文件失败 | path={csv_path} error={str(e)}")
-
-    def test_parse_data_in_pd_separate(self):
-        #校验msserviceprofiler打点PD分离数据解析功能是否正常解析，校验输出文件及内容
-        cmd = ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH_PD_SEPARATE, \
-            "--output-path", self.OUTPUT_PATH]
-        if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
-            self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
-
-        with self.subTest("Check pullkvcache csv content"):
-            check_pullkvcache_csv_content(os.path.join(self.OUTPUT_PATH, "pd_separate_kvcache.csv"))
+            raise self.failureException(f"读取CSV文件失败 | path={csv_path} error={str(e)}")
