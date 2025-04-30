@@ -247,7 +247,6 @@ def parse_message(message: str) -> dict:
 
 
 def collect_db_stats(root_dir: str, fields: List[str], table_name: str) -> Dict[str, Dict]:
-    """收集数据库统计信息（简化拆分版）"""
     results = {}
     grand_total = defaultdict(int)
 
