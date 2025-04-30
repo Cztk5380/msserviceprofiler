@@ -454,7 +454,7 @@ class TestAnalyzeCmd(TestCase):
         # 统计数据库总值
         db_stats = collect_db_stats(
             root_dir=self.INPUT_PATH,
-            fields=["modelExec", "BatchSchedule", "KVCache"],
+            fields=["modelExec", "BatchSchedule", "batchFrameworkProcessing", "KVCache"],
             table_name="MsprofTxEx",
         )
         db_total = db_stats.get("_total", {})
@@ -472,6 +472,12 @@ class TestAnalyzeCmd(TestCase):
                 "csv_path": os.path.join(self.OUTPUT_PATH, "batch.csv"),
                 "csv_column": "name",
                 "match_value": "BatchSchedule"
+            },
+            {
+                "db_field": "batchFrameworkProcessing",
+                "csv_path": os.path.join(self.OUTPUT_PATH, "batch.csv"),
+                "csv_column": "name",
+                "match_value": "batchFrameworkProcessing"
             },
             # kvcache.csv 校验
             {
