@@ -10,7 +10,7 @@ from ms_service_profiler.plugins.plugin_process_name import PluginProcessName
 from ms_service_profiler.plugins.plugin_batch import PluginBatch
 
 builtin_plugins = [PluginTimeStamp, PluginConcat, PluginCommon, PluginMetric, PluginTrace,
-    PluginProcessName]
+    PluginProcessName, PluginBatch]
 
 custom_plugins = [PluginReqStatus]
 

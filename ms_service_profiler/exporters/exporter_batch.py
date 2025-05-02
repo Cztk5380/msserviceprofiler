@@ -1,12 +1,11 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-from enum import Enum
 from pathlib import Path
-import json
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.exporters.utils import add_table_into_visual_db
+from ms_service_profiler.constant import US_PER_MS
 
 
 def is_contained_vaild_dp_batch_info(rid_list, dp_id_list):
@@ -14,20 +13,19 @@ def is_contained_vaild_dp_batch_info(rid_list, dp_id_list):
         return False
     return True
 
-def get_forward_df(df):
+def get_forward_info(df):
     forward_df = df[df['name'] == 'forward']
-    forward_df.to_csv('forward_df.csv')
     df_list = forward_df.groupby('pid')
     forward_df_list = []
     for _, pre_df in df_list:
         forward_df_list.append(pre_df.reset_index(drop=True))
     if len(forward_df_list) <= 0:
         logger.warning("msproftx.db has no forward info, please check.")
-        return None
+        return pd.DataFrame()
 
-    # 初始化一个字典来存储每行的最大time值及其对应的DataFrame索引
+    # 初始化一个字典来存储每行,每个dp域forward最大during_time值
     all_max_forward_during_time = []
-    for row_index in forward_df_list[0].index:  # 假设所有DataFrame的行索引相同
+    for row_index in forward_df_list[0].index:
         max_forward_during_time = {}
         max_during_time = {}
         max_df_index = {}
@@ -40,71 +38,176 @@ def get_forward_df(df):
 
         for key, value in max_df_index.items():
             select_row = forward_df_list[value].loc[row_index]
-            dp_name = 'dp' + key + '-forward'
-            max_forward_during_time[dp_name] = select_row.get('during_time')
+            dp_name = 'dp' + key + '-forward(ms)'
+            max_forward_during_time[dp_name] = select_row.get('during_time') / US_PER_MS
         all_max_forward_during_time.append(max_forward_during_time)
 
-    return all_max_forward_during_time
+    return pd.DataFrame(all_max_forward_during_time)
 
 
-def exporter_db_batch(input_dp_batch_df):
-    all_dp_batch_df = input_dp_batch_df.copy()
-    model_exec_indices = all_dp_batch_df[all_dp_batch_df['name'] == 'modelExec'].index
-    batch_indices = all_dp_batch_df[all_dp_batch_df['name'] == 'batchFrameworkProcessing'].index
-    logger.debug(f"model_exec_indices_length:{len(model_exec_indices)},content:{model_exec_indices}")
-    logger.debug(f"batch_indices_length:{len(batch_indices)},content:{batch_indices}")
+def get_certain_indices(row_name, fields_number_map, df):
+    rec_indices = df[df['name'] == row_name].index
+    rec_indices_length = len(rec_indices)
+    fields_number_map[row_name] = rec_indices_length
+    logger.debug(f"{row_name}_length:{rec_indices_length}, content:{rec_indices}")
+    return rec_indices
 
-    dp_batch_indices = None
-    dp_rank_id_indices = None
-    dp_batch_df_list = all_dp_batch_df.groupby('pid')
-    for pid, dp_batch_df in dp_batch_df_list:
-        dp_batch_indices = dp_batch_df[dp_batch_df['name'] == 'dpBatch'].index
-        dp_rank_id_indices = dp_batch_df[dp_batch_df['name'] == 'dpRankIds'].index
-        if len(dp_batch_indices) != 0 and len(dp_rank_id_indices) != 0:
-            logger.debug(f"dp-batch pid:{pid}")
+
+def get_pairs_df_by_pid(name_a, name_b, fields_number_map, df):
+    a_df_indices = []
+    b_df_indices = []
+    df_list = df.groupby('pid')
+    for pid, df in df_list:
+        a_df_indices = get_certain_indices(name_a, fields_number_map, df)
+        b_df_indices = get_certain_indices(name_b, fields_number_map, df)
+        if len(a_df_indices) != 0 and len(b_df_indices) != 0:
+            logger.debug(f"Select dp-batch pid:{pid}")
             break
-    logger.debug(f"dp_batch_indices_length:{len(dp_batch_indices)},content:{dp_batch_indices}")
-    logger.debug(f"dp_rank_id_indices_length:{len(dp_rank_id_indices)},content:{dp_rank_id_indices}")
+    return df.loc[a_df_indices].copy(), df.loc[b_df_indices].copy()
 
+
+def check_dp_batch_info_length(fields_number_map):
+    unique_length = set(fields_number_map.values())
+    # 若各字段个数不一致，则打印warning信息
+    if len(unique_length) > 1:
+        logger.warning("The number of dp-batch info fields has different length may due to dynamic control.")
+        for name, length in fields_number_map.items():
+            logger.warning(f"{name}_length: {length}")
+
+
+def extract_dp_info_each_row(row):
+    rid_list = row.get('rid_list')
+    dp_id_list = row.get('dp_list')
+    if not is_contained_vaild_dp_batch_info(rid_list, dp_id_list):
+        logger.warning('rid_list length is not equal to dp_id_list')
+        return {}
+
+    pre_dp_map = {}
+    for i, value in enumerate(dp_id_list):
+        value = str(value)
+        dp_name = 'dp' + value
+        if dp_name not in pre_dp_map:
+            pre_dp_map[dp_name] = []
+        pre_dp_map[dp_name].append(rid_list[i])
+
+    result_columns = {}
+    for key, value in pre_dp_map.items():
+        rid_name = key + '-rid'
+        size_name = key + '-size'
+        result_columns[rid_name] = str(value)
+        result_columns[size_name] = len(value)
+    return result_columns
+
+
+def get_dp_batch_info(dp_batch_df, dp_rank_id_df):
+    if dp_batch_df.empty or dp_rank_id_df.empty:
+        logger.warning("msproftx.db has no dpBatch info, please check.")
+        return pd.DataFrame()
+
+    # 确保dpBatch和dpRankId字段数量一致
+    min_len = min(len(dp_batch_df), len(dp_rank_id_df))
+    dp_batch_df = dp_batch_df.head(min_len)
+    dp_rank_id_df = dp_rank_id_df.head(min_len)
+
+    dp_df = pd.concat([dp_batch_df['rid_list'].reset_index(drop=True),
+        dp_rank_id_df['rid_list'].reset_index(drop=True)], axis=1, keys=["rid_list", "dp_list"])
+
+    # 根据rid_list和dp_list，逐行获取dp域信息，并更新新列
+    new_cols_df = dp_df.apply(extract_dp_info_each_row, axis=1, result_type="expand")
+    dp_df = pd.concat([dp_df, new_cols_df], axis=1)
+
+    dp_df = dp_df.drop(['dp_list', 'rid_list'], axis=1)
+
+    return dp_df
+
+
+def write_to_ori_df(ori_df_indices, new_df, ori_df):
+    # 防止写入越界，取最小值
+    min_row = min(len(ori_df_indices), len(new_df))
+
+    # 创建new_df的临时副本，索引设置为ori_df_indices的前n个
+    tmp_df = new_df.iloc[:min_row].copy()
+    tmp_df.index = ori_df_indices[:min_row]
+
+    # 如果已经存在改列，则直接更新
+    ori_df.update(tmp_df)
+    
+    new_clos = tmp_df.columns.difference(ori_df.columns)
+    if not new_clos.empty:
+        ori_df = pd.concat([ori_df, tmp_df[new_clos]], axis=1)
+    return ori_df
+
+
+def get_new_columns_order(ori_columns, new_columns, dp_number):
+    for i in range(dp_number):
+        dp_rid = 'dp' + str(i) + '-rid'
+        dp_size = 'dp' + str(i) + '-size'
+        dp_forward = 'dp' + str(i) + '-forward(ms)'
+        ori_columns.append(dp_rid)
+        ori_columns.append(dp_size)
+        ori_columns.append(dp_forward)
+
+    # 创建过滤后的顺序列表
+    existing_cols = [col for col in ori_columns if col in new_columns]
+    remaining_cols = [col for col in new_columns if col not in ori_columns]
+    new_columns_order = existing_cols + remaining_cols
+
+    return new_columns_order
+
+
+def exporter_dp_batch(batch_name, all_dp_batch_df):
+    ori_columns = ['name', 'res_list', 'start_time', 'end_time', 'batch_size', \
+        'batch_type', 'during_time', 'pid', 'rid_list', 'rid']
+    all_dp_batch_df = all_dp_batch_df[ori_columns]
+
+    # 获取原始数据中各打点字段个数，用于后续校验
+    fields_number_map = {}
+
+    # 获取每个dp域最长的forward执行时间
     try:
-        forward_info = get_forward_df(all_dp_batch_df)
-        logger.debug(f"forward_info_length:{len(forward_info)},content:{forward_info}")
+        forward_df = get_forward_info(all_dp_batch_df)
+        fields_number_map['forward'] = len(forward_df)
+        logger.debug(f"forward_info_length:{fields_number_map['forward']}, content:{forward_df.columns}")
     except Exception as e:
-        logger.error(f'get forward info error: {e}')
+        logger.warning(f'get forward info failed: {e}')
 
-    for db_batch_index in range(len(dp_batch_indices)):
-        dp_batch_row = all_dp_batch_df.loc[dp_batch_indices[db_batch_index]]
-        dp_id_list_row = all_dp_batch_df.loc[dp_rank_id_indices[db_batch_index]]
+    # 获取单个线程dp域batch及对应dpRanlIds的信息 (多个线程中的信息一致，只选取其中某一个线程)
+    dp_batch_df, dp_rank_id_df = get_pairs_df_by_pid('dpBatch', \
+        'dpRankIds', fields_number_map, all_dp_batch_df)
+    dp_df = get_dp_batch_info(dp_batch_df, dp_rank_id_df)
+    logger.debug(f"dp_info_length:{len(dp_df)}, content:{dp_df.columns}")
 
-        pre_dp_map = {}
-        rid_list = dp_batch_row.get('rid_list')
-        dp_id_list = dp_id_list_row.get('rid_list')
-        if not is_contained_vaild_dp_batch_info(rid_list, dp_id_list):
-            logger.warning('rid_list length is not equal to dp_id_list')
-            continue
-        for i, value in enumerate(dp_id_list):
-            value = str(value)
-            dp_name = 'dp' + value
-            if dp_name not in pre_dp_map:
-                pre_dp_map[dp_name] = []
-            pre_dp_map[dp_name].append(rid_list[i])
+    # 获取组batch和modelExec行的index
+    model_exec_indices = get_certain_indices('modelExec', fields_number_map, all_dp_batch_df)
+    batch_indices = get_certain_indices(batch_name, fields_number_map, all_dp_batch_df)
 
-        for key, value in pre_dp_map.items():
-            rid_name = key + '-rid'
-            size_name = key + '-size'
-            all_dp_batch_df.loc[model_exec_indices[db_batch_index], rid_name] = str(value)
-            all_dp_batch_df.loc[model_exec_indices[db_batch_index], size_name] = len(value)
-            all_dp_batch_df.loc[batch_indices[db_batch_index], rid_name] = str(value)
-            all_dp_batch_df.loc[batch_indices[db_batch_index], size_name] = len(value)
+    # 检查原始数据中各字段信息是否一致
+    check_dp_batch_info_length(fields_number_map)
 
-        try:
-            for key, value in forward_info[db_batch_index].items():
-                all_dp_batch_df.loc[model_exec_indices[db_batch_index], key] = str(value)
-                all_dp_batch_df.loc[batch_indices[db_batch_index], key] = str(value)
-        except Exception as e:
-            logger.error(f'set forward info error: {e}')
+    # 写回组batch和modelExec行
+    all_dp_batch_df = write_to_ori_df(model_exec_indices, dp_df, all_dp_batch_df)
+    all_dp_batch_df = write_to_ori_df(batch_indices, dp_df, all_dp_batch_df)
+    all_dp_batch_df = write_to_ori_df(model_exec_indices, forward_df, all_dp_batch_df)
+    all_dp_batch_df = write_to_ori_df(batch_indices, forward_df, all_dp_batch_df)
+
+    # 自定义列顺序
+    new_columns_order = get_new_columns_order(ori_columns, all_dp_batch_df.columns, len(forward_df.columns))
+    all_dp_batch_df = all_dp_batch_df[new_columns_order]
 
     return all_dp_batch_df
+
+
+def filter_batch_df(batch_name, batch_df):
+    batch_df = batch_df[batch_df['name'].isin(['modelExec', batch_name])]
+    batch_df = batch_df.drop(['pid', 'rid_list', 'rid'], axis=1)
+    batch_df['during_time'] = batch_df['during_time'] / US_PER_MS
+    batch_df = batch_df.rename(columns={
+        'start_time': 'start_time(ms)',
+        'end_time': 'end_time(ms)',
+        'during_time': 'during_time(ms)'
+    })
+    return batch_df
+
 
 class ExporterBatchData(ExporterBase):
     name = "batch_data"
@@ -118,52 +221,37 @@ class ExporterBatchData(ExporterBase):
             logger.warning("The data is empty, please check")
             return
 
-        # mindie 330将BatchScheduler打点修改为batchFrameworkProcessing，此处做新旧版本的兼容处理
-        batch_df = df[(df['name'] == 'BatchSchedule') | (df['name'] == 'modelExec') | \
-            (df['name'] == 'batchFrameworkProcessing') | (df['name'] == 'dpBatch') | \
-            (df['name'] == 'forward') | (df['name'] == 'dpRankIds')]
+        batch_df = df[df['name'].isin(['BatchSchedule', 'modelExec', \
+            'batchFrameworkProcessing', 'dpBatch', 'forward', 'dpRankIds'])]
         if batch_df.empty:
             logger.warning("No batch data found. Please check msproftx.db.")
             return
 
         try:
-            model_df = batch_df[['name', 'res_list', 'start_time', 'end_time', 'batch_size', \
-                'batch_type', 'during_time', 'pid', 'rid_list', 'rid']]
-            model_df = exporter_db_batch(model_df)
-            model_df = model_df[(model_df['name'] == 'BatchSchedule') | (model_df['name'] == 'modelExec') | \
-            (model_df['name'] == 'batchFrameworkProcessing')]
-            model_df = model_df.drop(['pid', 'rid_list', 'rid'], axis=1)
-            model_df = model_df.rename(columns={
-            'start_time': 'start_time(microsecond)',
-            'end_time': 'end_time(microsecond)',
-            'during_time': 'during_time(microsecond)'
-        })
+            # 获取组batch字段名称，旧版本为BatchScheduler，新版本为batchFrameworkProcessing
+            batch_name = 'BatchSchedule' if (batch_df['name'] == 'BatchSchedule').any() else 'batchFrameworkProcessing'
+
+            # 区分dp域显示，假如为动态启停采集的数据，从第一次组batch开始算起
+            if batch_name in batch_df['name'].values:
+                start_index = (batch_df['name'] == batch_name).idxmax()
+                batch_df = batch_df.loc[start_index:]
+
+            # 给组batch和modelExec列新增dp域信息
+            batch_df = exporter_dp_batch(batch_name, batch_df)
+
+            # 筛选显示
+            batch_df = filter_batch_df(batch_name, batch_df)
         except KeyError as e:
             logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
 
-        # 自定义列顺序
-        new_order = ['name', 'res_list', 'start_time(microsecond)', 'end_time(microsecond)', 'batch_size', \
-            'batch_type', 'during_time(microsecond)']
-        for i in range(8):
-            dp_rid = 'dp' + str(i) + '-rid'
-            dp_size = 'dp' + str(i) + '-size'
-            dp_forward = 'dp' + str(i) + '-forward'
-            new_order.append(dp_rid)
-            new_order.append(dp_size)
-            new_order.append(dp_forward)
-        # 创建过滤后的顺序列表
-        existing_cols = [col for col in new_order if col in model_df.columns]
-        remaining_cols = [col for col in model_df.columns if col not in new_order]
-        new_order_final = existing_cols + remaining_cols
-        # 重新排列列
-        model_df = model_df[new_order_final]
-
         output = cls.args.output_path
-        save_dataframe_to_csv(model_df, output, "batch.csv")
+        save_dataframe_to_csv(batch_df, output, "batch.csv")
 
-        for col in model_df:
-            if model_df[col].dtype == 'object':
-                model_df[col] = model_df[col].astype(str)
+        for col in batch_df:
+            if batch_df[col].dtype == 'object':
+                batch_df[col] = batch_df[col].astype(str)
             if col == 'batch_size':
-                model_df[col] = model_df[col].astype(float)
-        add_table_into_visual_db(model_df, 'batch')
+                batch_df[col] = batch_df[col].astype(float)
+        add_table_into_visual_db(batch_df, 'batch')
+        add_table_into_visual_db(data.get('batch_req_df'), 'batch_req')
+        add_table_into_visual_db(data.get('batch_exec_df'), 'batch_exec')
