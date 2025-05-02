@@ -1,5 +1,4 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-from pathlib import Path
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
@@ -12,6 +11,7 @@ def is_contained_vaild_dp_batch_info(rid_list, dp_id_list):
     if rid_list is None or dp_id_list is None or len(rid_list) != len(dp_id_list):
         return False
     return True
+
 
 def get_forward_info(df):
     forward_df = df[df['name'] == 'forward']
@@ -140,12 +140,9 @@ def write_to_ori_df(ori_df_indices, new_df, ori_df):
 
 def get_new_columns_order(ori_columns, new_columns, dp_number):
     for i in range(dp_number):
-        dp_rid = 'dp' + str(i) + '-rid'
-        dp_size = 'dp' + str(i) + '-size'
-        dp_forward = 'dp' + str(i) + '-forward(ms)'
-        ori_columns.append(dp_rid)
-        ori_columns.append(dp_size)
-        ori_columns.append(dp_forward)
+        ori_columns.append('dp' + str(i) + '-rid')
+        ori_columns.append('dp' + str(i) + '-size')
+        ori_columns.append('dp' + str(i) + '-forward(ms)')
 
     # 创建过滤后的顺序列表
     existing_cols = [col for col in ori_columns if col in new_columns]
@@ -201,6 +198,8 @@ def filter_batch_df(batch_name, batch_df):
     batch_df = batch_df[batch_df['name'].isin(['modelExec', batch_name])]
     batch_df = batch_df.drop(['pid', 'rid_list', 'rid'], axis=1)
     batch_df['during_time'] = batch_df['during_time'] / US_PER_MS
+    batch_df['start_time'] = batch_df['start_time'] / US_PER_MS
+    batch_df['end_time'] = batch_df['end_time'] / US_PER_MS
     batch_df = batch_df.rename(columns={
         'start_time': 'start_time(ms)',
         'end_time': 'end_time(ms)',
@@ -211,9 +210,11 @@ def filter_batch_df(batch_name, batch_df):
 
 class ExporterBatchData(ExporterBase):
     name = "batch_data"
+
     @classmethod
     def initialize(cls, args):
         cls.args = args
+
     @classmethod
     def export(cls, data) -> None:
         df = data.get('tx_data_df')
@@ -221,16 +222,14 @@ class ExporterBatchData(ExporterBase):
             logger.warning("The data is empty, please check")
             return
 
-        batch_df = df[df['name'].isin(['BatchSchedule', 'modelExec', \
-            'batchFrameworkProcessing', 'dpBatch', 'forward', 'dpRankIds'])]
+        # 获取组batch字段名称，旧版本为BatchScheduler，新版本为batchFrameworkProcessing
+        batch_name = 'BatchSchedule' if (df['name'] == 'BatchSchedule').any() else 'batchFrameworkProcessing'
+        batch_df = df[df['name'].isin([batch_name, 'modelExec', 'dpBatch', 'forward', 'dpRankIds'])]
         if batch_df.empty:
             logger.warning("No batch data found. Please check msproftx.db.")
             return
 
         try:
-            # 获取组batch字段名称，旧版本为BatchScheduler，新版本为batchFrameworkProcessing
-            batch_name = 'BatchSchedule' if (batch_df['name'] == 'BatchSchedule').any() else 'batchFrameworkProcessing'
-
             # 区分dp域显示，假如为动态启停采集的数据，从第一次组batch开始算起
             if batch_name in batch_df['name'].values:
                 start_index = (batch_df['name'] == batch_name).idxmax()
