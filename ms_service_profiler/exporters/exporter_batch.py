@@ -7,9 +7,17 @@ from ms_service_profiler.exporters.utils import add_table_into_visual_db
 from ms_service_profiler.constant import US_PER_MS
 
 
-def is_contained_vaild_dp_batch_info(rid_list, dp_id_list):
-    if rid_list is None or dp_id_list is None or len(rid_list) != len(dp_id_list):
+def is_vaild_id_list(id_list):
+    if id_list is None or None in id_list:
         return False
+
+    return True
+
+
+def is_contained_vaild_dp_batch_info(rid_list, dp_id_list):
+    if not is_vaild_id_list(rid_list) or not is_vaild_id_list(dp_id_list) or len(rid_list) != len(dp_id_list):
+        return False
+
     return True
 
 
@@ -30,7 +38,7 @@ def get_forward_info(df):
         max_during_time = {}
         max_df_index = {}
         for df_index, df in enumerate(forward_df_list):
-            current_dp_rank_id = df.loc[row_index, 'rid']
+            current_dp_rank_id = df.loc[row_index, 'dpRankId']
             if current_dp_rank_id is None:
                 continue
             current_during_time = df.loc[row_index, 'during_time']
@@ -48,24 +56,23 @@ def get_forward_info(df):
 
 
 def get_certain_indices(row_name, fields_number_map, df):
-    rec_indices = df[df['name'] == row_name].index
-    rec_indices_length = len(rec_indices)
-    fields_number_map[row_name] = rec_indices_length
-    logger.debug(f"{row_name}_length:{rec_indices_length}, content:{rec_indices}")
-    return rec_indices
+    ret_indices = df[df['name'] == row_name].index
+    ret_indices_length = len(ret_indices)
+    fields_number_map[row_name] = ret_indices_length
+    logger.debug(f"{row_name}_length:{ret_indices_length}, content:{ret_indices}")
+    return ret_indices
 
 
-def get_pairs_df_by_pid(name_a, name_b, fields_number_map, df):
-    a_df_indices = []
-    b_df_indices = []
+def get_certain_df_by_pid(row_name, fields_number_map, df):
+    ret_df = []
     df_list = df.groupby('pid')
     for pid, df in df_list:
-        a_df_indices = get_certain_indices(name_a, fields_number_map, df)
-        b_df_indices = get_certain_indices(name_b, fields_number_map, df)
-        if len(a_df_indices) != 0 and len(b_df_indices) != 0:
+        ret_df = df[df['name'] == row_name]
+        if len(ret_df) != 0:
             logger.debug(f"Select dp-batch pid:{pid}")
             break
-    return df.loc[a_df_indices].copy(), df.loc[b_df_indices].copy()
+    fields_number_map[row_name] = len(ret_df)
+    return ret_df
 
 
 def check_dp_batch_info_length(fields_number_map):
@@ -81,7 +88,7 @@ def extract_dp_info_each_row(row):
     rid_list = row.get('rid_list')
     dp_id_list = row.get('dp_list')
     if not is_contained_vaild_dp_batch_info(rid_list, dp_id_list):
-        logger.warning('rid_list length is not equal to dp_id_list')
+        logger.warning('rid_list length is not equal to dp_list')
         return {}
 
     pre_dp_map = {}
@@ -101,18 +108,12 @@ def extract_dp_info_each_row(row):
     return result_columns
 
 
-def get_dp_batch_info(dp_batch_df, dp_rank_id_df):
-    if dp_batch_df.empty or dp_rank_id_df.empty:
+def get_dp_batch_info(dp_df):
+    if dp_df.empty:
         logger.warning("msproftx.db has no dpBatch info, please check.")
         return pd.DataFrame()
 
-    # 确保dpBatch和dpRankId字段数量一致
-    min_len = min(len(dp_batch_df), len(dp_rank_id_df))
-    dp_batch_df = dp_batch_df.head(min_len)
-    dp_rank_id_df = dp_rank_id_df.head(min_len)
-
-    dp_df = pd.concat([dp_batch_df['rid_list'].reset_index(drop=True),
-        dp_rank_id_df['rid_list'].reset_index(drop=True)], axis=1, keys=["rid_list", "dp_list"])
+    dp_df = dp_df[['rid_list', 'dp_list']]
 
     # 根据rid_list和dp_list，逐行获取dp域信息，并更新新列
     new_cols_df = dp_df.apply(extract_dp_info_each_row, axis=1, result_type="expand")
@@ -159,7 +160,7 @@ def get_new_columns_order(ori_columns, new_columns, dp_number):
 
 def exporter_dp_batch(batch_name, all_dp_batch_df):
     ori_columns = ['name', 'res_list', 'start_time', 'end_time', 'batch_size', \
-        'batch_type', 'during_time', 'pid', 'rid_list', 'rid']
+        'batch_type', 'during_time', 'pid', 'rid_list', 'rid', 'dpRankId', 'dp_list']
     all_dp_batch_df = all_dp_batch_df[ori_columns]
 
     # 获取原始数据中各打点字段个数，用于后续校验
@@ -175,9 +176,8 @@ def exporter_dp_batch(batch_name, all_dp_batch_df):
         logger.warning(f'get forward info failed: {e}')
 
     # 获取单个线程dp域batch及对应dpRanlIds的信息 (多个线程中的信息一致，只选取其中某一个线程)
-    dp_batch_df, dp_rank_id_df = get_pairs_df_by_pid('dpBatch', \
-        'dpRankIds', fields_number_map, all_dp_batch_df)
-    dp_df = get_dp_batch_info(dp_batch_df, dp_rank_id_df)
+    dp_batch_df = get_certain_df_by_pid('dpBatch', fields_number_map, all_dp_batch_df)
+    dp_df = get_dp_batch_info(dp_batch_df)
     logger.debug(f"dp_info_length:{len(dp_df)}, content:{dp_df.columns}")
 
     # 获取组batch和modelExec行的index
@@ -202,7 +202,7 @@ def exporter_dp_batch(batch_name, all_dp_batch_df):
 
 def filter_batch_df(batch_name, batch_df):
     batch_df = batch_df[batch_df['name'].isin(['modelExec', batch_name])]
-    batch_df = batch_df.drop(['pid', 'rid_list', 'rid'], axis=1)
+    batch_df = batch_df.drop(['pid', 'rid_list', 'rid', 'dpRankId', 'dp_list'], axis=1)
     batch_df['during_time'] = batch_df['during_time'] / US_PER_MS
     batch_df['start_time'] = batch_df['start_time'] / US_PER_MS
     batch_df['end_time'] = batch_df['end_time'] / US_PER_MS
@@ -247,7 +247,7 @@ class ExporterBatchData(ExporterBase):
             # 筛选显示
             batch_df = filter_batch_df(batch_name, batch_df)
         except KeyError as e:
-            logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
+            logger.warning(f"Field '{e.args[0]}' not found in tx_data_df.")
 
         output = cls.args.output_path
         save_dataframe_to_csv(batch_df, output, "batch.csv")

@@ -38,6 +38,7 @@ def extract_ids_from_reslist(rid_from_message, rid_map):
 
     rid = []
     token_id = []
+    dp_id = []
 
     for req in rid_from_message:
         if isinstance(req, int) or isinstance(req, float):
@@ -48,27 +49,30 @@ def extract_ids_from_reslist(rid_from_message, rid_map):
             # iter_size 为vllm数据采集特有字段
             if req.get('iter_size'):
                 token_id.append(extract_iter_from_batch(req))
+            # dp域信息
+            elif req.get('dp'):
+                dp_id.append(req.get('dp', None))
             else:
                 token_id.append(req.get('iter', None))
         elif isinstance(req, str):
             rid.append(req)
             token_id.append(None)
 
-    return rid, token_id
+    return rid, token_id, dp_id
 
 
 def extract_rid(rid_from_message, rid_map):
-    rid, rid_list, token_id_list = None, None, None
+    rid, rid_list, token_id_list, dp_list = None, None, None, None
     if rid_from_message is not None:
         if isinstance(rid_from_message, str):
             rid = str(rid_map.get(rid_from_message, rid_from_message))
         elif isinstance(rid_from_message, list):
-            rid_list, token_id_list = extract_ids_from_reslist(rid_from_message, rid_map)
+            rid_list, token_id_list, dp_list = extract_ids_from_reslist(rid_from_message, rid_map)
             rid = ','.join(map(str, rid_list))
         else:
             rid = str(rid_from_message)
 
-    return rid, rid_list, token_id_list
+    return rid, rid_list, token_id_list, dp_list
 
 
 def parse_rid_map(all_data_df):
@@ -95,6 +99,6 @@ def parse_rid(tx_data_df):
     rid_link_map = parse_rid_map(tx_data_df)
 
     df = tx_data_df['rid'].apply(lambda x: extract_rid(x, rid_link_map))
-    tx_data_df[['rid', 'rid_list', 'token_id_list']] = pd.DataFrame(df.tolist(), index=tx_data_df.index)
+    tx_data_df[['rid', 'rid_list', 'token_id_list', 'dp_list']] = pd.DataFrame(df.tolist(), index=tx_data_df.index)
 
     return tx_data_df, rid_link_map
