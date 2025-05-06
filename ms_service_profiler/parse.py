@@ -334,10 +334,10 @@ def parse(input_path, plugins, exporters):
         futures = {exporter.name: executor.submit(exporter.export, data) for exporter in exporters}
         for exporter_name, future in futures.items():
             future.result()
-            # try:
-            #     future.result()
-            # except Exception as e:
-            #     logger.error(f"Error raise from exporter: {exporter_name}, message: {e}")
+            try:
+                future.result()
+            except Exception as e:
+                logger.error(f"Error raise from exporter: {exporter_name}, message: {e}")
 
     logger.info('Exporter done.')
 
