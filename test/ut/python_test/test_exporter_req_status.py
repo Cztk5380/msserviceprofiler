@@ -1,4 +1,6 @@
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
+from unittest import mock
+
 import os
 import sqlite3
 from pathlib import Path
@@ -43,7 +45,7 @@ def test_parse_valid_data(tmpdir, sample_data):
         create_sqlite_db(test_path)
         db_fp = Path(test_path, 'profiler.db')
         conn = sqlite3.connect(db_fp)
-        ExporterReqStatus.initialize({'parse_type': ['db']})
+        ExporterReqStatus.initialize(mock.Mock(parse_type=['trace']))
         ExporterReqStatus.export(sample_data)
         conn.close()
         assert os.path.exists(db_fp)
