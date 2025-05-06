@@ -110,7 +110,7 @@ def extract_dp_info_each_row(row):
 
 def get_dp_batch_info(dp_df):
     if dp_df.empty:
-        logger.warning("msproftx.db has no dpBatch info, please check.")
+        logger.warning("tx_data_df has no dpBatch info, please check.")
         return pd.DataFrame()
 
     dp_df = dp_df[['rid_list', 'dp_list']]

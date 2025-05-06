@@ -24,49 +24,47 @@ class TestExporterBatchData(unittest.TestCase):
     def create_df(self):
         # 创建一个示例DataFrame
         data = {
-            'name': ['BatchSchedule', 'modelExec', 'dpBatch', 'dpRankIds', 'forward', 'forward',\
-                'BatchSchedule', 'modelExec', 'dpBatch', 'dpRankIds', 'forward', 'forward'],
+            'name': ['BatchSchedule', 'modelExec', 'dpBatch', 'forward', 'forward',\
+                'BatchSchedule', 'modelExec', 'dpBatch', 'forward', 'forward'],
             'message': [
                 {'rid': [{'rid': 11, 'iter': 0}, {'rid': 12, 'iter': 0}], 'data': 'data1'},
                 {'rid': [{'rid': 11, 'iter': 0}, {'rid': 12, 'iter': 0}], 'data': 'data2'},
                 {'rid': [11, 12], 'data': 'data1'},
-                {'rid': [0, 1], 'data': 'data2'},
                 {'rid': [0], 'data': 'data1'},
                 {'rid': [1], 'data': 'data2'},
 
                 {'rid': [{'rid': 13, 'iter': 1}, {'rid': 14, 'iter': 1}], 'data': 'data3'},
                 {'rid': [{'rid': 13, 'iter': 1}, {'rid': 14, 'iter': 1}], 'data': 'data4'},
                 {'rid': [13, 14], 'data': 'data1'},
-                {'rid': [1, 0], 'data': 'data2'},
                 {'rid': [0], 'data': 'data1'},
                 {'rid': [1], 'data': 'data2'}
             ],
-            'start_time': [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000],
-            'end_time': [1500, 2500, 3500, 4500, 5500, 6500, 7500, 8500, 9500, 10500, 11500, 12500],
-            'batch_size':[2, 2, 2, 2, 1, 1, 2, 2, 2, 2, 1, 1],
-            'batch_type':['Prefill', 'Prefill', 'Prefill', 'Prefill', 'Prefill', 'Prefill',
-                'Decode', 'Decode', 'Decode', 'Decode', 'Decode', 'Decode'],
+            'start_time': [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000],
+            'end_time': [1500, 2500, 3500, 4500, 5500, 6500, 7500, 8500, 9500, 10500],
+            'batch_size':[2, 2, 2, 1, 1, 2, 2, 2, 1, 1],
+            'batch_type':['Prefill', 'Prefill', 'Prefill', 'Prefill', 'Prefill',
+                'Decode', 'Decode', 'Decode', 'Decode', 'Decode'],
             'res_list':[
                 {'rid': [{'rid': 11, 'iter': 0}, {'rid': 12, 'iter': 0}]},
                 {'rid': [{'rid': 11, 'iter': 0}, {'rid': 12, 'iter': 0}]},
                 {'rid': [11, 12]},
-                {'rid': [0, 1]},
                 {'rid': [0]},
                 {'rid': [1]},
 
                 {'rid': [{'rid': 13, 'iter': 1}, {'rid': 14, 'iter': 1}]},
                 {'rid': [{'rid': 13, 'iter': 1}, {'rid': 14, 'iter': 1}]},
                 {'rid': [13, 14]},
-                {'rid': [0, 1]},
                 {'rid': [0]},
                 {'rid': [1]}
             ],
-            'during_time': [500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500],
-            'pid': [0, 0, 1, 1, 1, 2, 0, 0, 1, 1, 1, 2],
-            'rid_list': [[11, 12], [11, 12], [11, 12], [0, 1], [0], [1],
-                [13, 14], [13, 14], [13, 14], [0, 1], [0], [1]],
-            'rid': ['11, 12', '11, 12', '11, 12', '0, 1', '0', '1',
-                '13, 14', '13, 14', '13, 14', '0, 1', '0', '1']
+            'during_time': [500, 500, 500, 500, 500, 500, 500, 500, 500, 500],
+            'pid': [0, 0, 1, 1, 2, 0, 0, 1, 1, 2],
+            'rid_list': [[11, 12], [11, 12], [11, 12], [11, 12], [11, 12],
+                [13, 14], [13, 14], [13, 14], [13, 14], [13, 14]],
+            'dp_list': [[], [], [0, 1], [], [], [], [], [0, 1], [], []],
+            'rid': ['11, 12', '11, 12', '11, 12', '', '',
+                '13, 14', '13, 14', '13, 14', '', ''],
+            'dpRankId': ['', '', '', '0', '1', '', '', '', '0', '1']
         }
         return pd.DataFrame(data)
 

@@ -70,34 +70,38 @@ def test_parse_with_invalid_rid():
 def test_parse_with_empty_rid_from_message():
     rid_from_message = []
     rid_map = {1: 1, 2: 2}
-    rid, token_id = extract_ids_from_reslist(rid_from_message, rid_map)
+    rid, token_id, dp_id = extract_ids_from_reslist(rid_from_message, rid_map)
     assert len(rid) == 0
     assert len(token_id) == 0
+    assert len(dp_id) == 0
 
 
 def test_parse_with_string_rid_from_message():
     rid_from_message = ['a', 'b']
     rid_map = {1: 1, 2: 2}
-    rid, token_id = extract_ids_from_reslist(rid_from_message, rid_map)
+    rid, token_id, dp_id = extract_ids_from_reslist(rid_from_message, rid_map)
     assert rid == ['a', 'b']
     assert len(rid) == 2
     assert len(token_id) == 2
+    assert len(dp_id) == 0
 
 
 def test_parse_with_list_rid_from_message():
     rid_from_message = [{'rid': 1}, {'rid': 2}]
     rid_map = {1: 1, 2: 2}
-    rid, token_id = extract_ids_from_reslist(rid_from_message, rid_map)
+    rid, token_id, dp_id = extract_ids_from_reslist(rid_from_message, rid_map)
     assert rid == [1, 2]
     assert token_id == [None, None]
+    assert dp_id == []
 
 
 def test_parse_with_invalid_rid_from_message():
     rid_from_message = [{'rid': 'a'}, {'rid': 'b'}]
     rid_map = {1: 1, 2: 2}
-    rid, token_id = extract_ids_from_reslist(rid_from_message, rid_map)
+    rid, token_id, dp_id = extract_ids_from_reslist(rid_from_message, rid_map)
     assert rid == ['a', 'b']
     assert token_id == [None, None]
+    assert dp_id == []
 
 
 def test_parse_with_invalid_rid_link_map():
@@ -113,33 +117,45 @@ def test_parse_with_invalid_rid_link_map():
 def test_extract_ids_from_reslist():
     rid_from_message = [{'rid': 1}, {'rid': 2}]
     rid_map = {1: 1, 2: 2}
-    rid, token_id = extract_ids_from_reslist(rid_from_message, rid_map)
+    rid, token_id, dp_id = extract_ids_from_reslist(rid_from_message, rid_map)
     assert rid == [1, 2]
     assert token_id == [None, None]
+    assert dp_id == []
 
 
 def test_extract_rid_with_string_input():
     rid_from_message = '1'
     rid_map = {1: 1}
-    rid, rid_list, token_id_list = extract_rid(rid_from_message, rid_map)
+    rid, rid_list, token_id_list, dp_id = extract_rid(rid_from_message, rid_map)
     assert rid == '1'
     assert rid_list is None
     assert token_id_list is None
+    assert dp_id is None
 
 
 def test_extract_rid_with_list_input():
     rid_from_message = [1, 2]
     rid_map = {1: 1, 2: 2}
-    rid, rid_list, token_id_list = extract_rid(rid_from_message, rid_map)
+    rid, rid_list, token_id_list, dp_id = extract_rid(rid_from_message, rid_map)
     assert rid == '1,2'
     assert rid_list == [1, 2]
     assert token_id_list == [None, None]
+    assert dp_id == []
 
 
 def test_extract_rid_with_invalid_input():
     rid_from_message = None
     rid_map = None
-    rid, rid_list, token_id_list = extract_rid(rid_from_message, rid_map)
+    rid, rid_list, token_id_list, dp_id = extract_rid(rid_from_message, rid_map)
     assert rid is None
     assert rid_list is None
     assert token_id_list is None
+    assert dp_id is None
+
+def test_extract_dp_from_reslist():
+    rid_from_message = [{'rid': 1, 'dp': '0'}, {'rid': 2, 'dp': '1'}]
+    rid_map = {1: 1, 2: 2}
+    rid, token_id, dp_id = extract_ids_from_reslist(rid_from_message, rid_map)
+    assert rid == [1, 2]
+    assert token_id == []
+    assert dp_id == ['0', '1']
