@@ -134,7 +134,8 @@ class ExporterKVCacheData(ExporterBase):
 
             if not df['domain'].str.casefold().str.contains(r'kvcache', regex=True).any():
                 logger.warning(
-                    "No 'KVCache' related fields found in data base. If this is unexpected, please check the 'msproftx.db'"
+                    "No 'KVCache' related fields found in data base. If this is unexpected, please check the "
+                    "'msproftx.db'"
                 )
                 return
         else:
