@@ -38,7 +38,7 @@ def get_forward_info(df):
         max_during_time = {}
         max_df_index = {}
         for df_index, df in enumerate(forward_df_list):
-            current_dp_rank_id = df.loc[row_index, 'dpRankId']
+            current_dp_rank_id = df.loc[row_index, 'dp_rank']
             if current_dp_rank_id is None:
                 continue
             current_during_time = df.loc[row_index, 'during_time']
@@ -160,8 +160,9 @@ def get_new_columns_order(ori_columns, new_columns, dp_number):
 
 def exporter_dp_batch(batch_name, all_dp_batch_df):
     ori_columns = ['name', 'res_list', 'start_time', 'end_time', 'batch_size', \
-        'batch_type', 'during_time', 'pid', 'rid_list', 'rid', 'dpRankId', 'dp_list']
-    all_dp_batch_df = all_dp_batch_df[ori_columns]
+        'batch_type', 'during_time', 'pid', 'rid_list', 'rid', 'dp_rank', 'dp_list']
+    existing_columns = [col for col in ori_columns if col in all_dp_batch_df.columns]
+    all_dp_batch_df = all_dp_batch_df[existing_columns]
 
     # 获取原始数据中各打点字段个数，用于后续校验
     fields_number_map = {}
@@ -202,7 +203,8 @@ def exporter_dp_batch(batch_name, all_dp_batch_df):
 
 def filter_batch_df(batch_name, batch_df):
     batch_df = batch_df[batch_df['name'].isin(['modelExec', batch_name])]
-    batch_df = batch_df.drop(['pid', 'rid_list', 'rid', 'dpRankId', 'dp_list'], axis=1)
+    drop_columns = [col for col in ['pid', 'rid_list', 'rid', 'dp_rank', 'dp_list'] if col in batch_df.columns]
+    batch_df = batch_df.drop(drop_columns, axis=1)
     batch_df['during_time'] = batch_df['during_time'] / US_PER_MS
     batch_df['start_time'] = batch_df['start_time'] / US_PER_MS
     batch_df['end_time'] = batch_df['end_time'] / US_PER_MS
@@ -230,7 +232,7 @@ class ExporterBatchData(ExporterBase):
 
         # 获取组batch字段名称，旧版本为BatchScheduler，新版本为batchFrameworkProcessing
         batch_name = 'BatchSchedule' if (df['name'] == 'BatchSchedule').any() else 'batchFrameworkProcessing'
-        batch_df = df[df['name'].isin([batch_name, 'modelExec', 'dpBatch', 'forward', 'dpRankIds'])]
+        batch_df = df[df['name'].isin([batch_name, 'modelExec', 'dpBatch', 'forward', 'dp_ranks'])]
         if batch_df.empty:
             logger.warning("No batch data found. Please check msproftx.db.")
             return
