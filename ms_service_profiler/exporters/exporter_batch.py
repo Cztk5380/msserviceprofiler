@@ -30,8 +30,10 @@ def get_forward_info(df):
         max_during_time = {}
         max_df_index = {}
         for df_index, df in enumerate(forward_df_list):
-            current_during_time = df.loc[row_index, 'during_time']
             current_dp_rank_id = df.loc[row_index, 'rid']
+            if current_dp_rank_id is None:
+                continue
+            current_during_time = df.loc[row_index, 'during_time']
             if current_dp_rank_id not in max_during_time or current_during_time > max_during_time[current_dp_rank_id]:
                 max_during_time[current_dp_rank_id] = current_during_time
                 max_df_index[current_dp_rank_id] = df_index
@@ -70,7 +72,7 @@ def check_dp_batch_info_length(fields_number_map):
     unique_length = set(fields_number_map.values())
     # 若各字段个数不一致，则打印warning信息
     if len(unique_length) > 1:
-        logger.warning("The number of dp-batch info fields has different length may due to dynamic control.")
+        logger.warning("The number of dp-batch info fields has different length.")
         for name, length in fields_number_map.items():
             logger.warning(f"{name}_length: {length}")
 
@@ -122,6 +124,9 @@ def get_dp_batch_info(dp_batch_df, dp_rank_id_df):
 
 
 def write_to_ori_df(ori_df_indices, new_df, ori_df):
+    if new_df.empty:
+        return ori_df
+
     # 防止写入越界，取最小值
     min_row = min(len(ori_df_indices), len(new_df))
 
@@ -161,6 +166,7 @@ def exporter_dp_batch(batch_name, all_dp_batch_df):
     fields_number_map = {}
 
     # 获取每个dp域最长的forward执行时间
+    forward_df = pd.DataFrame()
     try:
         forward_df = get_forward_info(all_dp_batch_df)
         fields_number_map['forward'] = len(forward_df)

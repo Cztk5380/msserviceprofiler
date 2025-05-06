@@ -57,7 +57,8 @@ class ExporterPDComm(ExporterBase):
         req_group_df = pd_split_df.groupby('rid')
         for rid, pre_req_data in req_group_df:
             http_req, request_send, request_send_succ, prefill_res, requset_end = process_each_req_group(pre_req_data)
-            cls.req_result_list.append({'rid': rid, 'httpReqTime': http_req, 'requestSendTime': request_send, \
-                'requestSendSuccTime': request_send_succ, 'prefillResTime': prefill_res, 'requsetEndTime': requset_end})
+            cls.req_result_list.append({'rid': rid, 'http_req_time': http_req, 'send_request_time': request_send,
+                'send_request_succ_time': request_send_succ, 'prefill_res_time': prefill_res,
+                'requset_end_time': requset_end})
 
-        save_dataframe_to_csv(pd.DataFrame(cls.req_result_list), output, "pdSplitComm.csv")
+        save_dataframe_to_csv(pd.DataFrame(cls.req_result_list), output, "pd_split_communication.csv")

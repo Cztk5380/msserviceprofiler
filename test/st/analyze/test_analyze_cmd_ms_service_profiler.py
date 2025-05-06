@@ -257,8 +257,8 @@ class TestAnalyzeCmd(TestCase):
         df = pd.read_csv(csv_file_path)
         # 检查文件是否为空
         self.assertNotEqual(len(df), 0, "The data of batch csv is empty.")
-        expected_header = ['name', 'res_list', 'start_time(microsecond)', 'end_time(microsecond)', 'batch_size', \
-                           'batch_type', 'during_time(microsecond)']
+        expected_header = ['name', 'res_list', 'start_time(ms)', 'end_time(ms)', 'batch_size', \
+                           'batch_type', 'during_time(ms)']
 
         # 检查列名是否正确
         check_column(df.columns.tolist(), expected_header, context='batch.csv')
@@ -355,4 +355,4 @@ class TestAnalyzeCmd(TestCase):
             self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
 
         with self.subTest("Check pullkvcache csv content"):
-            check_pullkvcache_csv_content(os.path.join(self.OUTPUT_PATH, "pd_separate_kvcache.csv"))
+            check_pullkvcache_csv_content(os.path.join(self.OUTPUT_PATH, "pd_split_kvcache.csv"))
