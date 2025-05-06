@@ -205,40 +205,42 @@ class ExporterReqData(ExporterBase):
 
     @classmethod
     def export(cls, data) -> None:
-        df = data.get('tx_data_df')
-        if df is None:
-            logger.error("The data is empty, please check")
-            return
-        output = cls.args.output_path
+        if 'csv' in cls.args.format:
+            df = data.get('tx_data_df')
+            if df is None:
+                logger.error("The data is empty, please check")
+                return
+            output = cls.args.output_path
 
-        df = df[df['domain'] != 'KVCache']
-        req_base_info = get_req_base_info(df)
-        try:
-            df = df.rename(columns={"RUNNING+": "RUNNING", "PENDING+": "PENDING"})
-            wait_df = get_wait_df(df)
-        except Exception as e:
-            logger.error(f"An error occurred: {e}")
-            return
+            df = df[df['domain'] != 'KVCache']
+            req_base_info = get_req_base_info(df)
+            try:
+                df = df.rename(columns={"RUNNING+": "RUNNING", "PENDING+": "PENDING"})
+                wait_df = get_wait_df(df)
+            except Exception as e:
+                logger.error(f"An error occurred: {e}")
+                return
 
-        # 使用merge操作将req_base_info和wait_df的数据进行匹配
-        if req_base_info.shape[0] != wait_df.shape[0]:
-            logger.warning("The shape of 'req_base_info' is different from 'wait_df', please check.")
+            # 使用merge操作将req_base_info和wait_df的数据进行匹配
+            if req_base_info.shape[0] != wait_df.shape[0]:
+                logger.warning("The shape of 'req_base_info' is different from 'wait_df', please check.")
 
-        df_merged = pd.merge(req_base_info, wait_df, on='rid', how='outer', indicator=True)
-        df_merged.drop(columns=['_merge'], inplace=True)
+            df_merged = pd.merge(req_base_info, wait_df, on='rid', how='outer', indicator=True)
+            df_merged.drop(columns=['_merge'], inplace=True)
 
-        filtered_df = df_merged[[
-            'rid', 'start_time', 'recvTokenSize=', 'replyTokenSize=',
-            'execution_time', 'queue_wait_time', 'first_token_latency'
-        ]]
-        filtered_df = filtered_df.rename(columns={
-            'rid': 'http_rid',
-            'recvTokenSize=': 'recv_token_size',
-            'replyTokenSize=': 'reply_token_size',
-            'start_time': 'start_time_httpReq(microsecond)',
-            'execution_time': 'execution_time(microsecond)',
-            'queue_wait_time': 'queue_wait_time(microsecond)'
-        })
+            filtered_df = df_merged[[
+                'rid', 'start_time', 'recvTokenSize=', 'replyTokenSize=',
+                'execution_time', 'queue_wait_time', 'first_token_latency'
+            ]]
+            filtered_df = filtered_df.rename(columns={
+                'rid': 'http_rid',
+                'recvTokenSize=': 'recv_token_size',
+                'replyTokenSize=': 'reply_token_size',
+                'start_time': 'start_time_httpReq(microsecond)',
+                'execution_time': 'execution_time(microsecond)',
+                'queue_wait_time': 'queue_wait_time(microsecond)'
+            })
 
-        if 'csv' in cls.args.parse_type:
             save_dataframe_to_csv(filtered_df, output, "request.csv")
+        else:
+            pass

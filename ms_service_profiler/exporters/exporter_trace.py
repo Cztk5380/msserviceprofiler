@@ -18,21 +18,23 @@ class ExporterTrace(ExporterBase):
 
     @classmethod
     def export(cls, data) -> None:
-        cpu_data_df, memory_data_df = data['cpu_data_df'], data['memory_data_df']
-        tids = set(str(x) for x in set(data["tx_data_df"]["tid"])) if "tid" in data["tx_data_df"] else {}
-        all_data_df = data['tx_data_df'].copy()
-        if 'pid_label_map' in data:
-            pid_label_map = data['pid_label_map']
-        else:
-            pid_label_map = None
-        all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
-        msprof_data_df = data['msprof_data']
-        cann_data = [load_single_prof(pf, tids) for pf in msprof_data_df]
-        output = cls.args.output_path
-        trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
-        merged_data = merge_json_data(trace_data, cann_data)
-        if 'trace' in cls.args.parse_type:
+        if 'json' in cls.args.format:
+            cpu_data_df, memory_data_df = data['cpu_data_df'], data['memory_data_df']
+            tids = set(str(x) for x in set(data["tx_data_df"]["tid"])) if "tid" in data["tx_data_df"] else {}
+            all_data_df = data['tx_data_df'].copy()
+            if 'pid_label_map' in data:
+                pid_label_map = data['pid_label_map']
+            else:
+                pid_label_map = None
+            all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
+            msprof_data_df = data['msprof_data']
+            cann_data = [load_single_prof(pf, tids) for pf in msprof_data_df]
+            output = cls.args.output_path
+            trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
+            merged_data = merge_json_data(trace_data, cann_data)
             save_trace_data_into_json(merged_data, output)
+        else:
+            pass
 
 
 def load_single_prof(pf, tids):
