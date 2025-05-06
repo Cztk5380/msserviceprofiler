@@ -240,4 +240,5 @@ class ExporterReqData(ExporterBase):
             'queue_wait_time': 'queue_wait_time(microsecond)'
         })
 
-        save_dataframe_to_csv(filtered_df, output, "request.csv")
+        if 'csv' in cls.args.parse_type:
+            save_dataframe_to_csv(filtered_df, output, "request.csv")

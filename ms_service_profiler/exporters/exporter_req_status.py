@@ -34,4 +34,5 @@ class ExporterReqStatus(ExporterBase):
             if column_name not in df.columns:
                 df = df.assign(**{column_name: [None] * len(df)})
 
-        add_table_into_visual_db(df, 'request_status')
+        if 'db' in cls.args.parse_type:
+            add_table_into_visual_db(df, 'request_status')

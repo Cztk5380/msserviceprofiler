@@ -31,7 +31,8 @@ class ExporterTrace(ExporterBase):
         output = cls.args.output_path
         trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
         merged_data = merge_json_data(trace_data, cann_data)
-        save_trace_data_into_json(merged_data, output)
+        if 'trace' in cls.args.parse_type:
+            save_trace_data_into_json(merged_data, output)
 
 
 def load_single_prof(pf, tids):

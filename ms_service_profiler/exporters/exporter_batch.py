@@ -42,14 +42,16 @@ class ExporterBatchData(ExporterBase):
             logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
         output = cls.args.output_path
 
-        save_dataframe_to_csv(model_df, output, "batch.csv")
+        if 'csv' in cls.args.parse_type:
+            save_dataframe_to_csv(model_df, output, "batch.csv")
 
-        for col in model_df:
-            if model_df[col].dtype == 'object':
-                model_df[col] = model_df[col].astype(str)
-            if col == 'batch_size':
-                model_df[col] = model_df[col].astype(float)
+        if 'db' in cls.args.parse_type:
+            for col in model_df:
+                if model_df[col].dtype == 'object':
+                    model_df[col] = model_df[col].astype(str)
+                if col == 'batch_size':
+                    model_df[col] = model_df[col].astype(float)
 
-        add_table_into_visual_db(model_df, 'batch')
-        add_table_into_visual_db(data.get('batch_req_df'), 'batch_req')
-        add_table_into_visual_db(data.get('batch_exec_df'), 'batch_exec')
+            add_table_into_visual_db(model_df, 'batch')
+            add_table_into_visual_db(data.get('batch_req_df'), 'batch_req')
+            add_table_into_visual_db(data.get('batch_exec_df'), 'batch_exec')

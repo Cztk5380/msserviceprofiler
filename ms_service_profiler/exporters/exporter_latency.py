@@ -207,7 +207,8 @@ class ExporterLatency(ExporterBase):
         first_token_latency_views, req_latency_views, prefill_gen_speed_views, decode_gen_speed_views = \
             gen_exporter_results(all_data_df)
 
-        add_table_into_visual_db(pd.DataFrame(first_token_latency_views), 'first_token_latency')
-        add_table_into_visual_db(pd.DataFrame(req_latency_views), 'req_latency')
-        add_table_into_visual_db(pd.DataFrame(prefill_gen_speed_views), 'prefill_gen_speed')
-        add_table_into_visual_db(pd.DataFrame(decode_gen_speed_views), 'decode_gen_speed')
+        if 'db' in cls.args.parse_type:
+            add_table_into_visual_db(pd.DataFrame(first_token_latency_views), 'first_token_latency')
+            add_table_into_visual_db(pd.DataFrame(req_latency_views), 'req_latency')
+            add_table_into_visual_db(pd.DataFrame(prefill_gen_speed_views), 'prefill_gen_speed')
+            add_table_into_visual_db(pd.DataFrame(decode_gen_speed_views), 'decode_gen_speed')

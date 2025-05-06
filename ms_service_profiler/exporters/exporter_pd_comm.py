@@ -60,4 +60,5 @@ class ExporterPDComm(ExporterBase):
             cls.req_result_list.append({'rid': rid, 'httpReqTime': http_req, 'requestSendTime': request_send, \
                 'requestSendSuccTime': request_send_succ, 'prefillResTime': prefill_res, 'requsetEndTime': requset_end})
 
-        save_dataframe_to_csv(pd.DataFrame(cls.req_result_list), output, "pdSplitComm.csv")
+        if 'csv' in cls.args.parse_type:
+            save_dataframe_to_csv(pd.DataFrame(cls.req_result_list), output, "pdSplitComm.csv")
