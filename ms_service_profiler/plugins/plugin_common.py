@@ -34,7 +34,7 @@ def extract_iter_from_batch(req):
 
 def extract_ids_from_reslist(rid_from_message, rid_map):
     if not rid_from_message:
-        return [], []
+        return [], [], []
 
     rid = []
     token_id = []

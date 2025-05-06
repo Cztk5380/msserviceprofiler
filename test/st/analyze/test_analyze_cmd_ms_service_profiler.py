@@ -1,11 +1,15 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
 import glob
+import io
+import re
 import os
 import logging
 import json
 import shutil
 import sqlite3
+from typing import Dict, List
+from collections import defaultdict
 import ast
 from unittest import TestCase
 import ast
@@ -233,6 +237,91 @@ def check_chrome_tracing_content_valid(output_path):
         pytest.assume(key in text, "流水图中应该包含NPU Usage")
 
 
+def parse_message(message: str) -> dict:
+    pattern = r"\^([^^]+)\^:(\^?.*?\^?)(?=\^|,|}|$)"
+    matches = re.findall(pattern, message)
+    return {
+        k: v.strip('^').rstrip(',')
+        for k, v in matches
+    }
+
+
+def collect_db_stats(root_dir: str, fields: List[str], table_name: str) -> Dict[str, Dict]:
+    results = {}
+    grand_total = defaultdict(int)
+
+    # 查找PROF目录
+    prof_dirs = [
+        d.rstrip(os.sep)
+        for d in glob.glob(os.path.join(root_dir, "**/PROF_*/"), recursive=True)
+        if os.path.isdir(d)
+    ]
+    assert prof_dirs, f"根目录下未发现任何PROF目录 | path={root_dir}"
+
+    for prof_dir in prof_dirs:
+        dir_name = os.path.basename(prof_dir)
+        db_path = get_db_path(prof_dir)
+
+        # 处理单个数据库
+        conn = sqlite3.connect(db_path)
+        try:
+            validate_table(conn, table_name)
+            counter, kvcache_count = process_database_messages(conn, table_name, fields, grand_total)
+            results[dir_name] = {
+                "db_path": db_path,
+                "counts": dict(counter),
+                "KVCache": kvcache_count,
+                "total_records": sum(counter.values()) + kvcache_count,
+                "_status": "success"
+            }
+        finally:
+            conn.close()
+
+    return {**results, "_total": dict(grand_total)}
+
+
+def get_db_path(prof_dir: str) -> str:
+    """验证数据库路径"""
+    db_path = os.path.join(prof_dir, "host", "sqlite", "msproftx.db")
+    assert os.path.isfile(db_path), f"数据库文件缺失 | path={db_path}"
+    return db_path
+
+
+def validate_table(conn: sqlite3.Connection, table_name: str) -> None:
+    """验证表结构"""
+    cursor = conn.execute(f"PRAGMA table_info({table_name})")
+    db_fields = [col[1] for col in cursor.fetchall()]
+    assert "message" in db_fields, f"表 {table_name} 缺少 message 字段"
+
+
+def process_database_messages(
+        conn: sqlite3.Connection,
+        table_name: str,
+        fields: List[str],
+        grand_total: defaultdict
+) -> tuple[defaultdict, int]:
+
+    counter = defaultdict(int)
+    kvcache_count = 0
+
+    cursor = conn.execute(f"SELECT message FROM {table_name}")
+    for row in cursor:
+        parsed = parse_message(row[0])
+        name_value = parsed.get("name", "").strip()
+
+        # 统计目标字段
+        if name_value in fields:
+            counter[name_value] += 1
+            grand_total[name_value] += 1
+
+        # 统计KVCache
+        if parsed.get('domain') == 'KVCache':
+            kvcache_count += 1
+            grand_total['KVCache'] += 1
+
+    return counter, kvcache_count
+
+
 class TestAnalyzeCmd(TestCase):
     ST_DATA_PATH = os.getenv("MS_SERVICE_PROFILER", "/data/ms_service_profiler")
     INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/0211-1226")
@@ -318,6 +407,9 @@ class TestAnalyzeCmd(TestCase):
         cmd = ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
             self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
+        # 新增数据库字段校验子测试
+        with self.subTest("Validate DB field consistency across PROF directories"):
+            self._validate_db_consistency()
         # 校验输出文件是否存在
         with self.subTest():
             self.check_req_data_csv_integrity()
@@ -346,9 +438,8 @@ class TestAnalyzeCmd(TestCase):
         with self.subTest():
             check_chrome_tracing_content_valid(self.OUTPUT_PATH)
 
-
     def test_parse_data_in_pd_separate(self):
-        #校验msserviceprofiler打点PD分离数据解析功能是否正常解析，校验输出文件及内容
+        # 校验msserviceprofiler打点PD分离数据解析功能是否正常解析，校验输出文件及内容
         cmd = ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH_PD_SEPARATE, \
             "--output-path", self.OUTPUT_PATH]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
@@ -356,3 +447,85 @@ class TestAnalyzeCmd(TestCase):
 
         with self.subTest("Check pullkvcache csv content"):
             check_pullkvcache_csv_content(os.path.join(self.OUTPUT_PATH, "pd_split_kvcache.csv"))
+
+    def _validate_db_consistency(self):
+        """数据库与CSV总值一致性校验"""
+
+        # 统计数据库总值
+        db_stats = collect_db_stats(
+            root_dir=self.INPUT_PATH,
+            fields=["modelExec", "BatchSchedule", "batchFrameworkProcessing", "KVCache"],
+            table_name="MsprofTxEx",
+        )
+        db_total = db_stats.get("_total", {})
+
+        validation_rules = [
+            # batch.csv 校验
+            {
+                "db_field": "modelExec",
+                "csv_path": os.path.join(self.OUTPUT_PATH, "batch.csv"),
+                "csv_column": "name",
+                "match_value": "modelExec"
+            },
+            {
+                "db_field": "BatchSchedule",
+                "csv_path": os.path.join(self.OUTPUT_PATH, "batch.csv"),
+                "csv_column": "name",
+                "match_value": "BatchSchedule"
+            },
+            {
+                "db_field": "batchFrameworkProcessing",
+                "csv_path": os.path.join(self.OUTPUT_PATH, "batch.csv"),
+                "csv_column": "name",
+                "match_value": "batchFrameworkProcessing"
+            },
+            # kvcache.csv 校验
+            {
+                "db_field": "KVCache",
+                "csv_path": os.path.join(self.OUTPUT_PATH, "kvcache.csv"),
+                "csv_column": "device_kvcache_left",
+                "match_value": None # 统计行数
+            }
+        ]
+
+        # 统一校验逻辑
+        failures = []
+        for rule in validation_rules:
+            db_count = db_total.get(rule["db_field"], 0)
+            csv_count = self._validate_csv_count(
+                csv_path=rule["csv_path"],
+                column=rule["csv_column"],
+                match_value=rule["match_value"]
+            )
+
+            if db_count != csv_count:
+                msg = f"{rule['db_field']} 次数不匹配: DB={db_count} vs CSV={csv_count}"
+                failures.append(msg)
+
+        if failures:
+            self.fail("\n".join(failures))
+        else:
+            self.assertTrue(True, "所有数据校验一致")
+
+    def _validate_csv_count(self, csv_path: str, column: str, match_value: str = None) -> int:
+        """通用CSV校验方法"""
+        self.assertTrue(
+            os.path.exists(csv_path),
+            f"CSV文件不存在 | path={csv_path}"
+        )
+
+        try:
+            df = pd.read_csv(csv_path)
+            self.assertIn(
+                column,
+                df.columns,
+                f"CSV文件缺少列 | path={csv_path} column={column}"
+            )
+
+            # 匹配值计数 or 总行数
+            if match_value is not None:
+                return len(df[df[column] == match_value])
+            return len(df)
+
+        except Exception as e:
+            raise self.failureException(f"读取CSV文件失败 | path={csv_path} error={str(e)}")
