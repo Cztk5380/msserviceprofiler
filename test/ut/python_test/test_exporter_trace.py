@@ -151,7 +151,7 @@ def test_exporter_export(mock_save, mock_create, mock_data):
     mock_create.return_value = {'traceEvents': []}
     mock_save.return_value = None  # 模拟保存行为
 
-    ExporterTrace.initialize(mock.Mock(output_path='/tmp'))
+    ExporterTrace.initialize(mock.Mock(output_path='/tmp', parse_type=['trace']))
     ExporterTrace.export(mock_data)
 
     # 验证 create_trace_events 被调用一次

@@ -16,7 +16,7 @@ from ms_service_profiler.exporters.exporter_batch import ExporterBatchData
 class TestExporterBatchData(unittest.TestCase):
     def setUp(self):
         test_path = os.path.join(os.getcwd(), "output_test")
-        self.args = type('Args', (object,), {'output_path': test_path})
+        self.args = type('Args', (object,), {'output_path': test_path, 'parse_type': ['csv', 'db']})
         self.data = {
             'tx_data_df': self.create_df()
         }

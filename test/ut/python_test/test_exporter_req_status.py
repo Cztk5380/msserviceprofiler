@@ -43,7 +43,7 @@ def test_parse_valid_data(tmpdir, sample_data):
         create_sqlite_db(test_path)
         db_fp = Path(test_path, 'profiler.db')
         conn = sqlite3.connect(db_fp)
-        ExporterReqStatus.initialize({})
+        ExporterReqStatus.initialize({'parse_type': ['db']})
         ExporterReqStatus.export(sample_data)
         conn.close()
         assert os.path.exists(db_fp)
