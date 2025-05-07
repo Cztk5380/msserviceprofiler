@@ -24,27 +24,63 @@ class TestExporterBatchData(unittest.TestCase):
     def create_df(self):
         # 创建一个示例DataFrame
         data = {
-            'name': ['BatchSchedule', 'modelExec', 'BatchSchedule', 'modelExec'],
+            'name': ['BatchSchedule', 'modelExec', 'dpBatch', 'forward', 'forward',\
+                'BatchSchedule', 'modelExec', 'dpBatch', 'forward', 'forward'],
             'message': [
-                {'rid': [{'rid': 0, 'iter': 0}], 'data': 'data1'},
-                {'rid': [{'rid': 0, 'iter': 0}], 'data': 'data2'},
-                {'rid': [{'rid': 0, 'iter': 1}], 'data': 'data3'},
-                {'rid': [{'rid': 0, 'iter': 1}], 'data': 'data4'}
+                {'rid': [{'rid': 11, 'iter': 0}, {'rid': 12, 'iter': 0}], 'data': 'data1'},
+                {'rid': [{'rid': 11, 'iter': 0}, {'rid': 12, 'iter': 0}], 'data': 'data2'},
+                {'rid': [11, 12], 'data': 'data1'},
+                {'rid': [0], 'data': 'data1'},
+                {'rid': [1], 'data': 'data2'},
+
+                {'rid': [{'rid': 13, 'iter': 1}, {'rid': 14, 'iter': 1}], 'data': 'data3'},
+                {'rid': [{'rid': 13, 'iter': 1}, {'rid': 14, 'iter': 1}], 'data': 'data4'},
+                {'rid': [13, 14], 'data': 'data1'},
+                {'rid': [0], 'data': 'data1'},
+                {'rid': [1], 'data': 'data2'}
             ],
-            'start_time': [1, 2, 3, 4],
-            'end_time': [1.5, 2.5, 3.5, 4.5],
-            'batch_size':[1, 1, 1, 1],
-            'batch_type':['Prefill', 'Prefill', 'Decode', 'Decode'],
+            'start_time': [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000],
+            'end_time': [1500, 2500, 3500, 4500, 5500, 6500, 7500, 8500, 9500, 10500],
+            'batch_size':[2, 2, 2, 1, 1, 2, 2, 2, 1, 1],
+            'batch_type':['Prefill', 'Prefill', 'Prefill', 'Prefill', 'Prefill',
+                'Decode', 'Decode', 'Decode', 'Decode', 'Decode'],
             'res_list':[
-                {'rid': [{'rid': 0, 'iter': 0}]},
-                {'rid': [{'rid': 0, 'iter': 0}]},
-                {'rid': [{'rid': 0, 'iter': 1}]},
-                {'rid': [{'rid': 0, 'iter': 1}]}
+                {'rid': [{'rid': 11, 'iter': 0}, {'rid': 12, 'iter': 0}]},
+                {'rid': [{'rid': 11, 'iter': 0}, {'rid': 12, 'iter': 0}]},
+                {'rid': [11, 12]},
+                {'rid': [0]},
+                {'rid': [1]},
+
+                {'rid': [{'rid': 13, 'iter': 1}, {'rid': 14, 'iter': 1}]},
+                {'rid': [{'rid': 13, 'iter': 1}, {'rid': 14, 'iter': 1}]},
+                {'rid': [13, 14]},
+                {'rid': [0]},
+                {'rid': [1]}
             ],
-            'during_time':[0.5, 0.5, 0.5, 0.5]
+            'during_time': [500, 500, 500, 500, 500, 500, 500, 500, 500, 500],
+            'pid': [0, 0, 1, 1, 2, 0, 0, 1, 1, 2],
+            'rid_list': [[11, 12], [11, 12], [11, 12], [11, 12], [11, 12],
+                [13, 14], [13, 14], [13, 14], [13, 14], [13, 14]],
+            'dp_list': [[], [], [0, 1], [], [], [], [], [0, 1], [], []],
+            'rid': ['11, 12', '11, 12', '11, 12', '', '',
+                '13, 14', '13, 14', '13, 14', '', ''],
+            'dp_rank': ['', '', '', '0', '1', '', '', '', '0', '1']
         }
         return pd.DataFrame(data)
 
+    def check_dp_info(self, csv_file_path):
+        df = pd.read_csv(csv_file_path)
+        dp_columns = ['during_time(ms)', 'dp0-rid', 'dp0-size', 'dp0-forward(ms)',
+            'dp1-rid', 'dp1-size', 'dp1-forward(ms)']
+
+        # 校验是否存在上述列
+        col_index = []
+        for col_name in dp_columns:
+            col_index.append(df.columns.get_loc(col_name))
+            self.assertIn(col_name, df.columns)
+
+        # 校验上述列是否按顺序排列
+        self.assertEqual(col_index, sorted(col_index))
 
     def test_export(self):
         try:
@@ -66,8 +102,10 @@ class TestExporterBatchData(unittest.TestCase):
             # 调用export方法
             ExporterBatchData.export(self.data)
             # 验证CSV文件是否生成
-            
             self.assertTrue(file_path.is_file())
+
+            # 验证dp域信息是否正确
+            self.check_dp_info(file_path)
         finally:
             # 清理
             shutil.rmtree(test_path)

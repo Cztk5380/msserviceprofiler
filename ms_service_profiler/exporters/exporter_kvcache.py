@@ -182,7 +182,7 @@ class ExporterKVCacheData(ExporterBase):
 
 def export_pull_kvcache(df, output):
     kvcache_df = df[df['domain'] == 'PullKVCache']
-    logger.debug(f"pd_separate_kvcache shape {kvcache_df.shape}.")
+    logger.debug(f"pd_split_kvcache shape {kvcache_df.shape}.")
     
     if kvcache_df.shape[0] == 0:
         return
@@ -199,5 +199,5 @@ def export_pull_kvcache(df, output):
         'end_time': 'end_time(microsecond)',
         'during_time': 'during_time(microsecond)'
     })
-    save_dataframe_to_csv(kvcache_df, output, "pd_separate_kvcache.csv")
-    logger.info(f"pd_separate_kvcache.csv success.")
+    save_dataframe_to_csv(kvcache_df, output, "pd_split_kvcache.csv")
+    logger.info(f"pd_split_kvcache.csv success.")
