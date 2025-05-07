@@ -318,7 +318,7 @@ void Config::SaveConfigToJsonFile()
         const int fd = mkstemp(tempFile);
         if (fd == -1) {
             PROF_LOGW("mkstemp failed: %s", strerror(errno));
-            return -1;
+            return;
         }
         close(fd);
         std::string tempPath = dirPath+"/"+tempFile;
