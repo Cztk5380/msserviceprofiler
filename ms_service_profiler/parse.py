@@ -333,7 +333,6 @@ def parse(input_path, plugins, exporters):
     with ProcessPoolExecutor() as executor:
         futures = {exporter.name: executor.submit(exporter.export, data) for exporter in exporters}
         for exporter_name, future in futures.items():
-            future.result()
             try:
                 future.result()
             except Exception as e:
@@ -427,6 +426,7 @@ def main():
         '--format',
         nargs='+',
         default=['json', 'csv', 'db'],
+        choices=['json', 'csv', 'db'],
         help='Format to save')
 
     args = parser.parse_args()
