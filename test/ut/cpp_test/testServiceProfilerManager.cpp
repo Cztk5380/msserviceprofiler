@@ -64,7 +64,7 @@ TEST(ProfilerTest, TestServiceProfilerManager)
     MOCKER(access).stubs().will(returnValue(0));
     MOCKER(realpath).stubs().will(returnValue((char*)mockRealpath));
     MOCKER(stat).stubs().will(returnValue(1));
-    
+
     // set Profiling env name
     setenv("SERVICE_PROF_CONFIG_PATH", "/ut_test/prof.json", 1);
 
@@ -89,20 +89,12 @@ TEST(ProfilerTest, TestReadEnableYes)
     configTest2["npu_memory_usage_freq"] = "aaa";
     configTest3["host_system_usage_freq"] = 99999;
     configTest3["npu_memory_usage_freq"] = 99999;
-    
+
 
     ServiceProfilerManager manager;
-    manager.ReadEnable(configTest);
-    manager.ReadProfPath(configTest);
-    manager.ReadAclTaskTime(configTest);
-    manager.ReadLevel(configTest);
-    manager.ReadLevel(configTest2);
-    manager.ReadHostConfig(configTest);
-    manager.ReadHostConfig(configTest2);
-    manager.ReadHostConfig(configTest3);
-    manager.ReadNpuConfig(configTest);
-    manager.ReadNpuConfig(configTest2);
-    manager.ReadNpuConfig(configTest3);
+    manager.config_->ParseConfig(configTest);
+    manager.config_->ParseConfig(configTest2);
+    manager.config_->ParseConfig(configTest3);
 }
 
 TEST(ProfilerTest, TestWrite2Tx)
@@ -114,16 +106,15 @@ TEST(ProfilerTest, TestWrite2Tx)
 
 TEST(ProfilerTest, TestDynamicControlStart2Stop)
 {
-    nlohmann::json configTest = nlohmann::json::object();
-    configTest["enable"] = 1;
     ServiceProfilerManager manager;
 
     MOCKER(stat).stubs().will(returnValue(0));
 
-    std::string configPath_ = "aaa";
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["enable"] = 1;
+    manager.config_->ParseConfig(configTest);
     manager.lastUpdate_ = 123;
-    manager.enable_ = true;
-    
+
     // set Profiling env name
     setenv("SERVICE_PROF_CONFIG_PATH", "/ut_test/prof.json", 1);
 
@@ -136,35 +127,27 @@ TEST(ProfilerTest, TestSetAclProfHostSysConfig1)
 {
     ServiceProfilerManager manager;
 
-    manager.hostCpuUsage_ = true;
-    manager.hostMemoryUsage_ = true;
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["host_system_usage_freq"] = 2;
+    manager.config_->ParseConfig(configTest);
     manager.SetAclProfHostSysConfig();
 }
 
 TEST(ProfilerTest, TestSetAclProfHostSysConfig2)
 {
     ServiceProfilerManager manager;
-
-    manager.hostCpuUsage_ = true;
-    manager.hostMemoryUsage_ = false;
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["host_system_usage_freq"] = 0;
+    manager.config_->ParseConfig(configTest);
     manager.SetAclProfHostSysConfig();
 }
 
 TEST(ProfilerTest, TestSetAclProfHostSysConfig3)
 {
     ServiceProfilerManager manager;
-
-    manager.hostCpuUsage_ = false;
-    manager.hostMemoryUsage_ = true;
-    manager.SetAclProfHostSysConfig();
-}
-
-TEST(ProfilerTest, TestSetAclProfHostSysConfig4)
-{
-    ServiceProfilerManager manager;
-
-    manager.hostCpuUsage_ = false;
-    manager.hostMemoryUsage_ = false;
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["host_system_usage_freq"] = 10000;
+    manager.config_->ParseConfig(configTest);
     manager.SetAclProfHostSysConfig();
 }
 
@@ -201,7 +184,7 @@ TEST(ProfilerTest, TestReadConfigFailed)
     MOCKER(access).stubs().will(returnValue(0));
 
     ServiceProfilerManager manager;
-    manager.ReadConfig();
+    manager.config_->ReadConfigFile();
 
     GlobalMockObject::reset();
 }
@@ -215,8 +198,8 @@ TEST(ProfilerTest, TestMarkFirstProcessAsMainMmapFailed)
 TEST(ProfilerTest, TestReadConfigFileFailed)
 {
     ServiceProfilerManager manager;
-    manager.configPath_ = "/home";
-    manager.ReadConfig();
+    manager.config_->SetConfigPath("/home");
+    manager.config_->ReadConfigFile();
 }
 
 TEST(ProfilerTest, TestDynamicControlReadConfigFileStatFailed)
@@ -235,8 +218,10 @@ TEST(ProfilerTest, TestStartProfilerCreatConfigFailed)
     MOCKER(aclprofInit).stubs().will(returnValue(222));
 
     ServiceProfilerManager manager;
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["acl_task_time"] = 1;
+    manager.config_->ParseConfig(configTest);
     manager.started_ = false;
-    manager.enableAclTaskTime_ = true;
     manager.StartProfiler();
 
     GlobalMockObject::reset();
@@ -250,8 +235,10 @@ TEST(ProfilerTest, TestStartProfilerAclProfStartFailed)
     MOCKER(aclprofStart).stubs().will(returnValue(222));
 
     ServiceProfilerManager manager;
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["acl_task_time"] = 1;
+    manager.config_->ParseConfig(configTest);
     manager.started_ = false;
-    manager.enableAclTaskTime_ = true;
     manager.StartProfiler();
 
     GlobalMockObject::reset();
@@ -293,4 +280,3 @@ TEST(ProfilerTest, TestStopProfilerAclFrofFinalizeFailed)
 
     GlobalMockObject::reset();
 }
-
