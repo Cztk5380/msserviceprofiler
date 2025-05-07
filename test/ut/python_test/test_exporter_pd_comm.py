@@ -13,7 +13,7 @@ from ms_service_profiler.exporters.exporter_pd_comm import ExporterPDComm
 class TestExporterPDComm(unittest.TestCase):
     def setUp(self):
         test_path = os.path.join(os.getcwd(), "output_test")
-        self.args = type('Args', (object,), {'output_path': test_path})
+        self.args = type('Args', (object,), {'output_path': test_path, 'format': ['csv']})
         ExporterPDComm.initialize(self.args)
 
     def test_export(self):
@@ -22,7 +22,7 @@ class TestExporterPDComm(unittest.TestCase):
             test_path = os.path.join(os.getcwd(), "output_test")
             os.makedirs(test_path, exist_ok=True)
             os.chmod(test_path, 0o740)
-            output_file_path = Path(test_path, 'pdSplitComm.csv')
+            output_file_path = Path(test_path, 'pd_split_comm.csv')
             data = {'tx_data_df': pd.DataFrame([
                 {'domain': 'PDSplit', 'rid': 1, 'name': 'receiveReq', 'start_datetime': '2023-01-01 00:00:00'},
                 {'domain': 'PDSplit', 'rid': 1, 'name': 'sendReqToD', 'start_datetime': '2023-01-01 00:00:01'},

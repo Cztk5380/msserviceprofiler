@@ -19,19 +19,22 @@ class ExporterReqStatus(ExporterBase):
 
     @classmethod
     def export(cls, data) -> None:
-        metrics = data.get('metric_data_df')
-        req_status_cols = [col for col in metrics.columns if col in ReqStatus.__members__]
+        if 'db' in cls.args.format:
+            metrics = data.get('metric_data_df')
+            req_status_cols = [col for col in metrics.columns if col in ReqStatus.__members__]
 
-        df = metrics[req_status_cols].astype(int)
-        df.insert(0, 'timestamp', metrics['start_datetime'])
+            df = metrics[req_status_cols].astype(int)
+            df.insert(0, 'timestamp', metrics['start_datetime'])
 
-        # 默认会从db文件中筛选下述列进行展示，如不存在该列需要补齐
-        show_columns = []
-        for status in ReqStatus:
-            show_columns.append(status.name)
+            # 默认会从db文件中筛选下述列进行展示，如不存在该列需要补齐
+            show_columns = []
+            for status in ReqStatus:
+                show_columns.append(status.name)
 
-        for column_name in show_columns:
-            if column_name not in df.columns:
-                df = df.assign(**{column_name: [None] * len(df)})
+            for column_name in show_columns:
+                if column_name not in df.columns:
+                    df = df.assign(**{column_name: [None] * len(df)})
 
-        add_table_into_visual_db(df, 'request_status')
+            add_table_into_visual_db(df, 'request_status')
+        else:
+            pass
