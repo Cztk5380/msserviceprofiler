@@ -427,6 +427,7 @@ def main():
         '--format',
         nargs='+',
         default=['json', 'csv', 'db'],
+        choices=['json', 'csv', 'db'],
         help='Format to save')
 
     args = parser.parse_args()
