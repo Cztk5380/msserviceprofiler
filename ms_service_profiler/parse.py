@@ -405,6 +405,12 @@ def preprocess_prof_folders(input_path, max_parallel=8):
         raise ValueError("msprof failed! No msproftx.db file is generated.")
 
 
+def check_format_valid(format):
+    if format not in [['json'], ['csv'], ['db'], ['json', 'csv'], ['json', 'db'], ['csv', 'db'], ['json', 'csv', 'db']]:
+        raise argparse.ArgumentTypeError("format is not in [['json'], ['csv'], ['db'], ['json', 'csv'], "
+                                         "['json', 'db'], ['csv', 'db'], ['json', 'csv', 'db']], please check")
+
+
 def main():
     parser = argparse.ArgumentParser(description='MS Server Profiler')
     parser.add_argument(
@@ -425,6 +431,7 @@ def main():
         help='Log level to print')
     parser.add_argument(
         '--format',
+        type=check_format_valid,
         nargs='+',
         default=['json', 'csv', 'db'],
         choices=[['json'], ['csv'], ['db'], ['json', 'csv'], ['json', 'db'], ['csv', 'db'], ['json', 'csv', 'db']],
