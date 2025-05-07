@@ -42,6 +42,7 @@ private:
     void ParseEnable(const Json& config);
     void ParseAclTaskTime(const Json& config);
     std::string getDefaultProfPath();
+    std::string getDirPath(std::string configPath);
     void ParseProfPath(const Json& config);
     void ParseLevel(const Json& config);
     bool ParseCollectConfig(const Json& config);

@@ -3,6 +3,7 @@
  */
 #include <climits>
 #include <fstream>
+#include <unistd.h>
 
 #include "securec.h"
 #include "msServiceProfiler/Log.h"
@@ -108,6 +109,18 @@ std::string Config::getDefaultProfPath()
     std::string homePath = getenv("HOME") ? getenv("HOME") : "";
     profPath.append(homePath).append("/.ms_server_profiler/");
     return profPath;
+}
+
+std::string Config::getDirPath(std::string configPath)
+{
+    std::string dirPath;
+    size_t lastSlash = configPath.find_last_of("/\\");
+    if (lastSlash != std::string::npos) {
+        dirPath = configPath.substr(0, lastSlash);
+    } else {
+        dirPath = ".";
+    }
+    return dirPath;
 }
 
 void Config::ParseProfPath(const Json& config)
@@ -275,14 +288,7 @@ bool Config::PrepareConfigAndPath(std::string& configPath)
     if (access(configPath.c_str(), F_OK) == 0) {
         return false;
     }
-    
-    std::string dirPath;
-    size_t lastSlash = configPath.find_last_of("/\\");
-    if (lastSlash != std::string::npos) {
-        dirPath = configPath.substr(0, lastSlash);
-    } else {
-        dirPath = ".";
-    }
+    std::string dirPath = getDirPath(configPath);
     if (access(dirPath.c_str(), W_OK) != 0) {
         return false;
     }
@@ -298,7 +304,6 @@ void Config::SaveConfigToJsonFile()
         return;
     }
     std::string profPath = getDefaultProfPath();
-
     nlohmann::ordered_json configData = {
         {"enable", enable_ ? 1 : 0},
         {"prof_dir", profPath},
@@ -307,21 +312,28 @@ void Config::SaveConfigToJsonFile()
         {"npu_memory_usage_freq", -1},
         {"acl_task_time", enableAclTaskTime_ ? 1 : 0},
     };
-
     try {
-        std::string tempPath = configPath + ".tmp";
-        {
-            std::ofstream outputFile(tempPath);
-            if (!outputFile.is_open()) {
-                PROF_LOGW("Failed to open temporary config file for writing: %s", tempPath.c_str());
-                return;
-            }
-            outputFile << configData.dump(jsonIndentSize);
-            outputFile.close();
+        std::string dirPath = getDirPath(configPath);
+        std::char tempFile[] = "temp_XXXXXX";
+        const int fd = mkstemp(tempFile);
+        if (fd == -1) {
+            PROF_LOGW("mkstemp failed: %s", strerror(errno));
+            return -1;
         }
+        close(fd);
+        std::string tempPath = dirPath+"/"+tempFile;
+        PROF_LOGD("file generation in the path %s", tempPath.c_str());
+        std::ofstream outputFile(tempPath);
+        if (!outputFile.is_open()) {
+            PROF_LOGW("Automatic config file generation failed %s", tempPath.c_str());
+            return;
+        }
+        outputFile << configData.dump(jsonIndentSize);
+        outputFile.close();
+        
         auto ret = rename(tempPath.c_str(), configPath.c_str());
         if (ret != 0 && errno != ENOENT) {
-            PROF_LOGW("Failed to move temporary config file to destination: %s", strerror(errno));
+            PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));
             remove(tempPath.c_str());
             return;
         }
