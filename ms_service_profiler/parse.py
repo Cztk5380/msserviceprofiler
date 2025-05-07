@@ -405,8 +405,9 @@ def preprocess_prof_folders(input_path, max_parallel=8):
         raise ValueError("msprof failed! No msproftx.db file is generated.")
 
 
-def check_format_valid(format):
-    if format not in [['json'], ['csv'], ['db'], ['json', 'csv'], ['json', 'db'], ['csv', 'db'], ['json', 'csv', 'db']]:
+def check_format_valid(format_type):
+    if format_type not in [['json'], ['csv'], ['db'], ['json', 'csv'], ['json', 'db'], ['csv', 'db'],
+                           ['json', 'csv', 'db']]:
         raise argparse.ArgumentTypeError("format is not in [['json'], ['csv'], ['db'], ['json', 'csv'], "
                                          "['json', 'db'], ['csv', 'db'], ['json', 'csv', 'db']], please check")
 
