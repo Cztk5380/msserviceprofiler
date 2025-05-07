@@ -408,7 +408,7 @@ def preprocess_prof_folders(input_path, max_parallel=8):
 def check_format_valid(format_type):
     if format_type not in [['json'], ['csv'], ['db'], ['json', 'csv'], ['json', 'db'], ['csv', 'db'],
                            ['json', 'csv', 'db']]:
-        raise argparse.ArgumentTypeError("format is not in [['json'], ['csv'], ['db'], ['json', 'csv'], "
+        raise argparse.ArgumentTypeError(f"{format_type} is not in [['json'], ['csv'], ['db'], ['json', 'csv'], "
                                          "['json', 'db'], ['csv', 'db'], ['json', 'csv', 'db']], please check")
 
 
