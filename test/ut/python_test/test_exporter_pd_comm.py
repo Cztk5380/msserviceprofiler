@@ -13,7 +13,7 @@ from ms_service_profiler.exporters.exporter_pd_comm import ExporterPDComm
 class TestExporterPDComm(unittest.TestCase):
     def setUp(self):
         test_path = os.path.join(os.getcwd(), "output_test")
-        self.args = type('Args', (object,), {'output_path': test_path})
+        self.args = type('Args', (object,), {'output_path': test_path, 'format': ['csv']})
         ExporterPDComm.initialize(self.args)
 
     def test_export(self):

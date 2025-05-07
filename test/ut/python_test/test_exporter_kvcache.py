@@ -39,7 +39,7 @@ lKVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252
 class TestExporterBatchData(unittest.TestCase):
     def setUp(self):
         test_path = os.path.join(os.getcwd(), "output_test")
-        self.args = type('Args', (object,), {'output_path': test_path})
+        self.args = type('Args', (object,), {'output_path': test_path, 'format': ['csv', 'db']})
         self.data = {
             'tx_data_df': self.create_df()
         }

@@ -69,7 +69,7 @@ class TestProcessData(unittest.TestCase):
 class TestExporterReqData(unittest.TestCase):
     def setUp(self):
         test_path = os.path.join(os.getcwd(), "output_test")
-        self.args = type('Args', (object,), {'output_path': test_path})
+        self.args = type('Args', (object,), {'output_path': test_path, 'format': ['csv']})
         self.data = {
             'tx_data_df': self.create_df()
         }

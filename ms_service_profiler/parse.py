@@ -422,6 +422,12 @@ def main():
         default='info',
         choices=['debug', 'info', 'warning', 'error', 'fatal', 'critical'],
         help='Log level to print')
+    parser.add_argument(
+        '--format',
+        nargs='+',
+        default=['json', 'csv', 'db'],
+        choices=['json', 'csv', 'db'],
+        help='Format to save')
 
     args = parser.parse_args()
 
@@ -436,7 +442,8 @@ def main():
 
     # 创建output目录
     Path(args.output_path).mkdir(parents=True, exist_ok=True)
-    create_sqlite_db(args.output_path)
+    if 'db' in args.format:
+        create_sqlite_db(args.output_path)
 
     # 解析数据并导出
     parse(args.input_path, custom_plugins, exporters)

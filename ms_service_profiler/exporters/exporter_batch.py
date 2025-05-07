@@ -225,40 +225,49 @@ class ExporterBatchData(ExporterBase):
 
     @classmethod
     def export(cls, data) -> None:
-        df = data.get('tx_data_df')
-        if df is None:
-            logger.warning("The data is empty, please check")
-            return
+        if 'csv' in cls.args.format or 'db' in cls.args.format:
+            df = data.get('tx_data_df')
+            if df is None:
+                logger.warning("The data is empty, please check")
+                return
 
-        # 获取组batch字段名称，旧版本为BatchScheduler，新版本为batchFrameworkProcessing
-        batch_name = 'BatchSchedule' if (df['name'] == 'BatchSchedule').any() else 'batchFrameworkProcessing'
-        batch_df = df[df['name'].isin([batch_name, 'modelExec', 'dpBatch', 'forward', 'dp_ranks'])]
-        if batch_df.empty:
-            logger.warning("No batch data found. Please check msproftx.db.")
-            return
+            # 获取组batch字段名称，旧版本为BatchScheduler，新版本为batchFrameworkProcessing
+            batch_name = 'BatchSchedule' if (df['name'] == 'BatchSchedule').any() else 'batchFrameworkProcessing'
+            batch_df = df[df['name'].isin([batch_name, 'modelExec', 'dpBatch', 'forward', 'dp_ranks'])]
+            if batch_df.empty:
+                logger.warning("No batch data found. Please check msproftx.db.")
+                return
 
-        try:
-            # 区分dp域显示，假如为动态启停采集的数据，从第一次组batch开始算起
-            if batch_name in batch_df['name'].values:
-                start_index = (batch_df['name'] == batch_name).idxmax()
-                batch_df = batch_df.loc[start_index:]
+            try:
+                # 区分dp域显示，假如为动态启停采集的数据，从第一次组batch开始算起
+                if batch_name in batch_df['name'].values:
+                    start_index = (batch_df['name'] == batch_name).idxmax()
+                    batch_df = batch_df.loc[start_index:]
 
-            # 给组batch和modelExec列新增dp域信息
-            batch_df = exporter_dp_batch(batch_name, batch_df)
+                # 给组batch和modelExec列新增dp域信息
+                batch_df = exporter_dp_batch(batch_name, batch_df)
 
-            # 筛选显示
-            batch_df = filter_batch_df(batch_name, batch_df)
-        except KeyError as e:
-            logger.warning(f"Field '{e.args[0]}' not found in tx_data_df.")
+                # 筛选显示
+                batch_df = filter_batch_df(batch_name, batch_df)
+            except KeyError as e:
+                logger.warning(f"Field '{e.args[0]}' not found in tx_data_df.")
+        else:
+            pass
 
         output = cls.args.output_path
-        save_dataframe_to_csv(batch_df, output, "batch.csv")
+        if 'csv' in cls.args.format:
+            save_dataframe_to_csv(batch_df, output, "batch.csv")
+        else:
+            pass
 
-        for col in batch_df:
-            if batch_df[col].dtype == 'object':
-                batch_df[col] = batch_df[col].astype(str)
-            if col == 'batch_size':
-                batch_df[col] = batch_df[col].astype(float)
-        add_table_into_visual_db(batch_df, 'batch')
-        add_table_into_visual_db(data.get('batch_req_df'), 'batch_req')
-        add_table_into_visual_db(data.get('batch_exec_df'), 'batch_exec')
+        if 'db' in cls.args.format:
+            for col in batch_df:
+                if batch_df[col].dtype == 'object':
+                    batch_df[col] = batch_df[col].astype(str)
+                if col == 'batch_size':
+                    batch_df[col] = batch_df[col].astype(float)
+            add_table_into_visual_db(batch_df, 'batch')
+            add_table_into_visual_db(data.get('batch_req_df'), 'batch_req')
+            add_table_into_visual_db(data.get('batch_exec_df'), 'batch_exec')
+        else:
+            pass
