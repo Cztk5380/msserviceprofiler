@@ -77,6 +77,8 @@ namespace msServiceProfiler {
 
         bool ReadNpuConfig(const Json &config);
 
+        void ReadMspti(const Json &config);
+
         void SetAclProfHostSysConfig() const;
 
         void DynamicControl();

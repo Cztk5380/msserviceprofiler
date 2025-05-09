@@ -284,7 +284,7 @@ namespace msServiceProfiler {
         StopThread();
     }
     
-    ServiceProfilerManager::StopThread()
+    void ServiceProfilerManager::StopThread()
     {
         std::string &exitSemName = GetConfigPath();
         if (!exitSemName.empty()) {

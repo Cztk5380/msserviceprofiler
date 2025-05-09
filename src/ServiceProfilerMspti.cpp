@@ -361,18 +361,14 @@ namespace msServiceProfiler {
             do {
                 status = msptiActivityGetNextRecord(buffer, validSize, &pRecord);
                 if (status == MSPTI_SUCCESS) {
-                    if (pRecord->kind == MSPTI_ACTIVITY_KIND_KERNEL) {
-                        msptiActivityKernel* activity = reinterpret_cast<msptiActivityKernel*>(pRecord);
-                        ShowKernelInfo(activity);
-
-                    } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_API) {
+                    if (pRecord->kind == MSPTI_ACTIVITY_KIND_API) {
                         msptiActivityApi* activity = reinterpret_cast<msptiActivityApi*>(pRecord);
                         ShowApiInfo(activity);
 
-                    } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_MARKER) {
-                        msptiActivityMarker* activity = reinterpret_cast<msptiActivityMarker*>(pRecord);
-                        ShowMstxInfo(activity);
-                        
+                    } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_KERNEL) {
+                        msptiActivityKernel* activity = reinterpret_cast<msptiActivityKernel*>(pRecord);
+                        ShowKernelInfo(activity);
+
                     } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_HCCL) {
                         msptiActivityHccl* activity = reinterpret_cast<msptiActivityHccl*>(pRecord);
                         ShowHcclInfo(activity);
@@ -475,6 +471,6 @@ namespace msServiceProfiler {
         if (ret != MSPTI_SUCCESS) {
             PROF_LOGE("Mspti Unsubscribe failed.");
         }
-        ServiceProfilerFileWriter::GetInstance().Close()
+        ServiceProfilerFileWriter::GetInstance().Close();
     }
 }  // namespace msServiceProfiler
