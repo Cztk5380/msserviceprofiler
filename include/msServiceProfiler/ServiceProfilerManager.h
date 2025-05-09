@@ -23,7 +23,6 @@
 #include <nlohmann/json.hpp>
 
 #include "ServiceProfilerInterface.h"
-#include "ServiceProfilerMspti.h"
 
 #include "acl/acl.h"
 #include "mspti/mspti.h"

@@ -33,6 +33,7 @@
 #include "../include/msServiceProfiler/Profiler.h"
 #include "../include/msServiceProfiler/Log.h"
 #include "../include/msServiceProfiler/ServiceProfilerManager.h"
+#include "../include/msServiceProfiler/ServiceProfilerMspti.h"
 
 namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
@@ -819,7 +820,7 @@ namespace msServiceProfiler {
                 msptiEnabled = false;
             } else {
                 InitMsptiActivity(apiEnable_, kernelEnable_, hcclEnable_);
-                InitMsptiFilter(apiFilter, kernelFilter_, hcclFilter_);
+                InitMsptiFilter(apiFilter_, kernelFilter_, hcclFilter_);
                 msptiEnabled = true;
             }
         }
