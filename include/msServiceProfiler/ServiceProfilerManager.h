@@ -23,6 +23,9 @@
 #include <nlohmann/json.hpp>
 
 #include "ServiceProfilerInterface.h"
+#include "ServiceProfilerMspti.h"
+
+#include "mspti/mspti.h"
 
 using Json = nlohmann::json;
 
@@ -88,7 +91,7 @@ namespace msServiceProfiler {
 
         void InitProfPathDateTail(bool forceReinit = false);
 
-        void RegisterSignal();
+        void RegisterSignal(int signal);
 
         AclprofConfig* ProfCreateConfig();
 

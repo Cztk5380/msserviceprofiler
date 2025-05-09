@@ -204,13 +204,13 @@ namespace msServiceProfiler {
             return true;
         }
 
-        void Init(std::string& outputPath, std::string& kernelFilter, std::string& apiFilter)
+        void Init()
         {
             if (inited) {
                 return;
             }
 
-            PROF_LOGD("Initing ServiceFilerWriter.")
+            PROF_LOGD("Initing ServiceFilerWriter.");
 
             // 打开数据库连接
             int rc = sqlite3_open(file_name.c_str(), &db);
@@ -325,14 +325,6 @@ namespace msServiceProfiler {
         }
     };
 
-    static void ShowKernelInfo(msptiActivityKernel* kernel)
-    {
-        if(!kernel) {
-            return;
-        }
-        ServiceProfilerFileWriter::GetInstance().insertKernelData(kernel);
-    }
-
     static void ShowApiInfo(msptiActivityApi* api)
     {
         if(!api) {
@@ -341,12 +333,12 @@ namespace msServiceProfiler {
         ServiceProfilerFileWriter::GetInstance().insertApiData(api);
     }
 
-    static void ShowMstxInfo(msptiActivityMarker* activity)
+    static void ShowKernelInfo(msptiActivityKernel* kernel)
     {
-        if(!activity) {
+        if(!kernel) {
             return;
         }
-        ServiceProfilerFileWriter::GetInstance().insertMstxData(activity);
+        ServiceProfilerFileWriter::GetInstance().insertKernelData(kernel);
     }
 
     static void ShowHcclInfo(msptiActivityHccl* activity)
@@ -471,7 +463,7 @@ namespace msServiceProfiler {
         ServiceProfilerFileWriter::GetInstance().InitFilter(apiFilter, kernelFilter, hcclFilter);
     }
 
-    aclError UninitMspti(msptiSubscriberHandle& subscriber)
+    void UninitMspti(msptiSubscriberHandle& subscriber)
     {
         PROF_LOGD("Unit Mspti.");
         auto ret = msptiActivityFlushAll(1);

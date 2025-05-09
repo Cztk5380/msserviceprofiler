@@ -183,6 +183,7 @@ void IntSignalHandler()
 
 void SignalHandler(int signal)
 {
+    typedef void (*FunctionPtr)();
     std::map<int, FunctionPtr> SignalHandlerMap;
 
     SignalHandlerMap[SIGINT] = &IntSignalHandler;
