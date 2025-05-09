@@ -82,6 +82,8 @@ target_link_libraries(ms_service_profiler
         pthread
         rt
         securec
+        mspti
+        sqlite3
 )
 
 install(TARGETS ms_service_profiler

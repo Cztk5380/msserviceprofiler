@@ -49,6 +49,8 @@ struct ProfSetDevPara {
     bool isOpen;
 };
 
+std::unordered_map<int, struct sigaction> old_handlers; // 储存旧有信号处理函数
+
 // 全局标志位，用于控制线程退出
 std::atomic<bool> g_threadRunFlag(true);
 uint32_t g_deviceID = INVALID_DEVICE_ID;
@@ -172,6 +174,42 @@ void RegisterSetDeviceCallback()
     profRegDeviceStateCallback(MsprofSetDeviceCallbackImpl);
 }
 
+void IntSignalHandler()
+{
+    PROF_LOGD("Signal Handler receive interrupt signal.");
+    msServiceProfiler::ServiceProfilerManager::GetInstance().StopThread();
+    StopServerProfiler();
+}
+
+void SignalHandler(int signal)
+{
+    std::map<int, FunctionPtr> SignalHandlerMap;
+
+    SignalHandlerMap[SIGINT] = &IntSignalHandler;
+    SignalHandlerMap[SIGTERM] = &IntSignalHandler;
+
+    if (SignalHandlerMap.find(signal) != SignalHandlerMap.end()) {
+        FunctionPtr selectedHandler = functionMap[signal];
+        selectedHandler();
+    } else {
+        PROF_LOGE("ServiceProfiler receives unexpect signal.");
+    }
+}
+
+void ChainedSignalHandler(int signal)
+{
+    SignalHandler(signal);
+
+    auto it = old_handlers.find(signal);
+    if (it != old_handlers.end())
+    {
+        struct sigaction& old_act = it->second;
+        if (old_act.sa_handler != SIG_DFL && old_act.sa_handler != SIG_IGN && old_act.sa_handler != nullptr) {
+            old_act.sa_handler(signal);
+        }
+    }
+}
+
 namespace msServiceProfiler {
     static inline unsigned long Str2Uint(const std::string &str)
     {
@@ -228,15 +266,24 @@ namespace msServiceProfiler {
         ReadProfPath(configJson);
         ReadLevel(configJson);
         ReadCollectConfig(configJson);
+        ReadMspti(configJson);
 
         RegisterSetDeviceCallback();
         if (enable_) {
             StartProfiler();
         }
         LaunchThread();
+
+        RegisterSignal(SIGINT);
+        RegisterSignal(SIGTERM);
     }
 
     ServiceProfilerManager::~ServiceProfilerManager()
+    {
+        StopThread();
+    }
+    
+    ServiceProfilerManager::StopThread()
     {
         std::string &exitSemName = GetConfigPath();
         if (!exitSemName.empty()) {
@@ -352,6 +399,57 @@ namespace msServiceProfiler {
             }
         }
         PROF_LOGI("profile enableAclTaskTime_: %s", enableAclTaskTime_ ? "true" : "false");  // LCOV_EXCL_LINE
+    }
+
+    void ServiceProfilerManager::ReadMspti(const Json &config)
+    {
+        if (config.contains("mspti_api_enable")) {
+            if (config["mspti_api_enable"].is_number_integer()) {
+                apiEnable_ = config["mspti_api_enable"] == 1;
+            } else {
+                PROF_LOGW("Unknown mspti_api_enable type. mspti_api_enable disabled.");  // LCOV_EXCL_LINE
+            }
+        }
+        if (config.contains("mspti_kernel_enable")) {
+            if (config["mspti_kernel_enable"].is_number_integer()) {
+                kernelEnable_ = config["mspti_kernel_enable"] == 1;
+            } else {
+                PROF_LOGW("Unknown mspti_kernel_enable type. mspti_kernel_enable disabled.");  // LCOV_EXCL_LINE
+            }
+        }
+        if (config.contains("mspti_hccl_enable")) {
+            if (config["mspti_hccl_enable"].is_number_integer()) {
+                hcclEnable_ = config["mspti_hccl_enable"] == 1;
+            } else {
+                PROF_LOGW("Unknown mspti_hccl_enable type. mspti_hccl_enable disabled.");  // LCOV_EXCL_LINE
+            }
+        }
+
+        msptiEnable_ = (apiEnable_ || kernelEnable_ || hcclEnable_);
+
+        if (config.contains("mspti_api_filter")) {
+            if (config["mspti_api_filter"].is_string()) {
+                apiFilter = config["mspti_api_filter"];
+            } else {
+                PROF_LOGW("Unknown mspti_api_filter type. mspti_api_filter set to nullptr.");  // LCOV_EXCL_LINE
+            }
+        }
+        
+        if (config.contains("mspti_kernel_filter")) {
+            if (config["mspti_kernel_filter"].is_string()) {
+                kernelFilter = config["mspti_kernel_filter"];
+            } else {
+                PROF_LOGW("Unknown mspti_kernel_filter type. mspti_kernel_filter set to nullptr.");  // LCOV_EXCL_LINE
+            }
+        }
+
+        if (config.contains("mspti_hccl_filter")) {
+            if (config["mspti_hccl_filter"].is_string()) {
+                hcclFilter = config["mspti_hccl_filter"];
+            } else {
+                PROF_LOGW("Unknown mspti_hccl_filter type. mspti_hccl_filter set to nullptr.");  // LCOV_EXCL_LINE
+            }
+        }
     }
 
     void ServiceProfilerManager::ReadLevel(const Json &config)
@@ -581,6 +679,7 @@ namespace msServiceProfiler {
             ReadProfPath(configJson);
             ReadAclTaskTime(configJson);
             ReadCollectConfig(configJson);
+            ReadMspti(configJson);
             StartServerProfiler();
             PROF_LOGI("Profiler Enabled Successfully!");  // LCOV_EXCL_LINE
         } else if (!enableFromConfig && enable_) {
@@ -712,6 +811,18 @@ namespace msServiceProfiler {
             return;
         }
 
+        if (msptiEnable_) {
+            auto ret = InitMspti(profPath_, msptiHandle_);
+            if (ret != 0 ) {
+                PROF_LOGE("Mspti init failed.");
+                msptiEnabled = false;
+            } else {
+                InitMsptiActivity(apiEnable_, kernelEnable_, hcclEnable_);
+                InitMsptiFilter(apiFilter, kernelFilter_, hcclFilter_);
+                msptiEnabled = true;
+            }
+        }
+
         // 设置标志位
         enable_ = true;
         g_threadRunFlag = true;
@@ -727,6 +838,11 @@ namespace msServiceProfiler {
 
         enable_ = false;
         auto profConfig = (AclprofConfig *)this->configHandle_;
+
+        if (msptiEnabled) {
+            msptiEnabled = false;
+            UninitMspti();
+        }
 
         auto ret = aclprofStop(profConfig);
         if (ret != ACL_ERROR_NONE) {
@@ -748,5 +864,21 @@ namespace msServiceProfiler {
 
         started_ = false;
         g_startFlag = false;
+    }
+
+    void ServiceProfilerManager::RegisterSignal(int signal)
+    {
+        struct sigaction sa, old_sa; // old_sa 保存已有signal handler
+
+        sa.sa_handler = ChainedSignalHandler;
+
+        if (sigaction(signal, &sa, &old_sa) == -1) {
+            PROF_LOGE("Profiler register signal handler failed.");
+            return;
+        }
+
+        PROF_LOGD("Profiler register signal handler success.");
+
+        old_handlers[signal] = old_sa; // 将old_sa保存在全局变量old_handlers中
     }
 }  // namespace msServiceProfiler

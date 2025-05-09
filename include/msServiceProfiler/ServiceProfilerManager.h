@@ -43,6 +43,8 @@ namespace msServiceProfiler {
         void StartProfiler();
 
         void StopProfiler();
+        
+        void StopThread();
 
         static std::string ToSemName(const std::string &oriSemName);
 
@@ -86,6 +88,8 @@ namespace msServiceProfiler {
 
         void InitProfPathDateTail(bool forceReinit = false);
 
+        void RegisterSignal();
+
         AclprofConfig* ProfCreateConfig();
 
     private:
@@ -114,6 +118,18 @@ namespace msServiceProfiler {
         uint32_t npuMemorySleepMilliseconds_ = 1000;
 
         std::thread thread_;
+
+        msptiSubscriberHandle msptiHandle_;
+        bool msptiEnable_ = false;
+        bool msptiEnabled = false;
+
+        bool apiEnable_ = false;
+        bool kernelEnable_ = false;
+        bool hcclEnable_ = false;
+
+        std::string apiFilter_;
+        std::string kernelFilter_;
+        std::string hcclFilter_;
     };
 }  // namespace msServiceProfiler
 
