@@ -25,6 +25,7 @@
 #include "ServiceProfilerInterface.h"
 #include "ServiceProfilerMspti.h"
 
+#include "acl/acl.h"
 #include "mspti/mspti.h"
 
 using Json = nlohmann::json;

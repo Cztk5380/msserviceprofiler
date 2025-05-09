@@ -190,7 +190,7 @@ void SignalHandler(int signal)
     SignalHandlerMap[SIGTERM] = &IntSignalHandler;
 
     if (SignalHandlerMap.find(signal) != SignalHandlerMap.end()) {
-        FunctionPtr selectedHandler = functionMap[signal];
+        FunctionPtr selectedHandler = SignalHandlerMap[signal];
         selectedHandler();
     } else {
         PROF_LOGE("ServiceProfiler receives unexpect signal.");
@@ -430,7 +430,7 @@ namespace msServiceProfiler {
 
         if (config.contains("mspti_api_filter")) {
             if (config["mspti_api_filter"].is_string()) {
-                apiFilter = config["mspti_api_filter"];
+                apiFilter_ = config["mspti_api_filter"];
             } else {
                 PROF_LOGW("Unknown mspti_api_filter type. mspti_api_filter set to nullptr.");  // LCOV_EXCL_LINE
             }
@@ -438,7 +438,7 @@ namespace msServiceProfiler {
         
         if (config.contains("mspti_kernel_filter")) {
             if (config["mspti_kernel_filter"].is_string()) {
-                kernelFilter = config["mspti_kernel_filter"];
+                kernelFilter_ = config["mspti_kernel_filter"];
             } else {
                 PROF_LOGW("Unknown mspti_kernel_filter type. mspti_kernel_filter set to nullptr.");  // LCOV_EXCL_LINE
             }
@@ -446,7 +446,7 @@ namespace msServiceProfiler {
 
         if (config.contains("mspti_hccl_filter")) {
             if (config["mspti_hccl_filter"].is_string()) {
-                hcclFilter = config["mspti_hccl_filter"];
+                hcclFilter_ = config["mspti_hccl_filter"];
             } else {
                 PROF_LOGW("Unknown mspti_hccl_filter type. mspti_hccl_filter set to nullptr.");  // LCOV_EXCL_LINE
             }
