@@ -843,7 +843,7 @@ namespace msServiceProfiler {
 
         if (msptiEnabled) {
             msptiEnabled = false;
-            UninitMspti();
+            UninitMspti(msptiHandle_);
         }
 
         auto ret = aclprofStop(profConfig);
