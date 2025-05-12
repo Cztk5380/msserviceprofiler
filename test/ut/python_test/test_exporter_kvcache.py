@@ -39,7 +39,7 @@ lKVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252
 class TestExporterBatchData(unittest.TestCase):
     def setUp(self):
         test_path = os.path.join(os.getcwd(), "output_test")
-        self.args = type('Args', (object,), {'output_path': test_path})
+        self.args = type('Args', (object,), {'output_path': test_path, 'format': ['csv', 'db']})
         self.data = {
             'tx_data_df': self.create_df()
         }
@@ -80,7 +80,7 @@ class TestExporterBatchData(unittest.TestCase):
         os.makedirs(test_path, exist_ok=True)
         os.chmod(test_path, 0o740)
         file_path_kvcache = Path(test_path, 'kvcache.csv')
-        file_path_pd_separate_kvcache = Path(test_path, 'pd_separate_kvcache.csv')
+        file_path_pd_separate_kvcache = Path(test_path, 'pd_split_kvcache.csv')
         data = {'tx_data_df': pd.read_csv(io.StringIO(PD_SEPARATE_PULL_KV_DATA))}
         try:
             # 初始化args
@@ -98,7 +98,7 @@ class TestExporterBatchData(unittest.TestCase):
         os.makedirs(test_path, exist_ok=True)
         os.chmod(test_path, 0o740)
         file_path_kvcache = Path(test_path, 'kvcache.csv')
-        file_path_pd_separate_kvcache = Path(test_path, 'pd_separate_kvcache.csv')
+        file_path_pd_separate_kvcache = Path(test_path, 'pd_split_kvcache.csv')
         data = {'tx_data_df': pd.read_csv(io.StringIO(PD_SEPARATE_PULL_KV_DATA_MISSING_KEY))}
         try:
             # 初始化args

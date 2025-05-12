@@ -201,13 +201,16 @@ class ExporterLatency(ExporterBase):
 
     @classmethod
     def export(cls, data) -> None:
-        all_data_df = data['tx_data_df']
-        output = cls.args.output_path
+        if 'db' in cls.args.format:
+            all_data_df = data['tx_data_df']
+            output = cls.args.output_path
 
-        first_token_latency_views, req_latency_views, prefill_gen_speed_views, decode_gen_speed_views = \
-            gen_exporter_results(all_data_df)
+            first_token_latency_views, req_latency_views, prefill_gen_speed_views, decode_gen_speed_views = \
+                gen_exporter_results(all_data_df)
 
-        add_table_into_visual_db(pd.DataFrame(first_token_latency_views), 'first_token_latency')
-        add_table_into_visual_db(pd.DataFrame(req_latency_views), 'req_latency')
-        add_table_into_visual_db(pd.DataFrame(prefill_gen_speed_views), 'prefill_gen_speed')
-        add_table_into_visual_db(pd.DataFrame(decode_gen_speed_views), 'decode_gen_speed')
+            add_table_into_visual_db(pd.DataFrame(first_token_latency_views), 'first_token_latency')
+            add_table_into_visual_db(pd.DataFrame(req_latency_views), 'req_latency')
+            add_table_into_visual_db(pd.DataFrame(prefill_gen_speed_views), 'prefill_gen_speed')
+            add_table_into_visual_db(pd.DataFrame(decode_gen_speed_views), 'decode_gen_speed')
+        else:
+            pass

@@ -126,48 +126,63 @@ class ExporterKVCacheData(ExporterBase):
  
     @classmethod
     def export(cls, data) -> None:
-        df = data.get('tx_data_df')
-        if df is None:
-            logger.error("The data is empty, please check")
-            return
+        if 'db' in cls.args.format or 'csv' in cls.args.format:
+            df = data.get('tx_data_df')
+            if df is None:
+                logger.error("The data is empty, please check")
+                return
 
-        if not df['domain'].str.casefold().str.contains(r'kvcache', regex=True).any():
-            logger.warning(
-                "No 'KVCache' related fields found in data base. If this is unexpected, please check the 'msproftx.db'"
-            )
-            return
+            if not df['domain'].str.casefold().str.contains(r'kvcache', regex=True).any():
+                logger.warning(
+                    "No 'KVCache' related fields found in data base. If this is unexpected, please check the "
+                    "'msproftx.db'"
+                )
+                return
+        else:
+            pass
 
-        start_datetime_data = df['start_datetime'].copy()
-        try:
-            kvcache_df = df[df['domain'] == 'KVCache']
-            kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'name', \
-                                     'deviceBlock=', 'during_time']]
+        if 'db' in cls.args.format or 'csv' in cls.args.format:
+            start_datetime_data = df['start_datetime'].copy()
+            try:
+                kvcache_df = df[df['domain'] == 'KVCache']
+                kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'name', \
+                                         'deviceBlock=', 'during_time']]
+                kvcache_df = kvcache_df.rename(columns={
+                    'deviceBlock=': 'device_kvcache_left',
+                    'start_time': 'start_time(microsecond)',
+                    'end_time': 'end_time(microsecond)',
+                    'during_time': 'during_time(microsecond)'
+                })
+
+            except KeyError as e:
+                logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
+            output = cls.args.output_path
+            if 'csv' in cls.args.format:
+                save_dataframe_to_csv(kvcache_df, output, "kvcache.csv")
+            else:
+                pass
+            kvcache_df['start_datetime'] = start_datetime_data
             kvcache_df = kvcache_df.rename(columns={
-                'deviceBlock=': 'device_kvcache_left',
-                'start_time': 'start_time(microsecond)',
-                'end_time': 'end_time(microsecond)',
-                'during_time': 'during_time(microsecond)'
+                'start_datetime': 'real_start_time'
             })
+            kvcache_df = kvcache_usage_rate_calculator(kvcache_df)
 
-        except KeyError as e:
-            logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
-        output = cls.args.output_path
-        save_dataframe_to_csv(kvcache_df, output, "kvcache.csv")
-        kvcache_df['start_datetime'] = start_datetime_data
-        kvcache_df = kvcache_df.rename(columns={
-            'start_datetime': 'real_start_time'
-        })
-        kvcache_df = kvcache_usage_rate_calculator(kvcache_df)
+            if 'db' in cls.args.format:
+                add_table_into_visual_db(kvcache_df, 'kvcache')
+            else:
+                pass
+        else:
+            pass
 
-        db_file_path = create_sqlite_db(output)
-        add_table_into_visual_db(kvcache_df, 'kvcache')
-
-        export_pull_kvcache(df, cls.args.output_path)
+        if 'csv' in cls.args.format:
+            export_pull_kvcache(df, cls.args.output_path)
+        else:
+            pass
 
 
 def export_pull_kvcache(df, output):
     kvcache_df = df[df['domain'] == 'PullKVCache']
-    logger.debug(f"pd_separate_kvcache shape {kvcache_df.shape}.")
+    logger.debug(f"pd_split_kvcache shape {kvcache_df.shape}.")
     
     if kvcache_df.shape[0] == 0:
         return
@@ -184,5 +199,5 @@ def export_pull_kvcache(df, output):
         'end_time': 'end_time(microsecond)',
         'during_time': 'during_time(microsecond)'
     })
-    save_dataframe_to_csv(kvcache_df, output, "pd_separate_kvcache.csv")
-    logger.info(f"pd_separate_kvcache.csv success.")
+    save_dataframe_to_csv(kvcache_df, output, "pd_split_kvcache.csv")
+    logger.info(f"pd_split_kvcache.csv success.")

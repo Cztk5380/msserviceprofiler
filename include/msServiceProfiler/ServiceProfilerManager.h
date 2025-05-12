@@ -23,6 +23,7 @@
 #include <nlohmann/json.hpp>
 
 #include "ServiceProfilerInterface.h"
+#include "Config.h"
 
 #include "acl/acl.h"
 #include "mspti/mspti.h"
@@ -40,44 +41,26 @@ namespace msServiceProfiler {
 
         inline bool IsEnable(uint32_t level) const
         {
-            return enable_ && level_ >= level;
+            return config_->GetEnable() && config_->GetLevel() >= level;
         }
 
         void StartProfiler();
 
         void StopProfiler();
-        
+
         void StopThread();
 
         static std::string ToSemName(const std::string &oriSemName);
 
-        std::string &GetConfigPath()
+        const std::string &GetConfigPath()
         {
-            return configPath_;
+            return config_->GetConfigPath();
         }
 
     private:
         ServiceProfilerManager();
 
         ~ServiceProfilerManager();
-
-        Json ReadConfig();
-
-        void ReadEnable(const Json &config);
-
-        void ReadProfPath(const Json &config);
-
-        void ReadLevel(const Json &config);
-
-        void ReadAclTaskTime(const Json &config);
-
-        bool ReadCollectConfig(const Json &config);
-
-        bool ReadHostConfig(const Json &config);
-
-        bool ReadNpuConfig(const Json &config);
-
-        void ReadMspti(const Json &config);
 
         void SetAclProfHostSysConfig() const;
 
@@ -87,11 +70,7 @@ namespace msServiceProfiler {
 
         void ThreadFunction();
 
-        void ReadConfigPath();
-
         void MarkFirstProcessAsMain();
-
-        void InitProfPathDateTail(bool forceReinit = false);
 
         void RegisterSignal(int signal);
 
@@ -99,28 +78,11 @@ namespace msServiceProfiler {
 
     private:
         bool isMaster_ = true;
-        bool enable_ = false;
         bool started_ = false;
         bool isAclInit_ = false;
-        std::string configPath_;
-        std::string profPath_;
-        std::string profPathDateTail_;
-        uint32_t level_ = Level::INFO;
-        bool enableAclTaskTime_ = false;
         void *configHandle_ = nullptr;
         int lastUpdate_ = 0;
-
-        bool hostCpuUsage_ = false;
-        bool hostMemoryUsage_ = false;
-        uint32_t hostFreq_ = 10;
-        uint32_t hostFreqMin_ = 1;
-        uint32_t hostFreqMax_ = 50;
-
-        bool npuMemoryUsage_ = false;
-        uint32_t npuMemoryFreq_ = 1;
-        uint32_t npuMemoryFreqMin_ = 1;
-        uint32_t npuMemoryFreqMax_ = 50;
-        uint32_t npuMemorySleepMilliseconds_ = 1000;
+        std::unique_ptr<Config> config_;
 
         std::thread thread_;
 
