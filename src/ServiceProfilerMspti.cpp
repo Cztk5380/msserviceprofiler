@@ -126,7 +126,7 @@ namespace msServiceProfiler {
 
             // 执行插入
             if (sqlite3_step(stmtKernel) != SQLITE_DONE) {
-                std::cerr << "Execution failed: " << sqlite3_errmsg(db) << std::endl;
+                PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
             }
             sqlite3_reset(stmtKernel);
             mtx.unlock();
@@ -397,6 +397,7 @@ namespace msServiceProfiler {
 
     int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber)
     {
+        // 创建mspti订阅者
         auto ret = msptiSubscribe(&subscriber, nullptr, nullptr);
         if (ret == MSPTI_SUCCESS) {
             PROF_LOGD("Mspti subscribe success.");
@@ -413,6 +414,7 @@ namespace msServiceProfiler {
             return ret;
         }
 
+        // 注册空buffer申请回调函数 以及buffer满时的数据处理回调函数
         ret = msptiActivityRegisterCallbacks(UserBufferRequest, UserBufferComplete);
         if (ret == MSPTI_SUCCESS) {
             PROF_LOGD("Mspti register callbacks success.");

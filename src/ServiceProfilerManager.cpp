@@ -276,6 +276,7 @@ namespace msServiceProfiler {
         }
         LaunchThread();
 
+        // 注册中断终止信号处理函数
         RegisterSignal(SIGINT);
         RegisterSignal(SIGTERM);
     }
@@ -436,7 +437,6 @@ namespace msServiceProfiler {
                 PROF_LOGW("Unknown mspti_api_filter type. mspti_api_filter set to nullptr.");  // LCOV_EXCL_LINE
             }
         }
-        
         if (config.contains("mspti_kernel_filter")) {
             if (config["mspti_kernel_filter"].is_string()) {
                 kernelFilter_ = config["mspti_kernel_filter"];
@@ -444,7 +444,6 @@ namespace msServiceProfiler {
                 PROF_LOGW("Unknown mspti_kernel_filter type. mspti_kernel_filter set to nullptr.");  // LCOV_EXCL_LINE
             }
         }
-
         if (config.contains("mspti_hccl_filter")) {
             if (config["mspti_hccl_filter"].is_string()) {
                 hcclFilter_ = config["mspti_hccl_filter"];
