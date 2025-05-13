@@ -37,6 +37,15 @@ public:
     void InitProfPathDateTail(bool forceReinit = false);
     bool PrepareConfigAndPath(std::string& configPath);
     void SaveConfigToJsonFile();
+
+    bool GetMsptiEnable() const { return msptienable_; }
+    bool GetMsptiApiEnable() const { return apiEnable_; }
+    bool GetMsptiKernelEnable() const { return kernelEnable_; }
+    bool GetMsptiHcclEnable() const { return hcclEnable_; }
+    const std::string GetApiFilter() const { return apiFilter_; }
+    const std::string GetKernelFilter() const { return kernelFilter_; }
+    const std::string GetHcclFilter() const { return hcclFilter_; }
+
 private:
     void ReadConfigPath();
     void ParseEnable(const Json& config);
@@ -48,6 +57,7 @@ private:
     bool ParseCollectConfig(const Json& config);
     bool ParseHostConfig(const Json& config);
     bool ParseNpuConfig(const Json& config);
+    void ParseMspti(const Json& config);
 
     bool enable_ = false;
     uint32_t level_ = Level::INFO;
@@ -67,6 +77,16 @@ private:
     uint32_t npuMemoryFreqMin_ = 1;
     uint32_t npuMemoryFreqMax_ = 50;
     uint32_t npuMemorySleepMilliseconds_ = 1000;
+
+    bool msptiEnable_ = false;
+
+    bool apiEnable_ = false;
+    bool kernelEnable_ = false;
+    bool hcclEnable_ = false;
+
+    std::string apiFilter_;
+    std::string kernelFilter_;
+    std::string hcclFilter_;
 };
 }
 #endif

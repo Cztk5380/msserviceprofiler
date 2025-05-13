@@ -87,16 +87,7 @@ namespace msServiceProfiler {
         std::thread thread_;
 
         msptiSubscriberHandle msptiHandle_;
-        bool msptiEnable_ = false;
         bool msptiEnabled = false;
-
-        bool apiEnable_ = false;
-        bool kernelEnable_ = false;
-        bool hcclEnable_ = false;
-
-        std::string apiFilter_;
-        std::string kernelFilter_;
-        std::string hcclFilter_;
     };
 }  // namespace msServiceProfiler
 
