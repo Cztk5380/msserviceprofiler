@@ -38,7 +38,7 @@ public:
     bool PrepareConfigAndPath(std::string& configPath);
     void SaveConfigToJsonFile();
 
-    bool GetMsptiEnable() const { return msptienable_; }
+    bool GetMsptiEnable() const { return msptiEnable_; }
     bool GetMsptiApiEnable() const { return apiEnable_; }
     bool GetMsptiKernelEnable() const { return kernelEnable_; }
     bool GetMsptiHcclEnable() const { return hcclEnable_; }

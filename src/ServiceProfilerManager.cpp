@@ -261,8 +261,6 @@ namespace msServiceProfiler {
         ProfLogInit();
         MarkFirstProcessAsMain();
 
-        ReadMspti(configJson);
-
         RegisterSetDeviceCallback();
         if (config_->GetEnable()) {
             StartProfiler();

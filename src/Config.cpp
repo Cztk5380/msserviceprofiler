@@ -91,7 +91,7 @@ void Config::ParseConfig(const Json& configJson)
     ParseMspti(configJson);
 }
 
-void Config::ParserMspti(const Json& config)
+void Config::ParseMspti(const Json& config)
 {
     if (config.contains("mspti_api_enable")) {
         if (config["mspti_api_enable"].is_number_integer()) {
