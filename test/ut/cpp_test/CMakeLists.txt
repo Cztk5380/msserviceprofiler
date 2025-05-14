@@ -32,6 +32,7 @@ if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
 endif ()
 
 include_directories(
+        ${CMAKE_CURRENT_SOURCE_DIR}
         ${PROJECT_TOP_DIR}/include
         ${PROJECT_TOP_DIR}/include/msServiceProfiler
         ${PROJECT_TOP_DIR}/opensource/googletest/googletest-1.12.1/include
