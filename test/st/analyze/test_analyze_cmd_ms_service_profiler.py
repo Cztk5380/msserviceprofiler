@@ -324,14 +324,15 @@ def process_database_messages(
 
 class TestAnalyzeCmd(TestCase):
     ST_DATA_PATH = os.getenv("MS_SERVICE_PROFILER", "/data/ms_service_profiler")
-    INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/0211-1226")
-    INPUT_PATH_PD_SEPARATE = os.path.join(ST_DATA_PATH, "input/analyze/pullkv_0212")
+    INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/latest_PD")
+    INPUT_PATH_PD_SEPARATE = os.path.join(ST_DATA_PATH, "input/analyze/latest_PD_split")
     OUTPUT_PATH = os.path.join(ST_DATA_PATH, "output/analyze")
     KVCACHE_CSV_FILE_NAME = "kvcache.csv"
     DB_FILE_NAME = "profiler.db"
     COMMAND_SUCCESS = 0
     ANALYZE_PROFILER = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")),
                                     "ms_service_profiler/parse.py")
+    FORMAT = ['csv', 'json', 'db']
 
     def setup_class(self):
         os.makedirs(self.OUTPUT_PATH, mode=0o750, exist_ok=True)
@@ -404,7 +405,8 @@ class TestAnalyzeCmd(TestCase):
 
     def test_prase_ms_service_profiler_data(self):
         # 校验msserviceprofiler打点采集数据解析功能是否正常解析，校验输出文件及内容
-        cmd = ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH]
+        cmd = ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH,
+               "--format", *self.FORMAT]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
             self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
         # 新增数据库字段校验子测试
@@ -441,7 +443,7 @@ class TestAnalyzeCmd(TestCase):
     def test_parse_data_in_pd_separate(self):
         # 校验msserviceprofiler打点PD分离数据解析功能是否正常解析，校验输出文件及内容
         cmd = ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH_PD_SEPARATE, \
-            "--output-path", self.OUTPUT_PATH]
+            "--output-path", self.OUTPUT_PATH, "--format", *self.FORMAT]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
             self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
 
