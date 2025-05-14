@@ -181,25 +181,26 @@ void IntSignalHandler()
     StopServerProfiler();
 }
 
-void SignalHandler(int signal)
-{
-    typedef void (*FunctionPtr)();
-    std::map<int, FunctionPtr> SignalHandlerMap;
+// void SignalHandler(int signal)
+// {
+       // 这个函数有问题 用这种方式去调用IntSignalHandler会导致core dump
+//     typedef void (*FunctionPtr)();
+//     std::map<int, FunctionPtr> SignalHandlerMap;
 
-    SignalHandlerMap[SIGINT] = &IntSignalHandler;
-    SignalHandlerMap[SIGTERM] = &IntSignalHandler;
+//     SignalHandlerMap[SIGINT] = &IntSignalHandler;
+//     SignalHandlerMap[SIGTERM] = &IntSignalHandler;
 
-    if (SignalHandlerMap.find(signal) != SignalHandlerMap.end()) {
-        FunctionPtr selectedHandler = SignalHandlerMap[signal];
-        selectedHandler();
-    } else {
-        PROF_LOGE("ServiceProfiler receives unexpect signal.");
-    }
-}
+//     if (SignalHandlerMap.find(signal) != SignalHandlerMap.end()) {
+//         FunctionPtr selectedHandler = SignalHandlerMap[signal];
+//         selectedHandler();
+//     } else {
+//         PROF_LOGE("ServiceProfiler receives unexpect signal.");
+//     }
+// }
 
 void ChainedSignalHandler(int signal)
 {
-    SignalHandler(signal);
+    IntSignalHandler();
 
     auto it = old_handlers.find(signal);
     if (it != old_handlers.end())
@@ -536,7 +537,10 @@ namespace msServiceProfiler {
                     config_->GetMsptiKernelEnable(), 
                     config_->GetMsptiHcclEnable()
                     );
-                InitMsptiFilter(config_->GetApiFilter(), config_->GetApiFilter(), config_->GetApiFilter());
+                auto apiFilter_ = config_->GetApiFilter();
+                auto kernelFilter_ = config_->GetKernelFilter();
+                auto hcclFilter_ = config_->GetHcclFilter();
+                InitMsptiFilter(apiFilter_, kernelFilter_, hcclFilter_);
                 msptiEnabled = true;
             }
         }
