@@ -32,8 +32,8 @@
 #include "msServiceProfiler/NpuMemoryUsage.h"
 #include "msServiceProfiler/Profiler.h"
 #include "msServiceProfiler/Log.h"
-#include "msServiceProfiler/ServiceProfilerManager.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
+#include "msServiceProfiler/ServiceProfilerManager.h"
 
 namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
@@ -186,11 +186,10 @@ void ChainedSignalHandler(int signal)
     IntSignalHandler();
 
     auto it = old_handlers.find(signal);
-    if (it != old_handlers.end())
-    {
-        struct sigaction& old_act = it->second;
-        if (old_act.sa_handler != SIG_DFL && old_act.sa_handler != SIG_IGN && old_act.sa_handler != nullptr) {
-            old_act.sa_handler(signal);
+    if (it != old_handlers.end()) {
+        struct sigaction& oldact = it->second;
+        if (oldact.sa_handler != SIG_DFL && oldact.sa_handler != SIG_IGN && oldact.sa_handler != nullptr) {
+            oldact.sa_handler(signal);
         }
     }
 }

@@ -50,10 +50,10 @@ namespace msServiceProfiler {
 
     class ServiceProfilerFileWriter {
     private:
-        static constexpr size_t buffer_size = 5 * 1024 * 1024;
-        char buffer[buffer_size];
+        static constexpr size_t BUFFER_SIZE = 5 * 1024 * 1024;
+        char buffer[BUFFER_SIZE];
         bool inited = false;
-        std::string file_name;
+        std::string fileName;
         sqlite3* db;
         sqlite3_stmt* stmtApi;
         sqlite3_stmt* stmtKernel;
@@ -104,8 +104,7 @@ namespace msServiceProfiler {
 
         void insertKernelData(msptiActivityKernel* activity)
         {
-            if (!inited || !activity || !stmtKernel )
-            {
+            if (!inited || !activity || !stmtKernel ) {
                 return;
             }
 
@@ -364,19 +363,16 @@ namespace msServiceProfiler {
                     if (pRecord->kind == MSPTI_ACTIVITY_KIND_API) {
                         msptiActivityApi* activity = reinterpret_cast<msptiActivityApi*>(pRecord);
                         ShowApiInfo(activity);
-
                     } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_KERNEL) {
                         msptiActivityKernel* activity = reinterpret_cast<msptiActivityKernel*>(pRecord);
                         ShowKernelInfo(activity);
-
                     } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_HCCL) {
                         msptiActivityHccl* activity = reinterpret_cast<msptiActivityHccl*>(pRecord);
                         ShowHcclInfo(activity);
                     }
                 } else if (status == MSPTI_ERROR_MAX_LIMIT_REACHED) {
                     break;
-                } else
-                {
+                } else {
                     PROF_LOGD("unexpected status: %d", status);
                     break;
                 }
@@ -395,7 +391,7 @@ namespace msServiceProfiler {
         *maxNumRecords = 0;
     }
 
-    int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber)
+    int InitMspti(std::string& profPath, msptiSubscriberHandle& subscriber)
     {
         // 创建mspti订阅者
         auto ret = msptiSubscribe(&subscriber, nullptr, nullptr);
@@ -426,29 +422,29 @@ namespace msServiceProfiler {
             }
             return ret;
         }
-        ServiceProfilerFileWriter::GetInstance().InitOutputPath(profPath_);
+        ServiceProfilerFileWriter::GetInstance().InitOutputPath(profPath);
         return 0;
     }
 
-    void InitMsptiActivity(bool apiEnable_, bool kernelEnable_, bool hcclEnable_)
+    void InitMsptiActivity(bool apiEnable, bool kernelEnable, bool hcclEnable)
     {
         // 当前涉及的数据只有三种api kernel和hccl 后续有需要可以增加mstx的数据
         msptiResult ret;
-        if (apiEnable_) {
+        if (apiEnable) {
             ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_API);
             if (ret != MSPTI_SUCCESS) {
                 PROF_LOGE("Mspti enable api activity failed.");
             }
         }
 
-        if (kernelEnable_) {
+        if (kernelEnable) {
             ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_KERNEL);
             if (ret != MSPTI_SUCCESS) {
                 PROF_LOGE("Mspti enable kernel activity failed.");
             }
         }
 
-        if (hcclEnable_) {
+        if (hcclEnable) {
             ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_HCCL);
             if (ret != MSPTI_SUCCESS) {
                 PROF_LOGE("Mspti enable hccl activity failed.");

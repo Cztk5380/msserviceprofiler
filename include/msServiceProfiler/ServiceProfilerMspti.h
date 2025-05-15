@@ -18,9 +18,9 @@
 #define SERVICEPROFILERMANAGERMSPTI_H
 
 namespace msServiceProfiler {
-    int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber);
-    void InitMsptiActivity(bool apiEnable_, bool kernelEnable_, bool hcclEnable_);
+    int InitMspti(std::string& profPath, msptiSubscriberHandle& subscriber);
+    void InitMsptiActivity(bool apiEnable, bool kernelEnable, bool hcclEnable);
     void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter, std::string& hcclFilter);
     void UninitMspti(msptiSubscriberHandle& subscriber);
 }
-#endif //SERVICEPROFILERMANAGERMSPTI_H
+#endif // SERVICEPROFILERMANAGERMSPTI_H
