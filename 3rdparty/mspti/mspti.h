@@ -66,47 +66,47 @@ typedef struct PACKED_ALIGNMENT {
 } msptiActivity;
 
 typedef struct PACKED_ALIGNMENT {
-	msptiActivityKind kind;   // Activity Record类型MSPTI_ACTIVITY_KIND_API
-	uint64_t start;   // API执行的开始时间戳，单位ns。开始和结束时间戳均为0时则无法收集API的时间戳信息
-	uint64_t end;   // API执行的结束时间戳，单位ns。开始和结束时间戳均为0时则无法收集API的时间戳信息
-	struct {
-		uint32_t processId;   // API运行设备的进程ID
-		uint32_t threadId;   // API运行流的线程ID
-	} pt;
-	uint64_t correlationId;   // API的关联ID。每个API执行都被分配一个唯一的关联ID，该关联ID与启动API的驱动程序或运行时API Activity Record的关联ID相同
-	const char* name;   // API的名称，该名称在整个Activity Record中保持一致，不建议修改
+    msptiActivityKind kind;   // Activity Record类型MSPTI_ACTIVITY_KIND_API
+    uint64_t start;   // API执行的开始时间戳，单位ns。开始和结束时间戳均为0时则无法收集API的时间戳信息
+    uint64_t end;   // API执行的结束时间戳，单位ns。开始和结束时间戳均为0时则无法收集API的时间戳信息
+    struct {
+        uint32_t processId;   // API运行设备的进程ID
+        uint32_t threadId;   // API运行流的线程ID
+    } pt;
+    uint64_t correlationId;   // API的关联ID。每个API执行都被分配一个唯一的关联ID，该关联ID与启动API的驱动程序或运行时API Activity Record的关联ID相同
+    const char* name;   // API的名称，该名称在整个Activity Record中保持一致，不建议修改
 } msptiActivityApi;
 
 typedef struct PACKED_ALIGNMENT {
-	msptiActivityKind kind;   // Activity Record类型MSPTI_ACTIVITY_KIND_HCCL
-	uint64_t start;   // 通信算子在NPU设备上执行开始时间戳，单位ns。开始和结束时间戳均为0时则无法收集通信算子的时间戳信息
-	uint64_t end;   // 通信算子执行的结束时间戳，单位ns。开始和结束时间戳均为0时则无法收集通信算子的时间戳信息
-	struct {
-		uint32_t deviceId;   // 通信算子运行设备的Device ID
-		uint32_t streamId;   // 通信算子运行流的Stream ID
-	} ds;
-	uint64_t bandWidth;   // 通信算子运行时的带宽，单位GB/s
-	const char *name;   // 通信算子的名称
-	const char *commName;   // 通信域的名称
+    msptiActivityKind kind;   // Activity Record类型MSPTI_ACTIVITY_KIND_HCCL
+    uint64_t start;   // 通信算子在NPU设备上执行开始时间戳，单位ns。开始和结束时间戳均为0时则无法收集通信算子的时间戳信息
+    uint64_t end;   // 通信算子执行的结束时间戳，单位ns。开始和结束时间戳均为0时则无法收集通信算子的时间戳信息
+    struct {
+        uint32_t deviceId;   // 通信算子运行设备的Device ID
+        uint32_t streamId;   // 通信算子运行流的Stream ID
+    } ds;
+    uint64_t bandWidth;   // 通信算子运行时的带宽，单位GB/s
+    const char *name;   // 通信算子的名称
+    const char *commName;   // 通信域的名称
 } msptiActivityHccl;
 
 typedef struct PACKED_ALIGNMENT {
-	msptiActivityKind kind;   // Activity Record类型MSPTI_ACTIVITY_KIND_KERNEL
-	uint64_t start;   // Kernel在NPU设备上执行开始时间戳，单位ns。开始和结束时间戳均为0时则无法收集kernel的时间戳信息
-	uint64_t end;   // kernel执行的结束时间戳，单位ns。开始和结束时间戳均为0时则无法收集kernel的时间戳信息
-	struct {
-		uint32_t deviceId;   // kernel运行设备的Device ID
-		uint32_t streamId;   // kernel运行流的Stream ID
-	} ds;
-	uint64_t correlationId;   // Runtime在Launch Kernel时生成的唯一ID，其它Activity可通过该值与Kernel进行关联
-	const char *type;   // kernel的类型
-	const char *name;   // kernel的名称，该名称在整个Activity Record中保持一致，不建议修改
+    msptiActivityKind kind;   // Activity Record类型MSPTI_ACTIVITY_KIND_KERNEL
+    uint64_t start;   // Kernel在NPU设备上执行开始时间戳，单位ns。开始和结束时间戳均为0时则无法收集kernel的时间戳信息
+    uint64_t end;   // kernel执行的结束时间戳，单位ns。开始和结束时间戳均为0时则无法收集kernel的时间戳信息
+    struct {
+        uint32_t deviceId;   // kernel运行设备的Device ID
+        uint32_t streamId;   // kernel运行流的Stream ID
+    } ds;
+    uint64_t correlationId;   // Runtime在Launch Kernel时生成的唯一ID，其它Activity可通过该值与Kernel进行关联
+    const char *type;   // kernel的类型
+    const char *name;   // kernel的名称，该名称在整个Activity Record中保持一致，不建议修改
 } msptiActivityKernel;
 
-typedef void (*BufferRequestFunctionPtr)(uint8_t**, size_t*, size_t*);
-typedef void (*BufferCompleteFunctionPtr)(uint8_t*, size_t, size_t);
+typedef void (*bufferRequestFunctionPtr)(uint8_t**, size_t*, size_t*);
+typedef void (*bufferCompleteFunctionPtr)(uint8_t*, size_t, size_t);
 
-msptiResult msptiActivityRegisterCallbacks(BufferRequestFunctionPtr, BufferCompleteFunctionPtr);
+msptiResult msptiActivityRegisterCallbacks(bufferRequestFunctionPtr, bufferCompleteFunctionPtr);
 msptiResult msptiActivityEnable(int);
 msptiResult msptiActivityGetNextRecord(uint8_t*, size_t, msptiActivity**);
 msptiResult msptiActivityFlushAll(int);

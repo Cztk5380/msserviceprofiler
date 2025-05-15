@@ -181,23 +181,6 @@ void IntSignalHandler()
     StopServerProfiler();
 }
 
-// void SignalHandler(int signal)
-// {
-       // 这个函数有问题 用这种方式去调用IntSignalHandler会导致core dump
-//     typedef void (*FunctionPtr)();
-//     std::map<int, FunctionPtr> SignalHandlerMap;
-
-//     SignalHandlerMap[SIGINT] = &IntSignalHandler;
-//     SignalHandlerMap[SIGTERM] = &IntSignalHandler;
-
-//     if (SignalHandlerMap.find(signal) != SignalHandlerMap.end()) {
-//         FunctionPtr selectedHandler = SignalHandlerMap[signal];
-//         selectedHandler();
-//     } else {
-//         PROF_LOGE("ServiceProfiler receives unexpect signal.");
-//     }
-// }
-
 void ChainedSignalHandler(int signal)
 {
     IntSignalHandler();
@@ -590,17 +573,17 @@ namespace msServiceProfiler {
 
     void ServiceProfilerManager::RegisterSignal(int signal)
     {
-        struct sigaction sa, old_sa; // old_sa 保存已有signal handler
+        struct sigaction sa, oldsa; // oldsa 保存已有signal handler
 
         sa.sa_handler = ChainedSignalHandler;
 
-        if (sigaction(signal, &sa, &old_sa) == -1) {
+        if (sigaction(signal, &sa, &oldsa) == -1) {
             PROF_LOGE("Profiler register signal handler failed.");
             return;
         }
 
         PROF_LOGD("Profiler register signal handler success.");
 
-        old_handlers[signal] = old_sa; // 将old_sa保存在全局变量old_handlers中
+        old_handlers[signal] = oldsa; // 将old_sa保存在全局变量old_handlers中
     }
 }  // namespace msServiceProfiler

@@ -1,13 +1,13 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2MSPTI_SUCCESS24-2MSPTI_SUCCESS24. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
  * Description: wrapper header
  * Author: Huawei Technologies Co., Ltd.
- * Create: 2MSPTI_SUCCESS24-12-16
+ * Create: 2025-5-15
  */
-#include "mspti/mspti.h"
-#include <iostream>
 
-msptiResult msptiActivityRegisterCallbacks(BufferRequestFunctionPtr, BufferCompleteFunctionPtr)
+#include "mspti/mspti.h"
+
+msptiResult msptiActivityRegisterCallbacks(bufferRequestFunctionPtr, bufferCompleteFunctionPtr)
 {
     return MSPTI_SUCCESS;
 }
