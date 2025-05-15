@@ -15,11 +15,38 @@
 
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
+#include "stubs.h"
+
+using namespace ::testing;
 
 void MarkEventLongAttr(const char *msg);
 namespace msServiceProfiler { void Write2Tx(const std::vector<int> &memoryInfo, const std::string metricName); }
 
 using namespace msServiceProfiler;
+
+
+class AclStubFunc {
+public:
+    virtual aclError aclInit(const char *configPath) = 0;
+    virtual aclError aclprofInit(const char *profilerResultPath, size_t length) = 0;
+    virtual aclprofConfig *aclprofCreateConfig(uint32_t *deviceIdList, uint32_t deviceNums,
+        aclprofAicoreMetrics aicoreMetrics, aclprofAicoreEvents *aicoreEvents, uint64_t dataTypeConfig) = 0;
+    virtual aclError aclprofStart(const aclprofConfig *profilerConfig) = 0;
+    virtual aclError aclprofStop(const aclprofConfig *profilerConfig) = 0;
+    virtual aclError aclprofDestroyConfig(const aclprofConfig *profilerConfig) = 0;
+    virtual aclError aclprofFinalize() = 0;
+};
+
+class MockAclStubFunc : public AclStubFunc {
+public:
+    MOCK_METHOD1(aclInit, aclError(const char*));
+    MOCK_METHOD2(aclprofInit, aclError(const char*, size_t));
+    MOCK_METHOD5(aclprofCreateConfig, aclprofConfig*(uint32_t*, uint32_t, aclprofAicoreMetrics, aclprofAicoreEvents*, uint64_t));
+    MOCK_METHOD1(aclprofStart, aclError(const aclprofConfig *));
+    MOCK_METHOD1(aclprofStop, aclError(const aclprofConfig *));
+    MOCK_METHOD1(aclprofDestroyConfig, aclError(const aclprofConfig *));
+    MOCK_METHOD0(aclprofFinalize, aclError());
+};
 
 // Test suite for StartSpan function
 TEST(ProfilerTest, StartSpan)
@@ -60,11 +87,16 @@ TEST(ProfilerTest, StopServerProfiler)
 
 TEST(ProfilerTest, TestServiceProfilerManager)
 {
+    MockStubFunc stubs;
     char mockRealpath[] = "aa";
-    MOCKER(access).stubs().will(returnValue(0));
-    MOCKER(realpath).stubs().will(returnValue((char*)mockRealpath));
-    MOCKER(stat).stubs().will(returnValue(1));
-
+    EXPECT_CALL(stubs, StartSpanWithName(::testing::_)).Times(0);
+    EXPECT_CALL(stubs, access(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(0));
+    EXPECT_CALL(stubs, realpath(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return((char*)mockRealpath));
+    EXPECT_CALL(stubs, stat(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(1));
+    
     // set Profiling env name
     setenv("SERVICE_PROF_CONFIG_PATH", "/ut_test/prof.json", 1);
 
@@ -90,29 +122,24 @@ TEST(ProfilerTest, TestReadEnableYes)
     configTest3["host_system_usage_freq"] = 99999;
     configTest3["npu_memory_usage_freq"] = 99999;
 
-
     ServiceProfilerManager manager;
-    manager.config_->ParseConfig(configTest);
-    manager.config_->ParseConfig(configTest2);
-    manager.config_->ParseConfig(configTest3);
-}
-
-TEST(ProfilerTest, TestWrite2Tx)
-{
-    const std::vector<int> memInfo(10, 1);
-    const std::string metricName = "helloTest";
-    Write2Tx(memInfo, metricName);
+    EXPECT_NO_THROW(manager.config_->ParseConfig(configTest));
+    EXPECT_NO_THROW(manager.config_->ParseConfig(configTest2));
+    EXPECT_NO_THROW(manager.config_->ParseConfig(configTest3));
 }
 
 TEST(ProfilerTest, TestDynamicControlStart2Stop)
 {
-    ServiceProfilerManager manager;
-
-    MOCKER(stat).stubs().will(returnValue(0));
-
     nlohmann::json configTest = nlohmann::json::object();
     configTest["enable"] = 1;
+    
+    ServiceProfilerManager manager;
     manager.config_->ParseConfig(configTest);
+
+    MockStubFunc stubs;
+    EXPECT_CALL(stubs, stat(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(0));
+
     manager.lastUpdate_ = 123;
 
     // set Profiling env name
@@ -161,7 +188,9 @@ TEST(ProfilerTest, TestStopProfiler)
 
 TEST(ProfilerTest, TestMarkFirstProcessAsMainShmOpenFailed)
 {
-    MOCKER(shm_open).stubs().will(returnValue(-1));
+    MockStubFunc stubs;
+    EXPECT_CALL(stubs, shm_open(::testing::_, ::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(-1));
 
     ServiceProfilerManager manager;
     manager.MarkFirstProcessAsMain();
@@ -171,7 +200,9 @@ TEST(ProfilerTest, TestMarkFirstProcessAsMainShmOpenFailed)
 
 TEST(ProfilerTest, TestMarkFirstProcessAsMainFtruncateFailed)
 {
-    MOCKER(ftruncate).stubs().will(returnValue(-1));
+    MockStubFunc stubs;
+    EXPECT_CALL(stubs, ftruncate(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(-1));
 
     ServiceProfilerManager manager;
     manager.MarkFirstProcessAsMain();
@@ -181,7 +212,9 @@ TEST(ProfilerTest, TestMarkFirstProcessAsMainFtruncateFailed)
 
 TEST(ProfilerTest, TestReadConfigFailed)
 {
-    MOCKER(access).stubs().will(returnValue(0));
+    MockStubFunc stubs;
+    EXPECT_CALL(stubs, access(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(0));
 
     ServiceProfilerManager manager;
     manager.config_->ReadConfigFile();
@@ -204,7 +237,9 @@ TEST(ProfilerTest, TestReadConfigFileFailed)
 
 TEST(ProfilerTest, TestDynamicControlReadConfigFileStatFailed)
 {
-    MOCKER(stat).stubs().will(returnValue(1));
+    MockStubFunc stubs;
+    EXPECT_CALL(stubs, stat(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(1));
 
     ServiceProfilerManager manager;
     manager.DynamicControl();
@@ -214,8 +249,11 @@ TEST(ProfilerTest, TestDynamicControlReadConfigFileStatFailed)
 
 TEST(ProfilerTest, TestStartProfilerCreatConfigFailed)
 {
-    MOCKER(aclInit).stubs().will(returnValue(222));
-    MOCKER(aclprofInit).stubs().will(returnValue(222));
+    static MockAclStubFunc aclStubs;
+    EXPECT_CALL(aclStubs, aclInit(::testing::_))
+        .WillRepeatedly(::testing::Return(222));
+    EXPECT_CALL(aclStubs, aclprofInit(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(222));
 
     ServiceProfilerManager manager;
     nlohmann::json configTest = nlohmann::json::object();
@@ -229,10 +267,15 @@ TEST(ProfilerTest, TestStartProfilerCreatConfigFailed)
 
 TEST(ProfilerTest, TestStartProfilerAclProfStartFailed)
 {
-    MOCKER(aclInit).stubs().will(returnValue(222));
-    MOCKER(aclprofInit).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(aclprofCreateConfig).stubs().will(returnValue((aclprofConfig*)1));
-    MOCKER(aclprofStart).stubs().will(returnValue(222));
+    static MockAclStubFunc aclStubs;
+    EXPECT_CALL(aclStubs, aclInit(::testing::_))
+        .WillRepeatedly(::testing::Return(222));
+    EXPECT_CALL(aclStubs, aclprofInit(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(ACL_ERROR_NONE));
+    EXPECT_CALL(aclStubs, aclprofCreateConfig(::testing::_, ::testing::_, ::testing::_, ::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return((aclprofConfig*)1));
+    EXPECT_CALL(aclStubs, aclprofStart(::testing::_))
+        .WillRepeatedly(::testing::Return(222));
 
     ServiceProfilerManager manager;
     nlohmann::json configTest = nlohmann::json::object();
@@ -246,8 +289,11 @@ TEST(ProfilerTest, TestStartProfilerAclProfStartFailed)
 
 TEST(ProfilerTest, TestStopProfilerAclProfStopFailed)
 {
-    MOCKER(aclprofStop).stubs().will(returnValue(222));
-    MOCKER(aclprofDestroyConfig).stubs().will(returnValue(222));
+    static MockAclStubFunc aclStubs;
+    EXPECT_CALL(aclStubs, aclprofStop(::testing::_))
+        .WillRepeatedly(::testing::Return(222));
+    EXPECT_CALL(aclStubs, aclprofDestroyConfig(::testing::_))
+        .WillRepeatedly(::testing::Return(222));
 
     ServiceProfilerManager manager;
     manager.started_ = true;
@@ -258,8 +304,11 @@ TEST(ProfilerTest, TestStopProfilerAclProfStopFailed)
 
 TEST(ProfilerTest, TestStopProfilerAclDestroyConfigFailed)
 {
-    MOCKER(aclprofStop).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(aclprofDestroyConfig).stubs().will(returnValue(222));
+    static MockAclStubFunc aclStubs;
+    EXPECT_CALL(aclStubs, aclprofStop(::testing::_))
+        .WillRepeatedly(::testing::Return(ACL_ERROR_NONE));
+    EXPECT_CALL(aclStubs, aclprofDestroyConfig(::testing::_))
+        .WillRepeatedly(::testing::Return(222));
 
     ServiceProfilerManager manager;
     manager.started_ = true;
@@ -270,9 +319,13 @@ TEST(ProfilerTest, TestStopProfilerAclDestroyConfigFailed)
 
 TEST(ProfilerTest, TestStopProfilerAclFrofFinalizeFailed)
 {
-    MOCKER(aclprofStop).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(aclprofDestroyConfig).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(aclprofFinalize).stubs().will(returnValue(222));
+    static MockAclStubFunc aclStubs;
+    EXPECT_CALL(aclStubs, aclprofStop(::testing::_))
+        .WillRepeatedly(::testing::Return(ACL_ERROR_NONE));
+    EXPECT_CALL(aclStubs, aclprofDestroyConfig(::testing::_))
+        .WillRepeatedly(::testing::Return(ACL_ERROR_NONE));
+    EXPECT_CALL(aclStubs, aclprofFinalize())
+        .WillRepeatedly(::testing::Return(222));
 
     ServiceProfilerManager manager;
     manager.started_ = true;

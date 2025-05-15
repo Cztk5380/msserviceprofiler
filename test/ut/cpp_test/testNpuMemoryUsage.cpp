@@ -10,9 +10,9 @@
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "msServiceProfiler/NpuMemoryUsage.h"
 #include "acl/acl.h"
+#include "stubs.h"
 
 using namespace msServiceProfiler;
-
 
 int DcmiStub()
 {
@@ -20,9 +20,10 @@ int DcmiStub()
     return retSuccess;
 }
 
-TEST(NPUTest, TestDlopenFailed)
-{
-    MOCKER(dlopen).stubs().will(returnValue((void*)nullptr));
+TEST(NPUTest, TestDlopenFailed) {
+    MockStubFunc stubs;
+    EXPECT_CALL(stubs, dlopen(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(nullptr));
 
     int cardNum[] = {1};
     int cardList[] = {0};
@@ -51,7 +52,9 @@ TEST(NPUTest, TestDcmiGetDeviceHbmInfo)
 
 TEST(NPUTest, TestInitDcmiCardAndDevicesDcmiInitFailed)
 {
-    MOCKER(dlopen).stubs().will(returnValue((void*)nullptr));
+    MockStubFunc stubs;
+    EXPECT_CALL(stubs, dlopen(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(nullptr));
 
     NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
     npuMemoryUsage.DcmiInit();
@@ -69,7 +72,9 @@ TEST(NPUTest, TestInitDcmiCardAndDevicesDcmiGetCardListFailed)
 
 TEST(NPUTest, TestGetByDcmi)
 {
-    MOCKER(dlopen).stubs().will(returnValue((void*)nullptr));
+    MockStubFunc stubs;
+    EXPECT_CALL(stubs, dlopen(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(nullptr));
 
     std::vector<int> memUsed = {1};
     std::vector<int> memUtiliza = {1};
@@ -90,8 +95,11 @@ TEST(NPUTest, TestGetByDcmi)
 
 TEST(NPUTest, TestDcmiInitSuccess)
 {
-    MOCKER(dlopen).stubs().will(returnValue((void*)(1)));
-    MOCKER(dlsym).stubs().will(returnValue((void*)DcmiStub));
+    MockStubFunc stubs;
+    EXPECT_CALL(stubs, dlopen(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return((void*)(1)));
+    EXPECT_CALL(stubs, dlsym(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return((void*)DcmiStub));
 
     int cardNum[] = {1};
     int cardList[] = {0};
