@@ -20,7 +20,6 @@ class ExporterTrace(ExporterBase):
     def export(cls, data) -> None:
         if 'json' in cls.args.format:
             cpu_data_df, memory_data_df = data['cpu_data_df'], data['memory_data_df']
-            tids = set(str(x) for x in set(data["tx_data_df"]["tid"])) if "tid" in data["tx_data_df"] else {}
             all_data_df = data['tx_data_df'].copy()
             if 'pid_label_map' in data:
                 pid_label_map = data['pid_label_map']
@@ -28,7 +27,8 @@ class ExporterTrace(ExporterBase):
                 pid_label_map = None
             all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
             msprof_data_df = data['msprof_data']
-            cann_data = [load_single_prof(pf, tids) for pf in msprof_data_df]
+
+            cann_data = [load_single_prof(pf, index) for index, pf in enumerate(msprof_data_df)]
             output = cls.args.output_path
             trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
             merged_data = merge_json_data(trace_data, cann_data)
@@ -37,10 +37,21 @@ class ExporterTrace(ExporterBase):
             pass
 
 
-def load_single_prof(pf, tids):
+def process_prof_trace_events(events, index):
+    for event in events:
+        event_id = event.get('id')
+        event_ph = event.get('ph')
+        if event_id is not None and event_ph in ['s', 'f']:
+            # 将 event_id 和 index 转换为字符串并拼接，保证不会重复
+            event['id'] = str(event_id) + '_' + str(index)
+    return events
+
+
+def load_single_prof(pf, prof_id):
     try:
         with open(pf, 'r', encoding='utf-8') as file:
             trace_events = json.load(file)
+
     except FileNotFoundError:
         logger.warning(f"The msprof.json file was not found. Please check the file path.")
         return {"traceEvents": []}
@@ -51,6 +62,8 @@ def load_single_prof(pf, tids):
             pf
         )
         return {"traceEvents": []}
+
+    trace_events = process_prof_trace_events(trace_events, prof_id)
 
     return {"traceEvents": trace_events}
 
