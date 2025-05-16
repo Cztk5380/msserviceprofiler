@@ -23,6 +23,8 @@ public:
     bool GetHostCpuUsage() const { return hostCpuUsage_; }
     bool GetHostMemoryUsage() const { return hostMemoryUsage_; }
     bool GetHostFreq() const { return hostFreq_; }
+    const std::set<std::string>& GetValidDomain() const { return validDomain_; }
+    bool GetEnableDomainFilter() const { return enableDomainFilter_; }
 
     bool GetNpuMemoryUsage() const { return npuMemoryUsage_; }
     bool GetNpuMemoryFreq() const { return npuMemoryFreq_; }
@@ -48,6 +50,10 @@ private:
     bool ParseCollectConfig(const Json& config);
     bool ParseHostConfig(const Json& config);
     bool ParseNpuConfig(const Json& config);
+    std::string TrimWhitespace(const std::string& str);
+    std::vector<std::string> SplitAndTrimString(const std::string& str, char delimiter);
+    void LogDomainInfo() const;
+    void ParseDomain(const Json& config);
 
     bool enable_ = false;
     uint32_t level_ = Level::INFO;
@@ -55,6 +61,8 @@ private:
     std::string configPath_;
     std::string profPathDateTail_;
     std::string profPath_;
+    bool enableDomainFilter_ = false;
+    std::set<std::string> validDomain_;
 
     bool hostCpuUsage_ = false;
     bool hostMemoryUsage_ = false;

@@ -87,6 +87,7 @@ void Config::ParseConfig(const Json& configJson)
     ParseAclTaskTime(configJson);
     ParseProfPath(configJson);
     ParseLevel(configJson);
+    ParseDomain(configJson);
     ParseCollectConfig(configJson);
 }
 
@@ -180,6 +181,73 @@ void Config::ParseLevel(const Json &config)
         }
     }
     PROF_LOGD("profiler_level: %u", level_);
+}
+
+std::string Config::TrimWhitespace(const std::string& str) {
+    std::string result = str;
+    result.erase(0, result.find_first_not_of(" \t\n\r\f\v"));
+    result.erase(result.find_last_not_of(" \t\n\r\f\v") + 1);
+    return result;
+}
+
+std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char delimiter) {
+    std::vector<std::string> tokens;
+    size_t start = 0;
+    size_t end = str.find(delimiter);
+    while (end != std::string::npos) {
+        std::string token = str.substr(start, end - start);
+        token = TrimWhitespace(token);
+        if (!token.empty()) {
+            tokens.push_back(token);
+        }
+        start = end + 1;
+        end = str.find(delimiter, start);
+    }
+    // Process last token
+    std::string lastToken = str.substr(start);
+    lastToken = TrimWhitespace(lastToken);
+    if (!lastToken.empty()) {
+        tokens.push_back(lastToken);
+    }
+    return tokens;
+}
+
+void Config::LogDomainInfo() const {
+    PROF_LOGI("profile enableDomainFilter_: %s", enableDomainFilter_ ? "true" : "false");
+    std::string combined;
+    for (const auto& domain : validDomain_) {
+        if (!combined.empty()) {
+            combined += ", ";
+        }
+        combined += domain;
+    }
+    if (!combined.empty()) {
+        PROF_LOGI("profiler validDomain_: %s", combined.c_str());
+    }
+}
+
+void Config::ParseDomain(const Json& config) {
+    enableDomainFilter_ = false;
+    validDomain_.clear();
+    
+    if (!config.contains("domain")) {
+        LogDomainInfo();
+        return;
+    }
+    if (!config["domain"].is_string()) {
+        PROF_LOGW("Invalid 'domain' format, expected string. Domain filter will be disabled.");
+        LogDomainInfo();
+        return;
+    }
+    std::string domainStr = config["domain"];
+    std::vector<std::string> domains = SplitAndTrimString(domainStr, ';');
+    for (const auto& domain : domains) {
+        if (!domain.empty()) {
+            validDomain_.insert(domain);
+            enableDomainFilter_ = true;
+        }
+    }
+    LogDomainInfo();
 }
 
 void Config::InitProfPathDateTail(bool forceReinit)
@@ -311,6 +379,7 @@ void Config::SaveConfigToJsonFile()
         {"host_system_usage_freq", -1},
         {"npu_memory_usage_freq", -1},
         {"acl_task_time", enableAclTaskTime_ ? 1 : 0},
+        {"domain", ""},
     };
     try {
         std::string dirPath = getDirPath(configPath);

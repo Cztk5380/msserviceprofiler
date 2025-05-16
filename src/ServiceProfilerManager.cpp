@@ -135,6 +135,16 @@ bool IsEnable(uint32_t level)
     return msServiceProfiler::ServiceProfilerManager::GetInstance().IsEnable(level);
 }
 
+bool GetEnableDomainFilter()
+{   
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetEnableDomainFilter();
+}
+
+const std::set<std::string>& GetValidDomain()
+{
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetValidDomain();
+}
+
 void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
 {
     if (len != sizeof(::ProfSetDevPara)) {
