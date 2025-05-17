@@ -8,6 +8,8 @@ import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
 from ms_service_profiler.exporters.utils import add_table_into_visual_db
+from ms_service_profiler.utils.timer import timer
+from ms_service_profiler.utils.log import logger
 
 
 class ExporterReqStatus(ExporterBase):
@@ -18,6 +20,7 @@ class ExporterReqStatus(ExporterBase):
         cls.args = args
 
     @classmethod
+    @timer(logger.info)
     def export(cls, data) -> None:
         if 'db' in cls.args.format:
             metrics = data.get('metric_data_df')

@@ -7,6 +7,7 @@ from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.utils.timer import timer
 
 
 class ExporterTrace(ExporterBase):
@@ -17,6 +18,7 @@ class ExporterTrace(ExporterBase):
         cls.args = args
 
     @classmethod
+    @timer(logger.info)
     def export(cls, data) -> None:
         if 'json' in cls.args.format:
             cpu_data_df, memory_data_df = data['cpu_data_df'], data['memory_data_df']

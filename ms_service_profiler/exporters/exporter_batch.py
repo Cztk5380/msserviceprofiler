@@ -5,6 +5,7 @@ from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.exporters.utils import add_table_into_visual_db
 from ms_service_profiler.constant import US_PER_MS
+from ms_service_profiler.utils.timer import timer
 
 
 def is_vaild_id_list(id_list):
@@ -224,6 +225,7 @@ class ExporterBatchData(ExporterBase):
         cls.args = args
 
     @classmethod
+    @timer(logger.info)
     def export(cls, data) -> None:
         if 'csv' in cls.args.format or 'db' in cls.args.format:
             df = data.get('tx_data_df')
