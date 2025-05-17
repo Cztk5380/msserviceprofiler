@@ -14,6 +14,10 @@ constexpr int MILLISECONDS_IN_SECOND = 1000;
 Config::Config()
 {
     ReadConfigPath();
+}
+
+void Config::ReadAndSaveConfig()
+{
     InitProfPathDateTail();
     auto configJson = ReadConfigFile();
     ParseConfig(configJson);
@@ -278,7 +282,7 @@ bool Config::PrepareConfigAndPath(std::string& configPath)
         PROF_LOGW("Cannot save config to JSON file - no config path specified");
         return false;
     }
-    
+
     if (configPath.size() < jsonSuffixSize ||
         configPath.substr(configPath.size() - jsonSuffixSize) != ".json") {
         PROF_LOGW("Config path must end with .json: %s", configPath.c_str());
@@ -292,7 +296,7 @@ bool Config::PrepareConfigAndPath(std::string& configPath)
     if (access(dirPath.c_str(), W_OK) != 0) {
         return false;
     }
-    
+
     return true;
 }
 
@@ -330,7 +334,7 @@ void Config::SaveConfigToJsonFile()
         }
         outputFile << configData.dump(jsonIndentSize);
         outputFile.close();
-        
+
         auto ret = rename(tempPath.c_str(), configPath.c_str());
         if (ret != 0 && errno != ENOENT) {
             PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));
