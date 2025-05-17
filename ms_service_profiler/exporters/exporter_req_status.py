@@ -10,6 +10,18 @@ from ms_service_profiler.plugins.plugin_req_status import ReqStatus
 from ms_service_profiler.exporters.utils import add_table_into_visual_db
 
 
+CREATE_REQUEST_STATE_VIEW_SQL = """
+    CREATE VIEW reqState_by_ts_curve AS
+    SELECT
+        substr( timestamp, 1, 10 ) || ' ' || substr( timestamp, 12, 8 ) || '.' || substr( timestamp, 21, 6 ) AS time,
+        WAITING, PENDING, RUNNING 
+    FROM
+        request_status 
+    ORDER BY
+        time ASC
+"""
+
+
 class ExporterReqStatus(ExporterBase):
     name = "req_status"
 
@@ -35,6 +47,4 @@ class ExporterReqStatus(ExporterBase):
                 if column_name not in df.columns:
                     df = df.assign(**{column_name: [None] * len(df)})
 
-            add_table_into_visual_db(df, 'request_status')
-        else:
-            pass
+            add_table_into_visual_db(df, 'request_status', CREATE_REQUEST_STATE_VIEW_SQL)

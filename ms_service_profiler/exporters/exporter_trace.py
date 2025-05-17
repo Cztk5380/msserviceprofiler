@@ -7,6 +7,11 @@ from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.utils.error import DatabaseError
+from ms_service_profiler.exporters.utils import get_db_connection, create_sqlite_tables
+from ms_service_profiler.utils.trace_to_db import (
+    trans_trace_event, save_cache_data_to_db, TRACE_TABLE_DEFINITIONS
+)
 
 
 class ExporterTrace(ExporterBase):
@@ -18,23 +23,28 @@ class ExporterTrace(ExporterBase):
 
     @classmethod
     def export(cls, data) -> None:
-        if 'json' in cls.args.format:
-            cpu_data_df, memory_data_df = data['cpu_data_df'], data['memory_data_df']
-            all_data_df = data['tx_data_df'].copy()
-            if 'pid_label_map' in data:
-                pid_label_map = data['pid_label_map']
-            else:
-                pid_label_map = None
-            all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
-            msprof_data_df = data['msprof_data']
+        if 'db' not in cls.args.format and 'json' not in cls.args.format:
+            return
 
-            cann_data = [load_single_prof(pf, index) for index, pf in enumerate(msprof_data_df)]
-            output = cls.args.output_path
-            trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
-            merged_data = merge_json_data(trace_data, cann_data)
-            save_trace_data_into_json(merged_data, output)
+        output = cls.args.output_path
+
+        cpu_data_df, memory_data_df = data['cpu_data_df'], data['memory_data_df']
+        all_data_df = data['tx_data_df'].copy()
+        if 'pid_label_map' in data:
+            pid_label_map = data['pid_label_map']
         else:
-            pass
+            pid_label_map = None
+        all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
+        msprof_data_df = data['msprof_data']
+
+        cann_data = [load_single_prof(pf, index) for index, pf in enumerate(msprof_data_df)]
+        trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
+        merged_data = merge_json_data(trace_data, cann_data)
+        if 'json' in cls.args.format:
+            save_trace_data_into_json(merged_data, output)
+        if 'db' in cls.args.format:
+            create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
+            save_trace_data_into_db(merged_data)
 
 
 def process_prof_trace_events(events, index):
@@ -75,6 +85,29 @@ def find_cann_pid(trace_events):
             if args.get("name") == "CANN":
                 return event.get("pid")
     return None
+
+
+def save_trace_data_into_db(trace_data):
+    events = trace_data.get("traceEvents", [])
+    try:
+        # 创建数据库连接
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # 写入db文件
+        for event in events:
+            trans_trace_event(event, cursor)
+
+        # 写入批量提交后剩余的缓存数据
+        save_cache_data_to_db(cursor)
+
+        conn.commit()
+    except Exception as ex:
+        conn.rollback()  # 失败时回滚
+        raise DatabaseError("Cannot update sqlite database when create trace table.") from ex
+    finally:
+        if conn:
+            conn.close()
 
 
 def merge_json_data(trace_data, msprof_data_df):
@@ -197,7 +230,7 @@ def sort_trace_events_by_tid(trace_events):
     req_status_names = list(ReqStatus.__members__.keys())
     # mindie 330将BatchScheduler打点修改为batchFrameworkProcessing，此处做新旧版本的兼容处理
     tid_sorting_order = ['http', 'Queue'] + req_status_names + \
-        ['BatchSchedule', 'modelExec', 'batchFrameworkProcessing']
+        ['batchFrameworkProcessing', 'BatchSchedule', 'modelExec']
     main_pid = 0
     for event_info in trace_events:
         if event_info.get("cat") in tid_sorting_order:
@@ -328,46 +361,18 @@ def add_pull_kvcache_events(df):
     all_events = []
 
     for rank in df_all_device['rank'].unique():
+        rank = int(rank)
         df = df_all_device[df_all_device['rank'] == rank].copy().reset_index(drop=True)
         df['pid'] = "PullKVCache"
         df['name'] = df['domain']
         df['ph'] = 'X'
         df['ts'] = df['start_time']
-        df['tid'] = f"Prefill Device {rank}"
+        df['tid'] = f"Decode Device rank_{rank}"
         df['dur'] = df['during_time']
         args = ['rank', 'rid', 'block_tables', 'seq_len', \
                 'during_time', 'start_datetime', 'end_datetime', 'start_time', 'end_time']
         df['args'] = df[[arg for arg in args if arg in df.columns]].to_dict(orient='records')
         events = df[['name', 'ph', 'ts', 'pid', 'tid', 'args', 'dur']].to_dict(orient='records')
         all_events.extend(events)
-
-        df_decode = df.copy()
-        df['ph'] = 'X'
-        df_decode['ts'] = df_decode['end_time']
-        df_decode['dur'] = 1
-        df_decode['tid'] = f"Decode Device {rank}"
-        events = df_decode[['name', 'ph', 'ts', 'pid', 'tid', 'args', 'dur']].to_dict(orient='records')
-        all_events.extend(events)
-
-        for i, _ in df.iterrows():
-            all_events.append({
-                "id": f"pull_kvcache_rank{rank}_{i}",
-                "cat": f"pull_kvcache_rank{rank}_{i}",
-                "name": f"pull_kvcache_rank{rank}_{i}",
-                "pid": "PullKVCache",
-                "tid": df['tid'][i],
-                "ph": 's',
-                "ts": df['start_time'][i],
-            })
-
-            all_events.append({
-                "id": f"pull_kvcache_rank{rank}_{i}",
-                "cat": f"pull_kvcache_rank{rank}_{i}",
-                "name": f"pull_kvcache_rank{rank}_{i}",
-                "pid": "PullKVCache",
-                "tid": df_decode['tid'][i],
-                "ph": 't',
-                "ts": df['end_time'][i],
-            })
 
     return all_events

@@ -5,6 +5,7 @@ import sqlite3
 import argparse
 from pathlib import Path
 import multiprocessing
+import numpy as np
 
 import pandas as pd
 
@@ -19,6 +20,18 @@ from ms_service_profiler.utils.sec import traverse_dir_common_check, read_file_c
 visual_db_fp = ''
 db_write_lock = multiprocessing.Lock()
 MAX_ITERATIONS = 10000
+DATA_TABLE_NAME = 'data_table'
+CREATE_DATA_TABLE_SQL = """
+    CREATE TABLE data_table (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,view_name TEXT);
+"""
+UPDATA_DATA_TABLE_SQL = """
+    INSERT INTO data_table (name, view_name) VALUES (?,?);
+"""
+VIEWS_LIST = [
+    'batchSize_by_batchId_curve', 'kvcacheUsage_by_ts_curve', 'prefillGenSpeed_by_ts_curve',
+    'reqLatency_by_ts_curve', 'decodeLatency_by_ts_curve', 'firstTokenLatency_by_ts_curve',
+    'reqState_by_ts_curve'
+]
 
 
 def create_sqlite_db(output):
@@ -34,20 +47,84 @@ def create_sqlite_db(output):
         conn = sqlite3.connect(visual_db_fp)
         conn.isolation_level = None
         cursor = conn.cursor()
-        conn.close()
+
+        # 创建data_table
+        cursor.execute(f"DROP TABLE IF EXISTS {DATA_TABLE_NAME}")
+        cursor.execute(CREATE_DATA_TABLE_SQL)
+
+        # 获取所有视图名称
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='view';")
+        views = cursor.fetchall()
+
+        # 删除所有视图
+        for view in views:
+            if view[0] in VIEWS_LIST:
+                cursor.execute(f"DROP VIEW IF EXISTS {view[0]};")
     except Exception as ex:
+        conn.rollback()  # 失败时回滚
         raise DatabaseError("Cannot create sqlite database.") from ex
+    finally:
+        if conn:
+            conn.close()
 
 
-def add_table_into_visual_db(df, table_name):
+def updat_data_table_db(name, view_name):
+    with db_write_lock:
+        with ms_open(visual_db_fp, "a") as f:
+            try:
+                conn = sqlite3.connect(visual_db_fp)
+                cursor = conn.cursor()
+                cursor.execute(UPDATA_DATA_TABLE_SQL, (name, view_name))
+                conn.commit()
+            except Exception as ex:
+                conn.rollback()  # 失败时回滚
+                raise DatabaseError("Cannot update sqlite database when create trace table.") from ex
+            finally:
+                if conn:
+                    conn.close()
+
+
+def create_sqlite_tables(table_list):
+    with db_write_lock:
+        with ms_open(visual_db_fp, "a") as f:
+            try:
+                conn = sqlite3.connect(visual_db_fp)
+                cursor = conn.cursor()
+                for name, create_stmt in table_list.items():
+                    cursor.execute(f"DROP TABLE IF EXISTS {name}")
+                    cursor.execute(create_stmt)
+                conn.commit()
+            except Exception as ex:
+                conn.rollback()  # 失败时回滚
+                raise DatabaseError("Cannot update sqlite database when create trace table.") from ex
+            finally:
+                if conn:
+                    conn.close()
+
+
+def get_db_connection():
+    with db_write_lock:
+        with ms_open(visual_db_fp, "a") as f:
+            return sqlite3.connect(visual_db_fp)
+
+
+def add_table_into_visual_db(df, table_name, create_view_sql=None):
     if df is None or not isinstance(df, pd.DataFrame) or df.empty:
         logger.warning("Writing table %r failed due to invalid dateframe:\n\t%s", table_name, df)
         return
+
+    for col in df:
+        if df[col].dtype == 'object':
+            df[col] = df[col].astype(str)
+
     with db_write_lock:
         with ms_open(visual_db_fp, "a") as f:
             try:
                 conn = sqlite3.connect(visual_db_fp)
                 df.to_sql(table_name, conn, if_exists='replace', index=False)
+                if create_view_sql:
+                    cursor = conn.cursor()
+                    cursor.execute(create_view_sql)
                 conn.commit()
                 conn.close()
             except Exception as ex:
@@ -62,6 +139,7 @@ def save_dataframe_to_csv(filtered_df, output, file_name):
         file_path = str(file_path)
         with ms_open(file_path, "w") as f:
             filtered_df.to_csv(f, index=False)
+            logger.info(f"{file_name} success.")
 
 
 def _check_directory(dir_path, iteration_count):
@@ -131,7 +209,7 @@ def check_output_path_valid(path):
 
 def find_file_in_dir(directory, filename):
     count = 0
-    max_iter = 10000
+    max_iter = MAX_ITERATIONS
  
     for _, _, files in os.walk(directory):
         count += len(files)
@@ -155,3 +233,8 @@ def delete_dir_safely(path):
         logger.warning(f"Delete {path}")
     except Exception as e:
         logger.error(f"Delete failed: {path}, error: {e}")
+
+
+def truncate_timestamp_np(s: pd.Series) -> pd.Series:
+    arr = s.to_numpy(dtype='str')
+    return pd.Series(np.core.defchararray.ljust(arr, len(arr[0])-3))

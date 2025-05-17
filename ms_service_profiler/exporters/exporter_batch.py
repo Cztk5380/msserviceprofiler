@@ -3,8 +3,37 @@ import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.exporters.utils import add_table_into_visual_db
+from ms_service_profiler.exporters.utils import add_table_into_visual_db, updat_data_table_db
 from ms_service_profiler.constant import US_PER_MS
+
+
+CREATE_BATCH_VIEW_SQL = """
+    CREATE VIEW batchSize_by_batchId_curve AS
+    WITH numbered_data AS (
+        SELECT 
+            ROW_NUMBER() OVER (ORDER BY "start_time(microsecond)") - 1 AS batch_id,
+            batch_size,
+            batch_type
+        FROM 
+            batch
+        WHERE 
+            name in ('BatchSchedule', 'batchFrameworkProcessing')
+    )
+    SELECT
+        batch_id,
+        CASE
+            WHEN batch_type = 'Prefill' THEN batch_size
+            ELSE NULL
+        END AS Prefill_batch_size,
+        CASE
+            WHEN batch_type = 'Decode' THEN batch_size
+            ELSE NULL
+        END AS Decode_batch_size
+    FROM
+        numbered_data
+    ORDER BY
+        batch_id;
+"""
 
 
 def is_vaild_id_list(id_list):
@@ -48,7 +77,7 @@ def get_forward_info(df):
 
         for key, value in max_df_index.items():
             select_row = forward_df_list[value].loc[row_index]
-            dp_name = 'dp' + key + '-forward(ms)'
+            dp_name = 'dp' + key + '_forward_ms'
             max_forward_during_time[dp_name] = select_row.get('during_time') / US_PER_MS
         all_max_forward_during_time.append(max_forward_during_time)
 
@@ -101,8 +130,8 @@ def extract_dp_info_each_row(row):
 
     result_columns = {}
     for key, value in pre_dp_map.items():
-        rid_name = key + '-rid'
-        size_name = key + '-size'
+        rid_name = key + '_rid'
+        size_name = key + '_size'
         result_columns[rid_name] = str(value)
         result_columns[size_name] = len(value)
     return result_columns
@@ -146,9 +175,9 @@ def write_to_ori_df(ori_df_indices, new_df, ori_df):
 
 def get_new_columns_order(ori_columns, new_columns, dp_number):
     for i in range(dp_number):
-        ori_columns.append('dp' + str(i) + '-rid')
-        ori_columns.append('dp' + str(i) + '-size')
-        ori_columns.append('dp' + str(i) + '-forward(ms)')
+        ori_columns.append('dp' + str(i) + '_rid')
+        ori_columns.append('dp' + str(i) + '_size')
+        ori_columns.append('dp' + str(i) + '_forward_ms')
 
     # 创建过滤后的顺序列表
     existing_cols = [col for col in ori_columns if col in new_columns]
@@ -206,12 +235,12 @@ def filter_batch_df(batch_name, batch_df):
     drop_columns = [col for col in ['pid', 'rid_list', 'rid', 'dp_rank', 'dp_list'] if col in batch_df.columns]
     batch_df = batch_df.drop(drop_columns, axis=1)
     batch_df['during_time'] = batch_df['during_time'] / US_PER_MS
-    batch_df['start_time'] = batch_df['start_time'] / US_PER_MS
-    batch_df['end_time'] = batch_df['end_time'] / US_PER_MS
+    batch_df['start_time'] = batch_df['start_time'] // US_PER_MS
+    batch_df['end_time'] = batch_df['end_time'] // US_PER_MS
     batch_df = batch_df.rename(columns={
-        'start_time': 'start_time(ms)',
-        'end_time': 'end_time(ms)',
-        'during_time': 'during_time(ms)'
+        'start_time': 'start_time_ms',
+        'end_time': 'end_time_ms',
+        'during_time': 'during_time_ms'
     })
     return batch_df
 
@@ -230,10 +259,11 @@ class ExporterBatchData(ExporterBase):
             if df is None:
                 logger.warning("The data is empty, please check")
                 return
+            output = cls.args.output_path
 
             # 获取组batch字段名称，旧版本为BatchScheduler，新版本为batchFrameworkProcessing
             batch_name = 'BatchSchedule' if (df['name'] == 'BatchSchedule').any() else 'batchFrameworkProcessing'
-            batch_df = df[df['name'].isin([batch_name, 'modelExec', 'dpBatch', 'forward', 'dp_ranks'])]
+            batch_df = df[df['name'].isin([batch_name, 'modelExec', 'dpBatch', 'forward'])]
             if batch_df.empty:
                 logger.warning("No batch data found. Please check msproftx.db.")
                 return
@@ -251,23 +281,16 @@ class ExporterBatchData(ExporterBase):
                 batch_df = filter_batch_df(batch_name, batch_df)
             except KeyError as e:
                 logger.warning(f"Field '{e.args[0]}' not found in tx_data_df.")
-        else:
-            pass
 
-        output = cls.args.output_path
         if 'csv' in cls.args.format:
             save_dataframe_to_csv(batch_df, output, "batch.csv")
-        else:
-            pass
 
         if 'db' in cls.args.format:
-            for col in batch_df:
-                if batch_df[col].dtype == 'object':
-                    batch_df[col] = batch_df[col].astype(str)
-                if col == 'batch_size':
-                    batch_df[col] = batch_df[col].astype(float)
-            add_table_into_visual_db(batch_df, 'batch')
+            batch_df['batch_size'] = batch_df['batch_size'].astype(float)
+
+            # 更新data_table，在insight中用纯表显示
+            add_table_into_visual_db(batch_df, 'batch', CREATE_BATCH_VIEW_SQL)
+            updat_data_table_db('batch', 'batch_info')
+
             add_table_into_visual_db(data.get('batch_req_df'), 'batch_req')
             add_table_into_visual_db(data.get('batch_exec_df'), 'batch_exec')
-        else:
-            pass

@@ -5,10 +5,10 @@ from pathlib import Path
 import json
 import pandas as pd
 
-from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.exporters.base import ExporterBase
-
+from ms_service_profiler.constant import US_PER_MS
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.exporters.utils import add_table_into_visual_db, updat_data_table_db, save_dataframe_to_csv
 
 
 def update_name(row):
@@ -152,6 +152,8 @@ def get_req_base_info(df):
         # 计算 execution_time
         if new_req['start_time'] != '' and new_req['end_time'] != '':
             new_req['execution_time'] = new_req['end_time'] - new_req['start_time']
+            new_req['end_time'] = new_req['end_time'] // US_PER_MS
+            new_req['start_time'] = new_req['start_time'] // US_PER_MS
 
         req_base_info.append(new_req)
     return pd.DataFrame(req_base_info)
@@ -205,7 +207,7 @@ class ExporterReqData(ExporterBase):
 
     @classmethod
     def export(cls, data) -> None:
-        if 'csv' in cls.args.format:
+        if 'csv' in cls.args.format or 'db' in cls.args.format:
             df = data.get('tx_data_df')
             if df is None:
                 logger.error("The data is empty, please check")
@@ -232,15 +234,19 @@ class ExporterReqData(ExporterBase):
                 'rid', 'start_time', 'recvTokenSize=', 'replyTokenSize=',
                 'execution_time', 'queue_wait_time', 'first_token_latency'
             ]]
+
             filtered_df = filtered_df.rename(columns={
                 'rid': 'http_rid',
                 'recvTokenSize=': 'recv_token_size',
                 'replyTokenSize=': 'reply_token_size',
-                'start_time': 'start_time_httpReq(microsecond)',
-                'execution_time': 'execution_time(microsecond)',
-                'queue_wait_time': 'queue_wait_time(microsecond)'
+                'start_time': 'start_time_ms',
+                'execution_time': 'execution_time_ms',
+                'queue_wait_time': 'queue_wait_time_ms'
             })
 
+        if 'csv' in cls.args.format:
             save_dataframe_to_csv(filtered_df, output, "request.csv")
-        else:
-            pass
+        if 'db' in cls.args.format:
+            # 更新data_table，在insight中用纯表显示
+            add_table_into_visual_db(filtered_df, 'request_data')
+            updat_data_table_db('request_data', 'request_data')
