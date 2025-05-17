@@ -167,7 +167,6 @@ void RegisterSetDeviceCallback()
     using ProfRegDeviceStateCallbackFunc = int32_t (*)(ProfSetDeviceHandle);
     ProfRegDeviceStateCallbackFunc profRegDeviceStateCallback =
         (ProfRegDeviceStateCallbackFunc)(dlsym(handle, "profRegDeviceStateCallback"));
-
     if (profRegDeviceStateCallback == nullptr) {
         PROF_LOGW("Failed to get profRegDeviceStateCallback from libprofapi.so."
             "Will be not able to get device profiling data.  Check whether a NPU server or if cann toolkit installed.");
