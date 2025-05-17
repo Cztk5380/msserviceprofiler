@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.exporters.utils import add_table_into_visual_db
+from ms_service_profiler.exporters.utils import add_table_into_visual_db, check_domain_valid
 from ms_service_profiler.utils.timer import timer
 
 
