@@ -5,7 +5,7 @@ from pathlib import Path
 import json
 import pandas as pd
 
-from ms_service_profiler.exporters.utils import save_dataframe_to_csv
+from ms_service_profiler.exporters.utils import save_dataframe_to_csv, check_domain_valid
 from ms_service_profiler.exporters.base import ExporterBase
 
 from ms_service_profiler.utils.log import logger
@@ -210,6 +210,10 @@ class ExporterReqData(ExporterBase):
             if df is None:
                 logger.error("The data is empty, please check")
                 return
+
+            if check_domain_valid(df, ['Request'], 'request') is False:
+                return
+
             output = cls.args.output_path
 
             df = df[df['domain'] != 'KVCache']

@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.exporters.utils import add_table_into_visual_db
+from ms_service_profiler.exporters.utils import add_table_into_visual_db, check_domain_valid
 
 
 def is_contained_vaild_iter_info(rid_list, token_id_list):
@@ -203,6 +203,10 @@ class ExporterLatency(ExporterBase):
     def export(cls, data) -> None:
         if 'db' in cls.args.format:
             all_data_df = data['tx_data_df']
+
+            if check_domain_valid(all_data_df, ['ModelExecute', 'BatchSchedule', 'Request'], 'latency') is False:
+                return
+
             output = cls.args.output_path
 
             first_token_latency_views, req_latency_views, prefill_gen_speed_views, decode_gen_speed_views = \

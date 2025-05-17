@@ -3,7 +3,7 @@
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.exporters.utils import save_dataframe_to_csv
+from ms_service_profiler.exporters.utils import save_dataframe_to_csv, check_domain_valid
 
 
 def process_each_req_group(req_group_df):
@@ -48,6 +48,9 @@ class ExporterPDComm(ExporterBase):
 
             if all_data_df is None:
                 logger.warning("The tx_data_df is empty, please check")
+                return
+
+            if check_domain_valid(all_data_df, ['Communication'], 'pd_split_communication') is False:
                 return
 
             pd_split_df = all_data_df[(all_data_df['domain'] == 'PDSplit')]

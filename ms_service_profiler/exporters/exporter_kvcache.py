@@ -12,7 +12,7 @@ import numpy as np
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
-from ms_service_profiler.exporters.utils import create_sqlite_db, add_table_into_visual_db
+from ms_service_profiler.exporters.utils import create_sqlite_db, add_table_into_visual_db, check_domain_valid
 from ms_service_profiler.utils.log import logger
 
 
@@ -132,6 +132,9 @@ class ExporterKVCacheData(ExporterBase):
                 logger.error("The data is empty, please check")
                 return
 
+            if check_domain_valid(df, ['KVCache'], 'kvcache') is False:
+                return
+
             if not df['domain'].str.casefold().str.contains(r'kvcache', regex=True).any():
                 logger.warning(
                     "No 'KVCache' related fields found in data base. If this is unexpected, please check the "
@@ -181,7 +184,7 @@ class ExporterKVCacheData(ExporterBase):
 
 
 def export_pull_kvcache(df, output):
-    kvcache_df = df[df['domain'] == 'PullKVCache']
+    kvcache_df = df[df['name'] == 'PullKVCache']
     logger.debug(f"pd_split_kvcache shape {kvcache_df.shape}.")
     
     if kvcache_df.shape[0] == 0:

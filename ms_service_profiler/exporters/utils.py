@@ -15,7 +15,6 @@ from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.sec import traverse_dir_common_check, read_file_common_check
 
-
 visual_db_fp = ''
 db_write_lock = multiprocessing.Lock()
 MAX_ITERATIONS = 10000
@@ -132,7 +131,7 @@ def check_output_path_valid(path):
 def find_file_in_dir(directory, filename):
     count = 0
     max_iter = 10000
- 
+
     for _, _, files in os.walk(directory):
         count += len(files)
         if count > max_iter:
@@ -140,8 +139,8 @@ def find_file_in_dir(directory, filename):
         if filename in files:
             return True
     return False
- 
- 
+
+
 def delete_dir_safely(path):
     # 删除文件安全校验
     try:
@@ -149,9 +148,24 @@ def delete_dir_safely(path):
     except Exception as e:
         logger.error(f'check_input_path_valid {path} failed, due to {e}')
         return
- 
+
     try:
         shutil.rmtree(path)
         logger.warning(f"Delete {path}")
     except Exception as e:
         logger.error(f"Delete failed: {path}, error: {e}")
+
+
+def check_domain_valid(df, domain_list, exporter_name):
+    # 校验采集到的domain是否满足解析需要
+    if_exporter = True
+    current_domains = set(df['domain'])
+
+    # 检查domain_list中的每个domain是否都存在
+    missing_domains = [domain for domain in domain_list if domain not in current_domains]
+
+    if missing_domains:
+        if_exporter = False
+        logger.warning(f"Skip {exporter_name} exporter - missing domains: {missing_domains}")
+
+    return if_exporter
