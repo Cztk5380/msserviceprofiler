@@ -96,7 +96,7 @@ namespace msServiceProfiler {
         {
             if (!domainAllow_) {
                 return false;
-            } 
+            }
             return msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallIsEnable(msgLevel);
         };
 
@@ -210,7 +210,8 @@ namespace msServiceProfiler {
                 return *this;
             }
 
-            domainAllow_ = msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallIsDomainEnable(domainName);
+            domainAllow_ = msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
+                .CallIsDomainEnable(domainName);
 
             if (IsEnable(level)) {
                 this->Attr("domain", domainName);

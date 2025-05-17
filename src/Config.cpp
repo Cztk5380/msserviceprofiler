@@ -183,14 +183,16 @@ void Config::ParseLevel(const Json &config)
     PROF_LOGD("profiler_level: %u", level_);
 }
 
-std::string Config::TrimWhitespace(const std::string& str) {
+std::string Config::TrimWhitespace(const std::string& str)
+{
     std::string result = str;
     result.erase(0, result.find_first_not_of(" \t\n\r\f\v"));
     result.erase(result.find_last_not_of(" \t\n\r\f\v") + 1);
     return result;
 }
 
-std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char delimiter) {
+std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char delimiter)
+{
     std::vector<std::string> tokens;
     size_t start = 0;
     size_t end = str.find(delimiter);
@@ -212,7 +214,8 @@ std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char
     return tokens;
 }
 
-void Config::LogDomainInfo() const {
+void Config::LogDomainInfo() const
+{
     PROF_LOGI("profile enableDomainFilter_: %s", enableDomainFilter_ ? "true" : "false");
     std::string combined;
     for (const auto& domain : validDomain_) {
@@ -226,7 +229,8 @@ void Config::LogDomainInfo() const {
     }
 }
 
-void Config::ParseDomain(const Json& config) {
+void Config::ParseDomain(const Json& config)
+{
     enableDomainFilter_ = false;
     validDomain_.clear();
     

@@ -101,7 +101,7 @@ public:
 
         if (ptrEnableDomainFilter_()) {
             domainAllow_ = ptrValidDomain_().find(std::string(currentDomain)) != ptrValidDomain_().end();
-        } 
+        }
 
         return domainAllow_;
     }

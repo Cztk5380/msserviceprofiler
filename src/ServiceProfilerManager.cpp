@@ -136,7 +136,7 @@ bool IsEnable(uint32_t level)
 }
 
 bool GetEnableDomainFilter()
-{   
+{
     return msServiceProfiler::ServiceProfilerManager::GetInstance().GetEnableDomainFilter();
 }
 
