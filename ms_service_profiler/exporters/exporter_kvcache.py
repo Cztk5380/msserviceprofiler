@@ -14,6 +14,7 @@ from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.exporters.utils import create_sqlite_db, add_table_into_visual_db, check_domain_valid
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.utils.timer import timer
 
 
 def get_max_free_value(kvcache_df):
@@ -125,6 +126,7 @@ class ExporterKVCacheData(ExporterBase):
         cls.args = args
  
     @classmethod
+    @timer(logger.info)
     def export(cls, data) -> None:
         if 'db' in cls.args.format or 'csv' in cls.args.format:
             df = data.get('tx_data_df')
