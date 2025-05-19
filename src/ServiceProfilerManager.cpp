@@ -513,9 +513,9 @@ namespace msServiceProfiler {
                 msptiEnabled = false;
             } else {
                 InitMsptiActivity(
-                    config_->GetMsptiApiEnable(), 
-                    config_->GetMsptiKernelEnable(), 
-                    config_->GetMsptiHcclEnable()
+                    config_->GetEnableMspti(), 
+                    config_->GetEnableMspti(), 
+                    config_->GetEnableMspti()
                     );
                 auto apiFilter_ = config_->GetApiFilter();
                 auto kernelFilter_ = config_->GetKernelFilter();
