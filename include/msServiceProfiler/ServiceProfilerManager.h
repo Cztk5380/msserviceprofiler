@@ -74,6 +74,10 @@ namespace msServiceProfiler {
 
         void RegisterSignal(int signal);
 
+        void StartAclProf(std::string profPath);
+
+        void StartMsptiProf(std::string profPath);
+
         AclprofConfig* ProfCreateConfig();
 
     private:

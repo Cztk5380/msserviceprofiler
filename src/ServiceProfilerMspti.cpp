@@ -246,7 +246,7 @@ namespace msServiceProfiler {
             PROF_LOGD("Initing ServiceFilerWriter.");
 
             // 打开数据库连接
-            int rc = sqlite3_open(file_name.c_str(), &db);
+            int rc = sqlite3_open(fileName.c_str(), &db);
             if (rc) {
                 PROF_LOGE("Can't open database: %s.", sqlite3_errmsg(db));
                 return;
@@ -260,8 +260,8 @@ namespace msServiceProfiler {
 
         void InitOutputPath(std::string& outputPath)
         {
-            file_name = outputPath + "ascend_service_profiler_" + std::to_string(getpid()) + ".db";
-            PROF_LOGD("set mspti output path: %s", file_name.c_str());
+            fileName = outputPath + "ascend_service_profiler_" + std::to_string(getpid()) + ".db";
+            PROF_LOGD("set mspti output path: %s", fileName.c_str());
         }
 
         void createTable()

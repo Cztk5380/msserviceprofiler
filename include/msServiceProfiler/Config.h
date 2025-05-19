@@ -39,14 +39,6 @@ public:
     bool PrepareConfigAndPath(std::string& configPath);
     void SaveConfigToJsonFile();
 
-    bool GetMsptiEnable() const { return msptiEnable_; }
-    bool GetMsptiApiEnable() const { return apiEnable_; }
-    bool GetMsptiKernelEnable() const { return kernelEnable_; }
-    bool GetMsptiHcclEnable() const { return hcclEnable_; }
-    const std::string GetApiFilter() const { return apiFilter_; }
-    const std::string GetKernelFilter() const { return kernelFilter_; }
-    const std::string GetHcclFilter() const { return hcclFilter_; }
-
 private:
     void ReadConfigPath();
     void ParseEnable(const Json& config);
