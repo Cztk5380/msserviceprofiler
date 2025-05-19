@@ -84,6 +84,7 @@ Json Config::ReadConfigFile()
 void Config::ParseConfig(const Json& configJson)
 {
     ParseEnable(configJson);
+    ParseTimeLimit(configJson);
     ParseAclTaskTime(configJson);
     ParseProfPath(configJson);
     ParseLevel(configJson);
@@ -101,6 +102,20 @@ void Config::ParseEnable(const Json& config)
         }
     }
     PROF_LOGI("profile enable_: %s", enable_ ? "true" : "false");  // LCOV_EXCL_LINE
+}
+
+void Config::ParseTimeLimit(const Json& config)
+{
+    timeLimit_ = 0;  // Default to 0
+
+    if (config.contains("timelimit")) {
+        if (config["timelimit"].is_number_integer()) {
+            timeLimit_ = config["timelimit"];
+        } else {
+            PROF_LOGW("enable value is not an integer, will set 0.");  // LCOV_EXCL_LINE
+        }
+    }
+    PROF_LOGI("profile timeLimit_: %d", timeLimit_);  // LCOV_EXCL_LINE
 }
 
 std::string Config::getDefaultProfPath()
@@ -278,7 +293,7 @@ bool Config::PrepareConfigAndPath(std::string& configPath)
         PROF_LOGW("Cannot save config to JSON file - no config path specified");
         return false;
     }
-    
+
     if (configPath.size() < jsonSuffixSize ||
         configPath.substr(configPath.size() - jsonSuffixSize) != ".json") {
         PROF_LOGW("Config path must end with .json: %s", configPath.c_str());
@@ -292,7 +307,7 @@ bool Config::PrepareConfigAndPath(std::string& configPath)
     if (access(dirPath.c_str(), W_OK) != 0) {
         return false;
     }
-    
+
     return true;
 }
 
@@ -305,6 +320,7 @@ void Config::SaveConfigToJsonFile()
     }
     std::string profPath = getDefaultProfPath();
     nlohmann::ordered_json configData = {
+        {"timelimit", timeLimit_, 0},
         {"enable", enable_ ? 1 : 0},
         {"prof_dir", profPath},
         {"profiler_level", "INFO"},

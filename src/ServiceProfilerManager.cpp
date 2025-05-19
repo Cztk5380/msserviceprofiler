@@ -42,6 +42,9 @@ constexpr uint32_t INVALID_DEVICE_ID = static_cast<uint32_t>(-1);
 
 using DATA_PTR = struct ProfSetDevPara *;
 
+std::chrono::high_resolution_clock::time_point start;
+std::chrono::seconds start_time;
+
 struct ProfSetDevPara {
     uint32_t chipId;
     uint32_t deviceId;
@@ -380,6 +383,27 @@ namespace msServiceProfiler {
                 PROF_LOGD("get npu memory usage failed");  // LCOV_EXCL_LINE
             }
 
+            auto end = std::chrono::high_resolution_clock::now(); // 记录结束时间
+
+            auto end_time = std::chrono::duration_cast<std::chrono::seconds>(end.time_since_epoch());
+
+            std::cout << "Start Time since epoch in seconds: " << start_time.count() << std::endl;
+
+            std::cout << "End Time since epoch in seconds: " << end_time.count() << std::endl;
+
+            // 计算时间差
+            std::chrono::duration<double> elapsed = end_time - start_time;
+
+            std::cout << "Duration: " << elapsed.count() << " seconds" << std::endl;
+
+            std::cout << "timelimit: " << config_->GetTimeLimit() << " seconds" << std::endl;
+
+            if (config_->GetTimeLimit() > 0 && config_->GetTimeLimit() <=7200 &&
+                elapsed.count() >= config_->GetTimeLimit() && started_) {
+                StopProfiler();
+                PROF_LOGI("000000000000000000Profiler Disabled Successfully!1111111111111111111");  // LCOV_EXCL_LINE
+            }
+
             std::this_thread::sleep_for(std::chrono::milliseconds(config_->GetNpuMemorySleepMilliseconds()));
         }
     }
@@ -434,6 +458,10 @@ namespace msServiceProfiler {
         if (started_) {
             return;
         }
+
+        start = std::chrono::high_resolution_clock::now(); // 记录开始时间
+        start_time = std::chrono::duration_cast<std::chrono::seconds>(start.time_since_epoch());
+        std::cout << "133331233Start Time since epoch in seconds: " << start_time.count() << std::endl;
 
         auto profPath = config_->GetProfPath();
         if (!MakeDirs(profPath)) {

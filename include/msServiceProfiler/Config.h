@@ -15,6 +15,7 @@ class Config {
 public:
     Config();
     bool GetEnable() const { return enable_; }
+    uint32_t GetTimeLimit() const { return timeLimit_; }
     uint32_t GetLevel() const { return level_; }
     uint32_t GetEnableAclTaskTime() const { return enableAclTaskTime_; }
     const std::string& GetProfPath() const { return profPath_; }
@@ -29,6 +30,7 @@ public:
     uint32_t GetNpuMemorySleepMilliseconds() const { return npuMemorySleepMilliseconds_; }
 
     void SetEnable(bool enable) { enable_ = enable; }
+    void SetTimeLimit(uint32_t timelimit) { timeLimit_ = timelimit; }
     void SetProfPathDateTail(std::string profPathDateTail) { profPathDateTail_ = profPathDateTail; }
     void SetConfigPath(std::string configPath) { configPath_ = configPath; }
 
@@ -40,6 +42,7 @@ public:
 private:
     void ReadConfigPath();
     void ParseEnable(const Json& config);
+    void ParseTimeLimit(const Json& config);
     void ParseAclTaskTime(const Json& config);
     std::string getDefaultProfPath();
     std::string getDirPath(std::string configPath);
@@ -51,6 +54,7 @@ private:
 
     bool enable_ = false;
     uint32_t level_ = Level::INFO;
+    uint32_t timeLimit_ = 0;
     bool enableAclTaskTime_ = false;
     std::string configPath_;
     std::string profPathDateTail_;
