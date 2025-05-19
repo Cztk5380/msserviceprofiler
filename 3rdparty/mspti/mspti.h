@@ -61,6 +61,32 @@ typedef enum {
     MSPTI_ERROR_FOECE_INT                               = 0x7fffffff
 } msptiResult;
 
+typedef enum {
+    MSPTI_ACTIVITY_FLAG_NONE = 0,
+    MSPTI_ACTIVITY_FLAG_MARKER_INSTANTANEOUS = 1 << 0,
+    MSPTI_ACTIVITY_FLAG_MARKER_START = 1 << 1,
+    MSPTI_ACTIVITY_FLAG_MARKER_END = 1 << 2,
+    MSPTI_ACTIVITY_FLAG_MARKER_INSTANTANEOUS_WITH_DEVICE = 1 << 3,
+    MSPTI_ACTIVITY_FLAG_MARKER_START_WITH_DEVICE = 1 << 4,
+    MSPTI_ACTIVITY_FLAG_MARKER_END_WITH_DEVICE = 1 << 5
+} msptiActivityFlag;
+
+typedef enum {
+    MSPTI_ACTIVITY_SOURCE_KIND_HOST = 0,
+    MSPTI_ACTIVITY_SOURCE_KIND_DEVICE = 1
+} msptiActivitySourceKind;
+
+typedef union PACKED_ALIGNMENT {
+    struct {
+        uint32_t processId;
+        uint32_t threadId;
+    } pt;
+    struct {
+        uint32_t deviceId;
+        uint32_t streamId;
+    } ds;
+} msptiObjectId;
+
 typedef struct PACKED_ALIGNMENT {
     msptiActivityKind kind;
 } msptiActivity;
@@ -102,6 +128,17 @@ typedef struct PACKED_ALIGNMENT {
     const char *type;   // kernel的类型
     const char *name;   // kernel的名称，该名称在整个Activity Record中保持一致，不建议修改
 } msptiActivityKernel;
+
+typedef struct PACKED_ALIGNMENT {
+    msptiActivityKind kind;
+    msptiActivityFlag flag;
+    msptiActivitySourceKind sourceKind;
+    uint64_t timestamp;
+    uint64_t id;
+    msptiObjectId objectId;
+    const char *name;
+    const char *domain;
+} msptiActivityMarker;
 
 typedef void (*bufferRequestFunctionPtr)(uint8_t**, size_t*, size_t*);
 typedef void (*bufferCompleteFunctionPtr)(uint8_t*, size_t, size_t);
