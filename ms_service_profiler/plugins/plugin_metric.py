@@ -5,6 +5,7 @@ import pandas as pd
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import DataFrameMissingError, ColumnMissingError
+from ms_service_profiler.utils.timer import timer
 
 
 class PluginMetric(PluginBase):
@@ -14,6 +15,7 @@ class PluginMetric(PluginBase):
     depends = ["plugin_common", "plugin_req_status"]
 
     @classmethod
+    @timer(logger.info)
     def parse(cls, data):
         tx_data_df = data.get('tx_data_df')
         if tx_data_df is None:

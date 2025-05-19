@@ -5,6 +5,8 @@ from collections import defaultdict
 import pandas as pd
 
 from ms_service_profiler.plugins.base import PluginBase
+from ms_service_profiler.utils.timer import timer
+from ms_service_profiler.utils.log import logger
 
 
 class PluginConcat(PluginBase):
@@ -24,6 +26,7 @@ class PluginConcat(PluginBase):
         return msprof_merged
 
     @classmethod
+    @timer(logger.info)
     def parse(cls, data):
         merged_data = defaultdict(pd.DataFrame)
         for data_single in data:

@@ -8,6 +8,7 @@ import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.constant import US_PER_MS
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.exporters.utils import add_table_into_visual_db, updat_data_table_db, save_dataframe_to_csv
 
 
@@ -206,6 +207,7 @@ class ExporterReqData(ExporterBase):
         cls.args = args
 
     @classmethod
+    @timer(logger.info)
     def export(cls, data) -> None:
         if 'csv' in cls.args.format or 'db' in cls.args.format:
             df = data.get('tx_data_df')

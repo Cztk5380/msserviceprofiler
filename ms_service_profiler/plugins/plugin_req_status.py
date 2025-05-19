@@ -8,6 +8,7 @@ import pandas as pd
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.plugins.plugin_metric import is_metric
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.utils.timer import timer
 
 
 class ReqStatus(Enum):
@@ -33,6 +34,7 @@ class PluginReqStatus(PluginBase):
     depends = ["plugin_common"]
 
     @classmethod
+    @timer(logger.info)
     def parse(cls, data):
         tx_data_df = data.get('tx_data_df')
         if tx_data_df is None:

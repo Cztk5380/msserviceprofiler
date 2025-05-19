@@ -6,6 +6,7 @@ import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.exporters.utils import add_table_into_visual_db
+from ms_service_profiler.utils.timer import timer
 
 
 CREATE_PREFILL_GEN_SPEED_VIEW_SQL = """
@@ -286,6 +287,7 @@ class ExporterLatency(ExporterBase):
         return cls.err_log[index]
 
     @classmethod
+    @timer(logger.info)
     def export(cls, data) -> None:
         if 'db' not in cls.args.format:
             return

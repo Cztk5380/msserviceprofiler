@@ -7,6 +7,7 @@ from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.error import DatabaseError
 from ms_service_profiler.exporters.utils import get_db_connection, create_sqlite_tables
 from ms_service_profiler.utils.trace_to_db import (
@@ -22,6 +23,7 @@ class ExporterTrace(ExporterBase):
         cls.args = args
 
     @classmethod
+    @timer(logger.info)
     def export(cls, data) -> None:
         if 'db' not in cls.args.format and 'json' not in cls.args.format:
             return
