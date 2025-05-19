@@ -84,9 +84,7 @@ private:
     bool kernelEnable_ = false;
     bool hcclEnable_ = false;
 
-    std::string apiFilter_;
-    std::string kernelFilter_;
-    std::string hcclFilter_;
+    std::string opsFilter_;
 };
 }
 #endif

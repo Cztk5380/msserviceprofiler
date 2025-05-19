@@ -37,17 +37,17 @@ typedef enum {
     /**
     * The activity record is invalid.
     */
-    MSPTI_ACTIVITY_KIND_INVALID = 0,
-    MSPTI_ACTIVITY_KIND_MARKER = 1,
-    MSPTI_ACTIVITY_KIND_KERNEL = 2,
-    MSPTI_ACTIVITY_KIND_API = 3,
-    MSPTI_ACTIVITY_KIND_HCCL = 4,
-    MSPTI_ACTIVITY_KIND_MEMORY = 5,
-    MSPTI_ACTIVITY_KIND_MEMSET = 6,
-    MSPTI_ACTIVITY_KIND_MEMCPY = 7,
-    MSPTI_ACTIVITY_KIND_EXTERNAL_CORRELATION = 8,
+    MSPTI_ACTIVITY_KIND_INVALID                         = 0,
+    MSPTI_ACTIVITY_KIND_MARKER                          = 1,
+    MSPTI_ACTIVITY_KIND_KERNEL                          = 2,
+    MSPTI_ACTIVITY_KIND_API                             = 3,
+    MSPTI_ACTIVITY_KIND_HCCL                            = 4,
+    MSPTI_ACTIVITY_KIND_MEMORY                          = 5,
+    MSPTI_ACTIVITY_KIND_MEMSET                          = 6,
+    MSPTI_ACTIVITY_KIND_MEMCPY                          = 7,
+    MSPTI_ACTIVITY_KIND_EXTERNAL_CORRELATION            = 8,
     MSPTI_ACTIVITY_KIND_COUNT,
-    MSPTI_ACTIVITY_KIND_FORCE_INT = 0x7fffffff
+    MSPTI_ACTIVITY_KIND_FORCE_INT                       = 0x7fffffff
 } msptiActivityKind;
 
 typedef enum {
