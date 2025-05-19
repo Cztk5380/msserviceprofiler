@@ -483,6 +483,7 @@ namespace msServiceProfiler {
         } else {
             StartAclProf(profPath);
         }
+
     }
 
     void ServiceProfilerManager::StartAclProf(std::string profPath)

@@ -38,11 +38,10 @@
 #include "../include/msServiceProfiler/Log.h"
 #include "../include/msServiceProfiler/ServiceProfilerMspti.h"
 
-std::mutex g_mtx;
+std::mutex mtx;
 
 namespace {
     constexpr int ALIGN_SIZE = 8;
-    constexpr int ONE_K = 1024;
 } // end of anonymous namespace
 
 #define ALIGN_BUFFER(buffer, align)                                                 \
@@ -52,7 +51,7 @@ namespace msServiceProfiler {
 
     class ServiceProfilerMspti {
     private:
-        static constexpr size_t BUFFER_SIZE = 5 * ONE_K * ONE_K;
+        static constexpr size_t BUFFER_SIZE = 5 * 1024 * 1024;
         char buffer[BUFFER_SIZE];
         bool inited = false;
         std::string fileName;
@@ -85,7 +84,7 @@ namespace msServiceProfiler {
             }
 
             // mspti数据上报时 多线程之间存在抢占 需要使用线程锁防止数据踩踏
-            g_mtx.lock();
+            mtx.lock();
 
             // 绑定参数
             int bind_index = 1;
@@ -103,7 +102,7 @@ namespace msServiceProfiler {
             sqlite3_reset(stmtApi);
 
             // 解锁线程锁
-            g_mtx.unlock();
+            mtx.unlock();
         }
 
         void insertKernelData(msptiActivityKernel* activity)
@@ -116,7 +115,7 @@ namespace msServiceProfiler {
                 return;
             }
 
-            g_mtx.lock();
+            mtx.lock();
 
             // 绑定参数
             int bind_index = 1;
@@ -133,7 +132,7 @@ namespace msServiceProfiler {
                 PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
             }
             sqlite3_reset(stmtKernel);
-            g_mtx.unlock();
+            mtx.unlock();
         }
 
         void insertHcclData(msptiActivityHccl* activity)
@@ -146,7 +145,7 @@ namespace msServiceProfiler {
                 return;
             }
 
-            g_mtx.lock();
+            mtx.lock();
 
             // 绑定参数
             int bind_index = 1;
@@ -164,7 +163,7 @@ namespace msServiceProfiler {
             }
             sqlite3_reset(stmtHccl);
 
-            g_mtx.unlock();
+            mtx.unlock();
         }
 
         void insertMstxData(msptiActivityMarker* activity)
@@ -173,7 +172,7 @@ namespace msServiceProfiler {
                 return;
             }
 
-            g_mtx.lock();
+            mtx.lock();
 
             // 绑定参数
             int bind_index = 1;
@@ -196,7 +195,7 @@ namespace msServiceProfiler {
                 PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
             }
             sqlite3_reset(stmtMstx);
-            g_mtx.unlock();
+            mtx.unlock();
         }
 
         // 分割字符串并存入set 输入字符串格式为"xxxx;xxx;xxx"或"xxx;xxx;"均可
@@ -507,10 +506,10 @@ namespace msServiceProfiler {
     // MSPTI
     void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords)
     {
-        constexpr uint32_t SIZE = 1 * ONE_K * ONE_K;
+        constexpr uint32_t SIZE = 1 * 1024 * 1024;
         uint8_t *pBuffer = (uint8_t *) malloc(SIZE + ALIGN_SIZE);
         *buffer = ALIGN_BUFFER(pBuffer, ALIGN_SIZE);
-        *size = 1 * ONE_K * ONE_K;
+        *size = 1 * 1024 * 1024;
         *maxNumRecords = 0;
     }
 
