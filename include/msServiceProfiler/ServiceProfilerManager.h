@@ -46,6 +46,10 @@ namespace msServiceProfiler {
 
         void StartProfiler();
 
+        void StartAclProf(std::string profPath);
+
+        void StartMsptiProf(std::string profPath);
+
         void StopProfiler();
 
         void StopThread();
