@@ -265,7 +265,7 @@ namespace msServiceProfiler {
             return;
         }
 
-        int shmFd = shm_open(ToSemName(semNameTouchTime).c_str(), O_CREAT | O_RDWR, 0640);
+        int shmFd = shm_open(ToSemName(semNameTouchTime).c_str(), O_CREAT | O_RDWR, 0666);
         if (shmFd == -1) {
             PROF_LOGW("shm_open failed");  // LCOV_EXCL_LINE
             return;
