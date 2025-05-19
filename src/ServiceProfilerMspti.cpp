@@ -280,7 +280,8 @@ namespace msServiceProfiler {
             createHcclTable();
         }
 
-        void createMstxTable() {
+        void createMstxTable()
+        {
             char* errMsg = nullptr;
 
             const char* sqlCreateKindMstx =
@@ -307,7 +308,8 @@ namespace msServiceProfiler {
             }
         }
 
-        void createApiTable() {
+        void createApiTable()
+        {
             char* errMsg = nullptr;
 
             const char* sqlCreateKindApi =
@@ -333,7 +335,8 @@ namespace msServiceProfiler {
             }
         }
 
-        void createKernelTable() {
+        void createKernelTable()
+        {
             char* errMsg = nullptr;
 
             const char* sqlCreateKindKernel =
@@ -360,7 +363,8 @@ namespace msServiceProfiler {
             }
         }
 
-        void createHcclTable() {
+        void createHcclTable()
+        {
             char* errMsg = nullptr;
 
             const char* sqlCreateKindHccl =
@@ -464,33 +468,37 @@ namespace msServiceProfiler {
         ServiceProfilerMspti::GetInstance().AddWorkingThreadNum();
         // profiler manager会在每个进程上创建 而host上的进程暂时不会有mspti数据上报 因此在这个位置初始化 防止创建host上的空db
         ServiceProfilerMspti::GetInstance().Init();
-        if (validSize > 0) {
-            msptiActivity *pRecord = NULL;
-            msptiResult status = MSPTI_SUCCESS;
-            do {
-                status = msptiActivityGetNextRecord(buffer, validSize, &pRecord);
-                if (status == MSPTI_SUCCESS) {
-                    if (pRecord->kind == MSPTI_ACTIVITY_KIND_API) {
-                        msptiActivityApi* activity = reinterpret_cast<msptiActivityApi*>(pRecord);
-                        ShowApiInfo(activity);
-                    } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_KERNEL) {
-                        msptiActivityKernel* activity = reinterpret_cast<msptiActivityKernel*>(pRecord);
-                        ShowKernelInfo(activity);
-                    } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_HCCL) {
-                        msptiActivityHccl* activity = reinterpret_cast<msptiActivityHccl*>(pRecord);
-                        ShowHcclInfo(activity);
-                    } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_MARKER) {
-                        msptiActivityMarker* activity = reinterpret_cast<msptiActivityMarker*>(pRecord);
-                        ShowMstxInfo(activity);
-                    }
-                } else if (status == MSPTI_ERROR_MAX_LIMIT_REACHED) {
-                    break;
-                } else {
-                    PROF_LOGD("unexpected status: %d", status);
-                    break;
-                }
-            } while (1);
+
+        if (validSize <= 0) {
+            return;
         }
+
+        msptiActivity *pRecord = NULL;
+        msptiResult status = MSPTI_SUCCESS;
+        do {
+            status = msptiActivityGetNextRecord(buffer, validSize, &pRecord);
+            if (status == MSPTI_SUCCESS) {
+                if (pRecord->kind == MSPTI_ACTIVITY_KIND_API) {
+                    msptiActivityApi* activity = reinterpret_cast<msptiActivityApi*>(pRecord);
+                    ShowApiInfo(activity);
+                } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_KERNEL) {
+                    msptiActivityKernel* activity = reinterpret_cast<msptiActivityKernel*>(pRecord);
+                    ShowKernelInfo(activity);
+                } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_HCCL) {
+                    msptiActivityHccl* activity = reinterpret_cast<msptiActivityHccl*>(pRecord);
+                    ShowHcclInfo(activity);
+                } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_MARKER) {
+                    msptiActivityMarker* activity = reinterpret_cast<msptiActivityMarker*>(pRecord);
+                    ShowMstxInfo(activity);
+                }
+            } else if (status == MSPTI_ERROR_MAX_LIMIT_REACHED) {
+                break;
+            } else {
+                PROF_LOGD("unexpected status: %d", status);
+                break;
+            }
+        } while (1);
+        
         free(buffer);
         ServiceProfilerMspti::GetInstance().PopWorkingThreadNum();
     }
