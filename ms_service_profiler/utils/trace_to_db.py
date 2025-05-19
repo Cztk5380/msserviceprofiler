@@ -64,7 +64,7 @@ UPDATA_SQL_TEMPLATES = {
         (name, pid, timestamp, cat, args) 
         VALUES (:name, :pid, :ts, :cat, :args)""",
     "flow": """INSERT INTO flow 
-        (flow_id, name, track_id, timestamp, cat, type)  
+        (flow_id, name, track_id, timestamp, cat, type) 
         VALUES (:flow_id, :name, :track_id, :ts, :cat, :type)"""
 }
 
@@ -95,6 +95,8 @@ def trans_trace_slice_data(event):
 # s, f, t: flow
 def trans_trace_flow_data(event):
     ts = convert_ts_to_ns(event.get('ts'))
+    if event.get('name') == 'flow_0':
+        print(ts)
     return {'ts': ts, 'name': event.get('name'), 'pid': event.get('pid'),
         'tid': event.get('tid'), 'cat': event.get('cat'), 'flow_id': event.get('id')}
 
@@ -237,7 +239,7 @@ def trans_trace_flow_event(event, ph_type, cursor):
 
     # 创建flow连线
     CacheTableManager.cache_list['flow'].append((event_data.get('flow_id'), event_data.get('name'), track_id,
-        event.get('ts'), event_data.get('cat'), ph_type))
+        event_data.get('ts'), event_data.get('cat'), ph_type))
     CacheTableManager.insert_cache_to_db('flow', cursor)
 
 
