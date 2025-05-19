@@ -24,4 +24,4 @@ namespace msServiceProfiler {
     void UninitMspti(msptiSubscriberHandle& subscriber);
     void FlushBufferByTime();
 }
-#endif //SERVICEPROFILERMANAGERMSPTI_H
+#endif // SERVICEPROFILERMANAGERMSPTI_H

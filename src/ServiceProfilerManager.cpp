@@ -480,14 +480,14 @@ namespace msServiceProfiler {
 
         if (config_->GetMsptiEnable()) {
             auto retMspti = InitMspti(profPath, msptiHandle_);
-            if (retMspti != 0 ) {
+            if (retMspti != 0) {
                 PROF_LOGE("Mspti init failed, ret = %d", retMspti);
                 msptiEnabled = false;
                 return;
             } else {
                 InitMsptiActivity(
-                    config_->GetMsptiApiEnable(), 
-                    config_->GetMsptiKernelEnable(), 
+                    config_->GetMsptiApiEnable(),
+                    config_->GetMsptiKernelEnable(),
                     config_->GetMsptiHcclEnable()
                     );
                 auto apiFilter_ = config_->GetApiFilter();
@@ -552,7 +552,6 @@ namespace msServiceProfiler {
             msptiEnabled = false;
             UninitMspti(msptiHandle_);
         } else {
-
             auto ret = aclprofStop(profConfig);
             if (ret != ACL_ERROR_NONE) {
                 PROF_LOGE("acl prof stop failed, ret = %d", ret);  // LCOV_EXCL_LINE
