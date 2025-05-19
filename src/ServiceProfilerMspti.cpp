@@ -377,6 +377,7 @@ namespace msServiceProfiler {
                 sqlite3_finalize(stmtApi);
                 sqlite3_finalize(stmtKernel);
                 sqlite3_finalize(stmtHccl);
+                sqlite3_finalize(stmtMstx);
 
                 sqlite3_close(db);
                 inited = false;

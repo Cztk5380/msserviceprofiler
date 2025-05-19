@@ -506,7 +506,7 @@ namespace msServiceProfiler {
             }
         }
 
-        if (config_->GetMsptiEnable()) {
+        if (config_->GetEnableMspti()) {
             auto ret = InitMspti(profPath, msptiHandle_);
             if (ret != 0 ) {
                 PROF_LOGE("Mspti init failed.");
@@ -591,21 +591,5 @@ namespace msServiceProfiler {
 
         started_ = false;
         g_startFlag = false;
-    }
-
-    void ServiceProfilerManager::RegisterSignal(int signal)
-    {
-        struct sigaction sa, old_sa; // old_sa 保存已有signal handler
-
-        sa.sa_handler = ChainedSignalHandler;
-
-        if (sigaction(signal, &sa, &old_sa) == -1) {
-            PROF_LOGE("Profiler register signal handler failed.");
-            return;
-        }
-
-        PROF_LOGD("Profiler register signal handler success.");
-
-        old_handlers[signal] = old_sa; // 将old_sa保存在全局变量old_handlers中
     }
 }  // namespace msServiceProfiler
