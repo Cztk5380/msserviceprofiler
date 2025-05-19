@@ -26,13 +26,13 @@
 #include <sqlite3.h>
 #include <mutex>
 
+#include "securec.h"
 #include <fstream>
 #include <vector>
 #include <set>
 
+#include "mspti/mspti.h"
 #include <unistd.h>
-
-#include "securec.h"
 
 #include "../include/msServiceProfiler/Log.h"
 #include "../include/msServiceProfiler/ServiceProfilerMspti.h"
@@ -48,12 +48,12 @@ namespace {
 
 namespace msServiceProfiler {
 
-    class ServiceProfilerMspti {
+    class ServiceProfilerFileWriter {
     private:
-        static constexpr size_t BUFFER_SIZE = 5 * 1024 * 1024;
-        char buffer[BUFFER_SIZE];
+        static constexpr size_t buffer_size = 5 * 1024 * 1024;
+        char buffer[buffer_size];
         bool inited = false;
-        std::string fileName;
+        std::string file_name;
         int workingThreadNum = 0;
         sqlite3* db;
         sqlite3_stmt* stmtApi;
@@ -63,18 +63,19 @@ namespace msServiceProfiler {
         std::set<std::string> filterApi;
         std::set<std::string> filterKernel;
         std::set<std::string> filterHccl;
-        ServiceProfilerMspti() {
+        ServiceProfilerFileWriter() {
         }
     public:
-        static ServiceProfilerMspti &GetInstance()
+        static ServiceProfilerFileWriter &GetInstance()
         {
-            static ServiceProfilerMspti manager;
+            static ServiceProfilerFileWriter manager;
             return manager;
         };
 
         void insertApiData(msptiActivityApi* activity)
         {
-            if (!inited || !activity || !stmtApi) {
+            if (!inited || !activity || !stmtApi )
+            {
                 return;
             }
 
@@ -106,7 +107,8 @@ namespace msServiceProfiler {
 
         void insertKernelData(msptiActivityKernel* activity)
         {
-            if (!inited || !activity || !stmtKernel) {
+            if (!inited || !activity || !stmtKernel )
+            {
                 return;
             }
 
@@ -136,7 +138,8 @@ namespace msServiceProfiler {
 
         void insertHcclData(msptiActivityHccl* activity)
         {
-            if (!inited || !activity || !stmtHccl) {
+            if (!inited || !activity || !stmtHccl )
+            {
                 return;
             }
 
@@ -165,9 +168,9 @@ namespace msServiceProfiler {
             mtx.unlock();
         }
 
-        void insertMstxData(msptiActivityMarker* activity)
-        {
-            if (!inited || !activity || !stmtMstx) {
+        void insertMstxData(msptiActivityMarker* activity) {
+            if (!inited || !activity || !stmtMstx )
+            {
                 return;
             }
 
@@ -246,7 +249,7 @@ namespace msServiceProfiler {
             PROF_LOGD("Initing ServiceFilerWriter.");
 
             // 打开数据库连接
-            int rc = sqlite3_open(fileName.c_str(), &db);
+            int rc = sqlite3_open(file_name.c_str(), &db);
             if (rc) {
                 PROF_LOGE("Can't open database: %s.", sqlite3_errmsg(db));
                 return;
@@ -258,21 +261,20 @@ namespace msServiceProfiler {
             PROF_LOGD("Init ServiceProfilerFilerWriter Success.");
         }
 
+        void InitFilter(std::string& apiFilter, std::string& kernelFilter, std::string& hcclFilter)
+        {
+            filterApi = splitStringToSet(apiFilter);
+            filterKernel = splitStringToSet(kernelFilter);
+            filterHccl = splitStringToSet(hcclFilter);
+        }
+
         void InitOutputPath(std::string& outputPath)
         {
-            fileName = outputPath + "ascend_service_profiler_" + std::to_string(getpid()) + ".db";
-            PROF_LOGD("set mspti output path: %s", fileName.c_str());
+            file_name = outputPath + "ascend_service_profiler_" + std::to_string(getpid()) + ".db";
+            PROF_LOGD("set mspti output path: %s", file_name.c_str());
         }
 
         void createTable()
-        {
-            createMstxTable();
-            createApiTable();
-            createKernelTable();
-            createHcclTable();
-        }
-
-        void createMstxTable()
         {
             char* errMsg = nullptr;
 
@@ -298,11 +300,6 @@ namespace msServiceProfiler {
                 PROF_LOGE("sqlInsertKindMstx SQL error: %s", errMsg);
                 sqlite3_free(errMsg);
             }
-        }
-
-        void createApiTable()
-        {
-            char* errMsg = nullptr;
 
             const char* sqlCreateKindApi =
                 "CREATE TABLE IF NOT EXISTS Api ("
@@ -325,11 +322,6 @@ namespace msServiceProfiler {
                 PROF_LOGE("sqlInsertKindApi SQL error: %s", errMsg);
                 sqlite3_free(errMsg);
             }
-        }
-
-        void createKernelTable()
-        {
-            char* errMsg = nullptr;
 
             const char* sqlCreateKindKernel =
                 "CREATE TABLE IF NOT EXISTS Kernel ("
@@ -353,11 +345,6 @@ namespace msServiceProfiler {
                 PROF_LOGE("sqlInsertKindKernel SQL error: %s", errMsg);
                 sqlite3_free(errMsg);
             }
-        }
-
-        void createHcclTable()
-        {
-            char* errMsg = nullptr;
 
             const char* sqlCreateKindHccl =
                 "CREATE TABLE IF NOT EXISTS Hccl ("
@@ -396,13 +383,11 @@ namespace msServiceProfiler {
             }
         }
 
-        void AddWorkingThreadNum()
-        {
+        void AddWorkingThreadNum() {
             workingThreadNum = workingThreadNum + 1;
         }
 
-        void PopWorkingThreadNum()
-        {
+        void PopWorkingThreadNum() {
             if (workingThreadNum > 0) {
                 workingThreadNum = workingThreadNum - 1;
             } else {
@@ -410,89 +395,86 @@ namespace msServiceProfiler {
             }
         }
 
-        void ResetWorkingThreadNum()
-        {
+        void ResetWorkingThreadNum() {
             workingThreadNum = 0;
         }
 
-        bool GetWorkingStatus()
-        {
+        bool GetWorkingStatus() {
             return (workingThreadNum > 0);
         }
     };
 
     static void ShowApiInfo(msptiActivityApi* api)
     {
-        if (!api) {
+        if(!api) {
             return;
         }
-        ServiceProfilerMspti::GetInstance().insertApiData(api);
+        ServiceProfilerFileWriter::GetInstance().insertApiData(api);
     }
 
     static void ShowKernelInfo(msptiActivityKernel* kernel)
     {
-        if (!kernel) {
+        if(!kernel) {
             return;
         }
-        ServiceProfilerMspti::GetInstance().insertKernelData(kernel);
+        ServiceProfilerFileWriter::GetInstance().insertKernelData(kernel);
     }
 
     static void ShowHcclInfo(msptiActivityHccl* activity)
     {
-        if (!activity) {
+        if(!activity) {
             return;
         }
-        ServiceProfilerMspti::GetInstance().insertHcclData(activity);
+        ServiceProfilerFileWriter::GetInstance().insertHcclData(activity);
     }
 
     static void ShowMstxInfo(msptiActivityMarker* activity)
     {
-        if (!activity) {
+        if(!activity) {
             return;
         }
-        ServiceProfilerMspti::GetInstance().insertMstxData(activity);
+        ServiceProfilerFileWriter::GetInstance().insertMstxData(activity);
     }
 
     // MSPTI
     void UserBufferComplete(uint8_t *buffer, size_t size, size_t validSize)
     {
         PROF_LOGD("UserBuffer complete, processing buffer data.");
-        ServiceProfilerMspti::GetInstance().AddWorkingThreadNum();
+        ServiceProfilerFileWriter::GetInstance().AddWorkingThreadNum();
         // profiler manager会在每个进程上创建 而host上的进程暂时不会有mspti数据上报 因此在这个位置初始化 防止创建host上的空db
-        ServiceProfilerMspti::GetInstance().Init();
+        ServiceProfilerFileWriter::GetInstance().Init();
+        if (validSize > 0) {
+            msptiActivity *pRecord = NULL;
+            msptiResult status = MSPTI_SUCCESS;
+            do {
+                status = msptiActivityGetNextRecord(buffer, validSize, &pRecord);
+                if (status == MSPTI_SUCCESS) {
+                    if (pRecord->kind == MSPTI_ACTIVITY_KIND_API) {
+                        msptiActivityApi* activity = reinterpret_cast<msptiActivityApi*>(pRecord);
+                        ShowApiInfo(activity);
 
-        if (validSize <= 0) {
-            return;
-        }
+                    } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_KERNEL) {
+                        msptiActivityKernel* activity = reinterpret_cast<msptiActivityKernel*>(pRecord);
+                        ShowKernelInfo(activity);
 
-        msptiActivity *pRecord = NULL;
-        msptiResult status = MSPTI_SUCCESS;
-        do {
-            status = msptiActivityGetNextRecord(buffer, validSize, &pRecord);
-            if (status == MSPTI_SUCCESS) {
-                if (pRecord->kind == MSPTI_ACTIVITY_KIND_API) {
-                    msptiActivityApi* activity = reinterpret_cast<msptiActivityApi*>(pRecord);
-                    ShowApiInfo(activity);
-                } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_KERNEL) {
-                    msptiActivityKernel* activity = reinterpret_cast<msptiActivityKernel*>(pRecord);
-                    ShowKernelInfo(activity);
-                } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_HCCL) {
-                    msptiActivityHccl* activity = reinterpret_cast<msptiActivityHccl*>(pRecord);
-                    ShowHcclInfo(activity);
-                } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_MARKER) {
-                    msptiActivityMarker* activity = reinterpret_cast<msptiActivityMarker*>(pRecord);
-                    ShowMstxInfo(activity);
+                    } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_HCCL) {
+                        msptiActivityHccl* activity = reinterpret_cast<msptiActivityHccl*>(pRecord);
+                        ShowHcclInfo(activity);
+
+                    } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_MARKER) {
+                        msptiActivityMarker* activity = reinterpret_cast<msptiActivityMarker*>(pRecord);
+                        ShowMstxInfo(activity);
+                    }
+                } else if (status == MSPTI_ERROR_MAX_LIMIT_REACHED) {
+                    break;
+                } else {
+                    PROF_LOGD("unexpected status: %d", status);
+                    break;
                 }
-            } else if (status == MSPTI_ERROR_MAX_LIMIT_REACHED) {
-                break;
-            } else {
-                PROF_LOGD("unexpected status: %d", status);
-                break;
-            }
-        } while (1);
-        
+            } while (1);
+        }
         free(buffer);
-        ServiceProfilerMspti::GetInstance().PopWorkingThreadNum();
+        ServiceProfilerFileWriter::GetInstance().PopWorkingThreadNum();
     }
 
     // MSPTI
@@ -505,14 +487,14 @@ namespace msServiceProfiler {
         *maxNumRecords = 0;
     }
 
-    int InitMspti(std::string& profPath, msptiSubscriberHandle& subscriber)
+    int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber)
     {
         // 创建mspti订阅者
         auto ret = msptiSubscribe(&subscriber, nullptr, nullptr);
         if (ret == MSPTI_SUCCESS) {
             PROF_LOGD("Mspti subscribe success.");
         } else if (ret == MSPTI_ERROR_MULTIPLE_SUBSCRIBERS_NOT_SUPPORTED) {
-            PROF_LOGW("Mspti subscribe failed. Multiple subscribe is not allowed.");
+                PROF_LOGW("Mspti subscribe failed. Multiple subscribe is not allowed.");
         } else {
             if (ret == MSPTI_ERROR_INNER) {
                 PROF_LOGD("Mspti subscribe failed. Inner error.");
@@ -521,7 +503,7 @@ namespace msServiceProfiler {
             } else {
                 PROF_LOGD("Mspti subscribe failed. Unknown error, error code %d", ret);
             }
-            return 1;
+            return ret;
         }
 
         // 注册空buffer申请回调函数 以及buffer满时的数据处理回调函数
@@ -534,39 +516,51 @@ namespace msServiceProfiler {
             } else {
                 PROF_LOGD("Mspti register callbacks failed. Unknown error, error code %d.", ret);
             }
-            return 1;
+            return ret;
         }
-        ServiceProfilerMspti::GetInstance().InitOutputPath(profPath);
+        ServiceProfilerFileWriter::GetInstance().InitOutputPath(profPath_);
         return 0;
     }
 
-    void InitMsptiActivity()
+    void InitMsptiActivity(bool apiEnable_, bool kernelEnable_, bool hcclEnable_)
     {
         // 当前涉及的数据只有三种api kernel和hccl 后续有需要可以增加mstx的数据
         msptiResult ret;
-        PROF_LOGD("Mspti activity api enabled");
-        ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_API);
-        if (ret != MSPTI_SUCCESS) {
-            PROF_LOGE("Mspti enable api activity failed.");
+        if (apiEnable_) {
+            PROF_LOGI("Enable API =======================");
+            ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_API);
+            if (ret != MSPTI_SUCCESS) {
+                PROF_LOGE("Mspti enable api activity failed.");
+            }
         }
 
-        PROF_LOGD("Mspti activity kernel enabled");
-        ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_KERNEL);
-        if (ret != MSPTI_SUCCESS) {
-            PROF_LOGE("Mspti enable kernel activity failed.");
+        if (kernelEnable_) {
+            PROF_LOGI("Enable Kernel =======================");
+            ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_KERNEL);
+            if (ret != MSPTI_SUCCESS) {
+                PROF_LOGE("Mspti enable kernel activity failed.");
+            }
         }
 
-        PROF_LOGD("Mspti activity communication enabled");
-        ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_HCCL);
-        if (ret != MSPTI_SUCCESS) {
-            PROF_LOGE("Mspti enable hccl activity failed.");
+        if (hcclEnable_) {
+            PROF_LOGI("Enable HCCL =======================");
+            ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_HCCL);
+            if (ret != MSPTI_SUCCESS) {
+                PROF_LOGE("Mspti enable hccl activity failed.");
+            }
         }
 
-        PROF_LOGD("Mspti activity mstx enabled");
+        PROF_LOGI("Enable MSTX =======================");
         ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_MARKER);
         if (ret != MSPTI_SUCCESS) {
             PROF_LOGE("Mspti enable mstx activity failed.");
         }
+
+    }
+
+    void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter, std::string& hcclFilter)
+    {
+        ServiceProfilerFileWriter::GetInstance().InitFilter(apiFilter, kernelFilter, hcclFilter);
     }
 
     void UninitMspti(msptiSubscriberHandle& subscriber)
@@ -581,13 +575,12 @@ namespace msServiceProfiler {
         if (ret != MSPTI_SUCCESS) {
             PROF_LOGE("Mspti Unsubscribe failed.");
         }
-        ServiceProfilerMspti::GetInstance().ResetWorkingThreadNum();
-        ServiceProfilerMspti::GetInstance().Close();
+        ServiceProfilerFileWriter::GetInstance().ResetWorkingThreadNum();
+        ServiceProfilerFileWriter::GetInstance().Close();
     }
 
-    void FlushBufferByTime()
-    {
-        bool workingStatus = ServiceProfilerMspti::GetInstance().GetWorkingStatus();
+    void FlushBufferByTime() {
+        bool workingStatus = ServiceProfilerFileWriter::GetInstance().GetWorkingStatus();
         if (!workingStatus) {
             PROF_LOGI("No mspti flush working thread running for period, automaticaly flush all.");
             auto ret = msptiActivityFlushAll(1);

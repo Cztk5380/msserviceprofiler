@@ -32,8 +32,8 @@
 #include "msServiceProfiler/NpuMemoryUsage.h"
 #include "msServiceProfiler/Profiler.h"
 #include "msServiceProfiler/Log.h"
-#include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
+#include "msServiceProfiler/ServiceProfilerMspti.h"
 
 namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
@@ -181,15 +181,33 @@ void IntSignalHandler()
     StopServerProfiler();
 }
 
+// void SignalHandler(int signal)
+// {
+       // 这个函数有问题 用这种方式去调用IntSignalHandler会导致core dump
+//     typedef void (*FunctionPtr)();
+//     std::map<int, FunctionPtr> SignalHandlerMap;
+
+//     SignalHandlerMap[SIGINT] = &IntSignalHandler;
+//     SignalHandlerMap[SIGTERM] = &IntSignalHandler;
+
+//     if (SignalHandlerMap.find(signal) != SignalHandlerMap.end()) {
+//         FunctionPtr selectedHandler = SignalHandlerMap[signal];
+//         selectedHandler();
+//     } else {
+//         PROF_LOGE("ServiceProfiler receives unexpect signal.");
+//     }
+// }
+
 void ChainedSignalHandler(int signal)
 {
     IntSignalHandler();
 
     auto it = old_handlers.find(signal);
-    if (it != old_handlers.end()) {
-        struct sigaction& oldact = it->second;
-        if (oldact.sa_handler != SIG_DFL && oldact.sa_handler != SIG_IGN && oldact.sa_handler != nullptr) {
-            oldact.sa_handler(signal);
+    if (it != old_handlers.end())
+    {
+        struct sigaction& old_act = it->second;
+        if (old_act.sa_handler != SIG_DFL && old_act.sa_handler != SIG_IGN && old_act.sa_handler != nullptr) {
+            old_act.sa_handler(signal);
         }
     }
 }
@@ -478,15 +496,6 @@ namespace msServiceProfiler {
         }
         PROF_LOGI("prof path: %s", profPath.c_str());  // LCOV_EXCL_LINE
 
-        if (config_->GetEnableMspti()) {
-            StartMsptiProf(profPath);
-        } else {
-            StartAclProf(profPath);
-        }
-    }
-
-    void ServiceProfilerManager::StartAclProf(std::string profPath)
-    {
         if (!isAclInit_) {
             aclError retInit = aclInit(nullptr);
             if (retInit == ACL_SUCCESS || retInit == ACL_ERROR_REPEAT_INITIALIZE) {
@@ -497,41 +506,48 @@ namespace msServiceProfiler {
             }
         }
 
-        aclError ret = aclprofInit(profPath.c_str(), profPath.size());
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            return;
-        }
-
-        if (ret == ACL_ERROR_NONE && isMaster_) {
-            SetAclProfHostSysConfig();
-        }
-
-        auto profConfig = ProfCreateConfig();
-        if (profConfig == nullptr) {
-            config_->SetEnable(false);
-            return;
-        }
-
-        PROF_LOGD("begin to start profiling, device_id: %d", g_deviceID);  // LCOV_EXCL_LINE
-        ret = aclprofStart(profConfig);
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            config_->SetEnable(false);
-            return;
-        }
-    }
-
-    void ServiceProfilerManager::StartMsptiProf(std::string profPath)
-    {
-        auto retMspti = InitMspti(profPath, msptiHandle_);
-        if (retMspti != 0) {
-            PROF_LOGE("Mspti init failed, ret = %d", retMspti);
-            msptiEnabled = false;
-            return;
+        if (config_->GetMsptiEnable()) {
+            auto ret = InitMspti(profPath, msptiHandle_);
+            if (ret != 0 ) {
+                PROF_LOGE("Mspti init failed.");
+                msptiEnabled = false;
+            } else {
+                InitMsptiActivity(
+                    config_->GetMsptiApiEnable(), 
+                    config_->GetMsptiKernelEnable(), 
+                    config_->GetMsptiHcclEnable()
+                    );
+                auto apiFilter_ = config_->GetApiFilter();
+                auto kernelFilter_ = config_->GetKernelFilter();
+                auto hcclFilter_ = config_->GetHcclFilter();
+                InitMsptiFilter(apiFilter_, kernelFilter_, hcclFilter_);
+                msptiEnabled = true;
+            }
         } else {
-            InitMsptiActivity();
-            msptiEnabled = true;
+
+            aclError ret = aclprofInit(profPath.c_str(), profPath.size());
+            if (ret != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                return;
+            }
+
+            if (ret == ACL_ERROR_NONE && isMaster_) {
+                SetAclProfHostSysConfig();
+            }
+
+            auto profConfig = ProfCreateConfig();
+            if (profConfig == nullptr) {
+                config_->SetEnable(false);
+                return;
+            }
+
+            PROF_LOGD("begin to start profiling, device_id: %d", g_deviceID);  // LCOV_EXCL_LINE
+            ret = aclprofStart(profConfig);
+            if (ret != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                config_->SetEnable(false);
+                return;
+            }
         }
 
         // 设置标志位
@@ -572,8 +588,24 @@ namespace msServiceProfiler {
                 return;
             }
         }
+
         started_ = false;
         g_startFlag = false;
     }
 
+    void ServiceProfilerManager::RegisterSignal(int signal)
+    {
+        struct sigaction sa, old_sa; // old_sa 保存已有signal handler
+
+        sa.sa_handler = ChainedSignalHandler;
+
+        if (sigaction(signal, &sa, &old_sa) == -1) {
+            PROF_LOGE("Profiler register signal handler failed.");
+            return;
+        }
+
+        PROF_LOGD("Profiler register signal handler success.");
+
+        old_handlers[signal] = old_sa; // 将old_sa保存在全局变量old_handlers中
+    }
 }  // namespace msServiceProfiler
