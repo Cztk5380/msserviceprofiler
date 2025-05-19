@@ -17,6 +17,7 @@ public:
     bool GetEnable() const { return enable_; }
     uint32_t GetLevel() const { return level_; }
     uint32_t GetEnableAclTaskTime() const { return enableAclTaskTime_; }
+    uint32_t GetEnableMspti() const { return enableMspti_; }
     const std::string& GetProfPath() const { return profPath_; }
     const std::string& GetConfigPath() const { return configPath_; }
     const std::string& GetProfPathDateTail() const { return profPathDateTail_; }
@@ -62,6 +63,7 @@ private:
     bool enable_ = false;
     uint32_t level_ = Level::INFO;
     bool enableAclTaskTime_ = false;
+    bool enableMspti_ = true;
     std::string configPath_;
     std::string profPathDateTail_;
     std::string profPath_;
@@ -77,14 +79,6 @@ private:
     uint32_t npuMemoryFreqMin_ = 1;
     uint32_t npuMemoryFreqMax_ = 50;
     uint32_t npuMemorySleepMilliseconds_ = 1000;
-
-    bool msptiEnable_ = false;
-
-    bool apiEnable_ = false;
-    bool kernelEnable_ = false;
-    bool hcclEnable_ = false;
-
-    std::string opsFilter_;
 };
 }
 #endif

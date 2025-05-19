@@ -91,55 +91,6 @@ void Config::ParseConfig(const Json& configJson)
     ParseMspti(configJson);
 }
 
-void Config::ParseMspti(const Json& config)
-{
-    if (config.contains("mspti_api_enable")) {
-        if (config["mspti_api_enable"].is_number_integer()) {
-            apiEnable_ = config["mspti_api_enable"] == 1;
-        } else {
-            PROF_LOGW("Unknown mspti_api_enable type. mspti_api_enable disabled.");  // LCOV_EXCL_LINE
-        }
-    }
-    if (config.contains("mspti_kernel_enable")) {
-        if (config["mspti_kernel_enable"].is_number_integer()) {
-            kernelEnable_ = config["mspti_kernel_enable"] == 1;
-        } else {
-            PROF_LOGW("Unknown mspti_kernel_enable type. mspti_kernel_enable disabled.");  // LCOV_EXCL_LINE
-        }
-    }
-    if (config.contains("mspti_hccl_enable")) {
-        if (config["mspti_hccl_enable"].is_number_integer()) {
-            hcclEnable_ = config["mspti_hccl_enable"] == 1;
-        } else {
-            PROF_LOGW("Unknown mspti_hccl_enable type. mspti_hccl_enable disabled.");  // LCOV_EXCL_LINE
-        }
-    }
-
-    msptiEnable_ = (apiEnable_ || kernelEnable_ || hcclEnable_);
-
-    if (config.contains("mspti_api_filter")) {
-        if (config["mspti_api_filter"].is_string()) {
-            apiFilter_ = config["mspti_api_filter"];
-        } else {
-            PROF_LOGW("Unknown mspti_api_filter type. mspti_api_filter set to nullptr.");  // LCOV_EXCL_LINE
-        }
-    }
-    if (config.contains("mspti_kernel_filter")) {
-        if (config["mspti_kernel_filter"].is_string()) {
-            kernelFilter_ = config["mspti_kernel_filter"];
-        } else {
-            PROF_LOGW("Unknown mspti_kernel_filter type. mspti_kernel_filter set to nullptr.");  // LCOV_EXCL_LINE
-        }
-    }
-    if (config.contains("mspti_hccl_filter")) {
-        if (config["mspti_hccl_filter"].is_string()) {
-            hcclFilter_ = config["mspti_hccl_filter"];
-        } else {
-            PROF_LOGW("Unknown mspti_hccl_filter type. mspti_hccl_filter set to nullptr.");  // LCOV_EXCL_LINE
-        }
-    }
-}
-
 void Config::ParseEnable(const Json& config)
 {
     enable_ = false;  // Default to false
@@ -193,6 +144,7 @@ void Config::ParseAclTaskTime(const Json &config)
     if (config.contains("acl_task_time")) {
         if (config["acl_task_time"].is_number_integer()) {
             enableAclTaskTime_ = config["acl_task_time"] == 1;
+            enableMspti_ = config["acl_task_time"] == 2;
         } else {
             PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");  // LCOV_EXCL_LINE
         }

@@ -33,7 +33,6 @@
 #include <unistd.h>
 
 #include "securec.h"
-#include "mspti/mspti.h"
 
 #include "../include/msServiceProfiler/Log.h"
 #include "../include/msServiceProfiler/ServiceProfilerMspti.h"
@@ -257,13 +256,6 @@ namespace msServiceProfiler {
 
             inited = true;
             PROF_LOGD("Init ServiceProfilerFilerWriter Success.");
-        }
-
-        void InitFilter(std::string& apiFilter, std::string& kernelFilter, std::string& hcclFilter)
-        {
-            filterApi = splitStringToSet(apiFilter);
-            filterKernel = splitStringToSet(kernelFilter);
-            filterHccl = splitStringToSet(hcclFilter);
         }
 
         void InitOutputPath(std::string& outputPath)
@@ -513,14 +505,14 @@ namespace msServiceProfiler {
         *maxNumRecords = 0;
     }
 
-    int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber)
+    int InitMspti(std::string& profPath, msptiSubscriberHandle& subscriber)
     {
         // 创建mspti订阅者
         auto ret = msptiSubscribe(&subscriber, nullptr, nullptr);
         if (ret == MSPTI_SUCCESS) {
             PROF_LOGD("Mspti subscribe success.");
         } else if (ret == MSPTI_ERROR_MULTIPLE_SUBSCRIBERS_NOT_SUPPORTED) {
-                PROF_LOGW("Mspti subscribe failed. Multiple subscribe is not allowed.");
+            PROF_LOGW("Mspti subscribe failed. Multiple subscribe is not allowed.");
         } else {
             if (ret == MSPTI_ERROR_INNER) {
                 PROF_LOGD("Mspti subscribe failed. Inner error.");
@@ -529,7 +521,7 @@ namespace msServiceProfiler {
             } else {
                 PROF_LOGD("Mspti subscribe failed. Unknown error, error code %d", ret);
             }
-            return ret;
+            return 1;
         }
 
         // 注册空buffer申请回调函数 以及buffer满时的数据处理回调函数
@@ -542,38 +534,32 @@ namespace msServiceProfiler {
             } else {
                 PROF_LOGD("Mspti register callbacks failed. Unknown error, error code %d.", ret);
             }
-            return ret;
+            return 1;
         }
-        ServiceProfilerMspti::GetInstance().InitOutputPath(profPath_);
+        ServiceProfilerMspti::GetInstance().InitOutputPath(profPath);
         return 0;
     }
 
-    void InitMsptiActivity(bool apiEnable_, bool kernelEnable_, bool hcclEnable_)
+    void InitMsptiActivity()
     {
         // 当前涉及的数据只有三种api kernel和hccl 后续有需要可以增加mstx的数据
         msptiResult ret;
-        if (apiEnable_) {
-            PROF_LOGD("Mspti activity api enabled");
-            ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_API);
-            if (ret != MSPTI_SUCCESS) {
-                PROF_LOGE("Mspti enable api activity failed.");
-            }
+        PROF_LOGD("Mspti activity api enabled");
+        ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_API);
+        if (ret != MSPTI_SUCCESS) {
+            PROF_LOGE("Mspti enable api activity failed.");
         }
 
-        if (kernelEnable_) {
-            PROF_LOGD("Mspti activity kernel enabled");
-            ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_KERNEL);
-            if (ret != MSPTI_SUCCESS) {
-                PROF_LOGE("Mspti enable kernel activity failed.");
-            }
+        PROF_LOGD("Mspti activity kernel enabled");
+        ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_KERNEL);
+        if (ret != MSPTI_SUCCESS) {
+            PROF_LOGE("Mspti enable kernel activity failed.");
         }
 
-        if (hcclEnable_) {
-            PROF_LOGD("Mspti activity communication enabled");
-            ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_HCCL);
-            if (ret != MSPTI_SUCCESS) {
-                PROF_LOGE("Mspti enable hccl activity failed.");
-            }
+        PROF_LOGD("Mspti activity communication enabled");
+        ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_HCCL);
+        if (ret != MSPTI_SUCCESS) {
+            PROF_LOGE("Mspti enable hccl activity failed.");
         }
 
         PROF_LOGD("Mspti activity mstx enabled");
@@ -581,11 +567,6 @@ namespace msServiceProfiler {
         if (ret != MSPTI_SUCCESS) {
             PROF_LOGE("Mspti enable mstx activity failed.");
         }
-    }
-
-    void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter, std::string& hcclFilter)
-    {
-        ServiceProfilerMspti::GetInstance().InitFilter(apiFilter, kernelFilter, hcclFilter);
     }
 
     void UninitMspti(msptiSubscriberHandle& subscriber)

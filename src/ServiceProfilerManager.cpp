@@ -478,12 +478,11 @@ namespace msServiceProfiler {
         }
         PROF_LOGI("prof path: %s", profPath.c_str());  // LCOV_EXCL_LINE
 
-        if (config_->GetMsptiEnable()) {
+        if (config_->GetEnableMspti()) {
             StartMsptiProf(profPath);
         } else {
             StartAclProf(profPath);
         }
-
     }
 
     void ServiceProfilerManager::StartAclProf(std::string profPath)
@@ -531,15 +530,7 @@ namespace msServiceProfiler {
             msptiEnabled = false;
             return;
         } else {
-            InitMsptiActivity(
-                config_->GetMsptiApiEnable(),
-                config_->GetMsptiKernelEnable(),
-                config_->GetMsptiHcclEnable()
-                );
-            auto apiFilter_ = config_->GetApiFilter();
-            auto kernelFilter_ = config_->GetKernelFilter();
-            auto hcclFilter_ = config_->GetHcclFilter();
-            InitMsptiFilter(apiFilter_, kernelFilter_, hcclFilter_);
+            InitMsptiActivity();
             msptiEnabled = true;
         }
 

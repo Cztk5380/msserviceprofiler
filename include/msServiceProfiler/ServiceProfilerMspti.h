@@ -17,10 +17,11 @@
 #ifndef SERVICEPROFILERMANAGERMSPTI_H
 #define SERVICEPROFILERMANAGERMSPTI_H
 
+#include "mspti/mspti.h"
+
 namespace msServiceProfiler {
     int InitMspti(std::string& profPath, msptiSubscriberHandle& subscriber);
-    void InitMsptiActivity(bool apiEnable, bool kernelEnable_, bool hcclEnable_);
-    void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter, std::string& hcclFilter);
+    void InitMsptiActivity();
     void UninitMspti(msptiSubscriberHandle& subscriber);
     void FlushBufferByTime();
 }
