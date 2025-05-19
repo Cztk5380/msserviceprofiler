@@ -385,19 +385,41 @@ def test_add_pull_kvcache_events_empty_df():
     assert not result  # 应该返回空列表
 
 
-@mock.patch('ms_service_profiler.exporters.exporter_trace.threading.Thread')
+class MockFile:
+    def __init__(self, file_content=""):
+        self.file_content = file_content
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    def read(self):
+        return self.file_content
+
+    def write(self, str):
+        self.file_content += str
+
+
+@mock.patch('ms_service_profiler.exporters.exporter_trace.ms_open')
 @mock.patch('ms_service_profiler.exporters.exporter_trace.logger')
-def test_save_trace_data_into_json(mock_logger, mock_thread):
-    save_trace_data_into_json('trace_data', 'output')
-    mock_thread.assert_called_once_with(target=write_trace_data_to_file,
-                                        args=('trace_data', os.path.join('output', 'chrome_tracing.json')))
-    mock_thread.return_value.start.assert_called_once()
+def test_save_trace_data_into_json(mock_logger, mock_ms_open):
+    fake_file = MockFile()
+    mock_ms_open.return_value = fake_file
+    save_trace_data_into_json({'traceEvents': [{}]}, 'output')
+    assert (fake_file.read() == '{"traceEvents":[{}]}')
     mock_logger.info.assert_called_once()
 
 
-@mock.patch('ms_service_profiler.exporters.exporter_trace.threading.Thread')
+@mock.patch('ms_service_profiler.exporters.exporter_trace.ms_open')
+@mock.patch('ms_service_profiler.exporters.exporter_trace.json.dumps')
 @mock.patch('ms_service_profiler.exporters.exporter_trace.logger')
-def test_save_trace_data_into_json_exception(mock_logger, mock_thread):
-    mock_thread.side_effect = Exception('Test exception')
-    save_trace_data_into_json('trace_data', 'output')
+def test_save_trace_data_into_json_exception(mock_logger, mock_dumps, mock_ms_open):
+    mock_dumps.side_effect = Exception('Test exception')
+    fake_file = MockFile()
+    mock_ms_open.return_value = fake_file
+    save_trace_data_into_json({'traceEvents': [123]}, 'output')
+    mock_dumps.assert_called_once()
+    assert (fake_file.read() == '{"traceEvents":[]}')
     mock_logger.error.assert_called_once()

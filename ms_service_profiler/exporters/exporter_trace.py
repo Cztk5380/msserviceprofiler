@@ -2,7 +2,8 @@
 
 import json
 import os
-import threading
+from concurrent.futures import ThreadPoolExecutor
+
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
@@ -86,22 +87,43 @@ def merge_json_data(trace_data, msprof_data_df):
     return trace_data
 
 
+@timer(logger.info)
 def write_trace_data_to_file(trace_data, output):
+    def write_trace_data(range_index):
+        start_index, end_index = range_index
+        trace_data_list = trace_data[start_index:end_index]
+        return json.dumps(trace_data_list, ensure_ascii=False)
+
+    gourp_count = 100000
+    data_count = len(trace_data)
+    group_range_list = [(x, min(x + gourp_count, data_count)) for x in range(0, data_count, gourp_count)]
+    results = []
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(write_trace_data, x) for x in group_range_list]
+        for future in futures:
+            try:
+                results.append(future.result())
+            except Exception as e:
+                logger.error(f"Error raise from exporter trace, json dump failed. message: {e}")
+
     with ms_open(output, "w") as f:
-        json.dump(trace_data, f, ensure_ascii=False)
-    logger.info("Written trace data successfully.")
+        f.write('{"traceEvents":[')
+        for index, content2 in enumerate(results):
+            if len(content2) < 2:   # 确保至少有 2 个字符
+                continue
+            f.write(content2[1:-1]) # 去除首字符和尾字符
+            if index != len(results) - 1:
+                f.write(',')
+
+        f.write("]}")
+
+    logger.info(f"Written trace data successfully. at {output}")
 
 
 def save_trace_data_into_json(trace_data, output):
     file_path = os.path.join(output, 'chrome_tracing.json')
 
-    # 创建并启动新线程来执行写文件操作
-    try:
-        write_thread = threading.Thread(target=write_trace_data_to_file, args=(trace_data, file_path))
-        write_thread.start()
-        logger.info("Start to write trace data...")
-    except Exception as e:
-        logger.error(f"Failed to write trace data to file: {e}")
+    write_trace_data_to_file(trace_data.get("traceEvents", []), file_path)
 
 
 def add_flow_event(flow_event_df):
