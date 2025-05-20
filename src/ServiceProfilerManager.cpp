@@ -383,25 +383,17 @@ namespace msServiceProfiler {
                 PROF_LOGD("get npu memory usage failed");  // LCOV_EXCL_LINE
             }
 
-            auto end = std::chrono::high_resolution_clock::now(); // 记录结束时间
+            if (config_->GetTimeLimit() > 0 && elapsed.count() >= config_->GetTimeLimit() && started_) {
 
-            auto end_time = std::chrono::duration_cast<std::chrono::seconds>(end.time_since_epoch());
+                auto end = std::chrono::high_resolution_clock::now(); // 记录结束时间
+                auto end_time = std::chrono::duration_cast<std::chrono::seconds>(end.time_since_epoch());
 
-            std::cout << "Start Time since epoch in seconds: " << start_time.count() << std::endl;
+                // 计算时间差
+                std::chrono::duration<double> elapsed = end_time - start_time;
 
-            std::cout << "End Time since epoch in seconds: " << end_time.count() << std::endl;
-
-            // 计算时间差
-            std::chrono::duration<double> elapsed = end_time - start_time;
-
-            std::cout << "Duration: " << elapsed.count() << " seconds" << std::endl;
-
-            std::cout << "timelimit: " << config_->GetTimeLimit() << " seconds" << std::endl;
-
-            if (config_->GetTimeLimit() > 0 && config_->GetTimeLimit() <=7200 &&
-                elapsed.count() >= config_->GetTimeLimit() && started_) {
                 StopProfiler();
-                PROF_LOGI("000000000000000000Profiler Disabled Successfully!1111111111111111111");  // LCOV_EXCL_LINE
+                PROF_LOGI("Profiler Timelimit %d Seconds Is Reached, Profiler Disabled Successfully!",
+                config_->GetTimeLimit());
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(config_->GetNpuMemorySleepMilliseconds()));
