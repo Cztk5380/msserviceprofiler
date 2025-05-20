@@ -277,6 +277,14 @@ namespace msServiceProfiler {
 
         void createTable()
         {
+            createMstxTable();
+            createApiTable();
+            createKernelTable();
+            createHcclTable();
+        }
+
+        void createMstxTable()
+        {
             char* errMsg = nullptr;
 
             const char* sqlCreateKindMstx =
@@ -301,6 +309,11 @@ namespace msServiceProfiler {
                 PROF_LOGE("sqlInsertKindMstx SQL error: %s", errMsg);
                 sqlite3_free(errMsg);
             }
+        }
+
+        void createApiTable()
+        {
+            char* errMsg = nullptr;
 
             const char* sqlCreateKindApi =
                 "CREATE TABLE IF NOT EXISTS Api ("
@@ -323,6 +336,11 @@ namespace msServiceProfiler {
                 PROF_LOGE("sqlInsertKindApi SQL error: %s", errMsg);
                 sqlite3_free(errMsg);
             }
+        }
+        
+        void createKernelTable()
+        {
+            char* errMsg = nullptr;
 
             const char* sqlCreateKindKernel =
                 "CREATE TABLE IF NOT EXISTS Kernel ("
@@ -346,6 +364,12 @@ namespace msServiceProfiler {
                 PROF_LOGE("sqlInsertKindKernel SQL error: %s", errMsg);
                 sqlite3_free(errMsg);
             }
+        }
+
+
+        void createHcclTable()
+        {
+            char* errMsg = nullptr;
 
             const char* sqlCreateKindHccl =
                 "CREATE TABLE IF NOT EXISTS Hccl ("
