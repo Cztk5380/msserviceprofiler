@@ -174,44 +174,6 @@ void RegisterSetDeviceCallback()
     profRegDeviceStateCallback(MsprofSetDeviceCallbackImpl);
 }
 
-void IntSignalHandler()
-{
-    PROF_LOGD("Signal Handler receive interrupt signal.");
-    msServiceProfiler::ServiceProfilerManager::GetInstance().StopThread();
-    StopServerProfiler();
-}
-
-// void SignalHandler(int signal)
-// {
-       // 这个函数有问题 用这种方式去调用IntSignalHandler会导致core dump
-//     typedef void (*FunctionPtr)();
-//     std::map<int, FunctionPtr> SignalHandlerMap;
-
-//     SignalHandlerMap[SIGINT] = &IntSignalHandler;
-//     SignalHandlerMap[SIGTERM] = &IntSignalHandler;
-
-//     if (SignalHandlerMap.find(signal) != SignalHandlerMap.end()) {
-//         FunctionPtr selectedHandler = SignalHandlerMap[signal];
-//         selectedHandler();
-//     } else {
-//         PROF_LOGE("ServiceProfiler receives unexpect signal.");
-//     }
-// }
-
-void ChainedSignalHandler(int signal)
-{
-    IntSignalHandler();
-
-    auto it = old_handlers.find(signal);
-    if (it != old_handlers.end())
-    {
-        struct sigaction& old_act = it->second;
-        if (old_act.sa_handler != SIG_DFL && old_act.sa_handler != SIG_IGN && old_act.sa_handler != nullptr) {
-            old_act.sa_handler(signal);
-        }
-    }
-}
-
 namespace msServiceProfiler {
     static inline unsigned long Str2Uint(const std::string &str)
     {
@@ -512,8 +474,6 @@ namespace msServiceProfiler {
             msptiEnabled = false;
         } else {
             InitMsptiActivity(
-                config_->GetEnableMspti(), 
-                config_->GetEnableMspti(), 
                 config_->GetEnableMspti()
                 );
             auto apiFilter_ = config_->GetApiFilter();

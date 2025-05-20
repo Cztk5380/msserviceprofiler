@@ -523,27 +523,23 @@ namespace msServiceProfiler {
         return 0;
     }
 
-    void InitMsptiActivity(bool apiEnable_, bool kernelEnable_, bool hcclEnable_)
+    void InitMsptiActivity(bool msptiEnable_)
     {
         // 当前涉及的数据只有三种api kernel和hccl 后续有需要可以增加mstx的数据
         msptiResult ret;
-        if (apiEnable_) {
+        if (msptiEnable_) {
             PROF_LOGI("Enable API =======================");
             ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_API);
             if (ret != MSPTI_SUCCESS) {
                 PROF_LOGE("Mspti enable api activity failed.");
             }
-        }
 
-        if (kernelEnable_) {
             PROF_LOGI("Enable Kernel =======================");
             ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_KERNEL);
             if (ret != MSPTI_SUCCESS) {
                 PROF_LOGE("Mspti enable kernel activity failed.");
             }
-        }
 
-        if (hcclEnable_) {
             PROF_LOGI("Enable HCCL =======================");
             ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_HCCL);
             if (ret != MSPTI_SUCCESS) {
@@ -556,7 +552,6 @@ namespace msServiceProfiler {
         if (ret != MSPTI_SUCCESS) {
             PROF_LOGE("Mspti enable mstx activity failed.");
         }
-
     }
 
     void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter, std::string& hcclFilter)
