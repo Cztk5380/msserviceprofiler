@@ -37,7 +37,7 @@ std::mutex g_mtx;
 namespace msServiceProfiler {
 
     // 分割字符串并存入set 输入字符串格式为"xxxx;xxx;xxx"或"xxx;xxx;"均可
-    static std::set<std::string> splitStringToSet(const std::string& str)
+    static std::set<std::string> splitStringToSet(const std::string& str, char splitFlag)
     {
         std::set<std::string> result;
         std::string token;
@@ -139,9 +139,9 @@ namespace msServiceProfiler {
         g_mtx.unlock();
     }
 
-    void ServiceProfilerMspti::insertHcclData(msptiActivityHccl* activity)
+    void ServiceProfilerMspti::insertCommData(msptiActivityHccl* activity)
     {
-        if (!inited || !activity || !stmtHccl) {
+        if (!inited || !activity || !stmtComm) {
             return;
         }
 
@@ -153,19 +153,19 @@ namespace msServiceProfiler {
 
         // 绑定参数
         int bind_index = 1;
-        sqlite3_bind_text(stmtHccl, bind_index++, activity->name, -1, SQLITE_STATIC);
-        sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->start));
-        sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->end));
-        sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->ds.deviceId));
-        sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->ds.streamId));
-        sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->bandWidth));
-        sqlite3_bind_text(stmtHccl, bind_index++, activity->commName, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmtComm, bind_index++, activity->name, -1, SQLITE_STATIC);
+        sqlite3_bind_int64(stmtComm, bind_index++, static_cast<int64_t>(activity->start));
+        sqlite3_bind_int64(stmtComm, bind_index++, static_cast<int64_t>(activity->end));
+        sqlite3_bind_int64(stmtComm, bind_index++, static_cast<int64_t>(activity->ds.deviceId));
+        sqlite3_bind_int64(stmtComm, bind_index++, static_cast<int64_t>(activity->ds.streamId));
+        sqlite3_bind_int64(stmtComm, bind_index++, static_cast<int64_t>(activity->bandWidth));
+        sqlite3_bind_text(stmtComm, bind_index++, activity->commName, -1, SQLITE_STATIC);
 
         // 执行插入
-        if (sqlite3_step(stmtHccl) != SQLITE_DONE) {
+        if (sqlite3_step(stmtComm) != SQLITE_DONE) {
             PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
         }
-        sqlite3_reset(stmtHccl);
+        sqlite3_reset(stmtComm);
 
         g_mtx.unlock();
     }
@@ -241,7 +241,7 @@ namespace msServiceProfiler {
         createMstxTable();
         createApiTable();
         createKernelTable();
-        createHcclTable();
+        createCommTable();
     }
 
     void ServiceProfilerMspti::createMstxTable()
@@ -327,12 +327,12 @@ namespace msServiceProfiler {
         }
     }
 
-    void ServiceProfilerMspti::createHcclTable()
+    void ServiceProfilerMspti::createCommTable()
     {
         char* errMsg = nullptr;
 
-        const char* sqlCreateKindHccl =
-            "CREATE TABLE IF NOT EXISTS Hccl ("
+        const char* sqlCreateKindComm =
+            "CREATE TABLE IF NOT EXISTS Comm ("
             "name TEXT,"
             "start INTEGER,"
             "end INTEGER,"
@@ -341,16 +341,16 @@ namespace msServiceProfiler {
             "bandWidth INTEGER,"
             "commName TEXT);";
 
-        const char* sqlInsertKindHccl =
-            "INSERT INTO Hccl "
+        const char* sqlInsertKindComm =
+            "INSERT INTO Comm "
             "(name, start, end, deviceId, streamId, bandWidth, commName) "
             "VALUES (?, ?, ?, ?, ?, ?, ?);";
-        if (sqlite3_exec(db, sqlCreateKindHccl, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            PROF_LOGE("sqlCreateKindHccl SQL error: %s", errMsg);
+        if (sqlite3_exec(db, sqlCreateKindComm, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            PROF_LOGE("sqlCreateKindComm SQL error: %s", errMsg);
             sqlite3_free(errMsg);
         }
-        if (sqlite3_prepare_v2(db, sqlInsertKindHccl, -1, &stmtHccl, nullptr) != SQLITE_OK) {
-            PROF_LOGE("sqlInsertKindHccl SQL error: %s", errMsg);
+        if (sqlite3_prepare_v2(db, sqlInsertKindComm, -1, &stmtComm, nullptr) != SQLITE_OK) {
+            PROF_LOGE("sqlInsertKindComm SQL error: %s", errMsg);
             sqlite3_free(errMsg);
         }
     }
@@ -361,7 +361,7 @@ namespace msServiceProfiler {
         if (inited) {
             sqlite3_finalize(stmtApi);
             sqlite3_finalize(stmtKernel);
-            sqlite3_finalize(stmtHccl);
+            sqlite3_finalize(stmtComm);
             sqlite3_finalize(stmtMstx);
 
             sqlite3_close(db);
@@ -397,6 +397,7 @@ namespace msServiceProfiler {
     static void ShowApiInfo(msptiActivityApi* api)
     {
         if (!api) {
+            PROF_LOGD("ShowApiInfo failed, nullptr api.");
             return;
         }
         ServiceProfilerMspti::GetInstance().insertApiData(api);
@@ -405,17 +406,18 @@ namespace msServiceProfiler {
     static void ShowKernelInfo(msptiActivityKernel* kernel)
     {
         if (!kernel) {
+            PROF_LOGD("ShowKernelInfo failed, nullptr kernel.");
             return;
         }
         ServiceProfilerMspti::GetInstance().insertKernelData(kernel);
     }
 
-    static void ShowHcclInfo(msptiActivityHccl* activity)
+    static void ShowCommInfo(msptiActivityHccl* activity)
     {
         if (!activity) {
             return;
         }
-        ServiceProfilerMspti::GetInstance().insertHcclData(activity);
+        ServiceProfilerMspti::GetInstance().insertCommData(activity);
     }
 
     static void ShowMstxInfo(msptiActivityMarker* activity)
@@ -452,7 +454,7 @@ namespace msServiceProfiler {
                 }
                 if (pRecord->kind == MSPTI_ACTIVITY_KIND_HCCL) {
                     msptiActivityHccl* activity = reinterpret_cast<msptiActivityHccl*>(pRecord);
-                    ShowHcclInfo(activity);
+                    ShowCommInfo(activity);
                 }
                 if (pRecord->kind == MSPTI_ACTIVITY_KIND_MARKER) {
                     msptiActivityMarker* activity = reinterpret_cast<msptiActivityMarker*>(pRecord);
@@ -517,7 +519,6 @@ namespace msServiceProfiler {
 
     void InitMsptiActivity(bool msptiEnable_)
     {
-        // 当前涉及的数据只有三种api kernel和hccl 后续有需要可以增加mstx的数据
         msptiResult ret;
         if (msptiEnable_) {
             ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_API);
@@ -530,7 +531,7 @@ namespace msServiceProfiler {
             }
             ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_HCCL);
             if (ret != MSPTI_SUCCESS) {
-                PROF_LOGE("Mspti enable hccl activity failed.");
+                PROF_LOGE("Mspti enable Comm activity failed.");
             }
         }
 

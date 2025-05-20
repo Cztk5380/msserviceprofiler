@@ -47,7 +47,7 @@ public:
 
     void insertKernelData(msptiActivityKernel* activity);
 
-    void insertHcclData(msptiActivityHccl* activity);
+    void insertCommData(msptiActivityHccl* activity);
 
     void insertMstxData(msptiActivityMarker* activity);
 
@@ -77,7 +77,7 @@ private:
 
     void createKernelTable();
 
-    void createHcclTable();
+    void createCommTable();
 
 private:
     static constexpr size_t buffer_size = 5 * ONE_K * ONE_K;
@@ -88,11 +88,10 @@ private:
     sqlite3* db;
     sqlite3_stmt* stmtApi;
     sqlite3_stmt* stmtKernel;
-    sqlite3_stmt* stmtHccl;
+    sqlite3_stmt* stmtComm;
     sqlite3_stmt* stmtMstx;
     std::set<std::string> filterApi;
     std::set<std::string> filterKernel;
-    std::set<std::string> filterHccl;
 };
 }
 #endif // SERVICEPROFILERMANAGERMSPTI_H
