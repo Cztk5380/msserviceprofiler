@@ -7,6 +7,7 @@
 #include <dlfcn.h>
 #include "../include/msServiceProfiler/Log.h"
 #include "msServiceProfiler/NpuMemoryUsage.h"
+#include "msServiceProfiler/SecurityUtils.h"
 
 namespace msServiceProfiler {
 
