@@ -17,13 +17,82 @@
 #ifndef SERVICEPROFILERMANAGERMSPTI_H
 #define SERVICEPROFILERMANAGERMSPTI_H
 
+#include <set>
+#include <string>
+#include <sqlite3.h>
+
 #include "mspti/mspti.h"
 
+namespace {
+    constexpr int ALIGN_SIZE = 8;
+    constexpr int ONE_K = 1024;
+} // end of anonymous namespace
+
 namespace msServiceProfiler {
-    int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber);
-    void InitMsptiActivity(bool msptiEnable_);
-    void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter);
-    void UninitMspti(msptiSubscriberHandle& subscriber);
-    void FlushBufferByTime();
+int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber);
+void InitMsptiActivity(bool msptiEnable_);
+void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter);
+void UninitMspti(msptiSubscriberHandle& subscriber);
+void FlushBufferByTime();
+
+class ServiceProfilerMspti {
+    public:
+        static ServiceProfilerMspti &GetInstance()
+        {
+            static ServiceProfilerMspti manager;
+            return manager;
+        };
+
+        void insertApiData(msptiActivityApi* activity);
+
+        void insertKernelData(msptiActivityKernel* activity);
+
+        void insertHcclData(msptiActivityHccl* activity);
+
+        void insertMstxData(msptiActivityMarker* activity);
+
+        void Init();
+
+        void InitFilter(std::string& apiFilter, std::string& kernelFilter);
+
+        void InitOutputPath(std::string& outputPath);
+
+        void Close();
+
+        void AddWorkingThreadNum();
+
+        void PopWorkingThreadNum();
+
+        void ResetWorkingThreadNum();
+
+        bool GetWorkingStatus();
+
+    private:
+
+        void createTable();
+
+        void createMstxTable();
+
+        void createApiTable();
+
+        void createKernelTable();
+
+        void createHcclTable();
+
+    private:
+        static constexpr size_t buffer_size = 5 * ONE_K * ONE_K;
+        char buffer[buffer_size];
+        bool inited = false;
+        int workingThreadNum = 0;
+        std::string file_name;
+        sqlite3* db;
+        sqlite3_stmt* stmtApi;
+        sqlite3_stmt* stmtKernel;
+        sqlite3_stmt* stmtHccl;
+        sqlite3_stmt* stmtMstx;
+        std::set<std::string> filterApi;
+        std::set<std::string> filterKernel;
+        std::set<std::string> filterHccl;
+};
 }
 #endif // SERVICEPROFILERMANAGERMSPTI_H

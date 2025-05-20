@@ -454,51 +454,67 @@ namespace msServiceProfiler {
         PROF_LOGI("prof path: %s", profPath.c_str());  // LCOV_EXCL_LINE
 
         if (config_->GetMsptiEnable()) {
-            auto ret = InitMspti(profPath, msptiHandle_);
-            if (ret != 0) {
-                PROF_LOGE("Mspti init failed.");
-                msptiEnabled = false;
-            } else {
-                InitMsptiActivity(config_->GetMsptiEnable());
-                auto apiFilter_ = config_->GetApiFilter();
-                auto kernelFilter_ = config_->GetKernelFilter();
-                InitMsptiFilter(apiFilter_, kernelFilter_);
-                msptiEnabled = true;
-            }
+            
         } else {
-            if (!isAclInit_) {
-                aclError retInit = aclInit(nullptr);
-                if (retInit == ACL_SUCCESS || retInit == ACL_ERROR_REPEAT_INITIALIZE) {
-                    isAclInit_ = true;
-                } else {
-                    PROF_LOGE("acl init failed, ret = %d", retInit);  // LCOV_EXCL_LINE
-                    isAclInit_ = false;
-                }
-            }
+            StartAclProf(profPath);
+        }
+    }
 
-            aclError ret = aclprofInit(profPath.c_str(), profPath.size());
-            if (ret != ACL_ERROR_NONE) {
-                PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
-                return;
-            }
+    void ServiceProfilerManager::StartMsptiProf(std::string& profPath)
+    {
+        auto ret = InitMspti(profPath, msptiHandle_);
+        if (ret != 0) {
+            PROF_LOGE("Mspti init failed.");
+            msptiEnabled = false;
+        } else {
+            InitMsptiActivity(config_->GetMsptiEnable());
+            auto apiFilter_ = config_->GetApiFilter();
+            auto kernelFilter_ = config_->GetKernelFilter();
+            InitMsptiFilter(apiFilter_, kernelFilter_);
+            msptiEnabled = true;
+        }
 
-            if (ret == ACL_ERROR_NONE && isMaster_) {
-                SetAclProfHostSysConfig();
-            }
+        // 设置标志位
+        config_->SetEnable(true);
+        g_threadRunFlag = true;
+        started_ = true;
+        g_startFlag = true;
+    }
 
-            auto profConfig = ProfCreateConfig();
-            if (profConfig == nullptr) {
-                config_->SetEnable(false);
-                return;
+    void ServiceProfilerManager::StartAclProf(std::string& profPath)
+    {
+        if (!isAclInit_) {
+            aclError retInit = aclInit(nullptr);
+            if (retInit == ACL_SUCCESS || retInit == ACL_ERROR_REPEAT_INITIALIZE) {
+                isAclInit_ = true;
+            } else {
+                PROF_LOGE("acl init failed, ret = %d", retInit);  // LCOV_EXCL_LINE
+                isAclInit_ = false;
             }
+        }
 
-            PROF_LOGD("begin to start profiling, device_id: %d", g_deviceID);  // LCOV_EXCL_LINE
-            ret = aclprofStart(profConfig);
-            if (ret != ACL_ERROR_NONE) {
-                PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
-                config_->SetEnable(false);
-                return;
-            }
+        aclError ret = aclprofInit(profPath.c_str(), profPath.size());
+        if (ret != ACL_ERROR_NONE) {
+            PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
+            return;
+        }
+
+        if (ret == ACL_ERROR_NONE && isMaster_) {
+            SetAclProfHostSysConfig();
+        }
+
+        auto profConfig = ProfCreateConfig();
+        if (profConfig == nullptr) {
+            config_->SetEnable(false);
+            return;
+        }
+
+        PROF_LOGD("begin to start profiling, device_id: %d", g_deviceID);  // LCOV_EXCL_LINE
+        ret = aclprofStart(profConfig);
+        if (ret != ACL_ERROR_NONE) {
+            PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
+            config_->SetEnable(false);
+            return;
         }
 
         // 设置标志位

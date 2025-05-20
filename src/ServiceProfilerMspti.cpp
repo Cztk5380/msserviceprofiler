@@ -17,15 +17,12 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
-#include <string>
 #include <thread>
 #include <vector>
 #include <map>
 #include <cmath>
 #include <csignal>
-#include <sqlite3.h>
 #include <mutex>
-#include <set>
 
 #include "securec.h"
 
@@ -34,395 +31,368 @@
 
 std::mutex g_mtx;
 
-namespace {
-    constexpr int ALIGN_SIZE = 8;
-    constexpr int ONE_K = 1024;
-} // end of anonymous namespace
-
 #define ALIGN_BUFFER(buffer, align)                                                 \
-(((uintptr_t) (buffer) & ((align)-1)) ? ((buffer) + (align) - ((uintptr_t) (buffer) & ((align)-1))) : (buffer))
+(((uintptr_t) (buffer) & ((align) - 1)) ? ((buffer) + (align) - ((uintptr_t) (buffer) & ((align) - 1))) : (buffer))
 
 namespace msServiceProfiler {
 
-    class ServiceProfilerMspti {
-    private:
-        static constexpr size_t buffer_size = 5 * ONE_K * ONE_K;
-        char buffer[buffer_size];
-        bool inited = false;
-        int workingThreadNum = 0;
-        std::string file_name;
-        sqlite3* db;
-        sqlite3_stmt* stmtApi;
-        sqlite3_stmt* stmtKernel;
-        sqlite3_stmt* stmtHccl;
-        sqlite3_stmt* stmtMstx;
-        std::set<std::string> filterApi;
-        std::set<std::string> filterKernel;
-        std::set<std::string> filterHccl;
-        ServiceProfilerMspti() {
-        }
-    public:
-        static ServiceProfilerMspti &GetInstance()
-        {
-            static ServiceProfilerMspti manager;
-            return manager;
-        };
+    // 分割字符串并存入set 输入字符串格式为"xxxx;xxx;xxx"或"xxx;xxx;"均可
+    static std::set<std::string> splitStringToSet(const std::string& str)
+    {
+        std::set<std::string> result;
+        std::string token;
 
-        void insertApiData(msptiActivityApi* activity)
-        {
-            if (!inited || !activity || !stmtApi) {
-                return;
-            }
-
-            if (!isNameMatch(filterApi, activity->name)) {
-                return;
-            }
-
-            // mspti数据上报时 多线程之间存在抢占 需要使用线程锁防止数据踩踏
-            g_mtx.lock();
-
-            // 绑定参数
-            int bind_index = 1;
-            sqlite3_bind_text(stmtApi, bind_index++, activity->name, -1, SQLITE_STATIC);
-            sqlite3_bind_int64(stmtApi, bind_index++, static_cast<int64_t>(activity->start));
-            sqlite3_bind_int64(stmtApi, bind_index++, static_cast<int64_t>(activity->end));
-            sqlite3_bind_int64(stmtApi, bind_index++, activity->pt.processId);
-            sqlite3_bind_int64(stmtApi, bind_index++, activity->pt.threadId);
-            sqlite3_bind_int64(stmtApi, bind_index++, static_cast<int64_t>(activity->correlationId));
-
-            // 执行插入
-            if (sqlite3_step(stmtApi) != SQLITE_DONE) {
-                PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
-            }
-            sqlite3_reset(stmtApi);
-
-            // 解锁线程锁
-            g_mtx.unlock();
-        }
-
-        void insertKernelData(msptiActivityKernel* activity)
-        {
-            if (!inited || !activity || !stmtKernel) {
-                return;
-            }
-
-            if (!isNameMatch(filterKernel, activity->name)) {
-                return;
-            }
-
-            g_mtx.lock();
-
-            // 绑定参数
-            int bind_index = 1;
-            sqlite3_bind_text(stmtKernel, bind_index++, activity->type, -1, SQLITE_STATIC);
-            sqlite3_bind_text(stmtKernel, bind_index++, activity->name, -1, SQLITE_STATIC);
-            sqlite3_bind_int64(stmtKernel, bind_index++, static_cast<int64_t>(activity->start));
-            sqlite3_bind_int64(stmtKernel, bind_index++, static_cast<int64_t>(activity->end));
-            sqlite3_bind_int64(stmtKernel, bind_index++, activity->ds.deviceId);
-            sqlite3_bind_int64(stmtKernel, bind_index++, activity->ds.streamId);
-            sqlite3_bind_int64(stmtKernel, bind_index++, static_cast<int64_t>(activity->correlationId));
-
-            // 执行插入
-            if (sqlite3_step(stmtKernel) != SQLITE_DONE) {
-                PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
-            }
-            sqlite3_reset(stmtKernel);
-            g_mtx.unlock();
-        }
-
-        void insertHcclData(msptiActivityHccl* activity)
-        {
-            if (!inited || !activity || !stmtHccl) {
-                return;
-            }
-
-            if (!isNameMatch(filterApi, activity->name)) {
-                return;
-            }
-
-            g_mtx.lock();
-
-            // 绑定参数
-            int bind_index = 1;
-            sqlite3_bind_text(stmtHccl, bind_index++, activity->name, -1, SQLITE_STATIC);
-            sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->start));
-            sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->end));
-            sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->ds.deviceId));
-            sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->ds.streamId));
-            sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->bandWidth));
-            sqlite3_bind_text(stmtHccl, bind_index++, activity->commName, -1, SQLITE_STATIC);
-
-            // 执行插入
-            if (sqlite3_step(stmtHccl) != SQLITE_DONE) {
-                PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
-            }
-            sqlite3_reset(stmtHccl);
-
-            g_mtx.unlock();
-        }
-
-        void insertMstxData(msptiActivityMarker* activity)
-        {
-            if (!inited || !activity || !stmtMstx) {
-                return;
-            }
-
-            g_mtx.lock();
-
-            // 绑定参数
-            int bind_index = 1;
-            if (activity->sourceKind == MSPTI_ACTIVITY_SOURCE_KIND_HOST) {
-                sqlite3_bind_int64(stmtMstx, bind_index++, activity->objectId.pt.processId);
-                sqlite3_bind_int64(stmtMstx, bind_index++, activity->objectId.pt.threadId);
+        for (char c : str) {
+            if (c == ';') {
+                if (!token.empty()) {       // 非空子串才插入
+                    result.insert(token);
+                    token.clear();          // 清空临时 token
+                }
             } else {
-                sqlite3_bind_int64(stmtMstx, bind_index++, -1);
-                sqlite3_bind_int64(stmtMstx, bind_index++, -1);
+                token += c;                 // 累积字符到临时 token
             }
-            sqlite3_bind_int64(stmtMstx, bind_index++, activity->flag);
-            sqlite3_bind_int64(stmtMstx, bind_index++, static_cast<int64_t>(activity->timestamp));
-            
-            sqlite3_bind_int64(stmtMstx, bind_index++, static_cast<int64_t>(activity->id));
-            sqlite3_bind_int64(stmtMstx, bind_index++, activity->sourceKind);
-            sqlite3_bind_text(stmtMstx, bind_index++, activity->name, -1, SQLITE_STATIC);
-
-            // 执行插入
-            if (sqlite3_step(stmtMstx) != SQLITE_DONE) {
-                PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
-            }
-            sqlite3_reset(stmtMstx);
-            g_mtx.unlock();
         }
 
-        // 分割字符串并存入set 输入字符串格式为"xxxx;xxx;xxx"或"xxx;xxx;"均可
-        static std::set<std::string> splitStringToSet(const std::string& str)
-        {
-            std::set<std::string> result;
-            std::string token;
+        // 处理最后一个子串（如果末尾没有分号）
+        if (!token.empty()) {
+            result.insert(token);
+        }
 
-            for (char c : str) {
-                if (c == ';') {
-                    if (!token.empty()) {       // 非空子串才插入
-                        result.insert(token);
-                        token.clear();          // 清空临时 token
-                    }
-                } else {
-                    token += c;                 // 累积字符到临时 token
+        return result;
+    }
+
+    // 判断mspti上报的每条数据的名称是否在筛选目标中
+    bool isNameMatch(std::set<std::string>& filterSet, const char* name)
+    {
+        if (!filterSet.empty()) {
+            std::set<std::string>::iterator it;
+            for (it=filterSet.begin(); it!=filterSet.end(); it++) {
+                if (std::strstr(name, (*it).c_str()) != nullptr) {
+                    return true;
                 }
             }
+            return false;
+        }
+        return true;
+    }
 
-            // 处理最后一个子串（如果末尾没有分号）
-            if (!token.empty()) {
-                result.insert(token);
-            }
 
-            return result;
+    void ServiceProfilerMspti::insertApiData(msptiActivityApi* activity)
+    {
+        if (!inited || !activity || !stmtApi) {
+            return;
         }
 
-        // 判断mspti上报的每条数据的名称是否在筛选目标中
-        bool isNameMatch(std::set<std::string>& filterSet, const char* name)
-        {
-            if (!filterSet.empty()) {
-                std::set<std::string>::iterator it;
-                for (it=filterSet.begin(); it!=filterSet.end(); it++) {
-                    if (std::strstr(name, (*it).c_str()) != nullptr) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-            return true;
+        if (!isNameMatch(filterApi, activity->name)) {
+            return;
         }
 
-        void Init()
-        {
-            if (inited) {
-                return;
-            }
+        // mspti数据上报时 多线程之间存在抢占 需要使用线程锁防止数据踩踏
+        g_mtx.lock();
 
-            PROF_LOGD("Initing ServiceFilerWriter.");
+        // 绑定参数
+        int bind_index = 1;
+        sqlite3_bind_text(stmtApi, bind_index++, activity->name, -1, SQLITE_STATIC);
+        sqlite3_bind_int64(stmtApi, bind_index++, static_cast<int64_t>(activity->start));
+        sqlite3_bind_int64(stmtApi, bind_index++, static_cast<int64_t>(activity->end));
+        sqlite3_bind_int64(stmtApi, bind_index++, activity->pt.processId);
+        sqlite3_bind_int64(stmtApi, bind_index++, activity->pt.threadId);
+        sqlite3_bind_int64(stmtApi, bind_index++, static_cast<int64_t>(activity->correlationId));
 
-            // 打开数据库连接
-            int rc = sqlite3_open(file_name.c_str(), &db);
-            if (rc) {
-                PROF_LOGE("Can't open database: %s.", sqlite3_errmsg(db));
-                return;
-            }
+        // 执行插入
+        if (sqlite3_step(stmtApi) != SQLITE_DONE) {
+            PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
+        }
+        sqlite3_reset(stmtApi);
 
-            createTable();
+        // 解锁线程锁
+        g_mtx.unlock();
+    }
 
-            inited = true;
-            PROF_LOGD("Init ServiceProfilerFilerWriter Success.");
+    void ServiceProfilerMspti::insertKernelData(msptiActivityKernel* activity)
+    {
+        if (!inited || !activity || !stmtKernel) {
+            return;
         }
 
-        void InitFilter(std::string& apiFilter, std::string& kernelFilter)
-        {
-            filterApi = splitStringToSet(apiFilter);
-            filterKernel = splitStringToSet(kernelFilter);
+        if (!isNameMatch(filterKernel, activity->name)) {
+            return;
         }
 
-        void InitOutputPath(std::string& outputPath)
-        {
-            file_name = outputPath + "ascend_service_profiler_" + std::to_string(getpid()) + ".db";
-            PROF_LOGD("set mspti output path: %s", file_name.c_str());
+        g_mtx.lock();
+
+        // 绑定参数
+        int bind_index = 1;
+        sqlite3_bind_text(stmtKernel, bind_index++, activity->type, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmtKernel, bind_index++, activity->name, -1, SQLITE_STATIC);
+        sqlite3_bind_int64(stmtKernel, bind_index++, static_cast<int64_t>(activity->start));
+        sqlite3_bind_int64(stmtKernel, bind_index++, static_cast<int64_t>(activity->end));
+        sqlite3_bind_int64(stmtKernel, bind_index++, activity->ds.deviceId);
+        sqlite3_bind_int64(stmtKernel, bind_index++, activity->ds.streamId);
+        sqlite3_bind_int64(stmtKernel, bind_index++, static_cast<int64_t>(activity->correlationId));
+
+        // 执行插入
+        if (sqlite3_step(stmtKernel) != SQLITE_DONE) {
+            PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
+        }
+        sqlite3_reset(stmtKernel);
+        g_mtx.unlock();
+    }
+
+    void ServiceProfilerMspti::insertHcclData(msptiActivityHccl* activity)
+    {
+        if (!inited || !activity || !stmtHccl) {
+            return;
         }
 
-        void createTable()
-        {
-            createMstxTable();
-            createApiTable();
-            createKernelTable();
-            createHcclTable();
+        if (!isNameMatch(filterApi, activity->name)) {
+            return;
         }
 
-        void createMstxTable()
-        {
-            char* errMsg = nullptr;
+        g_mtx.lock();
 
-            const char* sqlCreateKindMstx =
-                "CREATE TABLE IF NOT EXISTS Mstx ("
-                "pid INTEGER,"
-                "tid INTEGER,"
-                "event TEXT,"
-                "timestamp INTEGER,"
-                "mark_id INTEGER,"
-                "domain TEXT,"
-                "message TEXT);";
-            const char* sqlInsertKindMstx =
-                "INSERT INTO Mstx "
-                "(pid, tid, event, timestamp, mark_id, domain, message) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?);";
+        // 绑定参数
+        int bind_index = 1;
+        sqlite3_bind_text(stmtHccl, bind_index++, activity->name, -1, SQLITE_STATIC);
+        sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->start));
+        sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->end));
+        sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->ds.deviceId));
+        sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->ds.streamId));
+        sqlite3_bind_int64(stmtHccl, bind_index++, static_cast<int64_t>(activity->bandWidth));
+        sqlite3_bind_text(stmtHccl, bind_index++, activity->commName, -1, SQLITE_STATIC);
 
-            if (sqlite3_exec(db, sqlCreateKindMstx, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-                PROF_LOGE("sqlCreateKindMstx SQL error: %s", errMsg);
-                sqlite3_free(errMsg);
-            }
-            if (sqlite3_prepare_v2(db, sqlInsertKindMstx, -1, &stmtMstx, nullptr) != SQLITE_OK) {
-                PROF_LOGE("sqlInsertKindMstx SQL error: %s", errMsg);
-                sqlite3_free(errMsg);
-            }
+        // 执行插入
+        if (sqlite3_step(stmtHccl) != SQLITE_DONE) {
+            PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
+        }
+        sqlite3_reset(stmtHccl);
+
+        g_mtx.unlock();
+    }
+
+    void ServiceProfilerMspti::insertMstxData(msptiActivityMarker* activity)
+    {
+        if (!inited || !activity || !stmtMstx) {
+            return;
         }
 
-        void createApiTable()
-        {
-            char* errMsg = nullptr;
+        g_mtx.lock();
 
-            const char* sqlCreateKindApi =
-                "CREATE TABLE IF NOT EXISTS Api ("
-                "name TEXT,"
-                "start INTEGER,"
-                "end INTEGER,"
-                "processId INTEGER,"
-                "threadId INTEGER,"
-                "correlationId INTEGER);";
-
-            const char* sqlInsertKindApi =
-                "INSERT INTO Api "
-                "(name, start, end, processId, threadId, correlationId) "
-                "VALUES (?, ?, ?, ?, ?, ?);";
-            if (sqlite3_exec(db, sqlCreateKindApi, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-                PROF_LOGE("sqlCreateKindApi SQL error: %s", errMsg);
-                sqlite3_free(errMsg);
-            }
-            if (sqlite3_prepare_v2(db, sqlInsertKindApi, -1, &stmtApi, nullptr) != SQLITE_OK) {
-                PROF_LOGE("sqlInsertKindApi SQL error: %s", errMsg);
-                sqlite3_free(errMsg);
-            }
+        // 绑定参数
+        int bind_index = 1;
+        if (activity->sourceKind == MSPTI_ACTIVITY_SOURCE_KIND_HOST) {
+            sqlite3_bind_int64(stmtMstx, bind_index++, activity->objectId.pt.processId);
+            sqlite3_bind_int64(stmtMstx, bind_index++, activity->objectId.pt.threadId);
+        } else {
+            sqlite3_bind_int64(stmtMstx, bind_index++, -1);
+            sqlite3_bind_int64(stmtMstx, bind_index++, -1);
         }
+        sqlite3_bind_int64(stmtMstx, bind_index++, activity->flag);
+        sqlite3_bind_int64(stmtMstx, bind_index++, static_cast<int64_t>(activity->timestamp));
         
-        void createKernelTable()
-        {
-            char* errMsg = nullptr;
+        sqlite3_bind_int64(stmtMstx, bind_index++, static_cast<int64_t>(activity->id));
+        sqlite3_bind_int64(stmtMstx, bind_index++, activity->sourceKind);
+        sqlite3_bind_text(stmtMstx, bind_index++, activity->name, -1, SQLITE_STATIC);
 
-            const char* sqlCreateKindKernel =
-                "CREATE TABLE IF NOT EXISTS Kernel ("
-                "type TEXT,"
-                "name TEXT,"
-                "start INTEGER,"
-                "end INTEGER,"
-                "deviceId INTEGER,"
-                "streamId INTEGER,"
-                "correlationId INTEGER);";
+        // 执行插入
+        if (sqlite3_step(stmtMstx) != SQLITE_DONE) {
+            PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
+        }
+        sqlite3_reset(stmtMstx);
+        g_mtx.unlock();
+    }
 
-            const char* sqlInsertKindKernel =
-                "INSERT INTO Kernel "
-                "(type, name, start, end, deviceId, streamId, correlationId) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?);";
-            if (sqlite3_exec(db, sqlCreateKindKernel, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-                PROF_LOGE("sqlCreateKindKernel SQL error: %s", errMsg);
-                sqlite3_free(errMsg);
-            }
-            if (sqlite3_prepare_v2(db, sqlInsertKindKernel, -1, &stmtKernel, nullptr) != SQLITE_OK) {
-                PROF_LOGE("sqlInsertKindKernel SQL error: %s", errMsg);
-                sqlite3_free(errMsg);
-            }
+
+    void ServiceProfilerMspti::ServiceProfilerMspti::Init()
+    {
+        if (inited) {
+            return;
         }
 
-        void createHcclTable()
-        {
-            char* errMsg = nullptr;
+        PROF_LOGD("Initing ServiceFilerWriter.");
 
-            const char* sqlCreateKindHccl =
-                "CREATE TABLE IF NOT EXISTS Hccl ("
-                "name TEXT,"
-                "start INTEGER,"
-                "end INTEGER,"
-                "deviceId INTEGER,"
-                "streamId INTEGER,"
-                "bandWidth INTEGER,"
-                "commName TEXT);";
-
-            const char* sqlInsertKindHccl =
-                "INSERT INTO Hccl "
-                "(name, start, end, deviceId, streamId, bandWidth, commName) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?);";
-            if (sqlite3_exec(db, sqlCreateKindHccl, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-                PROF_LOGE("sqlCreateKindHccl SQL error: %s", errMsg);
-                sqlite3_free(errMsg);
-            }
-            if (sqlite3_prepare_v2(db, sqlInsertKindHccl, -1, &stmtHccl, nullptr) != SQLITE_OK) {
-                PROF_LOGE("sqlInsertKindHccl SQL error: %s", errMsg);
-                sqlite3_free(errMsg);
-            }
+        // 打开数据库连接
+        int rc = sqlite3_open(file_name.c_str(), &db);
+        if (rc) {
+            PROF_LOGE("Can't open database: %s.", sqlite3_errmsg(db));
+            return;
         }
 
-        void Close()
-        {
-            // 释放资源
-            if (inited) {
-                sqlite3_finalize(stmtApi);
-                sqlite3_finalize(stmtKernel);
-                sqlite3_finalize(stmtHccl);
-                sqlite3_finalize(stmtMstx);
+        createTable();
 
-                sqlite3_close(db);
-                inited = false;
-            }
-        }
+        inited = true;
+        PROF_LOGD("Init ServiceProfilerFilerWriter Success.");
+    }
 
-        void AddWorkingThreadNum()
-        {
-            workingThreadNum = workingThreadNum + 1;
-        }
+    void ServiceProfilerMspti::InitFilter(std::string& apiFilter, std::string& kernelFilter)
+    {
+        filterApi = splitStringToSet(apiFilter);
+        filterKernel = splitStringToSet(kernelFilter);
+    }
 
-        void PopWorkingThreadNum()
-        {
-            if (workingThreadNum > 0) {
-                workingThreadNum = workingThreadNum - 1;
-            } else {
-                PROF_LOGW("No thread is working, pop working thread failed.");
-            }
-        }
+    void ServiceProfilerMspti::InitOutputPath(std::string& outputPath)
+    {
+        file_name = outputPath + "ascend_service_profiler_" + std::to_string(getpid()) + ".db";
+        PROF_LOGD("set mspti output path: %s", file_name.c_str());
+    }
 
-        void ResetWorkingThreadNum()
-        {
-            workingThreadNum = 0;
-        }
+    void ServiceProfilerMspti::createTable()
+    {
+        createMstxTable();
+        createApiTable();
+        createKernelTable();
+        createHcclTable();
+    }
 
-        bool GetWorkingStatus()
-        {
-            return (workingThreadNum > 0);
+    void ServiceProfilerMspti::createMstxTable()
+    {
+        char* errMsg = nullptr;
+
+        const char* sqlCreateKindMstx =
+            "CREATE TABLE IF NOT EXISTS Mstx ("
+            "pid INTEGER,"
+            "tid INTEGER,"
+            "event TEXT,"
+            "timestamp INTEGER,"
+            "mark_id INTEGER,"
+            "domain TEXT,"
+            "message TEXT);";
+        const char* sqlInsertKindMstx =
+            "INSERT INTO Mstx "
+            "(pid, tid, event, timestamp, mark_id, domain, message) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?);";
+
+        if (sqlite3_exec(db, sqlCreateKindMstx, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            PROF_LOGE("sqlCreateKindMstx SQL error: %s", errMsg);
+            sqlite3_free(errMsg);
         }
-    };
+        if (sqlite3_prepare_v2(db, sqlInsertKindMstx, -1, &stmtMstx, nullptr) != SQLITE_OK) {
+            PROF_LOGE("sqlInsertKindMstx SQL error: %s", errMsg);
+            sqlite3_free(errMsg);
+        }
+    }
+
+    void ServiceProfilerMspti::createApiTable()
+    {
+        char* errMsg = nullptr;
+
+        const char* sqlCreateKindApi =
+            "CREATE TABLE IF NOT EXISTS Api ("
+            "name TEXT,"
+            "start INTEGER,"
+            "end INTEGER,"
+            "processId INTEGER,"
+            "threadId INTEGER,"
+            "correlationId INTEGER);";
+
+        const char* sqlInsertKindApi =
+            "INSERT INTO Api "
+            "(name, start, end, processId, threadId, correlationId) "
+            "VALUES (?, ?, ?, ?, ?, ?);";
+        if (sqlite3_exec(db, sqlCreateKindApi, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            PROF_LOGE("sqlCreateKindApi SQL error: %s", errMsg);
+            sqlite3_free(errMsg);
+        }
+        if (sqlite3_prepare_v2(db, sqlInsertKindApi, -1, &stmtApi, nullptr) != SQLITE_OK) {
+            PROF_LOGE("sqlInsertKindApi SQL error: %s", errMsg);
+            sqlite3_free(errMsg);
+        }
+    }
+    
+    void ServiceProfilerMspti::createKernelTable()
+    {
+        char* errMsg = nullptr;
+
+        const char* sqlCreateKindKernel =
+            "CREATE TABLE IF NOT EXISTS Kernel ("
+            "type TEXT,"
+            "name TEXT,"
+            "start INTEGER,"
+            "end INTEGER,"
+            "deviceId INTEGER,"
+            "streamId INTEGER,"
+            "correlationId INTEGER);";
+
+        const char* sqlInsertKindKernel =
+            "INSERT INTO Kernel "
+            "(type, name, start, end, deviceId, streamId, correlationId) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?);";
+        if (sqlite3_exec(db, sqlCreateKindKernel, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            PROF_LOGE("sqlCreateKindKernel SQL error: %s", errMsg);
+            sqlite3_free(errMsg);
+        }
+        if (sqlite3_prepare_v2(db, sqlInsertKindKernel, -1, &stmtKernel, nullptr) != SQLITE_OK) {
+            PROF_LOGE("sqlInsertKindKernel SQL error: %s", errMsg);
+            sqlite3_free(errMsg);
+        }
+    }
+
+    void ServiceProfilerMspti::createHcclTable()
+    {
+        char* errMsg = nullptr;
+
+        const char* sqlCreateKindHccl =
+            "CREATE TABLE IF NOT EXISTS Hccl ("
+            "name TEXT,"
+            "start INTEGER,"
+            "end INTEGER,"
+            "deviceId INTEGER,"
+            "streamId INTEGER,"
+            "bandWidth INTEGER,"
+            "commName TEXT);";
+
+        const char* sqlInsertKindHccl =
+            "INSERT INTO Hccl "
+            "(name, start, end, deviceId, streamId, bandWidth, commName) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?);";
+        if (sqlite3_exec(db, sqlCreateKindHccl, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            PROF_LOGE("sqlCreateKindHccl SQL error: %s", errMsg);
+            sqlite3_free(errMsg);
+        }
+        if (sqlite3_prepare_v2(db, sqlInsertKindHccl, -1, &stmtHccl, nullptr) != SQLITE_OK) {
+            PROF_LOGE("sqlInsertKindHccl SQL error: %s", errMsg);
+            sqlite3_free(errMsg);
+        }
+    }
+
+    void ServiceProfilerMspti::Close()
+    {
+        // 释放资源
+        if (inited) {
+            sqlite3_finalize(stmtApi);
+            sqlite3_finalize(stmtKernel);
+            sqlite3_finalize(stmtHccl);
+            sqlite3_finalize(stmtMstx);
+
+            sqlite3_close(db);
+            inited = false;
+        }
+    }
+
+    void ServiceProfilerMspti::AddWorkingThreadNum()
+    {
+        workingThreadNum = workingThreadNum + 1;
+    }
+
+    void ServiceProfilerMspti::PopWorkingThreadNum()
+    {
+        if (workingThreadNum > 0) {
+            workingThreadNum = workingThreadNum - 1;
+        } else {
+            PROF_LOGW("No thread is working, pop working thread failed.");
+        }
+    }
+
+    void ServiceProfilerMspti::ResetWorkingThreadNum()
+    {
+        workingThreadNum = 0;
+    }
+
+    bool ServiceProfilerMspti::GetWorkingStatus()
+    {
+        return (workingThreadNum > 0);
+    }
+
 
     static void ShowApiInfo(msptiActivityApi* api)
     {

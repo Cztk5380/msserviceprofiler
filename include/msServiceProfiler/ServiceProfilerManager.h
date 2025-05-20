@@ -74,6 +74,10 @@ namespace msServiceProfiler {
 
         AclprofConfig* ProfCreateConfig();
 
+        void StartMsptiProf(std::string& profPath);
+        
+        void StartAclProf(std::string& profPath);
+
     private:
         bool isMaster_ = true;
         bool started_ = false;
