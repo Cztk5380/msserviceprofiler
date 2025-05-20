@@ -114,15 +114,13 @@ void Config::ParseTimeLimit(const Json& config)
             if (config["timelimit"] <= 0) {
                 timeLimit_ = 0;
                 PROF_LOGW("timelimit value is lower than 0, will set 0, and the profiling time is unlimited");
-            }
-            else if (config["timelimit"] > 0 && config["timelimit"] <= MAX_TIME_LIMIT) {
+            } else if (config["timelimit"] > 0 && config["timelimit"] <= MAX_TIME_LIMIT) {
                 timeLimit_ = config["timelimit"];
-            }
-            else {
+            } else {
                 timeLimit_ = MAX_TIME_LIMIT;
                 PROF_LOGW("timelimit value is higher than %d, will set %d", MAX_TIME_LIMIT, MAX_TIME_LIMIT);
             }
-            timeLimit_ = config["timelimit"];
+                timeLimit_ = config["timelimit"];
         } else {
             PROF_LOGW("timelimit value is not an integer, will set 0, and the profiling time is unlimited");
         }
