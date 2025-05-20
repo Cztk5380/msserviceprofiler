@@ -26,6 +26,7 @@
 namespace {
     constexpr int ALIGN_SIZE = 8;
     constexpr int ONE_K = 1024;
+    const char SPLIT_SYMBOL = ";";
 } // end of anonymous namespace
 
 namespace msServiceProfiler {

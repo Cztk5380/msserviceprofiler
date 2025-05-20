@@ -37,13 +37,13 @@ std::mutex g_mtx;
 namespace msServiceProfiler {
 
     // 分割字符串并存入set 输入字符串格式为"xxxx;xxx;xxx"或"xxx;xxx;"均可
-    static std::set<std::string> splitStringToSet(const std::string& str, char splitFlag)
+    static std::set<std::string> splitStringToSet(const std::string& str, char splitSymbol)
     {
         std::set<std::string> result;
         std::string token;
 
         for (char c : str) {
-            if (c == ';') {
+            if (c == splitSymbol) {
                 if (!token.empty()) {       // 非空子串才插入
                     result.insert(token);
                     token.clear();          // 清空临时 token
@@ -226,8 +226,8 @@ namespace msServiceProfiler {
 
     void ServiceProfilerMspti::InitFilter(std::string& apiFilter, std::string& kernelFilter)
     {
-        filterApi = splitStringToSet(apiFilter);
-        filterKernel = splitStringToSet(kernelFilter);
+        filterApi = splitStringToSet(apiFilter, SPLIT_SYMBOL);
+        filterKernel = splitStringToSet(kernelFilter, SPLIT_SYMBOL);
     }
 
     void ServiceProfilerMspti::InitOutputPath(std::string& outputPath)
