@@ -37,7 +37,7 @@
 #include "../include/msServiceProfiler/Log.h"
 #include "../include/msServiceProfiler/ServiceProfilerMspti.h"
 
-std::mutex mtx;
+std::mutex g_mtx;
 
 namespace {
     constexpr int ALIGN_SIZE = 8;
@@ -48,13 +48,13 @@ namespace {
 
 namespace msServiceProfiler {
 
-    class ServiceProfilerFileWriter {
+    class ServiceProfilerMspti {
     private:
         static constexpr size_t buffer_size = 5 * 1024 * 1024;
         char buffer[buffer_size];
         bool inited = false;
-        std::string file_name;
         int workingThreadNum = 0;
+        std::string file_name;
         sqlite3* db;
         sqlite3_stmt* stmtApi;
         sqlite3_stmt* stmtKernel;
@@ -63,12 +63,12 @@ namespace msServiceProfiler {
         std::set<std::string> filterApi;
         std::set<std::string> filterKernel;
         std::set<std::string> filterHccl;
-        ServiceProfilerFileWriter() {
+        ServiceProfilerMspti() {
         }
     public:
-        static ServiceProfilerFileWriter &GetInstance()
+        static ServiceProfilerMspti &GetInstance()
         {
-            static ServiceProfilerFileWriter manager;
+            static ServiceProfilerMspti manager;
             return manager;
         };
 
@@ -84,7 +84,7 @@ namespace msServiceProfiler {
             }
 
             // mspti数据上报时 多线程之间存在抢占 需要使用线程锁防止数据踩踏
-            mtx.lock();
+            g_mtx.lock();
 
             // 绑定参数
             int bind_index = 1;
@@ -102,7 +102,7 @@ namespace msServiceProfiler {
             sqlite3_reset(stmtApi);
 
             // 解锁线程锁
-            mtx.unlock();
+            g_mtx.unlock();
         }
 
         void insertKernelData(msptiActivityKernel* activity)
@@ -116,7 +116,7 @@ namespace msServiceProfiler {
                 return;
             }
 
-            mtx.lock();
+            g_mtx.lock();
 
             // 绑定参数
             int bind_index = 1;
@@ -133,7 +133,7 @@ namespace msServiceProfiler {
                 PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
             }
             sqlite3_reset(stmtKernel);
-            mtx.unlock();
+            g_mtx.unlock();
         }
 
         void insertHcclData(msptiActivityHccl* activity)
@@ -147,7 +147,7 @@ namespace msServiceProfiler {
                 return;
             }
 
-            mtx.lock();
+            g_mtx.lock();
 
             // 绑定参数
             int bind_index = 1;
@@ -165,7 +165,7 @@ namespace msServiceProfiler {
             }
             sqlite3_reset(stmtHccl);
 
-            mtx.unlock();
+            g_mtx.unlock();
         }
 
         void insertMstxData(msptiActivityMarker* activity) {
@@ -174,7 +174,7 @@ namespace msServiceProfiler {
                 return;
             }
 
-            mtx.lock();
+            g_mtx.lock();
 
             // 绑定参数
             int bind_index = 1;
@@ -197,7 +197,7 @@ namespace msServiceProfiler {
                 PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
             }
             sqlite3_reset(stmtMstx);
-            mtx.unlock();
+            g_mtx.unlock();
         }
 
         // 分割字符串并存入set 输入字符串格式为"xxxx;xxx;xxx"或"xxx;xxx;"均可
@@ -228,7 +228,8 @@ namespace msServiceProfiler {
         // 判断mspti上报的每条数据的名称是否在筛选目标中
         bool isNameMatch(std::set<std::string>& filterSet, const char* name)
         {
-            if (!filterSet.empty()) {
+            if (!filterSet.empty())
+            {
                 std::set<std::string>::iterator it;
                 for (it=filterSet.begin(); it!=filterSet.end(); it++) {
                     if (std::strstr(name, (*it).c_str()) != nullptr) {
@@ -384,11 +385,13 @@ namespace msServiceProfiler {
             }
         }
 
-        void AddWorkingThreadNum() {
+        void AddWorkingThreadNum()
+        {
             workingThreadNum = workingThreadNum + 1;
         }
 
-        void PopWorkingThreadNum() {
+        void PopWorkingThreadNum()
+        {
             if (workingThreadNum > 0) {
                 workingThreadNum = workingThreadNum - 1;
             } else {
@@ -396,11 +399,13 @@ namespace msServiceProfiler {
             }
         }
 
-        void ResetWorkingThreadNum() {
+        void ResetWorkingThreadNum()
+        {
             workingThreadNum = 0;
         }
 
-        bool GetWorkingStatus() {
+        bool GetWorkingStatus()
+        {
             return (workingThreadNum > 0);
         }
     };
@@ -410,7 +415,7 @@ namespace msServiceProfiler {
         if(!api) {
             return;
         }
-        ServiceProfilerFileWriter::GetInstance().insertApiData(api);
+        ServiceProfilerMspti::GetInstance().insertApiData(api);
     }
 
     static void ShowKernelInfo(msptiActivityKernel* kernel)
@@ -418,7 +423,7 @@ namespace msServiceProfiler {
         if(!kernel) {
             return;
         }
-        ServiceProfilerFileWriter::GetInstance().insertKernelData(kernel);
+        ServiceProfilerMspti::GetInstance().insertKernelData(kernel);
     }
 
     static void ShowHcclInfo(msptiActivityHccl* activity)
@@ -426,7 +431,7 @@ namespace msServiceProfiler {
         if(!activity) {
             return;
         }
-        ServiceProfilerFileWriter::GetInstance().insertHcclData(activity);
+        ServiceProfilerMspti::GetInstance().insertHcclData(activity);
     }
 
     static void ShowMstxInfo(msptiActivityMarker* activity)
@@ -434,16 +439,16 @@ namespace msServiceProfiler {
         if(!activity) {
             return;
         }
-        ServiceProfilerFileWriter::GetInstance().insertMstxData(activity);
+        ServiceProfilerMspti::GetInstance().insertMstxData(activity);
     }
 
     // MSPTI
     void UserBufferComplete(uint8_t *buffer, size_t size, size_t validSize)
     {
         PROF_LOGD("UserBuffer complete, processing buffer data.");
-        ServiceProfilerFileWriter::GetInstance().AddWorkingThreadNum();
+        ServiceProfilerMspti::GetInstance().AddWorkingThreadNum();
         // profiler manager会在每个进程上创建 而host上的进程暂时不会有mspti数据上报 因此在这个位置初始化 防止创建host上的空db
-        ServiceProfilerFileWriter::GetInstance().Init();
+        ServiceProfilerMspti::GetInstance().Init();
         if (validSize > 0) {
             msptiActivity *pRecord = NULL;
             msptiResult status = MSPTI_SUCCESS;
@@ -453,15 +458,12 @@ namespace msServiceProfiler {
                     if (pRecord->kind == MSPTI_ACTIVITY_KIND_API) {
                         msptiActivityApi* activity = reinterpret_cast<msptiActivityApi*>(pRecord);
                         ShowApiInfo(activity);
-
                     } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_KERNEL) {
                         msptiActivityKernel* activity = reinterpret_cast<msptiActivityKernel*>(pRecord);
                         ShowKernelInfo(activity);
-
                     } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_HCCL) {
                         msptiActivityHccl* activity = reinterpret_cast<msptiActivityHccl*>(pRecord);
                         ShowHcclInfo(activity);
-
                     } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_MARKER) {
                         msptiActivityMarker* activity = reinterpret_cast<msptiActivityMarker*>(pRecord);
                         ShowMstxInfo(activity);
@@ -475,7 +477,7 @@ namespace msServiceProfiler {
             } while (1);
         }
         free(buffer);
-        ServiceProfilerFileWriter::GetInstance().PopWorkingThreadNum();
+        ServiceProfilerMspti::GetInstance().PopWorkingThreadNum();
     }
 
     // MSPTI
@@ -519,7 +521,7 @@ namespace msServiceProfiler {
             }
             return ret;
         }
-        ServiceProfilerFileWriter::GetInstance().InitOutputPath(profPath_);
+        ServiceProfilerMspti::GetInstance().InitOutputPath(profPath_);
         return 0;
     }
 
@@ -528,26 +530,20 @@ namespace msServiceProfiler {
         // 当前涉及的数据只有三种api kernel和hccl 后续有需要可以增加mstx的数据
         msptiResult ret;
         if (msptiEnable_) {
-            PROF_LOGI("Enable API =======================");
             ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_API);
             if (ret != MSPTI_SUCCESS) {
                 PROF_LOGE("Mspti enable api activity failed.");
             }
-
-            PROF_LOGI("Enable Kernel =======================");
             ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_KERNEL);
             if (ret != MSPTI_SUCCESS) {
                 PROF_LOGE("Mspti enable kernel activity failed.");
             }
-
-            PROF_LOGI("Enable HCCL =======================");
             ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_HCCL);
             if (ret != MSPTI_SUCCESS) {
                 PROF_LOGE("Mspti enable hccl activity failed.");
             }
         }
 
-        PROF_LOGI("Enable MSTX =======================");
         ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_MARKER);
         if (ret != MSPTI_SUCCESS) {
             PROF_LOGE("Mspti enable mstx activity failed.");
@@ -556,7 +552,7 @@ namespace msServiceProfiler {
 
     void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter, std::string& hcclFilter)
     {
-        ServiceProfilerFileWriter::GetInstance().InitFilter(apiFilter, kernelFilter, hcclFilter);
+        ServiceProfilerMspti::GetInstance().InitFilter(apiFilter, kernelFilter, hcclFilter);
     }
 
     void UninitMspti(msptiSubscriberHandle& subscriber)
@@ -571,19 +567,19 @@ namespace msServiceProfiler {
         if (ret != MSPTI_SUCCESS) {
             PROF_LOGE("Mspti Unsubscribe failed.");
         }
-        ServiceProfilerFileWriter::GetInstance().ResetWorkingThreadNum();
-        ServiceProfilerFileWriter::GetInstance().Close();
+        ServiceProfilerMspti::GetInstance().ResetWorkingThreadNum();
+        ServiceProfilerMspti::GetInstance().Close();
     }
 
-    void FlushBufferByTime() {
-        bool workingStatus = ServiceProfilerFileWriter::GetInstance().GetWorkingStatus();
+    void FlushBufferByTime()
+    {
+        bool workingStatus = ServiceProfilerMspti::GetInstance().GetWorkingStatus();
         if (!workingStatus) {
-            PROF_LOGI("No mspti flush working thread running for period, automaticaly flush all.");
+            PROF_LOGD("No mspti flush working thread running for period, automaticaly flush all.");
             auto ret = msptiActivityFlushAll(1);
             if (ret != MSPTI_SUCCESS) {
                 PROF_LOGE("Mspti Flush All failed.");
             }
         }
     }
-
 }  // namespace msServiceProfiler

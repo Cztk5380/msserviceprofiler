@@ -4,7 +4,6 @@
  * Author: Huawei Technologies Co., Ltd.
  * Create: 2025-5-15
  */
-
 #include "mspti/mspti.h"
 
 msptiResult msptiActivityRegisterCallbacks(bufferRequestFunctionPtr, bufferCompleteFunctionPtr)

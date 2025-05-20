@@ -49,8 +49,6 @@ struct ProfSetDevPara {
     bool isOpen;
 };
 
-std::unordered_map<int, struct sigaction> old_handlers; // 储存旧有信号处理函数
-
 // 全局标志位，用于控制线程退出
 std::atomic<bool> g_threadRunFlag(true);
 uint32_t g_deviceID = INVALID_DEVICE_ID;
@@ -389,7 +387,7 @@ namespace msServiceProfiler {
             } catch (std::exception &e) {
                 PROF_LOGD("get npu memory usage failed");  // LCOV_EXCL_LINE
             }
-            
+
             if (msptiEnabled) {
                 FlushBufferByTime();
             }
@@ -455,71 +453,53 @@ namespace msServiceProfiler {
         }
         PROF_LOGI("prof path: %s", profPath.c_str());  // LCOV_EXCL_LINE
 
-        if (config_->GetEnableMspti()) {
-            StartMsptiProf(profPath);
-        } else {
-            StartAclProf(profPath);
-        }
-    }
-
-    void ServiceProfilerManager::StartMsptiProf(const std::string &profPath)
-    {
-        auto ret = InitMspti(profPath, msptiHandle_);
-        if (ret != 0 ) {
-            PROF_LOGE("Mspti init failed.");
-            msptiEnabled = false;
-        } else {
-            InitMsptiActivity(
-                config_->GetEnableMspti()
-                );
-            auto apiFilter_ = config_->GetApiFilter();
-            auto kernelFilter_ = config_->GetKernelFilter();
-            auto hcclFilter_ = config_->GetHcclFilter();
-            InitMsptiFilter(apiFilter_, kernelFilter_, hcclFilter_);
-            msptiEnabled = true;
-        }
-
-        // 设置标志位
-        config_->SetEnable(true);
-        g_threadRunFlag = true;
-        started_ = true;
-        g_startFlag = true;
-    }
-
-    void ServiceProfilerManager::StartAclProf(const std::string &profPath)
-    {
-        if (!isAclInit_) {
-            aclError retInit = aclInit(nullptr);
-            if (retInit == ACL_SUCCESS || retInit == ACL_ERROR_REPEAT_INITIALIZE) {
-                isAclInit_ = true;
+        if (config_->GetMsptiEnable()) {
+            auto ret = InitMspti(profPath, msptiHandle_);
+            if (ret != 0 ) {
+                PROF_LOGE("Mspti init failed.");
+                msptiEnabled = false;
             } else {
-                PROF_LOGE("acl init failed, ret = %d", retInit);  // LCOV_EXCL_LINE
-                isAclInit_ = false;
+                InitMsptiActivity(config_->GetMsptiEnable());
+                auto apiFilter_ = config_->GetApiFilter();
+                auto kernelFilter_ = config_->GetKernelFilter();
+                auto hcclFilter_ = config_->GetHcclFilter();
+                InitMsptiFilter(apiFilter_, kernelFilter_, hcclFilter_);
+                msptiEnabled = true;
             }
-        }
+        } else {
+            if (!isAclInit_) {
+                aclError retInit = aclInit(nullptr);
+                if (retInit == ACL_SUCCESS || retInit == ACL_ERROR_REPEAT_INITIALIZE) {
+                    isAclInit_ = true;
+                } else {
+                    PROF_LOGE("acl init failed, ret = %d", retInit);  // LCOV_EXCL_LINE
+                    isAclInit_ = false;
+                }
+            }
 
-        aclError ret = aclprofInit(profPath.c_str(), profPath.size());
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            return;
-        }
+            aclError ret = aclprofInit(profPath.c_str(), profPath.size());
+            if (ret != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                return;
+            }
 
-        if (ret == ACL_ERROR_NONE && isMaster_) {
-            SetAclProfHostSysConfig();
-        }
+            if (ret == ACL_ERROR_NONE && isMaster_) {
+                SetAclProfHostSysConfig();
+            }
 
-        auto profConfig = ProfCreateConfig();
-        if (profConfig == nullptr) {
-            config_->SetEnable(false);
-            return;
-        }
+            auto profConfig = ProfCreateConfig();
+            if (profConfig == nullptr) {
+                config_->SetEnable(false);
+                return;
+            }
 
-        PROF_LOGD("begin to start profiling, device_id: %d", g_deviceID);  // LCOV_EXCL_LINE
-        ret = aclprofStart(profConfig);
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            config_->SetEnable(false);
-            return;
+            PROF_LOGD("begin to start profiling, device_id: %d", g_deviceID);  // LCOV_EXCL_LINE
+            ret = aclprofStart(profConfig);
+            if (ret != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                config_->SetEnable(false);
+                return;
+            }
         }
 
         // 设置标志位
@@ -560,8 +540,8 @@ namespace msServiceProfiler {
                 return;
             }
         }
-
         started_ = false;
         g_startFlag = false;
     }
+
 }  // namespace msServiceProfiler

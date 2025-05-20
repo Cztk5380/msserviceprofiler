@@ -17,7 +17,6 @@ public:
     bool GetEnable() const { return enable_; }
     uint32_t GetLevel() const { return level_; }
     uint32_t GetEnableAclTaskTime() const { return enableAclTaskTime_; }
-    uint32_t GetEnableMspti() const { return enableMspti_; }
     const std::string& GetProfPath() const { return profPath_; }
     const std::string& GetConfigPath() const { return configPath_; }
     const std::string& GetProfPathDateTail() const { return profPathDateTail_; }
@@ -39,9 +38,10 @@ public:
     bool PrepareConfigAndPath(std::string& configPath);
     void SaveConfigToJsonFile();
 
-    std::string GetApiFilter() const { return apiFilter_; }
-    std::string GetKernelFilter() const { return kernelFilter_; }
-    std::string GetHcclFilter() const { return hcclFilter_; }
+    bool GetMsptiEnable() const { return msptiEnable_; }
+    const std::string GetApiFilter() const { return apiFilter_; }
+    const std::string GetKernelFilter() const { return kernelFilter_; }
+    const std::string GetHcclFilter() const { return hcclFilter_; }
 
 private:
     void ReadConfigPath();
@@ -59,7 +59,6 @@ private:
     bool enable_ = false;
     uint32_t level_ = Level::INFO;
     bool enableAclTaskTime_ = false;
-    bool enableMspti_ = false;
     std::string configPath_;
     std::string profPathDateTail_;
     std::string profPath_;
@@ -75,6 +74,8 @@ private:
     uint32_t npuMemoryFreqMin_ = 1;
     uint32_t npuMemoryFreqMax_ = 50;
     uint32_t npuMemorySleepMilliseconds_ = 1000;
+
+    bool msptiEnable_ = false;
 
     std::string apiFilter_;
     std::string kernelFilter_;

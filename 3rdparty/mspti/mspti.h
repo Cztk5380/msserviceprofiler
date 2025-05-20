@@ -1,8 +1,8 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  * Description: wrapper header
  * Author: Huawei Technologies Co., Ltd.
- * Create: 2024-12-16
+ * Create: 2025-5-15
  */
 
 #ifndef MS_SERVICE_PROFILER_MSPTI_H
@@ -30,7 +30,6 @@ extern "C" {
 #define END_PACKED_ALIGNMENT
 #endif
 
-struct msptiSubscriber_st;
 typedef struct msptiSubscriber_st *msptiSubscriberHandle;
 
 typedef enum {
