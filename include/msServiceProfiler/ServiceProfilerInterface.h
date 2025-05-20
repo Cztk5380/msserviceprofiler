@@ -94,8 +94,7 @@ public:
     {
         bool domainAllow_ = true;
 
-        if (!currentDomain) {
-            domainAllow_ = false;
+        if (!ptrEnableDomainFilter_ || !ptrValidDomain_) {
             return domainAllow_;
         }
 
