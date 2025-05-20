@@ -75,6 +75,8 @@ namespace msServiceProfiler {
         bool isAclInit_ = false;
         void *configHandle_ = nullptr;
         int lastUpdate_ = 0;
+        std::chrono::high_resolution_clock::time_point initiate_ = 0;
+        std::chrono::seconds initiateTime_ = 0;
         std::unique_ptr<Config> config_;
 
         std::thread thread_;

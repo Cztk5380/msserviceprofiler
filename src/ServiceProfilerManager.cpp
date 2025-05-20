@@ -42,8 +42,7 @@ constexpr uint32_t INVALID_DEVICE_ID = static_cast<uint32_t>(-1);
 
 using DATA_PTR = struct ProfSetDevPara *;
 
-std::chrono::high_resolution_clock::time_point start;
-std::chrono::seconds start_time;
+
 
 struct ProfSetDevPara {
     uint32_t chipId;
@@ -383,16 +382,21 @@ namespace msServiceProfiler {
                 PROF_LOGD("get npu memory usage failed");  // LCOV_EXCL_LINE
             }
 
-            if (config_->GetTimeLimit() > 0 && elapsed.count() >= config_->GetTimeLimit() && started_) {
-                auto end = std::chrono::high_resolution_clock::now(); // 记录结束时间
-                auto end_time = std::chrono::duration_cast<std::chrono::seconds>(end.time_since_epoch());
+            if (config_->GetTimeLimit() > 0 && started_) {
+                auto terminate_ = std::chrono::high_resolution_clock::now(); // 记录结束时间
+                auto terminateTime_ = std::chrono::duration_cast<std::chrono::seconds>(terminate_.time_since_epoch());
 
                 // 计算时间差
-                std::chrono::duration<double> elapsed = end_time - start_time;
+                // std::chrono::duration<double> elapsed = end_time - start_time;
 
-                StopProfiler();
-                PROF_LOGI("Profiler Timelimit %d Seconds Is Reached, Profiler Disabled Successfully!",
-                config_->GetTimeLimit());
+                auto duration = std::chrono::duration_cast<std::chrono::seconds>(terminateTime_ - initiateTime_);
+
+                if (duration.count() >= config_->GetTimeLimit()) {
+                    StopProfiler();
+                    PROF_LOGI("Profiler Timelimit %d Seconds Is Reached, Profiler Disabled Successfully!",
+                    config_->GetTimeLimit());
+                }
+
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(config_->GetNpuMemorySleepMilliseconds()));
@@ -450,8 +454,8 @@ namespace msServiceProfiler {
             return;
         }
 
-        start = std::chrono::high_resolution_clock::now(); // 记录开始时间
-        start_time = std::chrono::duration_cast<std::chrono::seconds>(start.time_since_epoch());
+        initiate_ = std::chrono::high_resolution_clock::now(); // 记录开始时间
+        initiateTime_ = std::chrono::duration_cast<std::chrono::seconds>(initiate_.time_since_epoch());
 
         auto profPath = config_->GetProfPath();
         if (!MakeDirs(profPath)) {
