@@ -17,6 +17,8 @@
 #ifndef SERVICEPROFILERMANAGERMSPTI_H
 #define SERVICEPROFILERMANAGERMSPTI_H
 
+#include "mspti/mspti.h"
+
 namespace msServiceProfiler {
     int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber);
     void InitMsptiActivity(bool msptiEnable_);

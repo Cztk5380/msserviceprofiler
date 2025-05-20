@@ -31,11 +31,10 @@
 #include <vector>
 #include <set>
 
-#include "mspti/mspti.h"
 #include <unistd.h>
 
-#include "../include/msServiceProfiler/Log.h"
-#include "../include/msServiceProfiler/ServiceProfilerMspti.h"
+#include "msServiceProfiler/Log.h"
+#include "msServiceProfiler/ServiceProfilerMspti.h"
 
 std::mutex g_mtx;
 

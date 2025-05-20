@@ -32,8 +32,9 @@
 #include "msServiceProfiler/NpuMemoryUsage.h"
 #include "msServiceProfiler/Profiler.h"
 #include "msServiceProfiler/Log.h"
-#include "msServiceProfiler/ServiceProfilerManager.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
+#include "msServiceProfiler/ServiceProfilerManager.h"
+
 
 namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
