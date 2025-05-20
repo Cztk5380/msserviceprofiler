@@ -230,9 +230,6 @@ namespace msServiceProfiler {
         }
         LaunchThread();
 
-        // 注册中断终止信号处理函数
-        RegisterSignal(SIGINT);
-        RegisterSignal(SIGTERM);
     }
 
     ServiceProfilerManager::~ServiceProfilerManager()
