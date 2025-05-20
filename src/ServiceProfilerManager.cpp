@@ -457,7 +457,6 @@ namespace msServiceProfiler {
 
         if (config_->GetEnableMspti()) {
             StartMsptiProf(profPath);
-            }
         } else {
             StartAclProf(profPath);
         }
