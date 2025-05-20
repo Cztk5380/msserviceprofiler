@@ -5,6 +5,8 @@ import psutil
 
 from ms_service_profiler.constant import US_PER_SECOND, NS_PER_US, NS_PER_SECOND
 from ms_service_profiler.plugins.base import PluginBase
+from ms_service_profiler.utils.timer import timer
+from ms_service_profiler.utils.log import logger
 
 
 class PluginTimeStampHelper(PluginBase):
@@ -41,6 +43,7 @@ class PluginTimeStamp(PluginBase):
     helper = PluginTimeStampHelper()
 
     @classmethod
+    @timer(logger.info)
     def parse(cls, data):
         res = []
         for data_single in data:

@@ -168,7 +168,11 @@ void RegisterSetDeviceCallback()
     using ProfRegDeviceStateCallbackFunc = int32_t (*)(ProfSetDeviceHandle);
     ProfRegDeviceStateCallbackFunc profRegDeviceStateCallback =
         (ProfRegDeviceStateCallbackFunc)(dlsym(handle, "profRegDeviceStateCallback"));
-
+    if (profRegDeviceStateCallback == nullptr) {
+        PROF_LOGW("Failed to get profRegDeviceStateCallback from libprofapi.so."
+            "Will be not able to get device profiling data.  Check whether a NPU server or if cann toolkit installed.");
+        return;
+    }
     profRegDeviceStateCallback(MsprofSetDeviceCallbackImpl);
 }
 
@@ -202,7 +206,8 @@ namespace msServiceProfiler {
             offset = (str == nullptr) ? pathLen : str - dirPath.c_str() + 1;
             std::string curPath = dirPath.substr(0, offset);
             if (access(curPath.c_str(), F_OK) != 0) {
-                if (mkdir(curPath.c_str(), S_IRWXU | S_IRGRP | S_IXGRP) != 0) {
+                int ret = mkdir(curPath.c_str(), S_IRWXU | S_IRGRP | S_IXGRP);
+                if (ret != 0 && errno == EEXIST) {
                     return false;
                 }
             }
@@ -221,21 +226,15 @@ namespace msServiceProfiler {
     {
         ProfLogInit();
         MarkFirstProcessAsMain();
-
+        config_->ReadAndSaveConfig();
         RegisterSetDeviceCallback();
         if (config_->GetEnable()) {
             StartProfiler();
         }
         LaunchThread();
-
     }
 
     ServiceProfilerManager::~ServiceProfilerManager()
-    {
-        StopThread();
-    }
-
-    void ServiceProfilerManager::StopThread()
     {
         const std::string &exitSemName = GetConfigPath();
         if (!exitSemName.empty()) {
@@ -539,8 +538,8 @@ namespace msServiceProfiler {
                 return;
             }
         }
+
         started_ = false;
         g_startFlag = false;
     }
-
 }  // namespace msServiceProfiler

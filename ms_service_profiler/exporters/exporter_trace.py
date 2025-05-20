@@ -2,11 +2,13 @@
 
 import json
 import os
-import threading
+from concurrent.futures import ThreadPoolExecutor
+
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.utils.timer import timer
 
 
 class ExporterTrace(ExporterBase):
@@ -17,10 +19,10 @@ class ExporterTrace(ExporterBase):
         cls.args = args
 
     @classmethod
+    @timer(logger.info)
     def export(cls, data) -> None:
         if 'json' in cls.args.format:
             cpu_data_df, memory_data_df = data['cpu_data_df'], data['memory_data_df']
-            tids = set(str(x) for x in set(data["tx_data_df"]["tid"])) if "tid" in data["tx_data_df"] else {}
             all_data_df = data['tx_data_df'].copy()
             if 'pid_label_map' in data:
                 pid_label_map = data['pid_label_map']
@@ -28,7 +30,8 @@ class ExporterTrace(ExporterBase):
                 pid_label_map = None
             all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
             msprof_data_df = data['msprof_data']
-            cann_data = [load_single_prof(pf, tids) for pf in msprof_data_df]
+
+            cann_data = [load_single_prof(pf, index) for index, pf in enumerate(msprof_data_df)]
             output = cls.args.output_path
             trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
             merged_data = merge_json_data(trace_data, cann_data)
@@ -37,10 +40,21 @@ class ExporterTrace(ExporterBase):
             pass
 
 
-def load_single_prof(pf, tids):
+def process_prof_trace_events(events, index):
+    for event in events:
+        event_id = event.get('id')
+        event_ph = event.get('ph')
+        if event_id is not None and event_ph in ['s', 'f']:
+            # 将 event_id 和 index 转换为字符串并拼接，保证不会重复
+            event['id'] = str(event_id) + '_' + str(index)
+    return events
+
+
+def load_single_prof(pf, prof_id):
     try:
         with open(pf, 'r', encoding='utf-8') as file:
             trace_events = json.load(file)
+
     except FileNotFoundError:
         logger.warning(f"The msprof.json file was not found. Please check the file path.")
         return {"traceEvents": []}
@@ -51,6 +65,8 @@ def load_single_prof(pf, tids):
             pf
         )
         return {"traceEvents": []}
+
+    trace_events = process_prof_trace_events(trace_events, prof_id)
 
     return {"traceEvents": trace_events}
 
@@ -71,22 +87,43 @@ def merge_json_data(trace_data, msprof_data_df):
     return trace_data
 
 
+@timer(logger.info)
 def write_trace_data_to_file(trace_data, output):
+    def write_trace_data(range_index):
+        start_index, end_index = range_index
+        trace_data_list = trace_data[start_index:end_index]
+        return json.dumps(trace_data_list, ensure_ascii=False)
+
+    gourp_count = 100000
+    data_count = len(trace_data)
+    group_range_list = [(x, min(x + gourp_count, data_count)) for x in range(0, data_count, gourp_count)]
+    results = []
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(write_trace_data, x) for x in group_range_list]
+        for future in futures:
+            try:
+                results.append(future.result())
+            except Exception as e:
+                logger.error(f"Error raise from exporter trace, json dump failed. message: {e}")
+
     with ms_open(output, "w") as f:
-        json.dump(trace_data, f, ensure_ascii=False)
-    logger.info("Written trace data successfully.")
+        f.write('{"traceEvents":[')
+        for index, content2 in enumerate(results):
+            if len(content2) < 2:   # 确保至少有 2 个字符
+                continue
+            f.write(content2[1:-1]) # 去除首字符和尾字符
+            if index != len(results) - 1:
+                f.write(',')
+
+        f.write("]}")
+
+    logger.info(f"Written trace data successfully. at {output}")
 
 
 def save_trace_data_into_json(trace_data, output):
     file_path = os.path.join(output, 'chrome_tracing.json')
 
-    # 创建并启动新线程来执行写文件操作
-    try:
-        write_thread = threading.Thread(target=write_trace_data_to_file, args=(trace_data, file_path))
-        write_thread.start()
-        logger.info("Start to write trace data...")
-    except Exception as e:
-        logger.error(f"Failed to write trace data to file: {e}")
+    write_trace_data_to_file(trace_data.get("traceEvents", []), file_path)
 
 
 def add_flow_event(flow_event_df):

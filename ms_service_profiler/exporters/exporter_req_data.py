@@ -9,6 +9,7 @@ from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.exporters.base import ExporterBase
 
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.utils.timer import timer
 
 
 def update_name(row):
@@ -204,6 +205,7 @@ class ExporterReqData(ExporterBase):
         cls.args = args
 
     @classmethod
+    @timer(logger.info)
     def export(cls, data) -> None:
         if 'csv' in cls.args.format:
             df = data.get('tx_data_df')

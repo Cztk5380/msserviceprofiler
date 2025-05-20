@@ -7,6 +7,7 @@ from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.plugins.plugin_vllm_helper import VllmHelper
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import ParseError, DataFrameMissingError, KeyMissingError, ValidationError
+from ms_service_profiler.utils.timer import timer
 
 
 class PluginCommon(PluginBase):
@@ -14,6 +15,7 @@ class PluginCommon(PluginBase):
     depends = ["plugin_concat"]
 
     @classmethod
+    @timer(logger.info)
     def parse(cls, data):
         tx_data_df = data.get("tx_data_df")
         if tx_data_df is None:

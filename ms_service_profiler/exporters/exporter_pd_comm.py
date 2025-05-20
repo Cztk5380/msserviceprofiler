@@ -4,6 +4,7 @@ import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
+from ms_service_profiler.utils.timer import timer
 
 
 def process_each_req_group(req_group_df):
@@ -41,6 +42,7 @@ class ExporterPDComm(ExporterBase):
         cls.args = args
 
     @classmethod
+    @timer(logger.info)
     def export(cls, data) -> None:
         if 'csv' in cls.args.format:
             all_data_df = data['tx_data_df']
