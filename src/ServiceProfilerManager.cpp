@@ -43,7 +43,6 @@ constexpr uint32_t INVALID_DEVICE_ID = static_cast<uint32_t>(-1);
 using DATA_PTR = struct ProfSetDevPara *;
 
 
-
 struct ProfSetDevPara {
     uint32_t chipId;
     uint32_t deviceId;
@@ -394,9 +393,9 @@ namespace msServiceProfiler {
                 if (duration.count() >= config_->GetTimeLimit()) {
                     StopProfiler();
                     PROF_LOGI("Profiler Timelimit %d Seconds Is Reached, Profiler Disabled Successfully!",
-                    config_->GetTimeLimit());
-                }
+                              config_->GetTimeLimit());
 
+                }
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(config_->GetNpuMemorySleepMilliseconds()));
