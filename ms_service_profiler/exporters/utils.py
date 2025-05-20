@@ -28,10 +28,18 @@ UPDATA_DATA_TABLE_SQL = """
     INSERT INTO data_table (name, view_name) VALUES (?,?);
 """
 VIEWS_LIST = [
-    'batchSize_by_batchId_curve', 'kvcacheUsage_by_ts_curve', 'prefillGenSpeed_by_ts_curve',
-    'reqLatency_by_ts_curve', 'decodeLatency_by_ts_curve', 'firstTokenLatency_by_ts_curve',
-    'reqState_by_ts_curve'
+    'Batch_Size_by_Batch_ID_curve', 'Kvcache_Usage_Percent_curve', 'Prefill_Generate_Speed_Latency_curve',
+    'Request_Latency_curve', 'Decode_Generate_Speed_Latency_curve', 'First_Token_Latency_curve',
+    'Request_Status_curve'
 ]
+
+DATA_TABLE_RECORDS = {
+    'batch': 'batch_info',
+    'kvcache': 'kvcache_usage',
+    'pd_split_communication': 'pd_split_communication',
+    'request_data': 'request_data',
+    'pull_kvcache': 'pd_split_pull_kvcache'
+}
 
 
 def create_sqlite_db(output):
@@ -68,20 +76,26 @@ def create_sqlite_db(output):
             conn.close()
 
 
-def updat_data_table_db(name, view_name):
+def create_sqlite_views(name, create_view_sql=None):
+    if create_view_sql is None:
+        return
+
     with db_write_lock:
         with ms_open(visual_db_fp, "a") as f:
             try:
                 conn = sqlite3.connect(visual_db_fp)
                 cursor = conn.cursor()
-                cursor.execute(UPDATA_DATA_TABLE_SQL, (name, view_name))
+                cursor.execute(create_view_sql)
                 conn.commit()
+                conn.close()
             except Exception as ex:
-                conn.rollback()  # 失败时回滚
-                raise DatabaseError("Cannot update sqlite database when create trace table.") from ex
-            finally:
-                if conn:
-                    conn.close()
+                raise DatabaseError(f"Cannot update sqlite database when create {name} views.") from ex
+
+
+def handle_sqlite_table_list(table_list, cursor):
+    for name, create_stmt in table_list.items():
+        cursor.execute(f"DROP TABLE IF EXISTS {name}")
+        cursor.execute(create_stmt)
 
 
 def create_sqlite_tables(table_list):
@@ -90,16 +104,11 @@ def create_sqlite_tables(table_list):
             try:
                 conn = sqlite3.connect(visual_db_fp)
                 cursor = conn.cursor()
-                for name, create_stmt in table_list.items():
-                    cursor.execute(f"DROP TABLE IF EXISTS {name}")
-                    cursor.execute(create_stmt)
+                handle_sqlite_table_list(table_list, cursor)
                 conn.commit()
+                conn.close()
             except Exception as ex:
-                conn.rollback()  # 失败时回滚
                 raise DatabaseError("Cannot update sqlite database when create trace table.") from ex
-            finally:
-                if conn:
-                    conn.close()
 
 
 def get_db_connection():
@@ -108,7 +117,13 @@ def get_db_connection():
             return sqlite3.connect(visual_db_fp)
 
 
-def add_table_into_visual_db(df, table_name, create_view_sql=None):
+def add_record_to_data_table(table_name, conn):
+    if table_name in DATA_TABLE_RECORDS.keys():
+        cursor = conn.cursor()
+        cursor.execute(UPDATA_DATA_TABLE_SQL, (table_name, DATA_TABLE_RECORDS[table_name]))
+
+
+def add_table_into_visual_db(df, table_name):
     if df is None or not isinstance(df, pd.DataFrame) or df.empty:
         logger.warning("Writing table %r failed due to invalid dateframe:\n\t%s", table_name, df)
         return
@@ -122,9 +137,9 @@ def add_table_into_visual_db(df, table_name, create_view_sql=None):
             try:
                 conn = sqlite3.connect(visual_db_fp)
                 df.to_sql(table_name, conn, if_exists='replace', index=False)
-                if create_view_sql:
-                    cursor = conn.cursor()
-                    cursor.execute(create_view_sql)
+
+                # 判断如果改表需要在Insight中用纯表展示，则刷新data_table中记录
+                add_record_to_data_table(table_name, conn)
                 conn.commit()
                 conn.close()
             except Exception as ex:
@@ -139,7 +154,7 @@ def save_dataframe_to_csv(filtered_df, output, file_name):
         file_path = str(file_path)
         with ms_open(file_path, "w") as f:
             filtered_df.to_csv(f, index=False)
-            logger.info(f"{file_name} success.")
+            logger.info(f"Write to {file_name} success.")
 
 
 def _check_directory(dir_path, iteration_count):

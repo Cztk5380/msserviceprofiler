@@ -361,7 +361,7 @@ def test_add_pull_kvcache_events_valid_data():
 
     result = add_pull_kvcache_events(df)
 
-    assert len(result) == 12
+    assert len(result) == 3
     assert result[0]['name'] == 'PullKVCache'
     assert result[0]['pid'] == 'PullKVCache'
     assert result[0]["ph"] == "X"

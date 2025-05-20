@@ -9,7 +9,7 @@ from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.constant import US_PER_MS
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
-from ms_service_profiler.exporters.utils import add_table_into_visual_db, updat_data_table_db, save_dataframe_to_csv
+from ms_service_profiler.exporters.utils import add_table_into_visual_db, save_dataframe_to_csv
 
 
 def update_name(row):
@@ -248,7 +248,6 @@ class ExporterReqData(ExporterBase):
 
         if 'csv' in cls.args.format:
             save_dataframe_to_csv(filtered_df, output, "request.csv")
+
         if 'db' in cls.args.format:
-            # 更新data_table，在insight中用纯表显示
             add_table_into_visual_db(filtered_df, 'request_data')
-            updat_data_table_db('request_data', 'request_data')

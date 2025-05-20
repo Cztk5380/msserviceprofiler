@@ -3,7 +3,7 @@
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.exporters.utils import save_dataframe_to_csv, updat_data_table_db, add_table_into_visual_db
+from ms_service_profiler.exporters.utils import save_dataframe_to_csv, add_table_into_visual_db
 from ms_service_profiler.utils.timer import timer
 
 
@@ -63,14 +63,13 @@ class ExporterPDComm(ExporterBase):
             for rid, pre_req_data in req_group_df:
                 http_req, request_send, request_send_succ, prefill_res, \
                 requset_end = process_each_req_group(pre_req_data)
-                cls.req_result_list.append({'rid': rid, 'http_req_time_ms': http_req, 'send_request_time_ms': request_send,
-                'send_request_succ_time_ms': request_send_succ, 'prefill_res_time_ms': prefill_res,
-                'requset_end_time_ms': requset_end})
+                cls.req_result_list.append({'rid': rid, 'http_req_time_ms': http_req,
+                'send_request_time_ms': request_send, 'send_request_succ_time_ms': request_send_succ,
+                'prefill_res_time_ms': prefill_res, 'requset_end_time_ms': requset_end})
 
         if 'csv' in cls.args.format:
             save_dataframe_to_csv(pd.DataFrame(cls.req_result_list), output, "pd_split_communication.csv")
+
         if 'db' in cls.args.format:
-            # 更新data_table，在insight中用纯表显示
             add_table_into_visual_db(pd.DataFrame(cls.req_result_list), 'pd_split_communication')
-            updat_data_table_db('pd_split_communication', 'pd_split_communication')
 

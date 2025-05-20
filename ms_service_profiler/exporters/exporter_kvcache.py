@@ -15,26 +15,7 @@ from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.constant import US_PER_MS
-from ms_service_profiler.exporters.utils import updat_data_table_db, add_table_into_visual_db, truncate_timestamp_np
-
-
-CREATE_KVCACHE_VIEW_SQL = """
-    CREATE VIEW kvcacheUsage_by_ts_curve AS
-    WITH converted AS (
-        SELECT
-            kvcache_usage_rate * 100 AS kvcache_usage_percent,
-            substr(real_start_time_ms, 1, 10) || ' ' || substr(real_start_time_ms, 12, 8) AS datetime
-        FROM
-            kvcache
-    )
-    SELECT
-        datetime as time,
-        cast(kvcache_usage_percent as REAL) as "kvcacge_usage"
-    FROM
-        converted
-    ORDER BY
-        datetime ASC
-"""
+from ms_service_profiler.exporters.utils import create_sqlite_views, add_table_into_visual_db, truncate_timestamp_np
 
 
 def get_max_free_value(kvcache_df):
@@ -171,9 +152,7 @@ def export_pull_kvcache(df, output, args_format):
         save_dataframe_to_csv(pull_kvcache_df, output, "pd_split_kvcache.csv")
 
     if 'db' in args_format:
-        # 更新data_table，在insight中用纯表显示
         add_table_into_visual_db(pull_kvcache_df, 'pull_kvcache')
-        updat_data_table_db('pull_kvcache', 'pd_split_pull_kvcache')
 
 
 class ExporterKVCacheData(ExporterBase):
@@ -225,9 +204,27 @@ class ExporterKVCacheData(ExporterBase):
             kvcache_df = kvcache_usage_rate_calculator(kvcache_df)
             kvcache_df['real_start_time_ms'] = truncate_timestamp_np(kvcache_df['real_start_time_ms'])
 
-            # 更新data_table，在insight中用纯表显示
-            add_table_into_visual_db(kvcache_df, 'kvcache', CREATE_KVCACHE_VIEW_SQL)
-            updat_data_table_db('kvcache', 'kvcache_usage')
+            add_table_into_visual_db(kvcache_df, 'kvcache')
+            create_sqlite_views('Kvcache_Usage_Percent', CREATE_KVCACHE_VIEW_SQL)
 
         # PullKVCache
         export_pull_kvcache(df, cls.args.output_path, cls.args.format)
+
+
+CREATE_KVCACHE_VIEW_SQL = """
+    CREATE VIEW Kvcache_Usage_Percent_curve AS
+    WITH converted AS (
+        SELECT
+            kvcache_usage_rate * 100 AS kvcache_usage_percent,
+            substr(real_start_time_ms, 1, 10) || ' ' || substr(real_start_time_ms, 12, 8) AS datetime
+        FROM
+            kvcache
+    )
+    SELECT
+        datetime as time,
+        cast(kvcache_usage_percent as REAL) as "kvcacge_usage"
+    FROM
+        converted
+    ORDER BY
+        datetime ASC
+"""

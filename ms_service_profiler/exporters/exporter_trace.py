@@ -42,11 +42,15 @@ class ExporterTrace(ExporterBase):
         cann_data = [load_single_prof(pf, index) for index, pf in enumerate(msprof_data_df)]
         trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
         merged_data = merge_json_data(trace_data, cann_data)
+
         if 'json' in cls.args.format:
             save_trace_data_into_json(merged_data, output)
+
         if 'db' in cls.args.format:
+            logger.info('Start write trace data to db')
             create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
             save_trace_data_into_db(merged_data)
+            logger.info('Write trace data to db success')
 
 
 def process_prof_trace_events(events, index):

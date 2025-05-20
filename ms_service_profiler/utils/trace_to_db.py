@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
-import pandas as pd
 import json
 from collections import defaultdict
+import pandas as pd
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.constant import NS_PER_US
 
@@ -73,7 +73,7 @@ def convert_ts_to_ns(ts):
     return float(ts) * NS_PER_US
 
 
-# M: thread, process
+# M类型: thread, process
 def trans_trace_meta_data(event):
     args = event.get('args')
     args_name = args.get("name") if args is not None else ""
@@ -83,7 +83,7 @@ def trans_trace_meta_data(event):
         'args_label': args_label, 'args_sort_index': args_sort_index}
 
 
-# X, I: slice
+# X, I类型: slice
 def trans_trace_slice_data(event):
     args = json.dumps(event.get('args'))
     ts = convert_ts_to_ns(event.get('ts'))
@@ -92,22 +92,20 @@ def trans_trace_slice_data(event):
         'tid': event.get('tid'), 'cat': event.get('cat'), 'args': args}
 
 
-# s, f, t: flow
+# s, f, t类型: flow
 def trans_trace_flow_data(event):
     ts = convert_ts_to_ns(event.get('ts'))
-    if event.get('name') == 'flow_0':
-        print(ts)
     return {'ts': ts, 'name': event.get('name'), 'pid': event.get('pid'),
         'tid': event.get('tid'), 'cat': event.get('cat'), 'flow_id': event.get('id')}
 
 
-# C: counter
+# C类型: counter
 def trans_trace_counter_data(event):
-    id = event.get('id')
+    cid = event.get('id')
     name = event.get('name')
     args = json.dumps(event.get('args'))
-    if id is not None:
-        name = name + '[' + id + ']'
+    if cid is not None:
+        name = name + '[' + cid + ']'
     ts = convert_ts_to_ns(event.get('ts'))
     return {'ts': ts, 'name': event.get('name'), 'pid': event.get('pid'),
         'tid': event.get('name'), 'cat': event.get('cat'), 'args': args}
@@ -149,24 +147,14 @@ class CacheTableManager:
     }
 
     @classmethod
-    def insert_cache_to_db(cls, data_type, cursor):
+    def insert_cache_to_db(cls, data_type, cursor, cache_size):
         cache_table = cls.cache_list[data_type]
-        if len(cache_table) >= DB_CACHE_SIZE:
+        if len(cache_table) >= cache_size:
             cursor.executemany(
                 UPDATA_SQL_TEMPLATES[data_type],
                 cache_table
             )
             cache_table.clear()
-
-    @classmethod
-    def insert_all_cache_to_db(cls, cursor):
-        for table_name, cache_table in cls.cache_list.items():
-            if len(cache_table) >= 0:
-                cursor.executemany(
-                    UPDATA_SQL_TEMPLATES[table_name],
-                    cache_table
-                )
-                cache_table.clear()
 
 
 def trans_trace_meta_event(event, cursor):
@@ -216,7 +204,7 @@ def trans_trace_slice_event(event, cursor):
     # 创建slice块
     CacheTableManager.cache_list['slice'].append((event_data.get('ts'), event_data.get('dur'), event_data.get('name'),
         track_id, event.get('cat'), event_data.get('args'), event.get('cname'), end_ts, event.get('flag_id')))
-    CacheTableManager.insert_cache_to_db('slice', cursor)
+    CacheTableManager.insert_cache_to_db('slice', cursor, DB_CACHE_SIZE)
 
 
 def trans_trace_counter_event(event, cursor):
@@ -224,12 +212,12 @@ def trans_trace_counter_event(event, cursor):
     if event_data.get('ts') == 0:
         return
 
-    write_to_process_thread_table(event_data, event.get('thread_sort_index'), cursor)
+    _ = write_to_process_thread_table(event_data, event.get('thread_sort_index'), cursor)
 
     # 创建counter块
     CacheTableManager.cache_list['counter'].append((event_data.get('name'), event_data.get('pid'), event_data.get('ts'),
         event.get('cat'), event_data.get('args')))
-    CacheTableManager.insert_cache_to_db('counter', cursor)
+    CacheTableManager.insert_cache_to_db('counter', cursor, DB_CACHE_SIZE)
 
 
 def trans_trace_flow_event(event, ph_type, cursor):
@@ -240,7 +228,7 @@ def trans_trace_flow_event(event, ph_type, cursor):
     # 创建flow连线
     CacheTableManager.cache_list['flow'].append((event_data.get('flow_id'), event_data.get('name'), track_id,
         event_data.get('ts'), event_data.get('cat'), ph_type))
-    CacheTableManager.insert_cache_to_db('flow', cursor)
+    CacheTableManager.insert_cache_to_db('flow', cursor, DB_CACHE_SIZE)
 
 
 def trans_trace_event(event, cursor):
@@ -256,4 +244,5 @@ def trans_trace_event(event, cursor):
 
 
 def save_cache_data_to_db(cursor):
-    CacheTableManager.insert_all_cache_to_db(cursor)
+    for data_type in CacheTableManager.cache_list.keys():
+        CacheTableManager.insert_cache_to_db(data_type, cursor, 0)

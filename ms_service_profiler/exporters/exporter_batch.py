@@ -3,38 +3,9 @@ import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.exporters.utils import add_table_into_visual_db, updat_data_table_db
+from ms_service_profiler.exporters.utils import add_table_into_visual_db, create_sqlite_views
 from ms_service_profiler.constant import US_PER_MS
 from ms_service_profiler.utils.timer import timer
-
-
-CREATE_BATCH_VIEW_SQL = """
-    CREATE VIEW batchSize_by_batchId_curve AS
-    WITH numbered_data AS (
-        SELECT 
-            ROW_NUMBER() OVER (ORDER BY "start_time(microsecond)") - 1 AS batch_id,
-            batch_size,
-            batch_type
-        FROM 
-            batch
-        WHERE 
-            name in ('BatchSchedule', 'batchFrameworkProcessing')
-    )
-    SELECT
-        batch_id,
-        CASE
-            WHEN batch_type = 'Prefill' THEN batch_size
-            ELSE NULL
-        END AS Prefill_batch_size,
-        CASE
-            WHEN batch_type = 'Decode' THEN batch_size
-            ELSE NULL
-        END AS Decode_batch_size
-    FROM
-        numbered_data
-    ORDER BY
-        batch_id;
-"""
 
 
 def is_vaild_id_list(id_list):
@@ -290,9 +261,37 @@ class ExporterBatchData(ExporterBase):
         if 'db' in cls.args.format:
             batch_df['batch_size'] = batch_df['batch_size'].astype(float)
 
-            # 更新data_table，在insight中用纯表显示
-            add_table_into_visual_db(batch_df, 'batch', CREATE_BATCH_VIEW_SQL)
-            updat_data_table_db('batch', 'batch_info')
+            add_table_into_visual_db(batch_df, 'batch')
+            create_sqlite_views('Batch_Size_by_Batch_ID', CREATE_BATCH_VIEW_SQL)
 
             add_table_into_visual_db(data.get('batch_req_df'), 'batch_req')
             add_table_into_visual_db(data.get('batch_exec_df'), 'batch_exec')
+
+
+CREATE_BATCH_VIEW_SQL = """
+    CREATE VIEW Batch_Size_by_Batch_ID_curve AS
+    WITH numbered_data AS (
+        SELECT 
+            ROW_NUMBER() OVER (ORDER BY "start_time(microsecond)") - 1 AS batch_id,
+            batch_size,
+            batch_type
+        FROM 
+            batch
+        WHERE 
+            name in ('BatchSchedule', 'batchFrameworkProcessing')
+    )
+    SELECT
+        batch_id,
+        CASE
+            WHEN batch_type = 'Prefill' THEN batch_size
+            ELSE NULL
+        END AS Prefill_batch_size,
+        CASE
+            WHEN batch_type = 'Decode' THEN batch_size
+            ELSE NULL
+        END AS Decode_batch_size
+    FROM
+        numbered_data
+    ORDER BY
+        batch_id;
+"""

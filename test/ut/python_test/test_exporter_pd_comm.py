@@ -24,19 +24,19 @@ class TestExporterPDComm(unittest.TestCase):
             os.chmod(test_path, 0o740)
             output_file_path = Path(test_path, 'pd_split_communication.csv')
             data = {'tx_data_df': pd.DataFrame([
-                {'domain': 'PDSplit', 'rid': 1, 'name': 'receiveReq', 'start_datetime': '2023-01-01 00:00:00'},
-                {'domain': 'PDSplit', 'rid': 1, 'name': 'sendReqToD', 'start_datetime': '2023-01-01 00:00:01'},
-                {'domain': 'PDSplit', 'rid': 1, 'name': 'sendReqToDSucc', 'start_datetime': '2023-01-01 00:00:02'},
-                {'domain': 'PDSplit', 'rid': 1, 'name': 'prefillRes', 'start_datetime': '2023-01-01 00:00:03'},
-                {'domain': 'PDSplit', 'rid': 1, 'name': 'decodeRes', 'start_datetime': '2023-01-01 00:00:04'}
+                {'domain': 'PDSplit', 'rid': 1, 'name': 'receiveReq', 'start_datetime': '2023-01-01 00:00:00000'},
+                {'domain': 'PDSplit', 'rid': 1, 'name': 'sendReqToD', 'start_datetime': '2023-01-01 00:00:01000'},
+                {'domain': 'PDSplit', 'rid': 1, 'name': 'sendReqToDSucc', 'start_datetime': '2023-01-01 00:00:02000'},
+                {'domain': 'PDSplit', 'rid': 1, 'name': 'prefillRes', 'start_datetime': '2023-01-01 00:00:03000'},
+                {'domain': 'PDSplit', 'rid': 1, 'name': 'decodeRes', 'start_datetime': '2023-01-01 00:00:04000'}
             ])}
             ExporterPDComm.export(data)
 
             # 验证req_result_list是否正确
             self.assertEqual(ExporterPDComm.req_result_list, [
-                {'rid': 1, 'http_req_time': '2023-01-01 00:00:00', 'send_request_time': '2023-01-01 00:00:01',
-                'send_request_succ_time': '2023-01-01 00:00:02', 'prefill_res_time': '2023-01-01 00:00:03',
-                'requset_end_time': '2023-01-01 00:00:04'}
+                {'rid': 1, 'http_req_time_ms': '2023-01-01 00:00:00', 'send_request_time_ms': '2023-01-01 00:00:01',
+                'send_request_succ_time_ms': '2023-01-01 00:00:02', 'prefill_res_time_ms': '2023-01-01 00:00:03',
+                'requset_end_time_ms': '2023-01-01 00:00:04'}
             ])
             
             
