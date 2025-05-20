@@ -25,13 +25,9 @@
 #include <csignal>
 #include <sqlite3.h>
 #include <mutex>
-
-#include "securec.h"
-#include <fstream>
-#include <vector>
 #include <set>
 
-#include <unistd.h>
+#include "securec.h"
 
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
@@ -74,8 +70,7 @@ namespace msServiceProfiler {
 
         void insertApiData(msptiActivityApi* activity)
         {
-            if (!inited || !activity || !stmtApi )
-            {
+            if (!inited || !activity || !stmtApi ) {
                 return;
             }
 
@@ -107,8 +102,7 @@ namespace msServiceProfiler {
 
         void insertKernelData(msptiActivityKernel* activity)
         {
-            if (!inited || !activity || !stmtKernel )
-            {
+            if (!inited || !activity || !stmtKernel ) {
                 return;
             }
 
@@ -138,8 +132,7 @@ namespace msServiceProfiler {
 
         void insertHcclData(msptiActivityHccl* activity)
         {
-            if (!inited || !activity || !stmtHccl )
-            {
+            if (!inited || !activity || !stmtHccl ) {
                 return;
             }
 
@@ -168,9 +161,9 @@ namespace msServiceProfiler {
             g_mtx.unlock();
         }
 
-        void insertMstxData(msptiActivityMarker* activity) {
-            if (!inited || !activity || !stmtMstx )
-            {
+        void insertMstxData(msptiActivityMarker* activity)
+        {
+            if (!inited || !activity || !stmtMstx ) {
                 return;
             }
 
@@ -228,8 +221,7 @@ namespace msServiceProfiler {
         // 判断mspti上报的每条数据的名称是否在筛选目标中
         bool isNameMatch(std::set<std::string>& filterSet, const char* name)
         {
-            if (!filterSet.empty())
-            {
+            if (!filterSet.empty()) {
                 std::set<std::string>::iterator it;
                 for (it=filterSet.begin(); it!=filterSet.end(); it++) {
                     if (std::strstr(name, (*it).c_str()) != nullptr) {
@@ -365,7 +357,6 @@ namespace msServiceProfiler {
             }
         }
 
-
         void createHcclTable()
         {
             char* errMsg = nullptr;
@@ -472,36 +463,39 @@ namespace msServiceProfiler {
         ServiceProfilerMspti::GetInstance().AddWorkingThreadNum();
         // profiler manager会在每个进程上创建 而host上的进程暂时不会有mspti数据上报 因此在这个位置初始化 防止创建host上的空db
         ServiceProfilerMspti::GetInstance().Init();
-        if (validSize > 0) {
-            msptiActivity *pRecord = NULL;
-            msptiResult status = MSPTI_SUCCESS;
-            do {
-                status = msptiActivityGetNextRecord(buffer, validSize, &pRecord);
-                if (status == MSPTI_SUCCESS) {
-                    if (pRecord->kind == MSPTI_ACTIVITY_KIND_API) {
-                        msptiActivityApi* activity = reinterpret_cast<msptiActivityApi*>(pRecord);
-                        ShowApiInfo(activity);
-                    }
-                    if (pRecord->kind == MSPTI_ACTIVITY_KIND_KERNEL) {
-                        msptiActivityKernel* activity = reinterpret_cast<msptiActivityKernel*>(pRecord);
-                        ShowKernelInfo(activity);
-                    }
-                    if (pRecord->kind == MSPTI_ACTIVITY_KIND_HCCL) {
-                        msptiActivityHccl* activity = reinterpret_cast<msptiActivityHccl*>(pRecord);
-                        ShowHcclInfo(activity);
-                    }
-                    if (pRecord->kind == MSPTI_ACTIVITY_KIND_MARKER) {
-                        msptiActivityMarker* activity = reinterpret_cast<msptiActivityMarker*>(pRecord);
-                        ShowMstxInfo(activity);
-                    }
-                } else if (status == MSPTI_ERROR_MAX_LIMIT_REACHED) {
-                    break;
-                } else {
-                    PROF_LOGD("unexpected status: %d", status);
-                    break;
-                }
-            } while (1);
+        if (validSize <= 0) {
+            PROF_LOGE("Invalid validSize.");
+            return;
         }
+        msptiActivity *pRecord = NULL;
+        msptiResult status = MSPTI_SUCCESS;
+        do {
+            status = msptiActivityGetNextRecord(buffer, validSize, &pRecord);
+            if (status == MSPTI_SUCCESS) {
+                if (pRecord->kind == MSPTI_ACTIVITY_KIND_API) {
+                    msptiActivityApi* activity = reinterpret_cast<msptiActivityApi*>(pRecord);
+                    ShowApiInfo(activity);
+                }
+                if (pRecord->kind == MSPTI_ACTIVITY_KIND_KERNEL) {
+                    msptiActivityKernel* activity = reinterpret_cast<msptiActivityKernel*>(pRecord);
+                    ShowKernelInfo(activity);
+                }
+                if (pRecord->kind == MSPTI_ACTIVITY_KIND_HCCL) {
+                    msptiActivityHccl* activity = reinterpret_cast<msptiActivityHccl*>(pRecord);
+                    ShowHcclInfo(activity);
+                }
+                if (pRecord->kind == MSPTI_ACTIVITY_KIND_MARKER) {
+                    msptiActivityMarker* activity = reinterpret_cast<msptiActivityMarker*>(pRecord);
+                    ShowMstxInfo(activity);
+                }
+            } else if (status == MSPTI_ERROR_MAX_LIMIT_REACHED) {
+                break;
+            } else {
+                PROF_LOGD("unexpected status: %d", status);
+                break;
+            }
+        } while (1);
+
         free(buffer);
         ServiceProfilerMspti::GetInstance().PopWorkingThreadNum();
     }

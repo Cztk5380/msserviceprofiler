@@ -11,6 +11,7 @@
 
 namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
+constexpr int MSPTI_ENABLE_TASK_TIME = 2;
 Config::Config()
 {
     ReadConfigPath();
@@ -166,7 +167,7 @@ void Config::ParseAclTaskTime(const Json &config)
     if (config.contains("acl_task_time")) {
         if (config["acl_task_time"].is_number_integer()) {
             enableAclTaskTime_ = config["acl_task_time"] == 1;
-            msptiEnable_ = config["acl_task_time"] == 2;
+            msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
         } else {
             PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");  // LCOV_EXCL_LINE
         }
