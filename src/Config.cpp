@@ -221,11 +221,7 @@ bool Config::ParseHostConfig(const Json &config)
                 hostCpuUsage_ = true;
                 hostMemoryUsage_ = true;
             } else {
-                LOG_ONCE_E(
-                    "host_system_usage_freq must be between %u and %u, "
-                    "will not collect host cpu or host memory usage.",
-                    hostFreqMin_,
-                    hostFreqMax_);  // LCOV_EXCL_LINE
+                PROF_LOGD("host_system_usage_freq is %u.", hostFreq);  // LCOV_EXCL_LINE
                 hostCpuUsage_ = false;
                 hostMemoryUsage_ = false;
                 ret = false;
@@ -254,9 +250,7 @@ bool Config::ParseNpuConfig(const Json &config)
                 npuMemoryFreq_ = npuMemoryFreq;
                 npuMemoryUsage_ = true;
             } else {
-                LOG_ONCE_E(
-                    "npu_memory_usage_freq must be between %u and %u, will not collect npu memory usage.",
-                    npuMemoryFreqMin_, npuMemoryFreqMax_);  // LCOV_EXCL_LINE
+                PROF_LOGD("npu_memory_usage_freq is %u.", npuMemoryFreq);  // LCOV_EXCL_LINE
                 npuMemoryUsage_ = false;
                 ret = false;
             }

@@ -47,7 +47,7 @@ def extract_ids_from_reslist(rid_from_message, rid_map):
             rid.append(int(req))
             token_id.append(None)
         elif isinstance(req, dict):
-            rid.append(rid_map.get(req.get('rid', None), req.get('rid', None)))
+            rid.append(str(rid_map.get(req.get('rid', None), req.get('rid', None))))
             # iter_size 为vllm数据采集特有字段
             if req.get('iter_size'):
                 token_id.append(extract_iter_from_batch(req))

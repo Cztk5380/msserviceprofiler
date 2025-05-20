@@ -376,6 +376,17 @@ def clear_last_msprof_output(full_path):
     delete_dir_safely(msprof_output_path)
 
 
+def is_need_msprof(full_path):
+    if not find_file_in_dir(full_path, 'msproftx.db'):
+        return True
+
+    msprof_output_path = os.path.join(full_path, 'mindstudio_profiler_output')
+    if not os.path.isdir(msprof_output_path):
+        return True
+
+    return False
+
+
 def preprocess_prof_folders(input_path, max_parallel=8):
     msprof_commnds = []
     for root, dirs, _ in os.walk(input_path):
@@ -386,7 +397,7 @@ def preprocess_prof_folders(input_path, max_parallel=8):
             except Exception as err:
                 raise argparse.ArgumentTypeError(f"msprof path:{full_path} is illegal. Please check.") from err
 
-            if dir_name.startswith('PROF_') and not find_file_in_dir(full_path, 'msproftx.db'):
+            if dir_name.startswith('PROF_') and is_need_msprof(full_path):
                 command = gen_msprof_command(full_path)
                 logger.info(f"{command}")
                 clear_last_msprof_output(full_path)
