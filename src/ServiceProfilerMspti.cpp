@@ -252,14 +252,14 @@ namespace msServiceProfiler {
             "CREATE TABLE IF NOT EXISTS Mstx ("
             "pid INTEGER,"
             "tid INTEGER,"
-            "event TEXT,"
+            "event_type TEXT,"
             "timestamp INTEGER,"
             "mark_id INTEGER,"
             "domain TEXT,"
             "message TEXT);";
         const char* sqlInsertKindMstx =
             "INSERT INTO Mstx "
-            "(pid, tid, event, timestamp, mark_id, domain, message) "
+            "(pid, tid, event_type, timestamp, mark_id, domain, message) "
             "VALUES (?, ?, ?, ?, ?, ?, ?);";
 
         if (sqlite3_exec(db, sqlCreateKindMstx, nullptr, nullptr, &errMsg) != SQLITE_OK) {
