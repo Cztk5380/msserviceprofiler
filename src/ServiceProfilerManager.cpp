@@ -454,7 +454,7 @@ namespace msServiceProfiler {
         PROF_LOGI("prof path: %s", profPath.c_str());  // LCOV_EXCL_LINE
 
         if (config_->GetMsptiEnable()) {
-            
+            StartMsptiProf(profPath);
         } else {
             StartAclProf(profPath);
         }

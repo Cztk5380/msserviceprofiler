@@ -36,63 +36,63 @@ void UninitMspti(msptiSubscriberHandle& subscriber);
 void FlushBufferByTime();
 
 class ServiceProfilerMspti {
-    public:
-        static ServiceProfilerMspti &GetInstance()
-        {
-            static ServiceProfilerMspti manager;
-            return manager;
-        };
+public:
+    static ServiceProfilerMspti &GetInstance()
+    {
+        static ServiceProfilerMspti manager;
+        return manager;
+    };
 
-        void insertApiData(msptiActivityApi* activity);
+    void insertApiData(msptiActivityApi* activity);
 
-        void insertKernelData(msptiActivityKernel* activity);
+    void insertKernelData(msptiActivityKernel* activity);
 
-        void insertHcclData(msptiActivityHccl* activity);
+    void insertHcclData(msptiActivityHccl* activity);
 
-        void insertMstxData(msptiActivityMarker* activity);
+    void insertMstxData(msptiActivityMarker* activity);
 
-        void Init();
+    void Init();
 
-        void InitFilter(std::string& apiFilter, std::string& kernelFilter);
+    void InitFilter(std::string& apiFilter, std::string& kernelFilter);
 
-        void InitOutputPath(std::string& outputPath);
+    void InitOutputPath(std::string& outputPath);
 
-        void Close();
+    void Close();
 
-        void AddWorkingThreadNum();
+    void AddWorkingThreadNum();
 
-        void PopWorkingThreadNum();
+    void PopWorkingThreadNum();
 
-        void ResetWorkingThreadNum();
+    void ResetWorkingThreadNum();
 
-        bool GetWorkingStatus();
+    bool GetWorkingStatus();
 
-    private:
+private:
 
-        void createTable();
+    void createTable();
 
-        void createMstxTable();
+    void createMstxTable();
 
-        void createApiTable();
+    void createApiTable();
 
-        void createKernelTable();
+    void createKernelTable();
 
-        void createHcclTable();
+    void createHcclTable();
 
-    private:
-        static constexpr size_t buffer_size = 5 * ONE_K * ONE_K;
-        char buffer[buffer_size];
-        bool inited = false;
-        int workingThreadNum = 0;
-        std::string file_name;
-        sqlite3* db;
-        sqlite3_stmt* stmtApi;
-        sqlite3_stmt* stmtKernel;
-        sqlite3_stmt* stmtHccl;
-        sqlite3_stmt* stmtMstx;
-        std::set<std::string> filterApi;
-        std::set<std::string> filterKernel;
-        std::set<std::string> filterHccl;
+private:
+    static constexpr size_t buffer_size = 5 * ONE_K * ONE_K;
+    char buffer[buffer_size];
+    bool inited = false;
+    int workingThreadNum = 0;
+    std::string file_name;
+    sqlite3* db;
+    sqlite3_stmt* stmtApi;
+    sqlite3_stmt* stmtKernel;
+    sqlite3_stmt* stmtHccl;
+    sqlite3_stmt* stmtMstx;
+    std::set<std::string> filterApi;
+    std::set<std::string> filterKernel;
+    std::set<std::string> filterHccl;
 };
 }
 #endif // SERVICEPROFILERMANAGERMSPTI_H
