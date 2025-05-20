@@ -20,7 +20,7 @@
 namespace msServiceProfiler {
     int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber);
     void InitMsptiActivity(bool msptiEnable_);
-    void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter, std::string& hcclFilter);
+    void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter);
     void UninitMspti(msptiSubscriberHandle& subscriber);
     void FlushBufferByTime();
 }

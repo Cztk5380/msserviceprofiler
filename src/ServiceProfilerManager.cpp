@@ -462,8 +462,7 @@ namespace msServiceProfiler {
                 InitMsptiActivity(config_->GetMsptiEnable());
                 auto apiFilter_ = config_->GetApiFilter();
                 auto kernelFilter_ = config_->GetKernelFilter();
-                auto hcclFilter_ = config_->GetHcclFilter();
-                InitMsptiFilter(apiFilter_, kernelFilter_, hcclFilter_);
+                InitMsptiFilter(apiFilter_, kernelFilter_);
                 msptiEnabled = true;
             }
         } else {

@@ -107,13 +107,6 @@ void Config::ParseMspti(const Json& config)
             PROF_LOGW("Unknown mspti_kernel_filter type. mspti_kernel_filter set to nullptr.");  // LCOV_EXCL_LINE
         }
     }
-    if (config.contains("mspti_hccl_filter")) {
-        if (config["mspti_hccl_filter"].is_string()) {
-            hcclFilter_ = config["mspti_hccl_filter"];
-        } else {
-            PROF_LOGW("Unknown mspti_hccl_filter type. mspti_hccl_filter set to nullptr.");  // LCOV_EXCL_LINE
-        }
-    }
 }
 
 void Config::ParseEnable(const Json& config)
@@ -338,6 +331,8 @@ void Config::SaveConfigToJsonFile()
         {"host_system_usage_freq", -1},
         {"npu_memory_usage_freq", -1},
         {"acl_task_time", enableAclTaskTime_ ? 1 : 0},
+        {"api_filter", ""},
+        {"kernel_filter", ""},
     };
     try {
         std::string dirPath = getDirPath(configPath);

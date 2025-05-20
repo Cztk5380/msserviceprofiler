@@ -41,7 +41,6 @@ public:
     bool GetMsptiEnable() const { return msptiEnable_; }
     const std::string GetApiFilter() const { return apiFilter_; }
     const std::string GetKernelFilter() const { return kernelFilter_; }
-    const std::string GetHcclFilter() const { return hcclFilter_; }
 
 private:
     void ReadConfigPath();
@@ -79,7 +78,6 @@ private:
 
     std::string apiFilter_;
     std::string kernelFilter_;
-    std::string hcclFilter_;
 };
 }
 #endif

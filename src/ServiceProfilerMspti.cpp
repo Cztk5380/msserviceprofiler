@@ -41,6 +41,7 @@ std::mutex g_mtx;
 
 namespace {
     constexpr int ALIGN_SIZE = 8;
+    constexpr int ONE_K = 1024;
 } // end of anonymous namespace
 
 #define ALIGN_BUFFER(buffer, align)                                                 \
@@ -50,7 +51,7 @@ namespace msServiceProfiler {
 
     class ServiceProfilerMspti {
     private:
-        static constexpr size_t buffer_size = 5 * 1024 * 1024;
+        static constexpr size_t buffer_size = 5 * ONE_K * ONE_K;
         char buffer[buffer_size];
         bool inited = false;
         int workingThreadNum = 0;
@@ -262,11 +263,10 @@ namespace msServiceProfiler {
             PROF_LOGD("Init ServiceProfilerFilerWriter Success.");
         }
 
-        void InitFilter(std::string& apiFilter, std::string& kernelFilter, std::string& hcclFilter)
+        void InitFilter(std::string& apiFilter, std::string& kernelFilter)
         {
             filterApi = splitStringToSet(apiFilter);
             filterKernel = splitStringToSet(kernelFilter);
-            filterHccl = splitStringToSet(hcclFilter);
         }
 
         void InitOutputPath(std::string& outputPath)
@@ -482,13 +482,16 @@ namespace msServiceProfiler {
                     if (pRecord->kind == MSPTI_ACTIVITY_KIND_API) {
                         msptiActivityApi* activity = reinterpret_cast<msptiActivityApi*>(pRecord);
                         ShowApiInfo(activity);
-                    } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_KERNEL) {
+                    }
+                    if (pRecord->kind == MSPTI_ACTIVITY_KIND_KERNEL) {
                         msptiActivityKernel* activity = reinterpret_cast<msptiActivityKernel*>(pRecord);
                         ShowKernelInfo(activity);
-                    } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_HCCL) {
+                    }
+                    if (pRecord->kind == MSPTI_ACTIVITY_KIND_HCCL) {
                         msptiActivityHccl* activity = reinterpret_cast<msptiActivityHccl*>(pRecord);
                         ShowHcclInfo(activity);
-                    } else if (pRecord->kind == MSPTI_ACTIVITY_KIND_MARKER) {
+                    }
+                    if (pRecord->kind == MSPTI_ACTIVITY_KIND_MARKER) {
                         msptiActivityMarker* activity = reinterpret_cast<msptiActivityMarker*>(pRecord);
                         ShowMstxInfo(activity);
                     }
@@ -507,10 +510,10 @@ namespace msServiceProfiler {
     // MSPTI
     void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords)
     {
-        constexpr uint32_t SIZE = 1 * 1024 * 1024;
+        constexpr uint32_t SIZE = 1 * ONE_K * ONE_K;
         uint8_t *pBuffer = (uint8_t *) malloc(SIZE + ALIGN_SIZE);
         *buffer = ALIGN_BUFFER(pBuffer, ALIGN_SIZE);
-        *size = 1 * 1024 * 1024;
+        *size = 1 * ONE_K * ONE_K;
         *maxNumRecords = 0;
     }
 
@@ -574,9 +577,9 @@ namespace msServiceProfiler {
         }
     }
 
-    void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter, std::string& hcclFilter)
+    void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter)
     {
-        ServiceProfilerMspti::GetInstance().InitFilter(apiFilter, kernelFilter, hcclFilter);
+        ServiceProfilerMspti::GetInstance().InitFilter(apiFilter, kernelFilter);
     }
 
     void UninitMspti(msptiSubscriberHandle& subscriber)
