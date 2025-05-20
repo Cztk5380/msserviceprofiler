@@ -70,7 +70,7 @@ namespace msServiceProfiler {
 
         void insertApiData(msptiActivityApi* activity)
         {
-            if (!inited || !activity || !stmtApi ) {
+            if (!inited || !activity || !stmtApi) {
                 return;
             }
 
@@ -102,7 +102,7 @@ namespace msServiceProfiler {
 
         void insertKernelData(msptiActivityKernel* activity)
         {
-            if (!inited || !activity || !stmtKernel ) {
+            if (!inited || !activity || !stmtKernel) {
                 return;
             }
 
@@ -132,7 +132,7 @@ namespace msServiceProfiler {
 
         void insertHcclData(msptiActivityHccl* activity)
         {
-            if (!inited || !activity || !stmtHccl ) {
+            if (!inited || !activity || !stmtHccl) {
                 return;
             }
 
@@ -163,7 +163,7 @@ namespace msServiceProfiler {
 
         void insertMstxData(msptiActivityMarker* activity)
         {
-            if (!inited || !activity || !stmtMstx ) {
+            if (!inited || !activity || !stmtMstx) {
                 return;
             }
 
@@ -426,7 +426,7 @@ namespace msServiceProfiler {
 
     static void ShowApiInfo(msptiActivityApi* api)
     {
-        if(!api) {
+        if (!api) {
             return;
         }
         ServiceProfilerMspti::GetInstance().insertApiData(api);
@@ -434,7 +434,7 @@ namespace msServiceProfiler {
 
     static void ShowKernelInfo(msptiActivityKernel* kernel)
     {
-        if(!kernel) {
+        if (!kernel) {
             return;
         }
         ServiceProfilerMspti::GetInstance().insertKernelData(kernel);
@@ -442,7 +442,7 @@ namespace msServiceProfiler {
 
     static void ShowHcclInfo(msptiActivityHccl* activity)
     {
-        if(!activity) {
+        if (!activity) {
             return;
         }
         ServiceProfilerMspti::GetInstance().insertHcclData(activity);
@@ -450,7 +450,7 @@ namespace msServiceProfiler {
 
     static void ShowMstxInfo(msptiActivityMarker* activity)
     {
-        if(!activity) {
+        if (!activity) {
             return;
         }
         ServiceProfilerMspti::GetInstance().insertMstxData(activity);

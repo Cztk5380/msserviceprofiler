@@ -455,7 +455,7 @@ namespace msServiceProfiler {
 
         if (config_->GetMsptiEnable()) {
             auto ret = InitMspti(profPath, msptiHandle_);
-            if (ret != 0 ) {
+            if (ret != 0) {
                 PROF_LOGE("Mspti init failed.");
                 msptiEnabled = false;
             } else {
