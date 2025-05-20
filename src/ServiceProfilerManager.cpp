@@ -462,7 +462,7 @@ namespace msServiceProfiler {
         }
     }
 
-    void ServiceProfilerManager::StartMsptiProf(std::string profPath)
+    void ServiceProfilerManager::StartMsptiProf(const std::string &profPath)
     {
         auto ret = InitMspti(profPath, msptiHandle_);
         if (ret != 0 ) {
@@ -477,6 +477,7 @@ namespace msServiceProfiler {
             auto hcclFilter_ = config_->GetHcclFilter();
             InitMsptiFilter(apiFilter_, kernelFilter_, hcclFilter_);
             msptiEnabled = true;
+        }
 
         // 设置标志位
         config_->SetEnable(true);
@@ -485,7 +486,7 @@ namespace msServiceProfiler {
         g_startFlag = true;
     }
 
-    void ServiceProfilerManager::StartAclProf(std::string profPath)
+    void ServiceProfilerManager::StartAclProf(const std::string &profPath)
     {
         if (!isAclInit_) {
             aclError retInit = aclInit(nullptr);
