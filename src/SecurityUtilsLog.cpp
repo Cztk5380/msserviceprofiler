@@ -20,13 +20,13 @@ inline std::string ToString(LogLv lv)
     return lv < LogLv::COUNT ? lvString[static_cast<underlying>(lv)] : "N";
 }
 
-Log &Log::GetLog(void)
+SecurityUtilsLog &SecurityUtilsLog::GetLog(void)
 {
-    static Log instance;
+    static SecurityUtilsLog instance;
     return instance;
 }
 
-std::string Log::AddPrefixInfo(std::string const &format, LogLv lv) const
+std::string SecurityUtilsLog::AddPrefixInfo(std::string const &format, LogLv lv) const
 {
     char buf[32] = "0";
     auto now = std::chrono::system_clock::now();
@@ -39,7 +39,7 @@ std::string Log::AddPrefixInfo(std::string const &format, LogLv lv) const
     return std::string(buf) + " " + ToString(lv) + " " + format;
 }
 
-void Log::SetLogLevelByEnvVar()
+void SecurityUtilsLog::SetLogLevelByEnvVar()
 {
     char *logLevel = secure_getenv("SECURITY_UTILS_LOG_LEVEL");
     if (logLevel == nullptr) {

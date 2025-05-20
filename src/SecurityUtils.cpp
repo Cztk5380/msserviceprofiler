@@ -1,9 +1,10 @@
+// Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
 #include "msServiceProfiler/SecurityUtils.h"
 #include <iostream>
 #include <sys/stat.h>
 #include <cstring>
 #include <unistd.h>
-#include <limits.h>
+#include <climits>
 #include <algorithm>
 #include <regex>
 #include <cstdlib>
@@ -135,13 +136,13 @@ bool IsPathCharactersValid(const std::string &absPath)
 
 static std::string GetRealPath(std::string const &path)
 {
-    char * absPath = realpath(path.c_str(), NULL);
-    if ( absPath == NULL) {
+    char* absPath = realpath(path.c_str(), NULL);
+    if (absPath == NULL) {
         LogWarn("Cannot GetRealPath");
         return "";
     }
-    std::string result( absPath);
-    free( absPath);
+    std::string result(absPath);
+    free(absPath);
     return result;
 }
 
@@ -177,13 +178,13 @@ static void Split(std::string const &str, Iterator it, std::string const &seps)
 
 bool CheckPathContainSoftLink(const std::string &path)
 {
-    constexpr char const *PATH_SEP = "/";
+    constexpr char const *pathSep = "/";
     std::string nonConstPath = path;
     while (!nonConstPath.empty() && nonConstPath.back() == '/') {
         nonConstPath.pop_back();
     }
     std::vector<std::string> dirs;
-    Split(nonConstPath, std::back_inserter(dirs), PATH_SEP);
+    Split(nonConstPath, std::back_inserter(dirs), pathSep);
     if (dirs.empty()) {
         return false;
     }
@@ -192,7 +193,7 @@ bool CheckPathContainSoftLink(const std::string &path)
         if (it == dirs.cbegin()) {
             current = *it;
         } else {
-            current.append(PATH_SEP + *it);
+            current.append(pathSep + *it);
         }
         if (*it == "." || *it == ".." || *it == "") {
             continue;
@@ -206,11 +207,11 @@ bool CheckPathContainSoftLink(const std::string &path)
 
 static mode_t GetFilePermissions(const std::string &path)
 {
-    struct stat path_stat;
-    if (stat(path.c_str(), &path_stat) != 0) {
+    struct stat fileStat;
+    if (stat(path.c_str(), &fileStat) != 0) {
         return 0;
     }
-    mode_t permissions = path_stat.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+    mode_t permissions = fileStat.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
     return permissions;
 }
 
@@ -222,7 +223,7 @@ bool CheckFileBeforeWrite(const std::string &path)
     }
 
     const auto absPath = GetRealPath(path);
-    if (!IsPathLenLegal(absPath) || !IsPathCharactersValid(absPath) || !IsFile(absPath) || 
+    if (!IsPathLenLegal(absPath) || !IsPathCharactersValid(absPath) || !IsFile(absPath) ||
         !IsOwner(GetParentDir(absPath)) || !IsOwner(absPath) || !IsWritable(absPath)) {
         LogWarn("CheckFileBeforeWrite faild, path: %s", path.c_str());
         return false;

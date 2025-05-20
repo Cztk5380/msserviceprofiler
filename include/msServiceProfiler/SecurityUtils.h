@@ -30,7 +30,7 @@ namespace SecurityUtils {
     bool IsFile(const std::string &absPath); // 检查是否为文件
     bool IsDir(std::string const &absPath); // 检查是否为文件夹
     bool IsPathLenLegal(const std::string &absPath); // 检查路径长度是否合法
-    bool IsPathDepthLegal(const std::string &absPath); //检查路径深度是否合法
+    bool IsPathDepthLegal(const std::string &absPath); // 检查路径深度是否合法
     bool IsFileSizeLegal(const std::string &absPath, long long maxSize = MAX_FILE_SIZE_10G); // 检查文件大小是否合法
     bool IsPathCharactersValid(const std::string &absPath); // 检查路径中是否有非法字符
 
