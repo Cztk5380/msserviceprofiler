@@ -25,6 +25,7 @@ class ExporterReqStatus(ExporterBase):
         if 'db' in cls.args.format:
             df = data.get('tx_data_df')
             if df is None:
+                logger.error("The data is empty, please check")
                 return
 
             if check_domain_valid(df, ['Request'], 'request_status') is False:
