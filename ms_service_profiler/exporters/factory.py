@@ -7,17 +7,26 @@ from ms_service_profiler.exporters.exporter_batch import ExporterBatchData
 from ms_service_profiler.exporters.exporter_kvcache import ExporterKVCacheData
 from ms_service_profiler.exporters.exporter_latency import ExporterLatency
 from ms_service_profiler.exporters.exporter_pd_comm import ExporterPDComm
+from ms_service_profiler.exporters.exporter_mspti import ExporterMspti
 
 
 # 插件工厂类
 class ExporterFactory:
     exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterReqData, ExporterBatchData, \
-                    ExporterKVCacheData, ExporterLatency, ExporterPDComm]
+                    ExporterKVCacheData, ExporterLatency, ExporterPDComm, ExporterMspti]
 
     @staticmethod
     def create_exporters(args):
         exporters = []
         enable_exporter = ['trace', 'req_status', 'req_data', 'batch_data', 'kvcache_data', 'latency', 'pd_comm']
+        for name in enable_exporter:
+            exporters.append(ExporterFactory.create(name, args))
+        return exporters
+
+    @staticmethod
+    def create_mspti_exporters(args):
+        exporters = []
+        enable_exporter = ['mspti']
         for name in enable_exporter:
             exporters.append(ExporterFactory.create(name, args))
         return exporters

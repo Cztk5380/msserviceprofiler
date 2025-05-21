@@ -8,6 +8,7 @@ from ms_service_profiler.plugins.plugin_concat import PluginConcat
 from ms_service_profiler.plugins.plugin_trace import PluginTrace
 from ms_service_profiler.plugins.plugin_process_name import PluginProcessName
 from ms_service_profiler.plugins.plugin_batch import PluginBatch
+from ms_service_profiler.plugins.plugin_mspit_process import PluginMsptiProcess
 
 builtin_plugins = [PluginTimeStamp, PluginConcat, PluginCommon, PluginMetric, PluginTrace,
     PluginProcessName, PluginBatch]
