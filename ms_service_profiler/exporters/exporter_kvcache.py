@@ -12,9 +12,12 @@ import numpy as np
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
-from ms_service_profiler.exporters.utils import create_sqlite_db, add_table_into_visual_db
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
+from ms_service_profiler.constant import US_PER_MS
+from ms_service_profiler.exporters.utils import (
+    create_sqlite_views, add_table_into_visual_db, truncate_timestamp_np, check_domain_valid
+)
 
 
 def get_max_free_value(kvcache_df):
@@ -46,7 +49,7 @@ def build_rid_to_action_usage_rates(kvcache_df, max_free_value):
         action_usage_rates_list = []
         for index, row in group.iterrows():
             action = row['name']
-            timestamp = row['real_start_time']
+            timestamp = row['real_start_time_ms']
             action_usage_rate_dict = {}
             action_usage_rate_dict['original_index'] = index
             value = row['device_kvcache_left']
@@ -63,7 +66,7 @@ def build_result_df(kvcache_df, rid_to_action_usage_rates, num_threads=4):
     """
     创建新的DataFrame并填充数据
     """
-    new_columns = ['rid', 'name', 'real_start_time', 'device_kvcache_left', 'kvcache_usage_rate']
+    new_columns = ['rid', 'name', 'real_start_time_ms', 'device_kvcache_left', 'kvcache_usage_rate']
 
     # 将 DataFrame 转换为 NumPy 数组，并添加原始索引作为最后一列
     data_with_index = np.column_stack((kvcache_df.to_numpy(), kvcache_df.index))
@@ -71,12 +74,12 @@ def build_result_df(kvcache_df, rid_to_action_usage_rates, num_threads=4):
     # 处理单行数据的函数
     def process_row(row):
         rid = row[1]
-        original_index = row[8]
+        original_index = row[6]
 
         relevant_data_list = rid_to_action_usage_rates.get(rid, [])
         relevant_data = next((d for d in relevant_data_list if d['original_index'] == original_index), None)
         usage_rate = relevant_data['usage'] if relevant_data and relevant_data['usage'] is not None else None
-        result = [rid, row[4], row[7], row[5], usage_rate]
+        result = [rid, row[3], row[5], row[4], usage_rate]
 
         return result
 
@@ -118,6 +121,42 @@ def kvcache_usage_rate_calculator(kvcache_df):
     return result_df
 
 
+def export_pull_kvcache(df, output, args_format):
+    pull_kvcache_df = df[df['name'] == 'PullKVCache']
+    logger.debug(f"pd_split_kvcache shape {pull_kvcache_df.shape}.")
+
+    if pull_kvcache_df.shape[0] == 0:
+        return
+    try:
+        pull_kvcache_df = pull_kvcache_df[[
+            'domain', 'rank', 'rid', 'block_tables', 'batch_seq_len', 'during_time', \
+            'start_datetime', 'end_datetime', 'start_time', 'end_time',
+        ]]
+    except KeyError as e:
+        logger.warning(f"Field '{e.args[0]}' not found in PullKVCache.")
+
+    pull_kvcache_df['start_time'] = pull_kvcache_df['start_time'] // US_PER_MS
+    pull_kvcache_df['end_time'] = pull_kvcache_df['end_time'] // US_PER_MS
+    pull_kvcache_df['during_time'] = pull_kvcache_df['during_time'] / US_PER_MS
+    
+    pull_kvcache_df['start_datetime'] = pull_kvcache_df['start_datetime'].str[:-3]
+    pull_kvcache_df['end_datetime'] = pull_kvcache_df['end_datetime'].str[:-3]
+
+    pull_kvcache_df = pull_kvcache_df.rename(columns={
+        'start_time': 'start_time_ms',
+        'end_time': 'end_time_ms',
+        'during_time': 'during_time_ms',
+        'start_datetime': 'start_datetime_ms',
+        'end_datetime': 'end_datetime_ms'
+    })
+
+    if 'csv' in args_format:
+        save_dataframe_to_csv(pull_kvcache_df, output, "pd_split_kvcache.csv")
+
+    if 'db' in args_format:
+        add_table_into_visual_db(pull_kvcache_df, 'pull_kvcache')
+
+
 class ExporterKVCacheData(ExporterBase):
     name = "kvcache_data"
  
@@ -133,6 +172,10 @@ class ExporterKVCacheData(ExporterBase):
             if df is None:
                 logger.error("The data is empty, please check")
                 return
+            output = cls.args.output_path
+
+            if check_domain_valid(df, ['KVCache'], 'kvcache') is False:
+                return
 
             if not df['domain'].str.casefold().str.contains(r'kvcache', regex=True).any():
                 logger.warning(
@@ -140,66 +183,53 @@ class ExporterKVCacheData(ExporterBase):
                     "'msproftx.db'"
                 )
                 return
-        else:
-            pass
 
-        if 'db' in cls.args.format or 'csv' in cls.args.format:
             start_datetime_data = df['start_datetime'].copy()
             try:
+                # KVCache事件
                 kvcache_df = df[df['domain'] == 'KVCache']
-                kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'end_time', 'name', \
-                                         'deviceBlock=', 'during_time']]
+                kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'name', \
+                                        'deviceBlock=']]
+                kvcache_df['start_time'] = kvcache_df['start_time'] // US_PER_MS
                 kvcache_df = kvcache_df.rename(columns={
                     'deviceBlock=': 'device_kvcache_left',
-                    'start_time': 'start_time(microsecond)',
-                    'end_time': 'end_time(microsecond)',
-                    'during_time': 'during_time(microsecond)'
+                    'start_time': 'timestamp_ms'
                 })
-
             except KeyError as e:
                 logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
-            output = cls.args.output_path
-            if 'csv' in cls.args.format:
-                save_dataframe_to_csv(kvcache_df, output, "kvcache.csv")
-            else:
-                pass
-            kvcache_df['start_datetime'] = start_datetime_data
-            kvcache_df = kvcache_df.rename(columns={
-                'start_datetime': 'real_start_time'
-            })
-            kvcache_df = kvcache_usage_rate_calculator(kvcache_df)
-
-            if 'db' in cls.args.format:
-                add_table_into_visual_db(kvcache_df, 'kvcache')
-            else:
-                pass
-        else:
-            pass
 
         if 'csv' in cls.args.format:
-            export_pull_kvcache(df, cls.args.output_path)
-        else:
-            pass
+            save_dataframe_to_csv(kvcache_df, output, "kvcache.csv")
+
+        if 'db' in cls.args.format:
+            kvcache_df['start_datetime'] = start_datetime_data
+            kvcache_df = kvcache_df.rename(columns={
+                'start_datetime': 'real_start_time_ms'
+            })
+            kvcache_df = kvcache_usage_rate_calculator(kvcache_df)
+            kvcache_df['real_start_time_ms'] = truncate_timestamp_np(kvcache_df['real_start_time_ms'])
+
+            add_table_into_visual_db(kvcache_df, 'kvcache')
+            create_sqlite_views('Kvcache_Usage_Percent', CREATE_KVCACHE_VIEW_SQL)
+
+        # PullKVCache
+        export_pull_kvcache(df, cls.args.output_path, cls.args.format)
 
 
-def export_pull_kvcache(df, output):
-    kvcache_df = df[df['domain'] == 'PullKVCache']
-    logger.debug(f"pd_split_kvcache shape {kvcache_df.shape}.")
-    
-    if kvcache_df.shape[0] == 0:
-        return
-    try:
-        kvcache_df = kvcache_df[[
-            'domain', 'rank', 'rid', 'block_tables', 'batch_seq_len', 'during_time', \
-            'start_datetime', 'end_datetime', 'start_time', 'end_time',
-        ]]
-    except KeyError as e:
-        logger.warning(f"Field '{e.args[0]}' not found in PullKVCache.")
-    
-    kvcache_df = kvcache_df.rename(columns={
-        'start_time': 'start_time(microsecond)',
-        'end_time': 'end_time(microsecond)',
-        'during_time': 'during_time(microsecond)'
-    })
-    save_dataframe_to_csv(kvcache_df, output, "pd_split_kvcache.csv")
-    logger.info(f"pd_split_kvcache.csv success.")
+CREATE_KVCACHE_VIEW_SQL = """
+    CREATE VIEW Kvcache_Usage_Percent_curve AS
+    WITH converted AS (
+        SELECT
+            kvcache_usage_rate * 100 AS kvcache_usage_percent,
+            substr(real_start_time_ms, 1, 10) || ' ' || substr(real_start_time_ms, 12, 8) AS datetime
+        FROM
+            kvcache
+    )
+    SELECT
+        datetime as time,
+        cast(kvcache_usage_percent as REAL) as "kvcacge_usage"
+    FROM
+        converted
+    ORDER BY
+        datetime ASC
+"""

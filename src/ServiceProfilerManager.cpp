@@ -136,6 +136,16 @@ bool IsEnable(uint32_t level)
     return msServiceProfiler::ServiceProfilerManager::GetInstance().IsEnable(level);
 }
 
+bool GetEnableDomainFilter()
+{
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetEnableDomainFilter();
+}
+
+const std::set<std::string>& GetValidDomain()
+{
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetValidDomain();
+}
+
 void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
 {
     if (len != sizeof(::ProfSetDevPara)) {
@@ -168,7 +178,11 @@ void RegisterSetDeviceCallback()
     using ProfRegDeviceStateCallbackFunc = int32_t (*)(ProfSetDeviceHandle);
     ProfRegDeviceStateCallbackFunc profRegDeviceStateCallback =
         (ProfRegDeviceStateCallbackFunc)(dlsym(handle, "profRegDeviceStateCallback"));
-
+    if (profRegDeviceStateCallback == nullptr) {
+        PROF_LOGW("Failed to get profRegDeviceStateCallback from libprofapi.so."
+            "Will be not able to get device profiling data.  Check whether a NPU server or if cann toolkit installed.");
+        return;
+    }
     profRegDeviceStateCallback(MsprofSetDeviceCallbackImpl);
 }
 
@@ -202,7 +216,8 @@ namespace msServiceProfiler {
             offset = (str == nullptr) ? pathLen : str - dirPath.c_str() + 1;
             std::string curPath = dirPath.substr(0, offset);
             if (access(curPath.c_str(), F_OK) != 0) {
-                if (mkdir(curPath.c_str(), S_IRWXU | S_IRGRP | S_IXGRP) != 0) {
+                int ret = mkdir(curPath.c_str(), S_IRWXU | S_IRGRP | S_IXGRP);
+                if (ret != 0 && errno == EEXIST) {
                     return false;
                 }
             }
@@ -221,6 +236,7 @@ namespace msServiceProfiler {
     {
         ProfLogInit();
         MarkFirstProcessAsMain();
+        config_->ReadAndSaveConfig();
         RegisterSetDeviceCallback();
         if (config_->GetEnable()) {
             StartProfiler();
@@ -260,7 +276,7 @@ namespace msServiceProfiler {
             return;
         }
 
-        int shmFd = shm_open(ToSemName(semNameTouchTime).c_str(), O_CREAT | O_RDWR, 0666);
+        int shmFd = shm_open(ToSemName(semNameTouchTime).c_str(), O_CREAT | O_RDWR, 0640);
         if (shmFd == -1) {
             PROF_LOGW("shm_open failed");  // LCOV_EXCL_LINE
             return;
