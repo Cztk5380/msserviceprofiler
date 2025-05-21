@@ -12,6 +12,7 @@
 namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
 constexpr int MSPTI_ENABLE_TASK_TIME = 2;
+constexpr int MAX_TIME_LIMIT = 7200;
 Config::Config()
 {
     ReadConfigPath();
@@ -89,6 +90,7 @@ Json Config::ReadConfigFile()
 void Config::ParseConfig(const Json& configJson)
 {
     ParseEnable(configJson);
+    ParseTimeLimit(configJson);
     ParseAclTaskTime(configJson);
     ParseProfPath(configJson);
     ParseLevel(configJson);
@@ -126,6 +128,28 @@ void Config::ParseEnable(const Json& config)
         }
     }
     PROF_LOGI("profile enable_: %s", enable_ ? "true" : "false");  // LCOV_EXCL_LINE
+}
+
+void Config::ParseTimeLimit(const Json& config)
+{
+    timeLimit_ = 0;  // Default to 0
+
+    if (config.contains("timelimit")) {
+        if (config["timelimit"].is_number_integer()) {
+            if (config["timelimit"] <= 0) {
+                timeLimit_ = 0;
+                PROF_LOGW("timelimit value is not higher than 0, the profiling time is not assigned.");
+            } else if (config["timelimit"] > 0 && config["timelimit"] <= MAX_TIME_LIMIT) {
+                timeLimit_ = config["timelimit"];
+                PROF_LOGI("profile timeLimit_: %d", timeLimit_);
+            } else {
+                timeLimit_ = MAX_TIME_LIMIT;
+                PROF_LOGW("timelimit value is higher than %d, will set %d", MAX_TIME_LIMIT, MAX_TIME_LIMIT);
+            }
+        } else {
+            PROF_LOGW("timelimit value is not an integer, the profiling time is not assigned.");
+        }
+    }
 }
 
 std::string Config::getDefaultProfPath()
@@ -258,7 +282,7 @@ void Config::ParseDomain(const Json& config)
 {
     enableDomainFilter_ = false;
     validDomain_.clear();
-
+    
     if (!config.contains("domain")) {
         LogDomainInfo();
         return;
@@ -405,6 +429,7 @@ void Config::SaveConfigToJsonFile()
         {"api_filter", ""},
         {"kernel_filter", ""},
         {"domain", ""},
+        {"timelimit", 0},
     };
     try {
         std::string dirPath = getDirPath(configPath);

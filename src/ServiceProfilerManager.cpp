@@ -35,7 +35,6 @@
 #include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
 
-
 namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
@@ -398,6 +397,18 @@ namespace msServiceProfiler {
                 PROF_LOGD("get npu memory usage failed");  // LCOV_EXCL_LINE
             }
 
+            if (config_->GetTimeLimit() > 0 && started_) {
+                auto terminate = std::chrono::high_resolution_clock::now(); // 记录结束时间
+
+                auto duration = std::chrono::duration_cast<std::chrono::seconds>(terminate - initiate);
+
+                if (duration.count() >= config_->GetTimeLimit()) {
+                    StopProfiler();
+                    PROF_LOGI("Profiler Timelimit %d Seconds Is Reached, Profiler Disabled Successfully!",
+                              config_->GetTimeLimit());
+                }
+            }
+
             if (msptiEnabled) {
                 FlushBufferByTime();
             }
@@ -456,6 +467,8 @@ namespace msServiceProfiler {
         if (started_) {
             return;
         }
+
+        initiate = std::chrono::high_resolution_clock::now(); // 记录开始时间
 
         auto profPath = config_->GetProfPath();
         if (!MakeDirs(profPath)) {
