@@ -1,0 +1,11 @@
+PathConfig:
+    FileSizeConfig:
+        ext_mapping:
+            .db: 53687091200
+            .py: 524288000
+            .ini: 52428800
+            .csv: 5368709120
+            .json: 26843545600
+            .log: 1048576
+            "": 2
+        require_confirm: true
