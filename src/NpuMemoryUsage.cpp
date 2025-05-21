@@ -2,17 +2,21 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
  */
 
+#include "msServiceProfiler/NpuMemoryUsage.h"
 #include <iostream>
 #include <vector>
 #include <dlfcn.h>
 #include "../include/msServiceProfiler/Log.h"
-#include "msServiceProfiler/NpuMemoryUsage.h"
+#include "msServiceProfiler/SecurityUtils.h"
 
 namespace msServiceProfiler {
 
 NpuMemoryUsage::NpuMemoryUsage()
 {
     const std::string soName = "/usr/local/Ascend/driver/lib64/driver/libdcmi.so";
+    if (!SecurityUtils::CheckFileBeforeRead(soName) || !SecurityUtils::IsExecutable(soName)) {
+        PROF_LOGW("libdcmi.so security check faild.");
+    }
     handleDcmi = dlopen(soName.c_str(), RTLD_LAZY | RTLD_LOCAL);
     if (handleDcmi == nullptr) {
         PROF_LOGW("Failed to dlopen libdcmi.so. Will be not able to get NPU usage data. "

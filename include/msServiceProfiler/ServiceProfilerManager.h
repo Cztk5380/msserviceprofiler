@@ -44,6 +44,10 @@ namespace msServiceProfiler {
             return config_->GetEnable() && config_->GetLevel() >= level;
         }
 
+        inline bool GetEnableDomainFilter() const { return config_->GetEnableDomainFilter(); }
+
+        const std::set<std::string>& GetValidDomain() const { return config_->GetValidDomain(); }
+
         void StartProfiler();
 
         void StopProfiler();

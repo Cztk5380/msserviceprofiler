@@ -137,6 +137,16 @@ bool IsEnable(uint32_t level)
     return msServiceProfiler::ServiceProfilerManager::GetInstance().IsEnable(level);
 }
 
+bool GetEnableDomainFilter()
+{
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetEnableDomainFilter();
+}
+
+const std::set<std::string>& GetValidDomain()
+{
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetValidDomain();
+}
+
 void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
 {
     if (len != sizeof(::ProfSetDevPara)) {
@@ -267,7 +277,7 @@ namespace msServiceProfiler {
             return;
         }
 
-        int shmFd = shm_open(ToSemName(semNameTouchTime).c_str(), O_CREAT | O_RDWR, 0666);
+        int shmFd = shm_open(ToSemName(semNameTouchTime).c_str(), O_CREAT | O_RDWR, 0640);
         if (shmFd == -1) {
             PROF_LOGW("shm_open failed");  // LCOV_EXCL_LINE
             return;

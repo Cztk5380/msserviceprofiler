@@ -25,7 +25,7 @@ class TestKvcacheFunctions(unittest.TestCase):
             'name': ['Allocate', 'Free', 'AppendSlot', 'AppendSlot'],
             'device_kvcache_left': [1978, 1977, 1976, 1975],
             'during_time(microsecond)': ['0', '0', '0', '0'],
-            'real_start_time': ['2024-12-25', '2024-12-25', '2024-12-25', '2024-12-25']
+            'real_start_time_ms': ['2024-12-25', '2024-12-25', '2024-12-25', '2024-12-25']
         }
         self.kvcache_df = pd.DataFrame(data)
 
@@ -75,7 +75,7 @@ class TestKvcacheFunctions(unittest.TestCase):
         expected_columns = [
             'rid',
             'name',
-            'real_start_time',
+            'real_start_time_ms',
             'device_kvcache_left',
             'kvcache_usage_rate'
         ]

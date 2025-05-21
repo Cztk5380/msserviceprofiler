@@ -94,6 +94,9 @@ namespace msServiceProfiler {
     public:
         inline bool IsEnable(Level msgLevel = level) const
         {
+            if (!domainAllow_) {
+                return false;
+            }
             return msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallIsEnable(msgLevel);
         };
 
@@ -203,6 +206,13 @@ namespace msServiceProfiler {
 
         inline Profiler &Domain(const char *domainName)
         {
+            if (!domainName) {
+                return *this;
+            }
+
+            domainAllow_ = msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
+                .CallIsDomainEnable(domainName);
+
             if (IsEnable(level)) {
                 this->Attr("domain", domainName);
             }
@@ -341,6 +351,7 @@ namespace msServiceProfiler {
         bool autoEnd_ = false;
         SpanHandle spanHandle_ = 0U;
         std::string msg_;
+        bool domainAllow_ = true;
     };
 
 }  // namespace msServiceProfiler

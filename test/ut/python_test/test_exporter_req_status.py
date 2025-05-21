@@ -14,6 +14,9 @@ from ms_service_profiler.exporters.utils import create_sqlite_db, visual_db_fp
 @pytest.fixture
 def sample_data():
     data = {
+        'tx_data_df': pd.DataFrame({
+            'name': ['ReqState'],
+            'domain': ['Request']}),
         'metric_data_df': pd.DataFrame({
             'start_datetime': [1696321692, 1696321693, 1696321694],
             'WAITING': [1, 0, 0],

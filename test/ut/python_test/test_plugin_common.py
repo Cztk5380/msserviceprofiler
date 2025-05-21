@@ -90,7 +90,7 @@ def test_parse_with_list_rid_from_message():
     rid_from_message = [{'rid': 1}, {'rid': 2}]
     rid_map = {1: 1, 2: 2}
     rid, token_id, dp_id = extract_ids_from_reslist(rid_from_message, rid_map)
-    assert rid == [1, 2]
+    assert rid == ['1', '2']
     assert token_id == [None, None]
     assert not dp_id
 
@@ -118,7 +118,7 @@ def test_extract_ids_from_reslist():
     rid_from_message = [{'rid': 1}, {'rid': 2}]
     rid_map = {1: 1, 2: 2}
     rid, token_id, dp_id = extract_ids_from_reslist(rid_from_message, rid_map)
-    assert rid == [1, 2]
+    assert rid == ['1', '2']
     assert token_id == [None, None]
     assert not dp_id
 
@@ -157,6 +157,6 @@ def test_extract_dp_from_reslist():
     rid_from_message = [{'rid': 1, 'dp': '0'}, {'rid': 2, 'dp': '1'}]
     rid_map = {1: 1, 2: 2}
     rid, token_id, dp_id = extract_ids_from_reslist(rid_from_message, rid_map)
-    assert rid == [1, 2]
+    assert rid == ['1', '2']
     assert not token_id
     assert dp_id == ['0', '1']
