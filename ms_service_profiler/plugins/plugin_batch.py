@@ -12,6 +12,7 @@ class PluginBatch(PluginBase):
     batch_req = dict()
     batch_exec = dict()
     batch_list = dict()
+    rid_iter_times = dict()
 
     @classmethod
     def add_req_info(cls, batch_id, req_id, **values):
@@ -39,7 +40,8 @@ class PluginBatch(PluginBase):
         cls.add_exec_info(batch_index, row.pid, row.name, row.start_time, row.end_time)
         for rinfo in row.res_list:
             if isinstance(rinfo, dict):
-                rid = rinfo.get("rid")
+                rid = str(rinfo.get("rid"))
+                rinfo["rid"] = rid
                 cls.add_req_info(batch_index, rid, **rinfo)
 
     @classmethod
@@ -55,12 +57,17 @@ class PluginBatch(PluginBase):
 
     @classmethod
     def deal_with_preprocess_row(cls, row, last_preprocess):
-        batch_info = cls.batch_list.get(tuple(row.rid_list))
-        if batch_info is None:
+        if not cls.batch_req:
             return
-        batch_id = batch_info.get("id", 0)
-        if batch_id == 0:
+
+        # 找到第一个没有block数据的batch id
+        batch_id = next(
+            (entry["batch_id"] for entry in cls.batch_req.values() if "block" not in entry),
+            None
+        )
+        if batch_id is None or batch_id == 0:
             return
+
         last_preprocess[(row.pid, row.tid, row.hostname)] = dict(rid_list=row.rid_list)
         cls.add_exec_info(batch_id, row.pid, row.name, row.start_time, row.end_time)
         try:

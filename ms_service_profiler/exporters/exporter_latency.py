@@ -1,14 +1,11 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-import os
-import datetime
 from decimal import Decimal
-import sqlite3
 import numpy as np
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.exporters.utils import add_table_into_visual_db
+from ms_service_profiler.exporters.utils import add_table_into_visual_db, create_sqlite_views, check_domain_valid
 from ms_service_profiler.utils.timer import timer
 
 
@@ -203,16 +200,115 @@ class ExporterLatency(ExporterBase):
     @classmethod
     @timer(logger.info)
     def export(cls, data) -> None:
-        if 'db' in cls.args.format:
-            all_data_df = data['tx_data_df']
-            output = cls.args.output_path
+        if 'db' not in cls.args.format:
+            return
 
-            first_token_latency_views, req_latency_views, prefill_gen_speed_views, decode_gen_speed_views = \
-                gen_exporter_results(all_data_df)
+        output = cls.args.output_path
+        all_data_df = data['tx_data_df']
+        
+        if check_domain_valid(all_data_df, ['ModelExecute', 'BatchSchedule', 'Request'], 'latency') is False:
+            return
 
-            add_table_into_visual_db(pd.DataFrame(first_token_latency_views), 'first_token_latency')
-            add_table_into_visual_db(pd.DataFrame(req_latency_views), 'req_latency')
-            add_table_into_visual_db(pd.DataFrame(prefill_gen_speed_views), 'prefill_gen_speed')
-            add_table_into_visual_db(pd.DataFrame(decode_gen_speed_views), 'decode_gen_speed')
-        else:
-            pass
+        first_token_latency_views, req_latency_views, prefill_gen_speed_views, decode_gen_speed_views = \
+            gen_exporter_results(all_data_df)
+
+        add_table_into_visual_db(pd.DataFrame(first_token_latency_views), 'first_token_latency')
+        create_sqlite_views('First_Token_Latency', CREATE_FIRST_TOKEN_LATENCY_SQL)
+
+        add_table_into_visual_db(pd.DataFrame(req_latency_views), 'req_latency')
+        create_sqlite_views('Request_Latency', CREATE_REQUEST_LATENCY_SQL)
+
+        add_table_into_visual_db(pd.DataFrame(prefill_gen_speed_views), 'prefill_gen_speed')
+        create_sqlite_views('Prefill_Generate_Speed_Latency', CREATE_PREFILL_GEN_SPEED_VIEW_SQL)
+
+        add_table_into_visual_db(pd.DataFrame(decode_gen_speed_views), 'decode_gen_speed')
+        create_sqlite_views('Decode_Generate_Speed_Latency', CREATE_DECODE_GEN_SPEED_SQL)
+
+
+CREATE_PREFILL_GEN_SPEED_VIEW_SQL = """
+    CREATE VIEW Prefill_Generate_Speed_Latency_curve AS
+    WITH converted AS (
+        SELECT
+            substr(timestamp, 1, 10) || ' ' || substr(timestamp, 12, 8) || '.' || substr(timestamp, 21, 6) AS datetime,
+            avg, p99, p90, p50
+    FROM
+        prefill_gen_speed
+    )
+    SELECT
+        datetime as time,
+        cast(avg as REAL) as "avg",
+        cast(p99 as REAL) as "p99",
+        cast(p90 as REAL) as "p90",
+        cast(p50 as REAL) as "p50"
+    FROM
+        converted
+    ORDER BY
+        datetime ASC
+"""
+
+
+CREATE_REQUEST_LATENCY_SQL = """
+    CREATE VIEW Request_Latency_curve AS
+    WITH converted AS (
+        SELECT
+            substr(timestamp, 1, 10) || ' ' || substr(timestamp, 12, 8) || '.' || substr(timestamp, 21, 6) AS datetime,
+            avg,
+            p99,
+            p90,
+            p50
+        FROM
+            req_latency
+    )
+    SELECT
+        datetime as time,
+        cast(avg as REAL) as "avg",
+        cast(p99 as REAL) as "p99",
+        cast(p90 as REAL) as "p90",
+        cast(p50 as REAL) as "p50"
+    FROM
+        converted
+    ORDER BY
+        datetime ASC
+"""
+
+CREATE_DECODE_GEN_SPEED_SQL = """
+    CREATE VIEW Decode_Generate_Speed_Latency_curve AS
+    WITH converted AS (
+        SELECT
+            substr(timestamp, 1, 10) || ' ' || substr(timestamp, 12, 8) || '.' || substr(timestamp, 21, 6) AS datetime,
+            avg, p99, p90, p50
+    FROM
+        decode_gen_speed
+    )
+    SELECT
+        datetime as time,
+        cast(avg as REAL) as "avg",
+        cast(p99 as REAL) as "p99",
+        cast(p90 as REAL) as "p90",
+        cast(p50 as REAL) as "p50"
+    FROM
+        converted
+    ORDER BY
+        datetime ASC
+"""
+
+CREATE_FIRST_TOKEN_LATENCY_SQL = """
+    CREATE VIEW First_Token_Latency_curve AS
+    WITH converted AS (
+        SELECT
+        substr(timestamp, 1, 10) || ' ' || substr(timestamp, 12, 8) || '.' || substr(timestamp, 21, 6) AS datetime,
+        avg, p99, p90, p50
+    FROM
+        first_token_latency
+    )
+    SELECT
+        datetime as time,
+        cast(avg as REAL) as "avg",
+        cast(p99 as REAL) as "p99",
+        cast(p90 as REAL) as "p90",
+        cast(p50 as REAL) as "p50"
+    FROM
+        converted
+    ORDER BY
+        datetime ASC
+"""

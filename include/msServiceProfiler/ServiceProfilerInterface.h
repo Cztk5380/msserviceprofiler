@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <dlfcn.h>
+#include <set>
 
 using SpanHandle = uint64_t;
 
@@ -34,6 +35,8 @@ MS_SERVICE_PROFILER_API void MarkEvent(const char *msg);
 MS_SERVICE_PROFILER_API void StartServerProfiler();
 MS_SERVICE_PROFILER_API void StopServerProfiler();
 MS_SERVICE_PROFILER_API bool IsEnable(uint32_t level);
+MS_SERVICE_PROFILER_API bool GetEnableDomainFilter();
+MS_SERVICE_PROFILER_API const std::set<std::string>& GetValidDomain();
 }
 
 namespace msServiceProfilerCompatible {
@@ -87,6 +90,21 @@ public:
         return ptrIsEnable_ && ptrIsEnable_(level);
     }
 
+    inline bool CallIsDomainEnable(const char *currentDomain) const
+    {
+        bool domainAllow_ = true;
+
+        if (!ptrEnableDomainFilter_ || !ptrValidDomain_) {
+            return domainAllow_;
+        }
+
+        if (ptrEnableDomainFilter_()) {
+            domainAllow_ = ptrValidDomain_().find(std::string(currentDomain)) != ptrValidDomain_().end();
+        }
+
+        return domainAllow_;
+    }
+
     inline void CallStartServerProfiler() const
     {
         if (ptrStartServerProfiler_) {
@@ -117,6 +135,8 @@ private:
         ptrMarkEvent_ = MarkEvent;
         ptrStartServerProfiler_ = StartServerProfiler;
         ptrStopServerProfiler_ = StopServerProfiler;
+        ptrEnableDomainFilter_ = GetEnableDomainFilter;
+        ptrValidDomain_ = GetValidDomain;
 #else
         char* ascendHomePathPtr = getenv("ASCEND_HOME_PATH");
         if (ascendHomePathPtr == nullptr) {
@@ -139,6 +159,8 @@ private:
             ptrMarkEvent_ = (decltype(MarkEvent) *)dlsym(handle, "MarkEvent");
             ptrStartServerProfiler_ = (decltype(StartServerProfiler) *)dlsym(handle, "StartServerProfiler");
             ptrStopServerProfiler_ = (decltype(StopServerProfiler) *)dlsym(handle, "StopServerProfiler");
+            ptrEnableDomainFilter_ = (decltype(GetEnableDomainFilter) *)dlsym(handle, "GetEnableDomainFilter");
+            ptrValidDomain_ = (decltype(GetValidDomain) *)dlsym(handle, "GetValidDomain");
         }
 #endif
     }
@@ -151,6 +173,8 @@ private:
     decltype(MarkEvent) *ptrMarkEvent_ = nullptr;
     decltype(StartServerProfiler) *ptrStartServerProfiler_ = nullptr;
     decltype(StopServerProfiler) *ptrStopServerProfiler_ = nullptr;
+    decltype(GetEnableDomainFilter) *ptrEnableDomainFilter_ = nullptr;
+    decltype(GetValidDomain) *ptrValidDomain_ = nullptr;
 };
 }  // namespace msServiceProfilerCompatible
 
