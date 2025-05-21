@@ -465,7 +465,6 @@ namespace msServiceProfiler {
         }
 
         initiate = std::chrono::high_resolution_clock::now(); // 记录开始时间
-        initiateTime = std::chrono::duration_cast<std::chrono::seconds>(initiate.time_since_epoch());
 
         auto profPath = config_->GetProfPath();
         if (!MakeDirs(profPath)) {
