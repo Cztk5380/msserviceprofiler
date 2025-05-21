@@ -329,13 +329,13 @@ void Config::SaveConfigToJsonFile()
     }
     std::string profPath = getDefaultProfPath();
     nlohmann::ordered_json configData = {
-        {"timelimit", 0},
         {"enable", enable_ ? 1 : 0},
         {"prof_dir", profPath},
         {"profiler_level", "INFO"},
         {"host_system_usage_freq", -1},
         {"npu_memory_usage_freq", -1},
         {"acl_task_time", enableAclTaskTime_ ? 1 : 0},
+        {"timelimit", 0},
     };
     try {
         std::string dirPath = getDirPath(configPath);
