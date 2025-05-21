@@ -42,6 +42,7 @@ constexpr uint32_t INVALID_DEVICE_ID = static_cast<uint32_t>(-1);
 
 using DATA_PTR = struct ProfSetDevPara *;
 
+
 struct ProfSetDevPara {
     uint32_t chipId;
     uint32_t deviceId;
@@ -396,6 +397,18 @@ namespace msServiceProfiler {
                 PROF_LOGD("get npu memory usage failed");  // LCOV_EXCL_LINE
             }
 
+            if (config_->GetTimeLimit() > 0 && started_) {
+                auto terminate = std::chrono::high_resolution_clock::now(); // 记录结束时间
+
+                auto duration = std::chrono::duration_cast<std::chrono::seconds>(terminate - initiate);
+
+                if (duration.count() >= config_->GetTimeLimit()) {
+                    StopProfiler();
+                    PROF_LOGI("Profiler Timelimit %d Seconds Is Reached, Profiler Disabled Successfully!",
+                              config_->GetTimeLimit());
+                }
+            }
+
             std::this_thread::sleep_for(std::chrono::milliseconds(config_->GetNpuMemorySleepMilliseconds()));
         }
     }
@@ -450,6 +463,8 @@ namespace msServiceProfiler {
         if (started_) {
             return;
         }
+
+        initiate = std::chrono::high_resolution_clock::now(); // 记录开始时间
 
         auto profPath = config_->GetProfPath();
         if (!MakeDirs(profPath)) {
