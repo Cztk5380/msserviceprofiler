@@ -122,7 +122,7 @@ def kvcache_usage_rate_calculator(kvcache_df):
 
 
 def export_pull_kvcache(df, output, args_format):
-    pull_kvcache_df = df[df['domain'] == 'PullKVCache']
+    pull_kvcache_df = df[df['name'] == 'PullKVCache']
     logger.debug(f"pd_split_kvcache shape {pull_kvcache_df.shape}.")
 
     if pull_kvcache_df.shape[0] == 0:
