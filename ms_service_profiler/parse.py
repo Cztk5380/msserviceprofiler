@@ -1,15 +1,12 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 import os
-import shutil
 import argparse
 import subprocess
 from pathlib import Path
-from datetime import datetime, timezone
 import json
 import re
 import sqlite3
 from pathlib import Path
-from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 from json import JSONDecodeError
 
@@ -22,11 +19,10 @@ from ms_service_profiler.plugins.sort_plugins import sort_plugins
 from ms_service_profiler.utils.log import logger, set_log_level
 from ms_service_profiler.utils.error import ParseError, LoadDataError
 from ms_service_profiler.utils.file_open_check import FileStat
-from ms_service_profiler.utils.check.rule import Rule
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.exporters.utils import (
     create_sqlite_db, check_input_path_valid, check_output_path_valid,
-    find_file_in_dir, delete_dir_safely
+    find_file_in_dir, delete_dir_safely, create_sqlite_tables
 )
 
 
@@ -376,6 +372,17 @@ def clear_last_msprof_output(full_path):
     delete_dir_safely(msprof_output_path)
 
 
+def is_need_msprof(full_path):
+    if not find_file_in_dir(full_path, 'msproftx.db'):
+        return True
+
+    msprof_output_path = os.path.join(full_path, 'mindstudio_profiler_output')
+    if not os.path.isdir(msprof_output_path):
+        return True
+
+    return False
+
+
 def preprocess_prof_folders(input_path, max_parallel=8):
     msprof_commnds = []
     for root, dirs, _ in os.walk(input_path):
@@ -386,7 +393,7 @@ def preprocess_prof_folders(input_path, max_parallel=8):
             except Exception as err:
                 raise argparse.ArgumentTypeError(f"msprof path:{full_path} is illegal. Please check.") from err
 
-            if dir_name.startswith('PROF_') and not find_file_in_dir(full_path, 'msproftx.db'):
+            if dir_name.startswith('PROF_') and is_need_msprof(full_path):
                 command = gen_msprof_command(full_path)
                 logger.info(f"{command}")
                 clear_last_msprof_output(full_path)
@@ -425,8 +432,8 @@ def main():
     parser.add_argument(
         '--format',
         nargs='+',
-        default=['json', 'csv', 'db'],
-        choices=['json', 'csv', 'db'],
+        default=['db', 'csv', 'json'],
+        choices=['db', 'csv', 'json'],
         help='Format to save')
 
     args = parser.parse_args()

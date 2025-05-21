@@ -7,7 +7,7 @@ import pandas as pd
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
-from ms_service_profiler.exporters.utils import add_table_into_visual_db, check_domain_valid
+from ms_service_profiler.exporters.utils import add_table_into_visual_db, create_sqlite_views, check_domain_valid
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger
 
@@ -47,5 +47,16 @@ class ExporterReqStatus(ExporterBase):
                     df = df.assign(**{column_name: [None] * len(df)})
 
             add_table_into_visual_db(df, 'request_status')
-        else:
-            pass
+            create_sqlite_views('Request_Status', CREATE_REQUEST_STATE_VIEW_SQL)
+
+
+CREATE_REQUEST_STATE_VIEW_SQL = """
+    CREATE VIEW Request_Status_curve AS
+    SELECT
+        substr( timestamp, 1, 10 ) || ' ' || substr( timestamp, 12, 8 ) || '.' || substr( timestamp, 21, 6 ) AS time,
+        WAITING, PENDING, RUNNING 
+    FROM
+        request_status 
+    ORDER BY
+        time ASC
+"""

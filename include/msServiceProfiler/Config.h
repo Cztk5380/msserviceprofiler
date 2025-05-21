@@ -14,6 +14,7 @@ namespace msServiceProfiler {
 class Config {
 public:
     Config();
+    void ReadAndSaveConfig();
     bool GetEnable() const { return enable_; }
     uint32_t GetLevel() const { return level_; }
     uint32_t GetEnableAclTaskTime() const { return enableAclTaskTime_; }

@@ -14,6 +14,10 @@ constexpr int MILLISECONDS_IN_SECOND = 1000;
 Config::Config()
 {
     ReadConfigPath();
+}
+
+void Config::ReadAndSaveConfig()
+{
     InitProfPathDateTail();
     auto configJson = ReadConfigFile();
     ParseConfig(configJson);
@@ -289,11 +293,7 @@ bool Config::ParseHostConfig(const Json &config)
                 hostCpuUsage_ = true;
                 hostMemoryUsage_ = true;
             } else {
-                LOG_ONCE_E(
-                    "host_system_usage_freq must be between %u and %u, "
-                    "will not collect host cpu or host memory usage.",
-                    hostFreqMin_,
-                    hostFreqMax_);  // LCOV_EXCL_LINE
+                PROF_LOGD("host_system_usage_freq is %u.", hostFreq);  // LCOV_EXCL_LINE
                 hostCpuUsage_ = false;
                 hostMemoryUsage_ = false;
                 ret = false;
@@ -322,9 +322,7 @@ bool Config::ParseNpuConfig(const Json &config)
                 npuMemoryFreq_ = npuMemoryFreq;
                 npuMemoryUsage_ = true;
             } else {
-                LOG_ONCE_E(
-                    "npu_memory_usage_freq must be between %u and %u, will not collect npu memory usage.",
-                    npuMemoryFreqMin_, npuMemoryFreqMax_);  // LCOV_EXCL_LINE
+                PROF_LOGD("npu_memory_usage_freq is %u.", npuMemoryFreq);  // LCOV_EXCL_LINE
                 npuMemoryUsage_ = false;
                 ret = false;
             }
@@ -350,7 +348,7 @@ bool Config::PrepareConfigAndPath(std::string& configPath)
         PROF_LOGW("Cannot save config to JSON file - no config path specified");
         return false;
     }
-    
+
     if (configPath.size() < jsonSuffixSize ||
         configPath.substr(configPath.size() - jsonSuffixSize) != ".json") {
         PROF_LOGW("Config path must end with .json: %s", configPath.c_str());
@@ -364,7 +362,7 @@ bool Config::PrepareConfigAndPath(std::string& configPath)
     if (access(dirPath.c_str(), W_OK) != 0) {
         return false;
     }
-    
+
     return true;
 }
 
@@ -403,7 +401,7 @@ void Config::SaveConfigToJsonFile()
         }
         outputFile << configData.dump(jsonIndentSize);
         outputFile.close();
-        
+
         auto ret = rename(tempPath.c_str(), configPath.c_str());
         if (ret != 0 && errno != ENOENT) {
             PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));
