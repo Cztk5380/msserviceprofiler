@@ -8,6 +8,11 @@ from ms_service_profiler.utils.log import logger
 class PluginMsptiProcess(PluginBase):
     name = "plugin_mspti_process"
 
+    @staticmethod
+    def _process(api_df, kernel_df):
+        renamed_kernel = replace_name(kernel_df, api_df)
+        return renamed_kernel
+
     @classmethod
     def parse(cls, data):
         mspti_api_list = []
@@ -28,11 +33,6 @@ class PluginMsptiProcess(PluginBase):
             api_df=concated_api_df,
             kernel_df=concated_kernel_df
         )
-
-    @staticmethod
-    def _process(api_df, kernel_df):
-        renamed_kernel = replace_name(kernel_df, api_df)
-        return renamed_kernel
 
 
 def replace_name(df1, df2):

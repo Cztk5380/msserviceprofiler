@@ -70,7 +70,7 @@ class ExporterPDComm(ExporterBase):
                 'send_request_time_ms': request_send, 'send_request_succ_time_ms': request_send_succ,
                 'prefill_res_time_ms': prefill_res, 'requset_end_time_ms': requset_end})
 
-        if cls.req_result_list == []:
+        if not cls.req_result_list:
             return
 
         if 'csv' in cls.args.format:
