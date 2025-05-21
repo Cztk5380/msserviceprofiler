@@ -2,11 +2,11 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
  */
 
+#include "msServiceProfiler/NpuMemoryUsage.h"
 #include <iostream>
 #include <vector>
 #include <dlfcn.h>
 #include "../include/msServiceProfiler/Log.h"
-#include "msServiceProfiler/NpuMemoryUsage.h"
 #include "msServiceProfiler/SecurityUtils.h"
 
 namespace msServiceProfiler {
