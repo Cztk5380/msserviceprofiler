@@ -382,10 +382,10 @@ namespace msServiceProfiler {
             }
 
             if (config_->GetTimeLimit() > 0 && started_) {
-                auto terminate_ = std::chrono::high_resolution_clock::now(); // 记录结束时间
-                auto terminateTime_ = std::chrono::duration_cast<std::chrono::seconds>(terminate_.time_since_epoch());
+                auto terminate = std::chrono::high_resolution_clock::now(); // 记录结束时间
+                auto terminateTime = std::chrono::duration_cast<std::chrono::seconds>(terminate.time_since_epoch());
 
-                auto duration = std::chrono::duration_cast<std::chrono::seconds>(terminateTime_ - initiateTime_);
+                auto duration = std::chrono::duration_cast<std::chrono::seconds>(terminateTime - initiateTime);
 
                 if (duration.count() >= config_->GetTimeLimit()) {
                     StopProfiler();
@@ -449,8 +449,8 @@ namespace msServiceProfiler {
             return;
         }
 
-        initiate_ = std::chrono::high_resolution_clock::now(); // 记录开始时间
-        initiateTime_ = std::chrono::duration_cast<std::chrono::seconds>(initiate_.time_since_epoch());
+        initiate = std::chrono::high_resolution_clock::now(); // 记录开始时间
+        initiateTime = std::chrono::duration_cast<std::chrono::seconds>(initiate.time_since_epoch());
 
         auto profPath = config_->GetProfPath();
         if (!MakeDirs(profPath)) {
