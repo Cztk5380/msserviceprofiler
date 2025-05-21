@@ -335,6 +335,7 @@ void Config::SaveConfigToJsonFile()
         {"host_system_usage_freq", -1},
         {"npu_memory_usage_freq", -1},
         {"acl_task_time", enableAclTaskTime_ ? 1 : 0},
+        {"domain", ""},
         {"timelimit", 0},
     };
     try {
