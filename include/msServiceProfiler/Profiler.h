@@ -351,7 +351,6 @@ namespace msServiceProfiler {
         bool autoEnd_ = false;
         SpanHandle spanHandle_ = 0U;
         std::string msg_;
-        std::string currentDomain_;
         bool domainAllow_ = true;
     };
 
