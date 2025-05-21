@@ -73,7 +73,6 @@ namespace msServiceProfiler {
         return true;
     }
 
-
     void ServiceProfilerMspti::insertApiData(msptiActivityApi* activity)
     {
         if (!inited || !activity || !stmtApi) {
