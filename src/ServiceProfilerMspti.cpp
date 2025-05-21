@@ -34,7 +34,7 @@ std::mutex g_mtx;
 namespace msServiceProfiler {
 
     // 分割字符串并存入set 输入字符串格式为"xxxx;xxx;xxx"或"xxx;xxx;"均可
-    static std::set<std::string> splitStringToSet(const std::string& str, char splitSymbol)
+    static std::set<std::string> SplitStringToSet(const std::string& str, char splitSymbol)
     {
         std::set<std::string> result;
         std::string token;
@@ -59,7 +59,7 @@ namespace msServiceProfiler {
     }
 
     // 判断mspti上报的每条数据的名称是否在筛选目标中
-    bool isNameMatch(std::set<std::string>& filterSet, const char* name)
+    bool IsNameMatch(std::set<std::string>& filterSet, const char* name)
     {
         if (!filterSet.empty()) {
             std::set<std::string>::iterator it;
@@ -73,13 +73,13 @@ namespace msServiceProfiler {
         return true;
     }
 
-    void ServiceProfilerMspti::insertApiData(msptiActivityApi* activity)
+    void ServiceProfilerMspti::InsertApiData(msptiActivityApi* activity)
     {
         if (!inited || !activity || !stmtApi) {
             return;
         }
 
-        if (!isNameMatch(filterApi, activity->name)) {
+        if (!IsNameMatch(filterApi, activity->name)) {
             return;
         }
 
@@ -105,13 +105,13 @@ namespace msServiceProfiler {
         g_mtx.unlock();
     }
 
-    void ServiceProfilerMspti::insertKernelData(msptiActivityKernel* activity)
+    void ServiceProfilerMspti::InsertKernelData(msptiActivityKernel* activity)
     {
         if (!inited || !activity || !stmtKernel) {
             return;
         }
 
-        if (!isNameMatch(filterKernel, activity->name)) {
+        if (!IsNameMatch(filterKernel, activity->name)) {
             return;
         }
 
@@ -135,13 +135,13 @@ namespace msServiceProfiler {
         g_mtx.unlock();
     }
 
-    void ServiceProfilerMspti::insertCommData(msptiActivityHccl* activity)
+    void ServiceProfilerMspti::InsertCommData(msptiActivityHccl* activity)
     {
         if (!inited || !activity || !stmtComm) {
             return;
         }
 
-        if (!isNameMatch(filterApi, activity->name)) {
+        if (!IsNameMatch(filterApi, activity->name)) {
             return;
         }
 
@@ -166,7 +166,7 @@ namespace msServiceProfiler {
         g_mtx.unlock();
     }
 
-    void ServiceProfilerMspti::insertMstxData(msptiActivityMarker* activity)
+    void ServiceProfilerMspti::InsertMstxData(msptiActivityMarker* activity)
     {
         if (!inited || !activity || !stmtMstx) {
             return;
@@ -222,8 +222,8 @@ namespace msServiceProfiler {
 
     void ServiceProfilerMspti::InitFilter(std::string& apiFilter, std::string& kernelFilter)
     {
-        filterApi = splitStringToSet(apiFilter, SPLIT_SYMBOL);
-        filterKernel = splitStringToSet(kernelFilter, SPLIT_SYMBOL);
+        filterApi = SplitStringToSet(apiFilter, SPLIT_SYMBOL);
+        filterKernel = SplitStringToSet(kernelFilter, SPLIT_SYMBOL);
     }
 
     void ServiceProfilerMspti::InitOutputPath(std::string& outputPath)
@@ -232,15 +232,15 @@ namespace msServiceProfiler {
         PROF_LOGD("set mspti output path: %s", file_name.c_str());
     }
 
-    void ServiceProfilerMspti::createTable()
+    void ServiceProfilerMspti::CreateTable()
     {
-        createMstxTable();
-        createApiTable();
-        createKernelTable();
-        createCommTable();
+        CreateMstxTable();
+        CreateApiTable();
+        CreateKernelTable();
+        CreateCommTable();
     }
 
-    void ServiceProfilerMspti::createMstxTable()
+    void ServiceProfilerMspti::CreateMstxTable()
     {
         char* errMsg = nullptr;
 
@@ -268,7 +268,7 @@ namespace msServiceProfiler {
         }
     }
 
-    void ServiceProfilerMspti::createApiTable()
+    void ServiceProfilerMspti::CreateApiTable()
     {
         char* errMsg = nullptr;
 
@@ -295,7 +295,7 @@ namespace msServiceProfiler {
         }
     }
     
-    void ServiceProfilerMspti::createKernelTable()
+    void ServiceProfilerMspti::CreateKernelTable()
     {
         char* errMsg = nullptr;
 
@@ -323,7 +323,7 @@ namespace msServiceProfiler {
         }
     }
 
-    void ServiceProfilerMspti::createCommTable()
+    void ServiceProfilerMspti::CreateCommTable()
     {
         char* errMsg = nullptr;
 
@@ -396,7 +396,7 @@ namespace msServiceProfiler {
             PROF_LOGD("ShowApiInfo failed, nullptr api.");
             return;
         }
-        ServiceProfilerMspti::GetInstance().insertApiData(api);
+        ServiceProfilerMspti::GetInstance().InsertApiData(api);
     }
 
     static void ShowKernelInfo(msptiActivityKernel* kernel)
@@ -405,7 +405,7 @@ namespace msServiceProfiler {
             PROF_LOGD("ShowKernelInfo failed, nullptr kernel.");
             return;
         }
-        ServiceProfilerMspti::GetInstance().insertKernelData(kernel);
+        ServiceProfilerMspti::GetInstance().InsertKernelData(kernel);
     }
 
     static void ShowCommInfo(msptiActivityHccl* activity)
@@ -413,7 +413,7 @@ namespace msServiceProfiler {
         if (!activity) {
             return;
         }
-        ServiceProfilerMspti::GetInstance().insertCommData(activity);
+        ServiceProfilerMspti::GetInstance().InsertCommData(activity);
     }
 
     static void ShowMstxInfo(msptiActivityMarker* activity)
@@ -421,7 +421,7 @@ namespace msServiceProfiler {
         if (!activity) {
             return;
         }
-        ServiceProfilerMspti::GetInstance().insertMstxData(activity);
+        ServiceProfilerMspti::GetInstance().InsertMstxData(activity);
     }
 
     // MSPTI

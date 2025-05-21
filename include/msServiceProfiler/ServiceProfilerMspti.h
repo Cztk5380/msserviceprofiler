@@ -44,13 +44,13 @@ public:
         return manager;
     };
 
-    void insertApiData(msptiActivityApi* activity);
+    void InsertApiData(msptiActivityApi* activity);
 
-    void insertKernelData(msptiActivityKernel* activity);
+    void InsertKernelData(msptiActivityKernel* activity);
 
-    void insertCommData(msptiActivityHccl* activity);
+    void InsertCommData(msptiActivityHccl* activity);
 
-    void insertMstxData(msptiActivityMarker* activity);
+    void InsertMstxData(msptiActivityMarker* activity);
 
     void Init();
 
@@ -70,15 +70,15 @@ public:
 
 private:
 
-    void createTable();
+    void CreateTable();
 
-    void createMstxTable();
+    void CreateMstxTable();
 
-    void createApiTable();
+    void CreateApiTable();
 
-    void createKernelTable();
+    void CreateKernelTable();
 
-    void createCommTable();
+    void CreateCommTable();
 
 private:
     static constexpr size_t buffer_size = 5 * ONE_K * ONE_K;
