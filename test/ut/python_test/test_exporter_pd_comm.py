@@ -24,11 +24,12 @@ class TestExporterPDComm(unittest.TestCase):
             os.chmod(test_path, 0o740)
             output_file_path = Path(test_path, 'pd_split_communication.csv')
             data = {'tx_data_df': pd.DataFrame([
-                {'domain': 'PDSplit', 'rid': 1, 'name': 'receiveReq', 'start_datetime': '2023-01-01 00:00:00000'},
-                {'domain': 'PDSplit', 'rid': 1, 'name': 'sendReqToD', 'start_datetime': '2023-01-01 00:00:01000'},
-                {'domain': 'PDSplit', 'rid': 1, 'name': 'sendReqToDSucc', 'start_datetime': '2023-01-01 00:00:02000'},
-                {'domain': 'PDSplit', 'rid': 1, 'name': 'prefillRes', 'start_datetime': '2023-01-01 00:00:03000'},
-                {'domain': 'PDSplit', 'rid': 1, 'name': 'decodeRes', 'start_datetime': '2023-01-01 00:00:04000'}
+                {'domain': 'Communication', 'rid': 1, 'name': 'receiveReq', 'start_datetime': '2023-01-01 00:00:00000'},
+                {'domain': 'Communication', 'rid': 1, 'name': 'sendReqToD', 'start_datetime': '2023-01-01 00:00:01000'},
+                {'domain': 'Communication', 'rid': 1, 'name': 'sendReqToDSucc',
+                 'start_datetime': '2023-01-01 00:00:02000'},
+                {'domain': 'Communication', 'rid': 1, 'name': 'prefillRes', 'start_datetime': '2023-01-01 00:00:03000'},
+                {'domain': 'Communication', 'rid': 1, 'name': 'decodeRes', 'start_datetime': '2023-01-01 00:00:04000'}
             ])}
             ExporterPDComm.export(data)
 

@@ -7,7 +7,7 @@ import pandas as pd
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
-from ms_service_profiler.exporters.utils import add_table_into_visual_db, create_sqlite_views
+from ms_service_profiler.exporters.utils import add_table_into_visual_db, create_sqlite_views, check_domain_valid
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger
 
@@ -23,6 +23,14 @@ class ExporterReqStatus(ExporterBase):
     @timer(logger.info)
     def export(cls, data) -> None:
         if 'db' in cls.args.format:
+            df = data.get('tx_data_df')
+            if df is None:
+                logger.error("The data is empty, please check")
+                return
+
+            if check_domain_valid(df, ['Request'], 'request_status') is False:
+                return
+
             metrics = data.get('metric_data_df')
             req_status_cols = [col for col in metrics.columns if col in ReqStatus.__members__]
 

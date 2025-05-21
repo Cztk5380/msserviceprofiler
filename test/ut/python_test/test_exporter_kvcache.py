@@ -17,9 +17,9 @@ PD_SEPARATE_PULL_KV_DATA = \
 eSize=,scope#queue,deviceBlock=,scope#dp,RUNNING+,WAITING+,PENDING+,replyTokenSize=,END+,span_id,during_time,start_\
 datetime,end_datetime,recvTokenSize=,PREFILL_HOLD+,rank,batch_seq_len,block_tables,res_list,rid_list,token_id_list,\
 batch_type,batch_size,prefill_batch_size,decode_batch_size
-9765,17329,18655,start/end,1739329372248722.8,1739329372252357.0,1,,"{'name': 'PullKVCache', 'type': 2, 'domain': 'Pull\
-KVCache', 'rid': [0], 'rank': 1, 'batch_seq_len': [7], 'block_tables': [[2886795281, [0], [0]]]}",PullKVCache,2,Pul\
-lKVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252357,,,1.0,[7],"[[2886795281, [0\
+9765,17329,18655,start/end,1739329372248722.8,1739329372252357.0,1,,"{'name': 'PullKVCache', 'type': 2, 'domain': \
+'KVCache', 'rid': [0], 'rank': 1, 'batch_seq_len': [7], 'block_tables': [[2886795281, [0], [0]]]}",PullKVCache,2,\
+KVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252357,,,1.0,[7],"[[2886795281, [0\
 ], [0]]]",[0],[0],[None],Decode,1,,
 """
 
@@ -29,9 +29,9 @@ PD_SEPARATE_PULL_KV_DATA_MISSING_KEY = \
 eSize=,scope#queue,deviceBlock=,scope#dp,RUNNING+,WAITING+,PENDING+,replyTokenSize=,END+,span_id,during_time,start_\
 datetime,end_datetime,recvTokenSize=,PREFILL_HOLD+,rank,seq_len,block_tables,res_list,rid_list,token_id_list,\
 batch_type,batch_size,prefill_batch_size,decode_batch_size
-9765,17329,18655,start/end,1739329372248722.8,1739329372252357.0,1,,"{'name': 'PullKVCache', 'type': 2, 'domain': 'Pull\
-KVCache', 'rid': [0], 'rank': 1, 'batch_seq_len': [7], 'block_tables': [[2886795281, [0], [0]]]}",PullKVCache,2,Pul\
-lKVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252357,,,1.0,[7],"[[2886795281, [0\
+9765,17329,18655,start/end,1739329372248722.8,1739329372252357.0,1,,"{'name': 'PullKVCache', 'type': 2, 'domain': \
+'KVCache', 'rid': [0], 'rank': 1, 'batch_seq_len': [7], 'block_tables': [[2886795281, [0], [0]]]}",PullKVCache,2,\
+KVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252357,,,1.0,[7],"[[2886795281, [0\
 ], [0]]]",[0],[0],[None],Decode,1,,
 """
 

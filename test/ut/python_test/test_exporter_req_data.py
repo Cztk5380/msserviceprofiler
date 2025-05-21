@@ -79,14 +79,15 @@ class TestExporterReqData(unittest.TestCase):
         data = {
             'name': ['httpReq', 'encode', 'Enqueue', 'ReqState', 'ReqState', 'ReqState', 'DecodeEnd', 'httpRes'],
             'message': [
-                {'domain': 'http', 'rid': 0, 'name': 'httpReq', 'type': 0},
-                {'domain': 'http', 'rid': 'endpoint_common_1', 'name': 'encode', 'type': 2, '=recvTokenSize': 4},
-                {'domain': 'Queue', 'rid': 0, '=QueueSize': 1, 'queue': 20, 'name': 'Enqueue', 'type': 0},
-                {'rid': 0, '+WAITING': -1, '+RUNNING': 1, 'name': 'ReqState', 'type': 0},
-                {'rid': 0, '+RUNNING': -1, '+PENDING': 1, 'name': 'ReqState', 'type': 0},
-                {'rid': 0, '+PENDING': -1, '+RUNNING': 1, 'name': 'ReqState', 'type': 0},
-                {'domain': 'http', 'rid': 'endpoint_common_1', '=replyTokenSize': 250, 'name': 'DecodeEnd', 'type': 0},
-                {'domain': 'http', 'rid': 'endpoint_common_1', 'action': 'Process', 'name': 'httpRes', 'type': 0}
+                {'domain': 'Request', 'rid': 0, 'name': 'httpReq', 'type': 0},
+                {'domain': 'Request', 'rid': 'endpoint_common_1', 'name': 'encode', 'type': 2, '=recvTokenSize': 4},
+                {'domain': 'Request', 'rid': 0, '=QueueSize': 1, 'queue': 20, 'name': 'Enqueue', 'type': 0},
+                {'domain': 'Request', 'rid': 0, '+WAITING': -1, '+RUNNING': 1, 'name': 'ReqState', 'type': 0},
+                {'domain': 'Request', 'rid': 0, '+RUNNING': -1, '+PENDING': 1, 'name': 'ReqState', 'type': 0},
+                {'domain': 'Request', 'rid': 0, '+PENDING': -1, '+RUNNING': 1, 'name': 'ReqState', 'type': 0},
+                {'domain': 'Request', 'rid': 'endpoint_common_1',
+                 '=replyTokenSize': 250, 'name': 'DecodeEnd', 'type': 0},
+                {'domain': 'Request', 'rid': 'endpoint_common_1', 'action': 'Process', 'name': 'httpRes', 'type': 0}
             ],
             'start_time': [1, 2, 3, 4, 5, 6, 7, 8],
             'end_time': [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5],
@@ -96,7 +97,7 @@ class TestExporterReqData(unittest.TestCase):
             'RUNNING+':['', '', '', 1, '', 1, '', ''],
             'PENDING+':['', '', '', '', 1, '', '', ''],
             'during_time':[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
-            'domain':['', '', '', '', '', '', '', ''],
+            'domain':['Request', 'Request', 'Request', 'Request', 'Request', 'Request', 'Request', 'Request'],
             'rid_list':[1, 1, 1, 1, 1, 1, 1, 1],
             'token_id_list':[0, 0, 0, 0, 0, 0, 0, 0]
         }

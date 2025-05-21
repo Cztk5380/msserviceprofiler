@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.exporters.utils import add_table_into_visual_db, create_sqlite_views
+from ms_service_profiler.exporters.utils import add_table_into_visual_db, create_sqlite_views, check_domain_valid
 from ms_service_profiler.utils.timer import timer
 
 
@@ -202,7 +202,12 @@ class ExporterLatency(ExporterBase):
     def export(cls, data) -> None:
         if 'db' not in cls.args.format:
             return
+
+        output = cls.args.output_path
         all_data_df = data['tx_data_df']
+        
+        if check_domain_valid(all_data_df, ['ModelExecute', 'BatchSchedule', 'Request'], 'latency') is False:
+            return
 
         first_token_latency_views, req_latency_views, prefill_gen_speed_views, decode_gen_speed_views = \
             gen_exporter_results(all_data_df)

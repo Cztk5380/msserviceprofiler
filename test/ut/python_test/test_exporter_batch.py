@@ -26,6 +26,8 @@ class TestExporterBatchData(unittest.TestCase):
         data = {
             'name': ['BatchSchedule', 'modelExec', 'dpBatch', 'forward', 'forward',\
                 'BatchSchedule', 'modelExec', 'dpBatch', 'forward', 'forward'],
+            'domain': ['BatchSchedule', 'ModelExecute', 'ModelExecute', 'ModelExecute', 'ModelExecute', \
+                'BatchSchedule', 'ModelExecute', 'ModelExecute', 'ModelExecute', 'ModelExecute'],
             'message': [
                 {'rid': [{'rid': 11, 'iter': 0}, {'rid': 12, 'iter': 0}], 'data': 'data1'},
                 {'rid': [{'rid': 11, 'iter': 0}, {'rid': 12, 'iter': 0}], 'data': 'data2'},

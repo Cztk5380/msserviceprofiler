@@ -3,7 +3,7 @@ import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.exporters.utils import add_table_into_visual_db, create_sqlite_views
+from ms_service_profiler.exporters.utils import add_table_into_visual_db, create_sqlite_views, check_domain_valid
 from ms_service_profiler.constant import US_PER_MS
 from ms_service_profiler.utils.timer import timer
 
@@ -233,6 +233,9 @@ class ExporterBatchData(ExporterBase):
                 logger.warning("The data is empty, please check")
                 return
             output = cls.args.output_path
+
+            if check_domain_valid(df, ['ModelExecute', 'BatchSchedule'], 'batch') is False:
+                return
 
             # 获取组batch字段名称，旧版本为BatchScheduler，新版本为batchFrameworkProcessing
             batch_name = 'BatchSchedule' if (df['name'] == 'BatchSchedule').any() else 'batchFrameworkProcessing'

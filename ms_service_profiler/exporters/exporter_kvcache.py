@@ -15,7 +15,9 @@ from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.constant import US_PER_MS
-from ms_service_profiler.exporters.utils import create_sqlite_views, add_table_into_visual_db, truncate_timestamp_np
+from ms_service_profiler.exporters.utils import (
+    create_sqlite_views, add_table_into_visual_db, truncate_timestamp_np, check_domain_valid
+)
 
 
 def get_max_free_value(kvcache_df):
@@ -120,7 +122,7 @@ def kvcache_usage_rate_calculator(kvcache_df):
 
 
 def export_pull_kvcache(df, output, args_format):
-    pull_kvcache_df = df[df['domain'] == 'PullKVCache']
+    pull_kvcache_df = df[df['name'] == 'PullKVCache']
     logger.debug(f"pd_split_kvcache shape {pull_kvcache_df.shape}.")
 
     if pull_kvcache_df.shape[0] == 0:
@@ -171,6 +173,9 @@ class ExporterKVCacheData(ExporterBase):
                 logger.error("The data is empty, please check")
                 return
             output = cls.args.output_path
+
+            if check_domain_valid(df, ['KVCache'], 'kvcache') is False:
+                return
 
             if not df['domain'].str.casefold().str.contains(r'kvcache', regex=True).any():
                 logger.warning(
