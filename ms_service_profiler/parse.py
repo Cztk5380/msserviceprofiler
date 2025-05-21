@@ -14,7 +14,7 @@ import pandas as pd
 
 from ms_service_profiler.exporters.factory import ExporterFactory
 from ms_service_profiler.constant import US_PER_SECOND, MSPROF_REPORTS_PATH
-from ms_service_profiler.plugins import builtin_plugins, custom_plugins
+from ms_service_profiler.plugins import builtin_plugins, custom_plugins, PluginMsptiProcess
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
 from ms_service_profiler.utils.log import logger, set_log_level
 from ms_service_profiler.utils.timer import timer
@@ -263,6 +263,66 @@ def load_prof(filepaths):
     )
 
 
+def get_mspti_db_filepaths(folder_path):
+    filepaths = []
+    # 合并后的正则表达式，同时验证文件名格式和提取通配符内容
+    unified_pattern = re.compile(r'^ascend_service_profiler_(.+)\.db$')
+
+    for fp in Path(folder_path).rglob('*'):  # 遍历所有文件
+        match = unified_pattern.match(fp.name)
+        if fp.is_file() and match:
+            filepaths.append((str(fp), match.group(1)))
+    return filepaths
+
+
+def read_mspti_db(input_path):
+    paths_and_pid = get_mspti_db_filepaths(input_path)
+    data_list = []
+    for db_path, db_id in paths_and_pid:
+        try:
+            api_df, kernel_df = load_ops_db(db_path, db_id)
+            data_list.append(
+                dict(
+                    api_df=api_df,
+                    kernel_df=kernel_df,
+                    db_id=db_id
+                )
+            )
+        except Exception as ex:
+            raise LoadDataError(db_path) from ex
+    return data_list
+
+
+def load_ops_db(filepath, db_id):
+    with sqlite3.connect(filepath) as conn:
+        api_query = """
+        SELECT name, start, end, processId, threadId, correlationId FROM Api order by correlationId asc
+        """
+        kernel_query = """
+        SELECT name, type, start, end, deviceId, streamId, correlationId FROM Kernel order by correlationId asc
+        """
+        api_df = pd.read_sql_query(api_query, conn)
+        kernel_df = pd.read_sql_query(kernel_query, conn)
+        api_df["db_id"] = db_id
+        kernel_df["db_id"] = db_id
+    return api_df, kernel_df
+
+
+def check_sub_profiler_path(input_path):
+    # 判断子目录是否有PROF文件夹 如果有则走原来解析逻辑返回True 如果没有尝试走mspti返回False
+    root_path_deepth = len(input_path.split(os.path.sep))
+    for root, dirs, files in os.walk(input_path, topdown=True):
+        for name in dirs:
+            subdir = os.path.join(input_path, name)
+            cur_path_deepth = len(subdir.split(os.path.sep))
+            if cur_path_deepth - root_path_deepth == 1:
+                if 'PROF_' in dirs:
+                    return True
+            else:
+                continue
+    return False
+
+
 @timer(logger.info)
 def read_origin_db(db_path: str):
     file_filter = {
@@ -307,17 +367,25 @@ def parse(input_path, plugins, exporters, **kwargs):
 def parse_run(input_path, exporters, args=None):
     logger.info('Start to parse.')
 
+    is_msprof_data = check_sub_profiler_path(input_path)
+
     # 加载原始db数据
-    data = read_origin_db(input_path)
+    if is_msprof_data:
+        data = read_origin_db(input_path)
+    else:
+        data = read_mspti_db(input_path)
     if not data:
         logger.info("Read origin db %s is empty, please check.", input_path)
         return
     logger.info('Read origin db success.')
 
-    from ms_service_profiler.pipeline import PipelineService
-    pipeline = PipelineService(args)
-    pipeline.set_depends_result("data_source:msprof", data)
-    data = pipeline.run()
+    if is_msprof_data:
+        from ms_service_profiler.pipeline import PipelineService
+        pipeline = PipelineService(args)
+        pipeline.set_depends_result("data_source:msprof", data)
+        data = pipeline.run()
+    else:
+        data = PluginMsptiProcess.parse(data)
 
     logger.info('Starting exporter processes.')
     with ProcessPoolExecutor() as executor:
@@ -378,6 +446,8 @@ def is_need_msprof(full_path):
 
 
 def preprocess_prof_folders(input_path, max_parallel=8):
+    if not check_sub_profiler_path(input_path):
+        return False
     msprof_commnds = []
     for root, dirs, _ in os.walk(input_path):
         for dir_name in dirs:
@@ -403,6 +473,7 @@ def preprocess_prof_folders(input_path, max_parallel=8):
 
     if not find_file_in_dir(input_path, 'msproftx.db'):
         raise ValueError("msprof failed! No msproftx.db file is generated.")
+    return True
 
 
 def main():
@@ -436,10 +507,13 @@ def main():
     set_log_level(args.log_level)
 
     # msprof预处理
-    preprocess_prof_folders(args.input_path)
+    is_msprof_data = preprocess_prof_folders(args.input_path)
 
     # 初始化Exporter
-    exporters = ExporterFactory.create_exporters(args)
+    if is_msprof_data:
+        exporters = ExporterFactory.create_exporters(args)
+    else:
+        exporters = ExporterFactory.create_mspti_exporters(args)
 
     # 创建output目录
     Path(args.output_path).mkdir(parents=True, exist_ok=True)
