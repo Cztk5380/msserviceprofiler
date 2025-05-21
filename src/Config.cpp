@@ -114,7 +114,7 @@ void Config::ParseTimeLimit(const Json& config)
             if (config["timelimit"] <= 0) {
                 timeLimit_ = 0;
                 PROF_LOGW("timelimit value %d is not higher than 0, the profiling time is not assigned.",
-                           config["timelimit"]);
+                          config["timelimit"]);
             } else if (config["timelimit"] > 0 && config["timelimit"] <= MAX_TIME_LIMIT) {
                 timeLimit_ = config["timelimit"];
                 PROF_LOGI("profile timeLimit_: %d", timeLimit_);
