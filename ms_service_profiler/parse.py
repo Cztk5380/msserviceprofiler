@@ -17,6 +17,7 @@ from ms_service_profiler.constant import US_PER_SECOND, MSPROF_REPORTS_PATH
 from ms_service_profiler.plugins import builtin_plugins, custom_plugins
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
 from ms_service_profiler.utils.log import logger, set_log_level
+from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.error import ParseError, LoadDataError
 from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.file_open_check import ms_open
@@ -262,6 +263,7 @@ def load_prof(filepaths):
     )
 
 
+@timer(logger.info)
 def read_origin_db(db_path: str):
     file_filter = {
         "tx": "msproftx.db",
@@ -297,7 +299,12 @@ def read_origin_db(db_path: str):
     return data_list
 
 
-def parse(input_path, plugins, exporters):
+def parse(input_path, plugins, exporters, **kwargs):
+    # Compatible with blue zone calls
+    parse_run(input_path=input_path, exporters=exporters, args=kwargs.get("args"))
+
+
+def parse_run(input_path, exporters, args=None):
     logger.info('Start to parse.')
 
     # 加载原始db数据
@@ -307,23 +314,10 @@ def parse(input_path, plugins, exporters):
         return
     logger.info('Read origin db success.')
 
-    # plugins通用解析
-    all_plugins = sort_plugins(builtin_plugins + plugins)
-    total_plugins = len(all_plugins)
-    for cur_id, plugin in enumerate(all_plugins):
-        try:
-            data = plugin.parse(data)
-            logger.info(f'[{cur_id + 1}/{total_plugins}] {plugin.name} success.')
-        except ParseError as ex:
-            # 关键plugins失败，程序执行结束
-            if plugin.name in ['plugin_timestamp', 'plugin_concat']:
-                logger.exception(f'{plugin.name} failure. Program stopped.')
-                return
-            else:
-                # 非关键plugins失败，程序继续执行
-                logger.exception(f'{plugin.name} failure. Skip it.')
-        except Exception as ex:
-            logger.exception(f'{plugin.name} failure. Skip it.')
+    from ms_service_profiler.pipeline import PipelineService
+    pipeline = PipelineService(args)
+    pipeline.set_depends_result("data_source:msprof", data)
+    data = pipeline.run()
 
     logger.info('Starting exporter processes.')
     with ProcessPoolExecutor() as executor:
@@ -453,7 +447,7 @@ def main():
         create_sqlite_db(args.output_path)
 
     # 解析数据并导出
-    parse(args.input_path, custom_plugins, exporters)
+    parse(args.input_path, custom_plugins, exporters, args=args)
 
 
 if __name__ == '__main__':
