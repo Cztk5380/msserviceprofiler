@@ -31,9 +31,6 @@
 
 std::mutex g_mtx;
 
-#define ALIGN_BUFFER(buffer, align)                                                 \
-(((uintptr_t) (buffer) & ((align) - 1)) ? ((buffer) + (align) - ((uintptr_t) (buffer) & ((align) - 1))) : (buffer))
-
 namespace msServiceProfiler {
 
     // 分割字符串并存入set 输入字符串格式为"xxxx;xxx;xxx"或"xxx;xxx;"均可
@@ -477,7 +474,8 @@ namespace msServiceProfiler {
     {
         constexpr uint32_t SIZE = 1 * ONE_K * ONE_K;
         uint8_t *pBuffer = (uint8_t *) malloc(SIZE + ALIGN_SIZE);
-        *buffer = ALIGN_BUFFER(pBuffer, ALIGN_SIZE);
+        *buffer = (((uintptr_t) (pBuffer) & ((ALIGN_SIZE) - 1)) ? ((pBuffer) + (ALIGN_SIZE) - \
+            ((uintptr_t) (pBuffer) & ((ALIGN_SIZE) - 1))) : (pBuffer));
         *size = 1 * ONE_K * ONE_K;
         *maxNumRecords = 0;
     }
