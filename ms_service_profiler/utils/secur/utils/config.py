@@ -30,17 +30,23 @@ def load_config():
 
     with _config_lock:
         if not hasattr(_config_local, 'config'):
-            if not os.path.exists(CONFIG_FILE):
-                raise FileNotFoundError(f"Configuration file {CONFIG_FILE} not found.")
-            with open(CONFIG_FILE, 'r') as f:
-                try:
-                    config = yaml.safe_load(f)
-                except yaml.YAMLError as e:
-                    raise ValueError(f"Invalid YAML format in {CONFIG_FILE}: {e}") from e
-            _config_local.config = config
-            
+            _initialize_config()
 
     return _config_local.config
+
+
+def _initialize_config():
+    global _config_local
+    if not os.path.exists(CONFIG_FILE):
+        raise FileNotFoundError(f"Configuration file {CONFIG_FILE} not found.")
+
+    try:
+        with open(CONFIG_FILE, 'r') as f:
+            config = yaml.safe_load(file)
+    except yaml.YAMLError as e:
+        raise ValueError(f"Invalid YAML format in {CONFIG_FILE}: {e}") from e
+
+    _config_local.config = config
 
 
 def get_file_size_config():
