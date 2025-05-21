@@ -24,23 +24,23 @@ from ..utils import get_file_size_config
 class Exists(BasePathConstraint):
     description = "an existing path"
 
-    def is_satisfied_by(self, path):
-        return self._get_path_stat(path) is not None
+    def is_satisfied_by(self, val):
+        return self._get_path_stat(val) is not None
 
 
 class IsFile(BasePathConstraint):
     description = "a regular file"
 
-    def is_satisfied_by(self, path):
-        stat_result = self._get_path_stat(path)
+    def is_satisfied_by(self, val):
+        stat_result = self._get_path_stat(val)
         return stat_result is not None and stat.S_ISREG(stat_result.st_mode)
 
 
 class IsDir(BasePathConstraint):
     description = "a directory"
 
-    def is_satisfied_by(self, path):
-        stat_result = self._get_path_stat(path)
+    def is_satisfied_by(self, val):
+        stat_result = self._get_path_stat(val)
         return stat_result is not None and stat.S_ISDIR(stat_result.st_mode)
 
 
@@ -48,8 +48,8 @@ class HasSoftLink(BasePathConstraint):
     """Check if path contains a soft link; if path does not exist, raise FileNotFoundError."""
     description = "a soft link"
 
-    def is_satisfied_by(self, path):
-        norm_path = os.path.normpath(os.path.abspath(path))
+    def is_satisfied_by(self, val):
+        norm_path = os.path.normpath(os.path.abspath(val))
         components = norm_path.split(os.sep)
 
         current = os.path.sep
@@ -73,31 +73,31 @@ class HasSoftLink(BasePathConstraint):
 class IsReadable(BasePathConstraint):
     description = "a readable path"
 
-    def is_satisfied_by(self, path):
-        return os.access(path, os.R_OK)
+    def is_satisfied_by(self, val):
+        return os.access(val, os.R_OK)
 
 
 class IsWritable(BasePathConstraint):
     description = "a writable path"
 
-    def is_satisfied_by(self, path):
-        return os.access(path, os.W_OK)
+    def is_satisfied_by(self, val):
+        return os.access(val, os.W_OK)
 
 
 class IsExecutable(BasePathConstraint):
     description = "an executable path"
 
-    def is_satisfied_by(self, path):
-        return os.access(path, os.X_OK)
+    def is_satisfied_by(self, val):
+        return os.access(val, os.X_OK)
 
 
 class IsWritableToGroupOrOthers(BasePathConstraint):
     description = "writable to group or others"
 
-    def is_satisfied_by(self, path):
-        stat_result = self._get_path_stat(path)
+    def is_satisfied_by(self, val):
+        stat_result = self._get_path_stat(val)
         if stat_result is None:
-            raise FileNotFoundError(f"The path {path!r} does not exist or cannot be accessed.")
+            raise FileNotFoundError(f"The path {val!r} does not exist or cannot be accessed.")
 
         return bool(stat_result.st_mode & (stat.S_IWGRP | stat.S_IWOTH))
 
@@ -105,10 +105,10 @@ class IsWritableToGroupOrOthers(BasePathConstraint):
 class IsConsistentToCurrentUser(BasePathConstraint):
     description = "consistent with the current user"
 
-    def is_satisfied_by(self, path):
-        stat_result = self._get_path_stat(path)
+    def is_satisfied_by(self, val):
+        stat_result = self._get_path_stat(val)
         if stat_result is None:
-            raise FileNotFoundError(f"The path {path!r} does not exist or cannot be accessed.")
+            raise FileNotFoundError(f"The path {val!r} does not exist or cannot be accessed.")
 
         return stat_result.st_uid == os.geteuid()
 
@@ -121,15 +121,15 @@ class IsSizeReasonable(BasePathConstraint):
         self.size_limit = size_limit
         self.require_confirm = require_confirm
 
-    def is_satisfied_by(self, path):
-        stat_result = self._get_path_stat(path)
+    def is_satisfied_by(self, val):
+        stat_result = self._get_path_stat(val)
         if stat_result is None:
-            raise FileNotFoundError(f"The path {path!r} does not exist or cannot be accessed.")
+            raise FileNotFoundError(f"The path {val!r} does not exist or cannot be accessed.")
 
         if not stat.S_ISREG(stat_result.st_mode):
-            raise OSError(f"The path {path!r} is not a regular file.")
+            raise OSError(f"The path {val!r} is not a regular file.")
 
-        return self._check_size(path, stat_result.st_size)
+        return self._check_size(val, stat_result.st_size)
 
     def _check_size(self, path, file_size):
         if self.size_limit is None:
