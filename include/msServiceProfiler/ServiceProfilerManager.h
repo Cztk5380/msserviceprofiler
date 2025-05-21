@@ -25,6 +25,9 @@
 #include "ServiceProfilerInterface.h"
 #include "Config.h"
 
+#include "acl/acl.h"
+#include "mspti/mspti.h"
+
 using Json = nlohmann::json;
 
 namespace msServiceProfiler {
@@ -48,6 +51,8 @@ namespace msServiceProfiler {
         void StartProfiler();
 
         void StopProfiler();
+
+        void StopThread();
 
         static std::string ToSemName(const std::string &oriSemName);
 
@@ -73,6 +78,10 @@ namespace msServiceProfiler {
 
         AclprofConfig* ProfCreateConfig();
 
+        void StartMsptiProf(std::string& profPath);
+        
+        void StartAclProf(std::string& profPath);
+
     private:
         bool isMaster_ = true;
         bool started_ = false;
@@ -83,6 +92,9 @@ namespace msServiceProfiler {
         std::unique_ptr<Config> config_;
 
         std::thread thread_;
+
+        msptiSubscriberHandle msptiHandle_;
+        bool msptiEnabled = false;
     };
 }  // namespace msServiceProfiler
 

@@ -29,3 +29,7 @@ add_library(ms_tools_ext
         SHARED
         ./BuildMstx.cpp
 )
+add_library(mspti
+        SHARED
+        ./Buildmspti.cpp
+)

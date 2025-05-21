@@ -42,6 +42,11 @@ public:
     void InitProfPathDateTail(bool forceReinit = false);
     bool PrepareConfigAndPath(std::string& configPath);
     void SaveConfigToJsonFile();
+
+    bool GetMsptiEnable() const { return msptiEnable_; }
+    const std::string GetApiFilter() const { return apiFilter_; }
+    const std::string GetKernelFilter() const { return kernelFilter_; }
+
 private:
     void ReadConfigPath();
     void ParseEnable(const Json& config);
@@ -54,6 +59,7 @@ private:
     bool ParseCollectConfig(const Json& config);
     bool ParseHostConfig(const Json& config);
     bool ParseNpuConfig(const Json& config);
+    void ParseMspti(const Json& config);
     std::string TrimWhitespace(const std::string& str);
     std::vector<std::string> SplitAndTrimString(const std::string& str, char delimiter);
     void LogDomainInfo() const;
@@ -80,6 +86,11 @@ private:
     uint32_t npuMemoryFreqMin_ = 1;
     uint32_t npuMemoryFreqMax_ = 50;
     uint32_t npuMemorySleepMilliseconds_ = 1000;
+
+    bool msptiEnable_ = false;
+
+    std::string apiFilter_;
+    std::string kernelFilter_;
 };
 }
 #endif

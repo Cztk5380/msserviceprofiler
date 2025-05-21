@@ -32,6 +32,7 @@
 #include "msServiceProfiler/NpuMemoryUsage.h"
 #include "msServiceProfiler/Profiler.h"
 #include "msServiceProfiler/Log.h"
+#include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
 
 namespace {
@@ -41,7 +42,6 @@ constexpr int STRING_TO_UINT_BASE = 10;
 constexpr uint32_t INVALID_DEVICE_ID = static_cast<uint32_t>(-1);
 
 using DATA_PTR = struct ProfSetDevPara *;
-
 
 struct ProfSetDevPara {
     uint32_t chipId;
@@ -409,6 +409,10 @@ namespace msServiceProfiler {
                 }
             }
 
+            if (msptiEnabled) {
+                FlushBufferByTime();
+            }
+
             std::this_thread::sleep_for(std::chrono::milliseconds(config_->GetNpuMemorySleepMilliseconds()));
         }
     }
@@ -472,6 +476,36 @@ namespace msServiceProfiler {
         }
         PROF_LOGI("prof path: %s", profPath.c_str());  // LCOV_EXCL_LINE
 
+        if (config_->GetMsptiEnable()) {
+            StartMsptiProf(profPath);
+        } else {
+            StartAclProf(profPath);
+        }
+    }
+
+    void ServiceProfilerManager::StartMsptiProf(std::string& profPath)
+    {
+        auto ret = InitMspti(profPath, msptiHandle_);
+        if (ret != 0) {
+            PROF_LOGE("Mspti init failed.");
+            msptiEnabled = false;
+        } else {
+            InitMsptiActivity(config_->GetMsptiEnable());
+            auto apiFilter_ = config_->GetApiFilter();
+            auto kernelFilter_ = config_->GetKernelFilter();
+            InitMsptiFilter(apiFilter_, kernelFilter_);
+            msptiEnabled = true;
+        }
+
+        // 设置标志位
+        config_->SetEnable(true);
+        g_threadRunFlag = true;
+        started_ = true;
+        g_startFlag = true;
+    }
+
+    void ServiceProfilerManager::StartAclProf(std::string& profPath)
+    {
         if (!isAclInit_) {
             aclError retInit = aclInit(nullptr);
             if (retInit == ACL_SUCCESS || retInit == ACL_ERROR_REPEAT_INITIALIZE) {
@@ -522,22 +556,27 @@ namespace msServiceProfiler {
         config_->SetEnable(false);
         auto profConfig = (AclprofConfig *)this->configHandle_;
 
-        auto ret = aclprofStop(profConfig);
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof stop failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            return;
-        }
-        ret = aclprofDestroyConfig(profConfig);
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof destroy config failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            return;
-        }
-        this->configHandle_ = nullptr;
+        if (msptiEnabled) {
+            msptiEnabled = false;
+            UninitMspti(msptiHandle_);
+        } else {
+            auto ret = aclprofStop(profConfig);
+            if (ret != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof stop failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                return;
+            }
+            ret = aclprofDestroyConfig(profConfig);
+            if (ret != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof destroy config failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                return;
+            }
+            this->configHandle_ = nullptr;
 
-        ret = aclprofFinalize();
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof finalize failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            return;
+            ret = aclprofFinalize();
+            if (ret != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof finalize failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                return;
+            }
         }
 
         started_ = false;

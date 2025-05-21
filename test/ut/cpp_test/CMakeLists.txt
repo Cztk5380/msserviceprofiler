@@ -60,6 +60,8 @@ set(TEST_LIBS
         pthread
         rt
         securec
+        mspti
+        sqlite3
         libgtest.a
         libgtest_main.a
         libgmock.a

@@ -11,6 +11,7 @@
 
 namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
+constexpr int MSPTI_ENABLE_TASK_TIME = 2;
 constexpr int MAX_TIME_LIMIT = 7200;
 Config::Config()
 {
@@ -95,6 +96,25 @@ void Config::ParseConfig(const Json& configJson)
     ParseLevel(configJson);
     ParseDomain(configJson);
     ParseCollectConfig(configJson);
+    ParseMspti(configJson);
+}
+
+void Config::ParseMspti(const Json& config)
+{
+    if (config.contains("mspti_api_filter")) {
+        if (config["mspti_api_filter"].is_string()) {
+            apiFilter_ = config["mspti_api_filter"];
+        } else {
+            PROF_LOGW("Unknown mspti_api_filter type. mspti_api_filter set to nullptr.");  // LCOV_EXCL_LINE
+        }
+    }
+    if (config.contains("mspti_kernel_filter")) {
+        if (config["mspti_kernel_filter"].is_string()) {
+            kernelFilter_ = config["mspti_kernel_filter"];
+        } else {
+            PROF_LOGW("Unknown mspti_kernel_filter type. mspti_kernel_filter set to nullptr.");  // LCOV_EXCL_LINE
+        }
+    }
 }
 
 void Config::ParseEnable(const Json& config)
@@ -172,6 +192,7 @@ void Config::ParseAclTaskTime(const Json &config)
     if (config.contains("acl_task_time")) {
         if (config["acl_task_time"].is_number_integer()) {
             enableAclTaskTime_ = config["acl_task_time"] == 1;
+            msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
         } else {
             PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");  // LCOV_EXCL_LINE
         }
@@ -405,6 +426,8 @@ void Config::SaveConfigToJsonFile()
         {"host_system_usage_freq", -1},
         {"npu_memory_usage_freq", -1},
         {"acl_task_time", enableAclTaskTime_ ? 1 : 0},
+        {"api_filter", ""},
+        {"kernel_filter", ""},
         {"domain", ""},
         {"timelimit", 0},
     };
