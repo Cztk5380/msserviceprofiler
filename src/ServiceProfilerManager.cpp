@@ -383,9 +383,8 @@ namespace msServiceProfiler {
 
             if (config_->GetTimeLimit() > 0 && started_) {
                 auto terminate = std::chrono::high_resolution_clock::now(); // 记录结束时间
-                auto terminateTime = std::chrono::duration_cast<std::chrono::seconds>(terminate.time_since_epoch());
 
-                auto duration = std::chrono::duration_cast<std::chrono::seconds>(terminateTime - initiateTime);
+                auto duration = std::chrono::duration_cast<std::chrono::seconds>(terminate - initiate);
 
                 if (duration.count() >= config_->GetTimeLimit()) {
                     StopProfiler();
