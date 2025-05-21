@@ -1,4 +1,4 @@
-// Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
+// Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
 
 #ifndef MS_STANDARD_SECYRUTY_UTILS_H
 #define MS_STANDARD_SECYRUTY_UTILS_H
