@@ -137,7 +137,7 @@ bool IsPathCharactersValid(const std::string &absPath)
 static std::string GetRealPath(std::string const &path)
 {
     char* absPath = realpath(path.c_str(), NULL);
-    if (absPath == NULL) {
+    if (absPath == nullptr) {
         LogWarn("Cannot GetRealPath");
         return "";
     }
