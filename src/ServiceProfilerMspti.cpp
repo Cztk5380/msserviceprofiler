@@ -214,7 +214,7 @@ namespace msServiceProfiler {
             return;
         }
 
-        createTable();
+        CreateTable();
 
         inited = true;
         PROF_LOGD("Init ServiceProfilerFilerWriter Success.");
