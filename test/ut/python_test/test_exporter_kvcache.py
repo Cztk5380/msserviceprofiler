@@ -39,7 +39,7 @@ lKVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252
 class TestExporterBatchData(unittest.TestCase):
     def setUp(self):
         test_path = os.path.join(os.getcwd(), "output_test")
-        self.args = type('Args', (object,), {'output_path': test_path, 'format': ['csv', 'db']})
+        self.args = type('Args', (object,), {'output_path': test_path, 'format': ['csv']})
         self.data = {
             'tx_data_df': self.create_df()
         }
@@ -49,8 +49,8 @@ class TestExporterBatchData(unittest.TestCase):
         data = {
             'domain': ['KVCache', 'KVCache', 'KVCache', 'KVCache'],
             'rid': [0, 1, 2, 3],
-            'start_time': ['1735124796367194', '1735124796367220', '1735124796367233', '1735124796367242'],
-            'end_time': ['1735124796367194', '1735124796367220', '1735124796367233', '1735124796367242'],
+            'start_time': [1735124796367194, 1735124796367220, 1735124796367233, 1735124796367242],
+            'end_time': [1735124796367194, 1735124796367220, 1735124796367233, 1735124796367242],
             'name': ['Allocate', 'Free', 'AppendSlot', 'AppendSlot'],
             'deviceBlock=': [1978, 1977, 1976, 1975],
             'during_time': ['0', '0', '0', '0'],

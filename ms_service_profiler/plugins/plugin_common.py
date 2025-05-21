@@ -23,7 +23,7 @@ class PluginCommon(PluginBase):
 
         tx_data_df = tx_data_df.replace(to_replace=np.nan, value=None)
         data["tx_data_df"], data["rid_link_map"] = parse_rid(tx_data_df)
-        
+
         return data
 
 
