@@ -385,9 +385,6 @@ namespace msServiceProfiler {
                 auto terminate_ = std::chrono::high_resolution_clock::now(); // 记录结束时间
                 auto terminateTime_ = std::chrono::duration_cast<std::chrono::seconds>(terminate_.time_since_epoch());
 
-                // 计算时间差
-                // std::chrono::duration<double> elapsed = end_time - start_time;
-
                 auto duration = std::chrono::duration_cast<std::chrono::seconds>(terminateTime_ - initiateTime_);
 
                 if (duration.count() >= config_->GetTimeLimit()) {
