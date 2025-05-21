@@ -204,7 +204,7 @@ class ExporterLatency(ExporterBase):
             return
 
         if check_domain_valid(all_data_df, ['ModelExecute', 'BatchSchedule', 'Request'], 'latency') is False:
-                return
+            return
 
         output = cls.args.output_path
         all_data_df = data['tx_data_df']
