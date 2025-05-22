@@ -67,7 +67,7 @@ class ProcessorRes(ProcessorBase):
                     continue
 
                 rid_map = data_df[data_df['from'].notna()].set_index("to").to_dict(orient='dict')["from"]
-                rid_map.update({"{:g}".format(k): v for k,v in rid_map.items()})
+                rid_map.update({"{:g}".format(k): v for k, v in rid_map.items()})
                 data[index]["tx_data_df"] = data_df[data_df['from'].isna()]
 
                 hostname = process_info.get("hostname")

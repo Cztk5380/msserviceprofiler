@@ -146,7 +146,7 @@ const std::set<std::string>& GetValidDomain()
     return msServiceProfiler::ServiceProfilerManager::GetInstance().GetValidDomain();
 }
 
-void AddMetaInfo(const char* key, const char* value) 
+void AddMetaInfo(const char* key, const char* value)
 {
     return msServiceProfiler::ServiceProfilerManager::GetInstance().AddMetaInfo(key, value);
 }
