@@ -110,6 +110,7 @@ TEST(ProfilerTest, TestReadEnableYes)
     nlohmann::json configTest = nlohmann::json::object();
     nlohmann::json configTest2 = nlohmann::json::object();
     nlohmann::json configTest3 = nlohmann::json::object();
+    nlohmann::json configTest4 = nlohmann::json::object();
     configTest["enable"] = 1;
     configTest["prof_dir"] = "/aaa";
     configTest["acl_task_time"] = 1;
