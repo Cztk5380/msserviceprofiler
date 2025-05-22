@@ -116,16 +116,21 @@ TEST(ProfilerTest, TestReadEnableYes)
     configTest["profiler_level"] = 1;
     configTest["host_system_usage_freq"] = 2;
     configTest["npu_memory_usage_freq"] = 2;
+    configTest["timelimit"] = -1;
     configTest2["profiler_level"] = "Level";
     configTest2["host_system_usage_freq"] = "aaa";
     configTest2["npu_memory_usage_freq"] = "aaa";
+    configTest2["timelimit"] = 2;
     configTest3["host_system_usage_freq"] = 99999;
     configTest3["npu_memory_usage_freq"] = 99999;
+    configTest3["timelimit"] = 8000;
+    configTest4["timelimit"] = "aaa";
 
     ServiceProfilerManager manager;
     EXPECT_NO_THROW(manager.config_->ParseConfig(configTest));
     EXPECT_NO_THROW(manager.config_->ParseConfig(configTest2));
     EXPECT_NO_THROW(manager.config_->ParseConfig(configTest3));
+    EXPECT_NO_THROW(manager.config_->ParseConfig(configTest4));
 }
 
 TEST(ProfilerTest, TestDynamicControlStart2Stop)
@@ -146,6 +151,27 @@ TEST(ProfilerTest, TestDynamicControlStart2Stop)
     setenv("SERVICE_PROF_CONFIG_PATH", "/ut_test/prof.json", 1);
 
     manager.DynamicControl();
+
+    GlobalMockObject::reset();
+}
+
+TEST(ProfilerTest, TestLaunchThreadStart2Stop)
+{
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["enable"] = 1;
+    configTest["timelimit"] = 2;
+
+    ServiceProfilerManager manager;
+    manager.config_->ParseConfig(configTest);
+
+    MockStubFunc stubs;
+    EXPECT_CALL(stubs, stat(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(0));
+
+    // set Profiling env name
+    setenv("SERVICE_PROF_CONFIG_PATH", "/ut_test/prof.json", 1);
+
+    manager.LaunchThread();
 
     GlobalMockObject::reset();
 }
