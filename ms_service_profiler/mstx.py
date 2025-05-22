@@ -48,6 +48,11 @@ class LibServiceProfiler:
             self.func_is_enable.argtypes = (ctypes.c_ulong,)
             self.func_is_enable.restype = ctypes.c_bool
 
+            if hasattr(self.lib, "AddMetaInfo"):
+                self.func_add_meta_data = self.lib.AddMetaInfo
+                self.func_add_meta_data.argtypes = (ctypes.c_char_p, ctypes.c_char_p)
+
+
     def start_span(self, name=None):
         if self.func_start_span_with_name is None:
             return 0
@@ -78,6 +83,10 @@ class LibServiceProfiler:
         if self.func_is_enable is None:
             return False
         return self.func_is_enable(profiler_level)
+
+    def add_meta_data(self, key, value):
+        if self.func_add_meta_data is not None:
+            self.func_add_meta_data(key, value)
 
 
 service_profiler = LibServiceProfiler()

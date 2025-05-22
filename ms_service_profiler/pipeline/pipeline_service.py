@@ -33,8 +33,7 @@ class PipelineService(PipelineBase):
         data = self.get_depends_result("data_source:msprof")
 
         data = self.run_step(PluginTimeStamp, PluginTimeStamp.name, data)
-        for one_msporf_data in data:
-            one_msporf_data["tx_data_df"] = ProcessorRes().parse(one_msporf_data.get("tx_data_df"))
+        data = ProcessorRes().parse(data)
         data = self.run_step(PluginConcat, PluginConcat.name, data)
         data = self.run_step(PluginCommon, PluginCommon.name, data)
         data = self.run_step(PluginReqStatus, PluginReqStatus.name, data)

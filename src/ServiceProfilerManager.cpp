@@ -23,6 +23,7 @@
 #include <map>
 #include <cmath>
 #include <csignal>
+#include <limits.h>
 
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
@@ -146,6 +147,12 @@ const std::set<std::string>& GetValidDomain()
     return msServiceProfiler::ServiceProfilerManager::GetInstance().GetValidDomain();
 }
 
+void AddMetaInfo(const char* key, const char* value) 
+{
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().AddMetaInfo(key, value);
+}
+
+
 void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
 {
     if (len != sizeof(::ProfSetDevPara)) {
@@ -155,6 +162,9 @@ void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
         return;
     }
     DATA_PTR setCfg = static_cast<DATA_PTR>(data);
+    if (setCfg->deviceId != g_deviceID) {
+        AddMetaInfo("deviceid", std::to_string(g_deviceID).c_str());
+    }
     if (setCfg->deviceId != g_deviceID && g_startFlag) {
         g_deviceID = setCfg->deviceId;
         StopServerProfiler();
@@ -224,11 +234,12 @@ namespace msServiceProfiler {
         } while (offset != pathLen);
         return true;
     }
+    
+    ServiceProfilerManager ServiceProfilerManager::static_manager_;
 
     ServiceProfilerManager &ServiceProfilerManager::GetInstance()
     {
-        static ServiceProfilerManager manager;
-        return manager;
+        return static_manager_;
     }
 
     ServiceProfilerManager::ServiceProfilerManager()
@@ -380,6 +391,8 @@ namespace msServiceProfiler {
                 "or if NPU driver installed.");  // LCOV_EXCL_LINE
             return;
         }
+
+        AddMetaInfo("ppid", std::to_string(getppid()).c_str());
 
         while (g_threadRunFlag) {
             // dynamic start_and_stop
@@ -545,6 +558,18 @@ namespace msServiceProfiler {
         g_threadRunFlag = true;
         started_ = true;
         g_startFlag = true;
+
+        for (const auto& pair : metaDatas_) {
+            Profiler<Level::INFO>().Domain("Meta").Attr(pair.first.c_str(), pair.second).Event("Meta");
+        }
+    }
+
+    void ServiceProfilerManager::AddMetaInfo(const std::string &key, const std::string &value)
+    {
+        metaDatas_.insert(std::make_pair(key, value));
+        if (started_ && config_ && config_->GetEnable()) {
+            Profiler<Level::INFO>().Domain("Meta").Attr(key.c_str(), value).Event("Meta");
+        }
     }
 
     void ServiceProfilerManager::StopProfiler()

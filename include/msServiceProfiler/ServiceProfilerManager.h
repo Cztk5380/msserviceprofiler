@@ -61,6 +61,8 @@ namespace msServiceProfiler {
             return config_->GetConfigPath();
         }
 
+        void AddMetaInfo(const std::string &key, const std::string &value);
+
     private:
         ServiceProfilerManager();
 
@@ -83,6 +85,7 @@ namespace msServiceProfiler {
         void StartAclProf(std::string& profPath);
 
     private:
+        static ServiceProfilerManager static_manager_;
         bool isMaster_ = true;
         bool started_ = false;
         bool isAclInit_ = false;
@@ -90,6 +93,7 @@ namespace msServiceProfiler {
         int lastUpdate_ = 0;
         std::chrono::high_resolution_clock::time_point initiate = std::chrono::high_resolution_clock::now();
         std::unique_ptr<Config> config_;
+        std::map<std::string, std::string> metaDatas_;
 
         std::thread thread_;
 
