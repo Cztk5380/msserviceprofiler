@@ -110,22 +110,28 @@ TEST(ProfilerTest, TestReadEnableYes)
     nlohmann::json configTest = nlohmann::json::object();
     nlohmann::json configTest2 = nlohmann::json::object();
     nlohmann::json configTest3 = nlohmann::json::object();
+    nlohmann::json configTest4 = nlohmann::json::object();
     configTest["enable"] = 1;
     configTest["prof_dir"] = "/aaa";
     configTest["acl_task_time"] = 1;
     configTest["profiler_level"] = 1;
     configTest["host_system_usage_freq"] = 2;
     configTest["npu_memory_usage_freq"] = 2;
+    configTest["timelimit"] = -1;
     configTest2["profiler_level"] = "Level";
     configTest2["host_system_usage_freq"] = "aaa";
     configTest2["npu_memory_usage_freq"] = "aaa";
+    configTest2["timelimit"] = 2;
     configTest3["host_system_usage_freq"] = 99999;
     configTest3["npu_memory_usage_freq"] = 99999;
+    configTest3["timelimit"] = 8000;
+    configTest4["timelimit"] = "aaa";
 
     ServiceProfilerManager manager;
     EXPECT_NO_THROW(manager.config_->ParseConfig(configTest));
     EXPECT_NO_THROW(manager.config_->ParseConfig(configTest2));
     EXPECT_NO_THROW(manager.config_->ParseConfig(configTest3));
+    EXPECT_NO_THROW(manager.config_->ParseConfig(configTest4));
 }
 
 TEST(ProfilerTest, TestDynamicControlStart2Stop)
