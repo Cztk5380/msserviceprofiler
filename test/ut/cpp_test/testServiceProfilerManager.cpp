@@ -156,6 +156,27 @@ TEST(ProfilerTest, TestDynamicControlStart2Stop)
     GlobalMockObject::reset();
 }
 
+TEST(ProfilerTest, TestLaunchThreadStart2Stop)
+{
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["enable"] = 1;
+    configTest["timelimit"] = 2;
+
+    ServiceProfilerManager manager;
+    manager.config_->ParseConfig(configTest);
+
+    MockStubFunc stubs;
+    EXPECT_CALL(stubs, stat(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(0));
+
+    // set Profiling env name
+    setenv("SERVICE_PROF_CONFIG_PATH", "/ut_test/prof.json", 1);
+
+    manager.LaunchThread();
+
+    GlobalMockObject::reset();
+}
+
 TEST(ProfilerTest, TestSetAclProfHostSysConfig1)
 {
     ServiceProfilerManager manager;
