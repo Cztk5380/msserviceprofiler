@@ -54,12 +54,11 @@ class ProcessorRes(ProcessorBase):
         rid_map_of_process = dict()
 
         for index, one_msporf_data in enumerate(data):
-            data_df:pd.DataFrame = one_msporf_data.get("tx_data_df")
+            data_df: pd.DataFrame = one_msporf_data.get("tx_data_df")
             process_list.append(self.parse_process_info(data_df, index))
 
         # 处理 调度 进程， 获取 rid map
         for process_info in process_list:
-
             if process_info.get("is_forward", False) is False:
                 data_df = process_info.get("df")
                 index = process_info.get("index")
@@ -68,7 +67,7 @@ class ProcessorRes(ProcessorBase):
                     continue
 
                 rid_map = data_df[data_df['from'].notna()].set_index("to").to_dict(orient='dict')["from"]
-                rid_map.update({"{:g}".format(k):v for k,v in rid_map.items()})
+                rid_map.update({"{:g}".format(k): v for k,v in rid_map.items()})
                 data[index]["tx_data_df"] = data_df[data_df['from'].isna()]
 
                 hostname = process_info.get("hostname")

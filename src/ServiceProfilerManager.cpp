@@ -23,7 +23,6 @@
 #include <map>
 #include <cmath>
 #include <csignal>
-#include <limits.h>
 
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
@@ -151,7 +150,6 @@ void AddMetaInfo(const char* key, const char* value)
 {
     return msServiceProfiler::ServiceProfilerManager::GetInstance().AddMetaInfo(key, value);
 }
-
 
 void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
 {
