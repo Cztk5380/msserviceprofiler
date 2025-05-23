@@ -71,10 +71,11 @@ bool IsSoftLink(const std::string &absPath)
 {
     struct stat fileStat;
     if ((lstat(absPath.c_str(), &fileStat) != 0) || ((S_IFMT & fileStat.st_mode) != S_IFLNK)) {
-        LogWarn("File is symbol link: %s", absPath.c_str());
         return false;
+    } else {
+        LogWarn("File is symbol link: %s", absPath.c_str());
+        return true;
     }
-    return true;
 }
 
 bool IsFile(const std::string &absPath)
@@ -218,7 +219,6 @@ static mode_t GetFilePermissions(const std::string &path)
 bool CheckFileBeforeWrite(const std::string &path)
 {
     if (IsSoftLink(path)) {
-        LogWarn("Input path: %s is softLink.", path.c_str());
         return false;
     }
 
@@ -239,7 +239,6 @@ bool CheckFileBeforeWrite(const std::string &path)
 bool CheckFileBeforeRead(const std::string &path, long long maxSize)
 {
     if (IsSoftLink(path)) {
-        LogWarn("Input path: %s is softLink.", path.c_str());
         return false;
     }
 

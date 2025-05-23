@@ -217,7 +217,7 @@ namespace msServiceProfiler {
             std::string curPath = dirPath.substr(0, offset);
             if (access(curPath.c_str(), F_OK) != 0) {
                 int ret = mkdir(curPath.c_str(), S_IRWXU | S_IRGRP | S_IXGRP);
-                if (ret != 0 && errno == EEXIST) {
+                if (ret != 0 && errno != EEXIST) {
                     return false;
                 }
             }
