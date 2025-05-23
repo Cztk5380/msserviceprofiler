@@ -24,15 +24,18 @@ class PluginMsptiProcess(PluginBase):
                 mspti_api_list.append(item["api_df"])
                 mspti_kernel_list.append(renamed_kernel)
             else:
-                logger.warning("No mspti data detected, skipping op process.")
+                logger.warning("No mspti data detected in certain db, skipping process.")
 
-        concated_api_df = pd.concat(mspti_api_list)
-        concated_kernel_df = pd.concat(mspti_kernel_list)
-
-        return dict(
-            api_df=concated_api_df,
-            kernel_df=concated_kernel_df
-        )
+        if mspti_kernel_list and mspti_kernel_list:
+            concated_api_df = pd.concat(mspti_api_list)
+            concated_kernel_df = pd.concat(mspti_kernel_list)
+            return dict(
+                api_df=concated_api_df,
+                kernel_df=concated_kernel_df
+            )
+        else:
+            logger.warning("No data found in all ascend_service_profiler_*.db, skipping parse.")
+            return None
 
 
 def replace_name(df1, df2):
