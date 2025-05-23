@@ -23,6 +23,9 @@ class ExporterMspti(ExporterBase):
         if 'db' not in cls.args.format and 'json' not in cls.args.format:
             return
 
+        if not data:
+            return
+
         output = cls.args.output_path
 
         api_df = data["api_df"]

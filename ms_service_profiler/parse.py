@@ -315,7 +315,7 @@ def check_sub_profiler_path(input_path):
         for name in dirs:
             subdir = os.path.join(input_path, name)
             cur_path_deepth = len(subdir.split(os.path.sep))
-            if (cur_path_deepth - root_path_deepth == 1) and ('PROF_' in dirs):
+            if 'PROF_' in dirs:
                 return True
             else:
                 continue
