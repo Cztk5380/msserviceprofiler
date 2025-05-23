@@ -37,6 +37,7 @@ MS_SERVICE_PROFILER_API void StopServerProfiler();
 MS_SERVICE_PROFILER_API bool IsEnable(uint32_t level);
 MS_SERVICE_PROFILER_API bool GetEnableDomainFilter();
 MS_SERVICE_PROFILER_API const std::set<std::string>& GetValidDomain();
+MS_SERVICE_PROFILER_API void AddMetaInfo(const char *key, const char *value);
 }
 
 namespace msServiceProfilerCompatible {
