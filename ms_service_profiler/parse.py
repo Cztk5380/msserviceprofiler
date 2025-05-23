@@ -310,15 +310,9 @@ def load_ops_db(filepath, db_id):
 
 def check_sub_profiler_path(input_path):
     # 判断子目录是否有PROF文件夹 如果有则走原来解析逻辑返回True 如果没有尝试走mspti返回False
-    root_path_deepth = len(input_path.split(os.path.sep))
-    for _, dirs, _ in os.walk(input_path, topdown=True):
-        for name in dirs:
-            subdir = os.path.join(input_path, name)
-            cur_path_deepth = len(subdir.split(os.path.sep))
-            if 'PROF_' in dirs:
-                return True
-            else:
-                continue
+    for fp in Path(input_path).rglob('**'):
+        if "PROF_" in fp.name:
+            return True
     return False
 
 
