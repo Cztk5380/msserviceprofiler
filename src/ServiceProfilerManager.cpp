@@ -95,7 +95,8 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
     }
     const char *oriMsgStart = msg;
     while (static_cast<decltype(msgLen)>(oriMsgStart - msg) < msgLen) {
-        auto markSize = std::min(maxMarkSize, msgLen); // prevent out-of-bounds accessing
+        // maxMarkSize or RemainingSize
+        auto markSize = std::min(maxMarkSize, msgLen - (oriMsgStart - msg));
         spanTag.append(oriMsgStart, markSize);
         oriMsgStart += markSize;
         MarkEvent(spanTag.c_str());
