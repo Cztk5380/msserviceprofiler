@@ -113,7 +113,7 @@ def trans_trace_counter_data(event):
 
 class TrackIdManager:
     pid_tid_map = defaultdict(dict)
-    current_max = 0
+    current_max = 1
 
     @classmethod
     def get_track_id(cls, pid, tid):

@@ -61,7 +61,7 @@ def check_kvcache_db_content(output_path, db_file_name):
     expected_db_columns = [
         'rid',
         'name',
-        'real_start_time_ms',
+        'real_start_time(ms)',
         'device_kvcache_left',
         'kvcache_usage_rate'
     ]
