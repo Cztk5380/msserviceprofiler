@@ -338,7 +338,11 @@ bool Config::ParseHostConfig(const Json &config)
                 hostCpuUsage_ = true;
                 hostMemoryUsage_ = true;
             } else {
-                PROF_LOGD("host_system_usage_freq is %u.", hostFreq);  // LCOV_EXCL_LINE
+                LOG_ONCE_E("To enable host cpu or host memory usage collection, set host_system_usage_freq "
+                    "between %u and %u. To disable it, set this value to -1. "
+                    "host cpu or host memory usage collection is now disabled.",
+                    hostFreqMin_, hostFreqMax_);  // LCOV_EXCL_LINE
+
                 hostCpuUsage_ = false;
                 hostMemoryUsage_ = false;
                 ret = false;
@@ -367,7 +371,10 @@ bool Config::ParseNpuConfig(const Json &config)
                 npuMemoryFreq_ = npuMemoryFreq;
                 npuMemoryUsage_ = true;
             } else {
-                PROF_LOGD("npu_memory_usage_freq is %u.", npuMemoryFreq);  // LCOV_EXCL_LINE
+                LOG_ONCE_E("To enable npu memory usage collection, set npu_memory_usage_freq "
+                    "between %u and %u. To disable it, set this value to -1. "
+                    "npu memory usage collection is now disabled.",
+                    npuMemoryFreqMin_, npuMemoryFreqMax_);  // LCOV_EXCL_LINE
                 npuMemoryUsage_ = false;
                 ret = false;
             }
