@@ -150,7 +150,7 @@ namespace msServiceProfiler {
         sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->end));
         sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->ds.deviceId));
         sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->ds.streamId));
-        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->dataCount));
+        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->Count));
         sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->dataType));
         sqlite3_bind_text(stmtCommunication, bind_index++, activity->commName, -1, SQLITE_STATIC);
         sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->correlationId));
@@ -325,7 +325,7 @@ namespace msServiceProfiler {
     {
         char* errMsg = nullptr;
 
-        const char* sqlCreateKindComm =
+        const char* sqlCreateKindCommunication =
             "CREATE TABLE IF NOT EXISTS Communication ("
             "name TEXT,"
             "start INTEGER,"
