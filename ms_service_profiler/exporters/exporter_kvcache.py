@@ -49,7 +49,7 @@ def build_rid_to_action_usage_rates(kvcache_df, max_free_value):
         action_usage_rates_list = []
         for index, row in group.iterrows():
             action = row['name']
-            timestamp = row['real_start_time_ms']
+            timestamp = row['real_start_time(ms)']
             action_usage_rate_dict = {}
             action_usage_rate_dict['original_index'] = index
             value = row['device_kvcache_left']
@@ -66,7 +66,7 @@ def build_result_df(kvcache_df, rid_to_action_usage_rates, num_threads=4):
     """
     创建新的DataFrame并填充数据
     """
-    new_columns = ['rid', 'name', 'real_start_time_ms', 'device_kvcache_left', 'kvcache_usage_rate']
+    new_columns = ['rid', 'name', 'real_start_time(ms)', 'device_kvcache_left', 'kvcache_usage_rate']
 
     # 将 DataFrame 转换为 NumPy 数组，并添加原始索引作为最后一列
     data_with_index = np.column_stack((kvcache_df.to_numpy(), kvcache_df.index))
@@ -143,11 +143,11 @@ def export_pull_kvcache(df, output, args_format):
     pull_kvcache_df['end_datetime'] = pull_kvcache_df['end_datetime'].str[:-3]
 
     pull_kvcache_df = pull_kvcache_df.rename(columns={
-        'start_time': 'start_time_ms',
-        'end_time': 'end_time_ms',
-        'during_time': 'during_time_ms',
-        'start_datetime': 'start_datetime_ms',
-        'end_datetime': 'end_datetime_ms'
+        'start_time': 'start_time(ms)',
+        'end_time': 'end_time(ms)',
+        'during_time': 'during_time(ms)',
+        'start_datetime': 'start_datetime(ms)',
+        'end_datetime': 'end_datetime(ms)'
     })
 
     if 'csv' in args_format:
@@ -193,7 +193,7 @@ class ExporterKVCacheData(ExporterBase):
                 kvcache_df['start_time'] = kvcache_df['start_time'] // US_PER_MS
                 kvcache_df = kvcache_df.rename(columns={
                     'deviceBlock=': 'device_kvcache_left',
-                    'start_time': 'timestamp_ms'
+                    'start_time': 'timestamp(ms)'
                 })
             except KeyError as e:
                 logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
@@ -204,10 +204,10 @@ class ExporterKVCacheData(ExporterBase):
         if 'db' in cls.args.format:
             kvcache_df['start_datetime'] = start_datetime_data
             kvcache_df = kvcache_df.rename(columns={
-                'start_datetime': 'real_start_time_ms'
+                'start_datetime': 'real_start_time(ms)'
             })
             kvcache_df = kvcache_usage_rate_calculator(kvcache_df)
-            kvcache_df['real_start_time_ms'] = truncate_timestamp_np(kvcache_df['real_start_time_ms'])
+            kvcache_df['real_start_time(ms)'] = truncate_timestamp_np(kvcache_df['real_start_time(ms)'])
 
             add_table_into_visual_db(kvcache_df, 'kvcache')
             create_sqlite_views('Kvcache_Usage_Percent', CREATE_KVCACHE_VIEW_SQL)
@@ -221,7 +221,7 @@ CREATE_KVCACHE_VIEW_SQL = """
     WITH converted AS (
         SELECT
             kvcache_usage_rate * 100 AS kvcache_usage_percent,
-            substr(real_start_time_ms, 1, 10) || ' ' || substr(real_start_time_ms, 12, 8) AS datetime
+            substr("real_start_time(ms)", 1, 10) || ' ' || substr("real_start_time(ms)", 12, 8) AS datetime
         FROM
             kvcache
     )

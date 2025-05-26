@@ -592,9 +592,9 @@
               "type": "frser-sqlite-datasource",
               "uid": "be9gcyy5a15hcd"
             },
-            "queryText": "\nWITH converted AS (\n    SELECT\n        kvcache_usage_rate * 100 AS kvcache_usage_percent,\n        substr(real_start_time_ms, 1, 10) || 'T' || substr(real_start_time_ms, 12, 8) || 'Z' AS datetime\n    FROM\n        kvcache\n)\nSELECT\n    datetime as time,\n    cast(kvcache_usage_percent as REAL) as \"kvcacge_usage\"\nFROM\n    converted\nORDER BY\n    datetime ASC;\n",
+            "queryText": "\nWITH converted AS (\n    SELECT\n        kvcache_usage_rate * 100 AS kvcache_usage_percent,\n        substr(real_start_time(ms), 1, 10) || 'T' || substr(real_start_time(ms), 12, 8) || 'Z' AS datetime\n    FROM\n        kvcache\n)\nSELECT\n    datetime as time,\n    cast(kvcache_usage_percent as REAL) as \"kvcacge_usage\"\nFROM\n    converted\nORDER BY\n    datetime ASC;\n",
             "queryType": "time series",
-            "rawQueryText": "\nWITH converted AS (\n    SELECT\n        kvcache_usage_rate * 100 AS kvcache_usage_percent,\n        substr(real_start_time_ms, 1, 10) || 'T' || substr(real_start_time_ms, 12, 8) || 'Z' AS datetime\n    FROM\n        kvcache\n)\nSELECT\n    datetime as time,\n    cast(kvcache_usage_percent as REAL) as \"kvcacge_usage\"\nFROM\n    converted\nORDER BY\n    datetime ASC;\n",
+            "rawQueryText": "\nWITH converted AS (\n    SELECT\n        kvcache_usage_rate * 100 AS kvcache_usage_percent,\n        substr(real_start_time(ms), 1, 10) || 'T' || substr(real_start_time(ms), 12, 8) || 'Z' AS datetime\n    FROM\n        kvcache\n)\nSELECT\n    datetime as time,\n    cast(kvcache_usage_percent as REAL) as \"kvcacge_usage\"\nFROM\n    converted\nORDER BY\n    datetime ASC;\n",
             "refId": "A",
             "timeColumns": [
               "time",

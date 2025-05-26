@@ -49,7 +49,7 @@ def get_forward_info(df):
 
         for key, value in max_df_index.items():
             select_row = forward_df_list[value].loc[row_index]
-            dp_name = 'dp' + key + '_forward_ms'
+            dp_name = 'dp' + key + '_forward(ms)'
             max_forward_during_time[dp_name] = select_row.get('during_time') / US_PER_MS
         all_max_forward_during_time.append(max_forward_during_time)
 
@@ -149,7 +149,7 @@ def get_new_columns_order(ori_columns, new_columns, dp_number):
     for i in range(dp_number):
         ori_columns.append('dp' + str(i) + '_rid')
         ori_columns.append('dp' + str(i) + '_size')
-        ori_columns.append('dp' + str(i) + '_forward_ms')
+        ori_columns.append('dp' + str(i) + '_forward(ms)')
 
     # 创建过滤后的顺序列表
     existing_cols = [col for col in ori_columns if col in new_columns]
@@ -210,9 +210,9 @@ def filter_batch_df(batch_name, batch_df):
     batch_df['start_time'] = batch_df['start_time'] // US_PER_MS
     batch_df['end_time'] = batch_df['end_time'] // US_PER_MS
     batch_df = batch_df.rename(columns={
-        'start_time': 'start_time_ms',
-        'end_time': 'end_time_ms',
-        'during_time': 'during_time_ms'
+        'start_time': 'start_time(ms)',
+        'end_time': 'end_time(ms)',
+        'during_time': 'during_time(ms)'
     })
     return batch_df
 
