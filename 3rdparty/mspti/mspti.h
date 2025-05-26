@@ -45,6 +45,7 @@ typedef enum {
     MSPTI_ACTIVITY_KIND_MEMSET                          = 6,
     MSPTI_ACTIVITY_KIND_MEMCPY                          = 7,
     MSPTI_ACTIVITY_KIND_EXTERNAL_CORRELATION            = 8,
+    MSPTI_ACTIVITY_KIND_COMMUNICATION                   = 9,
     MSPTI_ACTIVITY_KIND_COUNT,
     MSPTI_ACTIVITY_KIND_FORCE_INT                       = 0x7fffffff
 } msptiActivityKind;
@@ -138,6 +139,39 @@ typedef struct PACKED_ALIGNMENT {
     const char *name;
     const char *domain;
 } msptiActivityMarker;
+
+typedef enum {
+    MSPTI_ACTIVITY_COMMUNICATION_INT8 = 0,
+    MSPTI_ACTIVITY_COMMUNICATION_INT16 = 1,
+    MSPTI_ACTIVITY_COMMUNICATION_INT32 = 2,
+    MSPTI_ACTIVITY_COMMUNICATION_FP16 = 3,
+    MSPTI_ACTIVITY_COMMUNICATION_FP32 = 4,
+    MSPTI_ACTIVITY_COMMUNICATION_INT64 = 5,
+    MSPTI_ACTIVITY_COMMUNICATION_UINT64 = 6,
+    MSPTI_ACTIVITY_COMMUNICATION_UINT8 = 7,
+    MSPTI_ACTIVITY_COMMUNICATION_UINT16 = 8,
+    MSPTI_ACTIVITY_COMMUNICATION_UINT32 = 9,
+    MSPTI_ACTIVITY_COMMUNICATION_FP64 = 10,
+    MSPTI_ACTIVITY_COMMUNICATION_BFP16 = 11,
+    MSPTI_ACTIVITY_COMMUNICATION_INT128 = 12,
+    MSPTI_ACTIVITY_COMMUNICATION_INVALID_TYPE = 0x0000FFFF
+} msptiCommunicationDataType;
+
+typedef struct PACKED_ALIGNMENT {
+    msptiActivityKind kind;   // Activity Record类型MSPTI_ACTIVITY_KIND_COMMUNICATION
+    msptiCommunicationDataType dataType;   // 通信算子数据类型
+    uint64_t count;   // 通信数据量
+    struct {
+        uint32_t deviceId;   // 通信算子运行设备的Device ID
+        uint32_t streamId;   // 通信算子运行流的Stream ID
+    } ds;
+    uint64_t start;   // 通信算子在NPU设备上执行开始时间戳，单位ns。开始和结束时间戳均为0时则无法收集通信算子的时间戳信息
+    uint64_t end;   // 通信算子执行的结束时间戳，单位ns。开始和结束时间戳均为0时则无法收集通信算子的时间戳信息
+    const char* algType;   // 通信算子采用的通信算法
+    const char* name;   // 通信算子的名称
+    const char* commName;   // 通信算子所在通信域的名称
+    uint64_t correlationId;
+} msptiActivityCommunication;
 
 typedef void (*bufferRequestFunctionPtr)(uint8_t**, size_t*, size_t*);
 typedef void (*bufferCompleteFunctionPtr)(uint8_t*, size_t, size_t);

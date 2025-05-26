@@ -135,13 +135,9 @@ namespace msServiceProfiler {
         g_mtx.unlock();
     }
 
-    void ServiceProfilerMspti::InsertCommData(msptiActivityHccl* activity)
+    void ServiceProfilerMspti::InsertCommunicationData(msptiActivityCommunication* activity)
     {
-        if (!inited || !activity || !stmtComm) {
-            return;
-        }
-
-        if (!IsNameMatch(filterApi, activity->name)) {
+        if (!inited || !activity || !stmtCommunication) {
             return;
         }
 
@@ -149,19 +145,21 @@ namespace msServiceProfiler {
 
         // 绑定参数
         int bind_index = 1;
-        sqlite3_bind_text(stmtComm, bind_index++, activity->name, -1, SQLITE_STATIC);
-        sqlite3_bind_int64(stmtComm, bind_index++, static_cast<int64_t>(activity->start));
-        sqlite3_bind_int64(stmtComm, bind_index++, static_cast<int64_t>(activity->end));
-        sqlite3_bind_int64(stmtComm, bind_index++, static_cast<int64_t>(activity->ds.deviceId));
-        sqlite3_bind_int64(stmtComm, bind_index++, static_cast<int64_t>(activity->ds.streamId));
-        sqlite3_bind_int64(stmtComm, bind_index++, static_cast<int64_t>(activity->bandWidth));
-        sqlite3_bind_text(stmtComm, bind_index++, activity->commName, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmtCommunication, bind_index++, activity->name, -1, SQLITE_STATIC);
+        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->start));
+        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->end));
+        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->ds.deviceId));
+        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->ds.streamId));
+        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->dataCount));
+        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->dataType));
+        sqlite3_bind_text(stmtCommunication, bind_index++, activity->commName, -1, SQLITE_STATIC);
+        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->correlationId));
 
         // 执行插入
-        if (sqlite3_step(stmtComm) != SQLITE_DONE) {
+        if (sqlite3_step(stmtCommunication) != SQLITE_DONE) {
             PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));
         }
-        sqlite3_reset(stmtComm);
+        sqlite3_reset(stmtCommunication);
 
         g_mtx.unlock();
     }
@@ -237,7 +235,7 @@ namespace msServiceProfiler {
         CreateMstxTable();
         CreateApiTable();
         CreateKernelTable();
-        CreateCommTable();
+        CreateCommunicationTable();
     }
 
     void ServiceProfilerMspti::CreateMstxTable()
@@ -323,30 +321,32 @@ namespace msServiceProfiler {
         }
     }
 
-    void ServiceProfilerMspti::CreateCommTable()
+    void ServiceProfilerMspti::CreateCommunicationTable()
     {
         char* errMsg = nullptr;
 
         const char* sqlCreateKindComm =
-            "CREATE TABLE IF NOT EXISTS Comm ("
+            "CREATE TABLE IF NOT EXISTS Communication ("
             "name TEXT,"
             "start INTEGER,"
             "end INTEGER,"
             "deviceId INTEGER,"
             "streamId INTEGER,"
-            "bandWidth INTEGER,"
-            "commName TEXT);";
+            "dataCount INTEGER,"
+            "dataType INTEGER,"
+            "commGroupName TEXT,"
+            "correlationId INTEGER);";
 
-        const char* sqlInsertKindComm =
-            "INSERT INTO Comm "
-            "(name, start, end, deviceId, streamId, bandWidth, commName) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?);";
-        if (sqlite3_exec(db, sqlCreateKindComm, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            PROF_LOGE("sqlCreateKindComm SQL error: %s", errMsg);
+        const char* sqlInsertKindCommunication =
+            "INSERT INTO Communication "
+            "(name, start, end, deviceId, streamId, dataCount, dataType, commGroupName, correlationId) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
+        if (sqlite3_exec(db, sqlCreateKindCommunication, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            PROF_LOGE("sqlCreateKindCommunication SQL error: %s", errMsg);
             sqlite3_free(errMsg);
         }
-        if (sqlite3_prepare_v2(db, sqlInsertKindComm, -1, &stmtComm, nullptr) != SQLITE_OK) {
-            PROF_LOGE("sqlInsertKindComm SQL error: %s", errMsg);
+        if (sqlite3_prepare_v2(db, sqlInsertKindCommunication, -1, &stmtCommunication, nullptr) != SQLITE_OK) {
+            PROF_LOGE("sqlInsertKindCommunication SQL error: %s", errMsg);
             sqlite3_free(errMsg);
         }
     }
@@ -357,7 +357,7 @@ namespace msServiceProfiler {
         if (inited) {
             sqlite3_finalize(stmtApi);
             sqlite3_finalize(stmtKernel);
-            sqlite3_finalize(stmtComm);
+            sqlite3_finalize(stmtCommunication);
             sqlite3_finalize(stmtMstx);
 
             sqlite3_close(db);
@@ -389,7 +389,6 @@ namespace msServiceProfiler {
         return (workingThreadNum > 0);
     }
 
-
     static void ShowApiInfo(msptiActivityApi* api)
     {
         if (!api) {
@@ -408,12 +407,12 @@ namespace msServiceProfiler {
         ServiceProfilerMspti::GetInstance().InsertKernelData(kernel);
     }
 
-    static void ShowCommInfo(msptiActivityHccl* activity)
+    static void ShowCommunicationInfo(msptiActivityCommunication* activity)
     {
         if (!activity) {
             return;
         }
-        ServiceProfilerMspti::GetInstance().InsertCommData(activity);
+        ServiceProfilerMspti::GetInstance().InsertCommunicationData(activity);
     }
 
     static void ShowMstxInfo(msptiActivityMarker* activity)
@@ -448,9 +447,9 @@ namespace msServiceProfiler {
                     msptiActivityKernel* activity = reinterpret_cast<msptiActivityKernel*>(pRecord);
                     ShowKernelInfo(activity);
                 }
-                if (pRecord->kind == MSPTI_ACTIVITY_KIND_HCCL) {
-                    msptiActivityHccl* activity = reinterpret_cast<msptiActivityHccl*>(pRecord);
-                    ShowCommInfo(activity);
+                if (pRecord->kind == MSPTI_ACTIVITY_KIND_COMMUNICATION) {
+                    msptiActivityCommunication* activity = reinterpret_cast<msptiActivityCommunication*>(pRecord);
+                    ShowCommunicationInfo(activity);
                 }
                 if (pRecord->kind == MSPTI_ACTIVITY_KIND_MARKER) {
                     msptiActivityMarker* activity = reinterpret_cast<msptiActivityMarker*>(pRecord);
@@ -526,9 +525,9 @@ namespace msServiceProfiler {
             if (ret != MSPTI_SUCCESS) {
                 PROF_LOGE("Mspti enable kernel activity failed.");
             }
-            ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_HCCL);
+            ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_COMMUNICATION);
             if (ret != MSPTI_SUCCESS) {
-                PROF_LOGE("Mspti enable Comm activity failed.");
+                PROF_LOGE("Mspti enable Communication activity failed.");
             }
         }
 
