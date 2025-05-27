@@ -12,7 +12,6 @@ class PluginBatch(PluginBase):
     batch_req = dict()
     batch_exec = dict()
     batch_list = dict()
-    rid_iter_times = dict()
 
     @classmethod
     def add_req_info(cls, batch_id, req_id, **values):
@@ -65,7 +64,11 @@ class PluginBatch(PluginBase):
             (entry["batch_id"] for entry in cls.batch_req.values() if "block" not in entry),
             None
         )
-        if batch_id is None or batch_id == 0:
+        if batch_id is None:
+            batch_info = cls.batch_list.get(tuple(row.rid_list))
+            batch_id = batch_info.get("id", 0) if batch_info is not None else 0
+
+        if batch_id == 0:
             return
 
         last_preprocess[(row.pid, row.tid, row.hostname)] = dict(rid_list=row.rid_list)

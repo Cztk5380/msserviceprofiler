@@ -6,11 +6,11 @@
 #include <cstring>
 #include "msServiceProfiler/Log.h"
 
-namespace {
+namespace msServiceProfiler {
     ProfLogLevel g_profLogLevel = ProfLogLevel::PROF_LOG_INFO;
 }
 
-void ProfLogInit()
+void msServiceProfiler::ProfLogInit()
 {
     const char* envLevel = getenv("PROF_LOG_LEVEL");
     if (envLevel == nullptr) {
@@ -19,26 +19,26 @@ void ProfLogInit()
     }
 
     if (strcmp(envLevel, "DEBUG") == 0) {
-        g_profLogLevel = ProfLogLevel::PROF_LOG_DEBUG;
+        g_profLogLevel = msServiceProfiler::ProfLogLevel::PROF_LOG_DEBUG;
     } else if (strcmp(envLevel, "INFO") == 0) {
-        g_profLogLevel = ProfLogLevel::PROF_LOG_INFO;
+        g_profLogLevel = msServiceProfiler::ProfLogLevel::PROF_LOG_INFO;
     } else if (strcmp(envLevel, "WARNING") == 0) {
-        g_profLogLevel = ProfLogLevel::PROF_LOG_WARNING;
+        g_profLogLevel = msServiceProfiler::ProfLogLevel::PROF_LOG_WARNING;
     } else if (strcmp(envLevel, "ERROR") == 0) {
-        g_profLogLevel = ProfLogLevel::PROF_LOG_ERROR;
+        g_profLogLevel = msServiceProfiler::ProfLogLevel::PROF_LOG_ERROR;
     } else if (strcmp(envLevel, "NONE") == 0) {
-        g_profLogLevel = ProfLogLevel::PROF_LOG_NONE;
+        g_profLogLevel = msServiceProfiler::ProfLogLevel::PROF_LOG_NONE;
     } else {
         g_profLogLevel = ProfLogLevel::PROF_LOG_INFO; // 默认级别
     }
 }
 
-ProfLogLevel ProfLogGetLevel()
+msServiceProfiler::ProfLogLevel msServiceProfiler::ProfLogGetLevel()
 {
     return g_profLogLevel;
 }
 
-void ProfLogSetLevel(ProfLogLevel level)
+void msServiceProfiler::ProfLogSetLevel(ProfLogLevel level)
 {
     g_profLogLevel = level;
 }

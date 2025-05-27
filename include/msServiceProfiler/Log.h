@@ -8,23 +8,26 @@
 #include <cstdio>
 #include <unistd.h> // for getpid()
 
-// 日志级别枚举
-enum class ProfLogLevel {
-    PROF_LOG_NONE = 0,
-    PROF_LOG_ERROR,
-    PROF_LOG_WARNING,
-    PROF_LOG_INFO,
-    PROF_LOG_DEBUG
-};
+namespace msServiceProfiler {
+    // 日志级别枚举
+    enum class ProfLogLevel {
+        PROF_LOG_NONE = 0,
+        PROF_LOG_ERROR,
+        PROF_LOG_WARNING,
+        PROF_LOG_INFO,
+        PROF_LOG_DEBUG
+    };
 
-// 初始化日志系统
-void ProfLogInit();
+    // 初始化日志系统
+    void ProfLogInit();
 
-// 获取当前日志级别
-ProfLogLevel ProfLogGetLevel();
+    // 获取当前日志级别
+    ProfLogLevel ProfLogGetLevel();
 
-// 设置日志级别
-void ProfLogSetLevel(ProfLogLevel level);
+    // 设置日志级别
+    void ProfLogSetLevel(ProfLogLevel level);
+}
+
 
 // 日志宏定义
 #define PROF_LOGD(...) \
@@ -47,7 +50,7 @@ void ProfLogSetLevel(ProfLogLevel level);
 
 #define PROF_LOGW(...) \
     do { \
-        if (ProfLogGetLevel() >= ProfLogLevel::PROF_LOG_WARNING) { \
+        if (msServiceProfiler::ProfLogGetLevel() >= msServiceProfiler::ProfLogLevel::PROF_LOG_WARNING) { \
             printf("[msservice_profiler] [PID:%d] [WARNING] [%s:%d] ", getpid(), __func__, __LINE__); \
             printf(__VA_ARGS__); \
             printf("\n"); \
@@ -56,7 +59,7 @@ void ProfLogSetLevel(ProfLogLevel level);
 
 #define PROF_LOGE(...) \
     do { \
-        if (ProfLogGetLevel() >= ProfLogLevel::PROF_LOG_ERROR) { \
+        if (msServiceProfiler::ProfLogGetLevel() >= msServiceProfiler::ProfLogLevel::PROF_LOG_ERROR) { \
             printf("[msservice_profiler] [PID:%d] [ERROR] [%s:%d] ", getpid(), __func__, __LINE__); \
             printf(__VA_ARGS__); \
             printf("\n"); \
