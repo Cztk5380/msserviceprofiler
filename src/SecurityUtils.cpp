@@ -249,6 +249,10 @@ bool CheckFileBeforeRead(const std::string &path, long long maxSize)
     }
 
     struct stat fileStat;
+    if (stat(absPath.c_str(), &fileStat) != 0) {
+        LogWarn("File not exist: %s", absPath.c_str());
+        return false;
+    }
     if (fileStat.st_mode & (S_IWGRP | S_IWOTH)) {
         LogWarn("Group or others user can write, path: %s", path.c_str());
         return false;
