@@ -70,6 +70,9 @@ class ExporterPDComm(ExporterBase):
                 'send_request_time(ms)': request_send, 'send_request_succ_time(ms)': request_send_succ,
                 'prefill_res_time(ms)': prefill_res, 'requset_end_time(ms)': requset_end})
 
+        if not cls.req_result_list:
+            return
+
         if 'csv' in cls.args.format:
             save_dataframe_to_csv(pd.DataFrame(cls.req_result_list), output, "pd_split_communication.csv")
 

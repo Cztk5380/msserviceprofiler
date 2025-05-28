@@ -124,7 +124,7 @@ def add_record_to_data_table(table_name, conn):
 
 def add_table_into_visual_db(df, table_name):
     if df is None or not isinstance(df, pd.DataFrame) or df.empty:
-        logger.warning("Writing table %r failed due to invalid dateframe:\n\t%s", table_name, df)
+        logger.warning("Writing table %r failed due to invalid dataframe:\n\t%s", table_name, df)
         return
 
     for col in df:
@@ -146,6 +146,10 @@ def add_table_into_visual_db(df, table_name):
 
 
 def save_dataframe_to_csv(filtered_df, output, file_name):
+    if filtered_df is None or not isinstance(filtered_df, pd.DataFrame) or filtered_df.empty:
+        logger.warning("Writing csv %r failed due to invalid dataframe:\n\t%s", file_name, filtered_df)
+        return
+
     if output is not None:
         output_path = Path(output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -256,14 +260,12 @@ def truncate_timestamp_np(s: pd.Series) -> pd.Series:
 
 def check_domain_valid(df, domain_list, exporter_name):
     # 校验采集到的domain是否满足解析需要
-    if_exporter = True
     current_domains = set(df['domain'])
 
     # 检查domain_list中的每个domain是否都存在
     missing_domains = [domain for domain in domain_list if domain not in current_domains]
 
     if missing_domains:
-        if_exporter = False
         logger.warning(f"Skip {exporter_name} exporter - missing domains: {missing_domains}")
 
-    return if_exporter
+    return True
