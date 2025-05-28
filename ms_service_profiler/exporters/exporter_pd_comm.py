@@ -57,7 +57,8 @@ class ExporterPDComm(ExporterBase):
             if check_domain_valid(all_data_df, ['Communication'], 'pd_split_communication') is False:
                 return
 
-            pd_split_df = all_data_df[(all_data_df['domain'] == 'Communication')]
+            # 兼容老版本domain：PDSplit
+            pd_split_df = all_data_df[all_data_df['domain'].isin(['Communication', 'PDSplit'])]
             if pd_split_df.empty:
                 return
 

@@ -266,6 +266,6 @@ def check_domain_valid(df, domain_list, exporter_name):
     missing_domains = [domain for domain in domain_list if domain not in current_domains]
 
     if missing_domains:
-        logger.warning(f"Skip {exporter_name} exporter - missing domains: {missing_domains}")
+        logger.warning(f"Exporter {exporter_name} - missing domains: {missing_domains}")
 
     return True
