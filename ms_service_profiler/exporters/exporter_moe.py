@@ -12,11 +12,11 @@ from ms_service_profiler.exporters.utils import create_sqlite_tables
 import matplotlib.pyplot as plt
 
 
-OUTPUT_CSV_NAME = "ep_balance.csv"
-NAME = "ep_balance"
+OUTPUT_CSV_NAME = "moe_analysis.csv"
+NAME = "moe_analysis"
 
 
-class ExporterEpBalance(ExporterBase):
+class ExporterMoe(ExporterBase):
     name: str = NAME
 
     @classmethod
@@ -38,14 +38,27 @@ class ExporterEpBalance(ExporterBase):
         if NAME not in data.keys() or data[NAME].empty:
             return
 
-        ep_balance_df = data[NAME]
+        moe_analysis_df = data[NAME]
 
-        save_dataframe_to_csv(ep_balance_df, output, OUTPUT_CSV_NAME)
+        save_dataframe_to_csv(moe_analysis_df, output, OUTPUT_CSV_NAME)
 
-        heat_map = ep_balance_df.values
+        moe_analysis_arr = moe_analysis_df.values
 
-        plt.figure(figsize=(50, 50))
-        plt.imshow(heat_map)
-        plt.tight_layout()
         output_path = os.path.join(output, "grouped_matmul_heat_map.png")
-        plt.savefig(output_path)
+        plot_confidence_interval(moe_analysis_arr, output_path)
+
+
+def plot_confidence_interval(ci_df, output_path):
+    plt.figure(figsize=(10, 6))
+
+    # 绘制置信区间
+    plt.errorbar(ci_df['Dataset'], ci_df['Mean'],
+                 yerr=[ci_df['Mean'] - ci_df['CI_Lower'], ci_df['CI_Upper'] - ci_df['Mean']],
+                 fmt='o', color='blue', ecolor='gray', elinewidth=2, capsize=5)
+
+    plt.title("95% Confidence Intervals for Each Dataset")
+    plt.xlabel("Dataset Number")
+    plt.ylabel("Mean Value")
+    plt.grid(True)
+    # plt.show()
+    plt.savefig(output_path)

@@ -20,16 +20,16 @@ class PluginEpBalanceProcess(PluginBase):
 
             res_dic = {}
 
-            for db_id, df_group_by_pid in grouped_matmul_df.groupby("processId"):
-                start_time_arr = df_group_by_pid["start"]
-                end_time_arr = df_group_by_pid["end"]
+            for db_id, df_group_by_pid in grouped_matmul_df.groupby("db_id"):
+                start_time_arr = df_group_by_pid["start"].values
+                end_time_arr = df_group_by_pid["end"].values
                 duration_arr = end_time_arr - start_time_arr
 
                 if len(duration_arr) % GMM_NUM_PER_LAYER != 0:
                     logger.warning("grouped matmul nums error")
                     duration_arr = duration_arr[:-1]
 
-                duration_arr = np.sum([duration_arr[i::GMM_NUM_PER_LAYER] for i in range(GMM_NUM_PER_LAYER)])
+                duration_arr = sum([duration_arr[i::GMM_NUM_PER_LAYER] for i in range(GMM_NUM_PER_LAYER)])
 
                 num_layers = 58
                 if num_layers > 0:

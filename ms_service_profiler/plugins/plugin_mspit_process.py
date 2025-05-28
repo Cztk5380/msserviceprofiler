@@ -16,7 +16,7 @@ class PluginMsptiProcess(PluginBase):
 
         for item in data:
             if check_df_empty(item, "api_df") and check_df_empty(item, "kernel_df"):
-                renamed_kernel = replace_name(item["api_df"], item["kernel_df"])
+                renamed_kernel = replace_name(item["kernel_df"], item["api_df"])
                 mspti_api_list.append(item["api_df"])
                 mspti_kernel_list.append(renamed_kernel)
             else:
