@@ -21,8 +21,8 @@ from ...st.utils import execute_cmd
 
 def check_kvcache_csv_content(output_path, csv_file_name):
     expected_csv_columns = [
-        'domain', 'rid', 'start_time(microsecond)', 'end_time(microsecond)',
-        'name', 'device_kvcache_left', 'during_time(microsecond)'
+        'domain', 'rid', 'timestamp(ms)',
+        'name', 'device_kvcache_left'
     ]
     csv_file = os.path.join(output_path, csv_file_name)
     # 检查文件是否存在
@@ -46,7 +46,7 @@ def check_kvcache_csv_content(output_path, csv_file_name):
     def check_row(df, row_index, columns):
         for column in columns:
             if not is_whole_number(df.iloc[row_index][column]):
-                raise AssertionError(f"{row_index}行的{column}不是整数")
+                raise AssertionError(f"The value in row {row_index}, column {column} is not an integer")
 
     # 检查数据框的第一行和最后一行的特定列
     rows_to_check = [0, -1]
@@ -80,8 +80,24 @@ def check_kvcache_db_content(output_path, db_file_name):
 
 def check_pullkvcache_csv_content(csv_file):
     expected_csv_columns = [
-        'domain', 'rank', 'rid', 'block_tables', 'batch_seq_len', 'during_time(microsecond)', \
-        'start_datetime', 'end_datetime', 'start_time(microsecond)', 'end_time(microsecond)',
+        'domain', 'rank', 'rid', 'block_tables', 'batch_seq_len', 'during_time(ms)', \
+        'start_datetime(ms)', 'end_datetime(ms)', 'start_time(ms)', 'end_time(ms)',
+    ]
+    # 检查文件是否存在
+    assert os.path.exists(csv_file)
+    assert os.path.isfile(csv_file)
+
+    df = pd.read_csv(csv_file)
+    actual_columns = df.columns.tolist()
+    check_column(actual_columns, expected_csv_columns, context=csv_file)
+    check_no_empty_lines_before_first_line(df, context=csv_file)
+    check_no_empty_lines_between_first_last_line(df, context=csv_file)
+
+
+def check_communication_csv_content(csv_file):
+    expected_csv_columns = [
+        'rid', 'http_req_time(ms)', 'send_request_time(ms)', 'send_request_succ_time(ms)', \
+        'prefill_res_time(ms)', 'requset_end_time(ms)'
     ]
     # 检查文件是否存在
     assert os.path.exists(csv_file)
@@ -163,7 +179,7 @@ def check_req_status(output_path):
 def check_column(actual_columns, expected_columns, context=""):
     # 检查是否有缺失的列
     missing_columns = set(expected_columns) - set(actual_columns)
-    pytest.assume(not missing_columns, f"{context} 表中缺少列: {missing_columns}")
+    pytest.assume(not missing_columns, f"Table {context} is missing columns: {missing_columns}")
 
 
 def check_no_empty_lines_before_first_line(dataframe, context=""):
@@ -234,7 +250,7 @@ def check_chrome_tracing_content_valid(output_path):
         text = f.read()
     exist = ["NPU Usage"]
     for key in exist:
-        pytest.assume(key in text, "流水图中应该包含NPU Usage")
+        pytest.assume(key in text, "The chrome_tracing.json should include NPU Usage.")
 
 
 def parse_message(message: str) -> dict:
@@ -256,7 +272,7 @@ def collect_db_stats(root_dir: str, fields: List[str], table_name: str) -> Dict[
         for d in glob.glob(os.path.join(root_dir, "**/PROF_*/"), recursive=True)
         if os.path.isdir(d)
     ]
-    assert prof_dirs, f"根目录下未发现任何PROF目录 | path={root_dir}"
+    assert prof_dirs, f"No PROF directories found under root directory | path={root_dir}"
 
     for prof_dir in prof_dirs:
         dir_name = os.path.basename(prof_dir)
@@ -283,7 +299,7 @@ def collect_db_stats(root_dir: str, fields: List[str], table_name: str) -> Dict[
 def get_db_path(prof_dir: str) -> str:
     """验证数据库路径"""
     db_path = os.path.join(prof_dir, "host", "sqlite", "msproftx.db")
-    assert os.path.isfile(db_path), f"数据库文件缺失 | path={db_path}"
+    assert os.path.isfile(db_path), f"Database file missing | path={db_path}"
     return db_path
 
 
@@ -291,7 +307,7 @@ def validate_table(conn: sqlite3.Connection, table_name: str) -> None:
     """验证表结构"""
     cursor = conn.execute(f"PRAGMA table_info({table_name})")
     db_fields = [col[1] for col in cursor.fetchall()]
-    assert "message" in db_fields, f"表 {table_name} 缺少 message 字段"
+    assert "message" in db_fields, "Table {table_name} is missing message field"
 
 
 def process_database_messages(
@@ -343,7 +359,7 @@ class TestAnalyzeCmd(TestCase):
     def check_batch_data_csv_integrity(self):
         # 校验该路径下是否正确生成batch_data的csv文件，以及文件内容
         csv_file_path = f"{self.OUTPUT_PATH}/batch.csv"
-        self.assertTrue(os.path.isfile(csv_file_path), f"文件不存在: {csv_file_path}")
+        self.assertTrue(os.path.isfile(csv_file_path), f"File is not exist: {csv_file_path}")
         df = pd.read_csv(csv_file_path)
         # 检查文件是否为空
         self.assertNotEqual(len(df), 0, "The data of batch csv is empty.")
@@ -368,17 +384,18 @@ class TestAnalyzeCmd(TestCase):
         columns_to_check = ['res_list']
         for row_index in rows_to_check:
             for column in columns_to_check:
-                self.assertTrue(is_valid_res_list(df.iloc[row_index][column]), f"{row_index}行的{column}格式不正确")
+                self.assertTrue(is_valid_res_list(df.iloc[row_index][column]),
+                    f"Row {row_index}, column {column}: invalid format.")
 
     def check_req_data_csv_integrity(self):
         # 校验该路径下是否正确生成req_data的csv文件，以及文件内容
         csv_file_path = f"{self.OUTPUT_PATH}/request.csv"
-        self.assertTrue(os.path.isfile(csv_file_path), "文件不存在".format(csv_file_path))
+        self.assertTrue(os.path.isfile(csv_file_path), "File is not exist".format(csv_file_path))
         df = pd.read_csv(csv_file_path)
         self.assertNotEqual(len(df), 0, msg="The data of req csv is empty.")
 
-        expected_header = ['http_rid', 'start_time_httpReq(microsecond)', 'recv_token_size', 'reply_token_size', \
-                           'execution_time(microsecond)', 'queue_wait_time(microsecond)']
+        expected_header = ['http_rid', 'start_time_httpReq(ms)', 'recv_token_size', 'reply_token_size', \
+                           'execution_time(ms)', 'queue_wait_time(ms)']
         check_column(df.columns.tolist(), expected_header, context='request.csv')
         # 检查是否有多余空行
         check_no_empty_lines_before_first_line(df, context='request.csv')
@@ -394,7 +411,7 @@ class TestAnalyzeCmd(TestCase):
         def check_row(df, row_index, columns):
             for column in columns:
                 if not is_whole_number(df.iloc[row_index][column]):
-                    raise AssertionError(f"{row_index}行的{column}不是整数")
+                    raise AssertionError(f"Row {row_index}, column {column}: not an integer.")
 
         # 检查数据框的第一行和最后一行的特定列
         rows_to_check = [0, -1]
@@ -450,6 +467,9 @@ class TestAnalyzeCmd(TestCase):
         with self.subTest("Check pullkvcache csv content"):
             check_pullkvcache_csv_content(os.path.join(self.OUTPUT_PATH, "pd_split_kvcache.csv"))
 
+        with self.subTest("Check pdSplitCommunication csv content"):
+            check_communication_csv_content(os.path.join(self.OUTPUT_PATH, "pd_split_communication.csv"))
+
     def _validate_db_consistency(self):
         """数据库与CSV总值一致性校验"""
 
@@ -501,19 +521,19 @@ class TestAnalyzeCmd(TestCase):
             )
 
             if db_count != csv_count:
-                msg = f"{rule['db_field']} 次数不匹配: DB={db_count} vs CSV={csv_count}"
+                msg = f"Count mismatch for {rule['db_field']}: DB={db_count} vs CSV={csv_count}"
                 failures.append(msg)
 
         if failures:
             self.fail("\n".join(failures))
         else:
-            self.assertTrue(True, "所有数据校验一致")
+            self.assertTrue(True, "All data is consistent.")
 
     def _validate_csv_count(self, csv_path: str, column: str, match_value: str = None) -> int:
         """通用CSV校验方法"""
         self.assertTrue(
             os.path.exists(csv_path),
-            f"CSV文件不存在 | path={csv_path}"
+            f"CSV file does not exist | path={csv_path}"
         )
 
         try:
@@ -521,7 +541,7 @@ class TestAnalyzeCmd(TestCase):
             self.assertIn(
                 column,
                 df.columns,
-                f"CSV文件缺少列 | path={csv_path} column={column}"
+                f"CSV file is missing column | path={csv_path} column={column}"
             )
 
             # 匹配值计数 or 总行数
@@ -530,4 +550,4 @@ class TestAnalyzeCmd(TestCase):
             return len(df)
 
         except Exception as e:
-            raise self.failureException(f"读取CSV文件失败 | path={csv_path} error={str(e)}")
+            raise self.failureException(f"Failed to read CSV file | path={csv_path} error={str(e)}")
