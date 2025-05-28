@@ -280,11 +280,12 @@ def read_mspti_db(input_path):
     data_list = []
     for db_path, db_id in paths_and_pid:
         try:
-            api_df, kernel_df = load_ops_db(db_path, db_id)
+            api_df, kernel_df, communication_df = load_ops_db(db_path, db_id)
             data_list.append(
                 dict(
                     api_df=api_df,
                     kernel_df=kernel_df,
+                    communication_df=communication_df,
                     db_id=db_id
                 )
             )
@@ -301,11 +302,17 @@ def load_ops_db(filepath, db_id):
         kernel_query = """
         SELECT name, type, start, end, deviceId, streamId, correlationId FROM Kernel order by correlationId asc
         """
+        communication_query = """
+        SELECT name, start, end, deviceId, streamId, dataCount, dataType, commGroupName, correlationId FROM Communication 
+        order by correlationId asc
+        """
         api_df = pd.read_sql_query(api_query, conn)
         kernel_df = pd.read_sql_query(kernel_query, conn)
+        communication_df = pd.read_sql_query(communication_query, conn)
         api_df["db_id"] = db_id
         kernel_df["db_id"] = db_id
-    return api_df, kernel_df
+        communication_df["db_id"] = db_id
+    return api_df, kernel_df, communication_df
 
 
 def check_sub_profiler_path(input_path):

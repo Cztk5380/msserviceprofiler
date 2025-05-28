@@ -8,34 +8,39 @@ from ms_service_profiler.utils.log import logger
 class PluginMsptiProcess(PluginBase):
     name = "plugin_mspti_process"
 
-    @staticmethod
-    def _process(api_df, kernel_df):
-        renamed_kernel = replace_name(kernel_df, api_df)
-        return renamed_kernel
-
     @classmethod
     def parse(cls, data):
         mspti_api_list = []
         mspti_kernel_list = []
+        mspti_communication_list = []
 
         for item in data:
             if check_df_empty(item, "api_df") and check_df_empty(item, "kernel_df"):
-                renamed_kernel = cls._process(item["api_df"], item["kernel_df"])
+                renamed_kernel = replace_name(item["api_df"], item["kernel_df"])
                 mspti_api_list.append(item["api_df"])
                 mspti_kernel_list.append(renamed_kernel)
             else:
-                logger.warning("No mspti data detected in certain db, skipping process.")
+                logger.warning("No api data or kernel data detected in certain db, skipping process.")
+
+            if check_df_empty(item, "communication_df"):
+                mspti_communication_list.append(item["communication_df"])
+        res = {}
 
         if mspti_kernel_list and mspti_kernel_list:
-            concated_api_df = pd.concat(mspti_api_list)
-            concated_kernel_df = pd.concat(mspti_kernel_list)
-            return dict(
-                api_df=concated_api_df,
-                kernel_df=concated_kernel_df
-            )
-        else:
-            logger.warning("No data found in all ascend_service_profiler_*.db, skipping parse.")
-            return None
+            api_df = pd.concat(mspti_api_list)
+            kernel_df = pd.concat(mspti_kernel_list)
+            res["api_df"] = api_df
+            res["kernel_df"] = kernel_df
+
+        if mspti_communication_list:
+            communication_df = pd.concat(mspti_communication_list)
+            res["communication_df"] = communication_df
+
+        if res:
+            return res
+
+        logger.warning("No data found in all ascend_service_profiler_*.db, skipping parse.")
+        return None
 
 
 def replace_name(df1, df2):
