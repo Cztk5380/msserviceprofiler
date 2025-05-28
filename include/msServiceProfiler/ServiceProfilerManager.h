@@ -30,6 +30,24 @@
 
 using Json = nlohmann::json;
 
+#define PROF_LOGD(...)       \
+    do {                     \
+        printf(__VA_ARGS__); \
+        printf("\n");        \
+    } while (0)
+
+#define PROF_LOGW(...)       \
+    do {                     \
+        printf(__VA_ARGS__); \
+        printf("\n");        \
+    } while (0)
+
+#define PROF_LOGE(...)       \
+    do {                     \
+        printf(__VA_ARGS__); \
+        printf("\n");        \
+    } while (0)
+
 namespace msServiceProfiler {
     using AclprofConfig = struct aclprofConfig;
     class ServiceProfilerManager {
@@ -55,6 +73,11 @@ namespace msServiceProfiler {
         void StopThread();
 
         static std::string ToSemName(const std::string &oriSemName);
+
+        const std::string &GetProfPath() const
+	    {
+	        return profPath_;
+	    }
 
         const std::string &GetConfigPath()
         {

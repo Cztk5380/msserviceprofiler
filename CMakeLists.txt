@@ -83,7 +83,7 @@ target_link_libraries(ms_service_profiler
         rt
         securec
         mspti
-        sqlite3
+        -lsqlite3
 )
 
 install(TARGETS ms_service_profiler
