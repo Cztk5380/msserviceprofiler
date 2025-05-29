@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SERVICEPROFILERMANAGERMSPTI_H
-#define SERVICEPROFILERMANAGERMSPTI_H
+#ifndef SERVICEPROFILERDBWRITER_H
+#define SERVICEPROFILERDBWRITER_H
 
 namespace msServiceProfiler {
 

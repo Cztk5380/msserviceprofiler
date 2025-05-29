@@ -60,11 +60,8 @@ std::atomic<u_int64_t> g_markIndex(0);
 bool g_startFlag = false;
 }  // end of anonymous namespace
 
-static void MarkEventLongAttr(const char *msg)
+uint64_t GetCurrentTimeInNanoseconds()
 {
-    if (msg == nullptr) {
-        return;
-    }
     // 获取当前时间点
     auto now = std::chrono::high_resolution_clock::now();
 
@@ -568,7 +565,7 @@ namespace msServiceProfiler {
             }
         }
 
-        if (enableAclTaskTime_ || hostCpuUsage_ || hostMemoryUsage_) {
+        if (config_->GetEnableAclTaskTime() || config_->GetHostCpuUsage() || config_->GetHostMemoryUsage()) {
             aclError ret = aclprofInit(profPath.c_str(), profPath.size());
             if (ret != ACL_ERROR_NONE) {
                 PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
@@ -626,7 +623,7 @@ namespace msServiceProfiler {
             msptiEnabled = false;
             UninitMspti(msptiHandle_);
         } else {
-            if (enableAclTaskTime_ || hostCpuUsage_ || hostMemoryUsage_) {
+            if (config_->GetEnableAclTaskTime() || config_->GetHostCpuUsage() || config_->GetHostMemoryUsage()) {
                 auto ret = aclprofStop(profConfig);
                 if (ret != ACL_ERROR_NONE) {
                     PROF_LOGE("acl prof stop failed, ret = %d", ret);  // LCOV_EXCL_LINE

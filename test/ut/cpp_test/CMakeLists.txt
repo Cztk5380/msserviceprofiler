@@ -61,7 +61,7 @@ set(TEST_LIBS
         rt
         securec
         mspti
-        sqlite3
+        -lsqlite3
         libgtest.a
         libgtest_main.a
         libgmock.a
