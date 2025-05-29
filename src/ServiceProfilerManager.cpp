@@ -270,12 +270,11 @@ namespace msServiceProfiler {
         } while (offset != pathLen);
         return true;
     }
-    
-    ServiceProfilerManager ServiceProfilerManager::static_manager_;
 
     ServiceProfilerManager &ServiceProfilerManager::GetInstance()
     {
-        return static_manager_;
+        static ServiceProfilerManager manager;
+        return manager;
     }
 
     ServiceProfilerManager::ServiceProfilerManager()

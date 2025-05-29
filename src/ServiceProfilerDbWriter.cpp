@@ -37,6 +37,7 @@
 
 #include "../include/msServiceProfiler/NpuMemoryUsage.h"
 #include "../include/msServiceProfiler/Profiler.h"
+#include "msServiceProfiler/Log.h"
 #include "../include/msServiceProfiler/ServiceProfilerManager.h"
 #include "../include/msServiceProfiler/ServiceProfilerDbWriter.h"
 
