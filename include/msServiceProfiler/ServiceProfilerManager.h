@@ -56,7 +56,7 @@ namespace msServiceProfiler {
 
         static std::string ToSemName(const std::string &oriSemName);
 
-        const std::string &GetProfPath() const
+        const std::string &GetProfPath()
 	    {
 	        return config_->GetProfPath();
 	    }
