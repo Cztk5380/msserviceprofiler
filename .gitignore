@@ -6,7 +6,6 @@ output
 opensource
 build
 test/.coverage
-test/test_build
 test/coverage
 platform/**
 *.xml
