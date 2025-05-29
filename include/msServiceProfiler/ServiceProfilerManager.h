@@ -56,14 +56,14 @@ namespace msServiceProfiler {
 
         static std::string ToSemName(const std::string &oriSemName);
 
-        const std::string &GetProfPath()
-	    {
-	        return config_->GetProfPath();
-	    }
-
         const std::string &GetConfigPath()
         {
             return config_->GetConfigPath();
+        }
+
+        const std::string &GetProfPath() const
+        {
+            return config_->GetProfPath();
         }
 
         void AddMetaInfo(const std::string &key, const std::string &value);
