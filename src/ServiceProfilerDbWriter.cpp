@@ -35,11 +35,11 @@
 #include "acl/acl.h"
 #include "mstx/ms_tools_ext.h"
 
-#include "../include/msServiceProfiler/NpuMemoryUsage.h"
-#include "../include/msServiceProfiler/Profiler.h"
+#include "msServiceProfiler/NpuMemoryUsage.h"
+#include "msServiceProfiler/Profiler.h"
 #include "msServiceProfiler/Log.h"
-#include "../include/msServiceProfiler/ServiceProfilerManager.h"
-#include "../include/msServiceProfiler/ServiceProfilerDbWriter.h"
+#include "msServiceProfiler/ServiceProfilerManager.h"
+#include "msServiceProfiler/ServiceProfilerDbWriter.h"
 
 namespace {
 constexpr int ALIGN_SIZE = 8;
