@@ -540,9 +540,7 @@ def process(files):
         "%Y-%m-%d %H:%M:%S:%f")
 
     # 定义一个函数来处理消息字段
-    df['message'] = df['message'].str.replace(r'\^', '"', regex=True).where(lambda s: s.str.match(
-        r'^{.*}$'), other=lambda s: "{" + s.str.replace(
-        r",$","", regex=True) + "}").apply(json.loads)
+    df['message'] = df['message'].str.replace(r'\^', '"', regex=True).where(lambda s: s.str.match(r'^{.*}$'), other=lambda s: "{" + s.str.replace(r",$","", regex=True) + "}").apply(json.loads)
 
     # 将消息字段展开为独立的列
     msg_df = pd.json_normalize(df['message'])
