@@ -23,6 +23,8 @@
 #include <map>
 #include <cmath>
 #include <csignal>
+#include <functional>
+#include <sys/syscall.h>
 
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
@@ -34,12 +36,14 @@
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "msServiceProfiler/Utils.h"
+#include "msServiceProfiler/ServiceProfilerDbWriter.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
 
 namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
 constexpr int STRING_TO_UINT_BASE = 10;
+constexpr int SPAN_CACHE_LEN = 64;
 constexpr uint32_t INVALID_DEVICE_ID = static_cast<uint32_t>(-1);
 
 using DATA_PTR = struct ProfSetDevPara *;
@@ -53,21 +57,34 @@ struct ProfSetDevPara {
 // 全局标志位，用于控制线程退出
 std::atomic<bool> g_threadRunFlag(true);
 uint32_t g_deviceID = INVALID_DEVICE_ID;
+std::atomic<u_int64_t> g_markIndex(0);
 bool g_startFlag = false;
-} // end of anonymous namespace
+}  // end of anonymous namespace
 
-static void MarkEventLongAttr(const char *msg)
+uint64_t GetCurrentTimeInNanoseconds()
 {
-    if (msg == nullptr) {
-        return;
-    }
-    auto spanHandle = StartSpan();
-    MarkSpanAttr(msg, spanHandle);
+    // 获取当前时间点
+    auto now = std::chrono::high_resolution_clock::now();
+
+    // 转换为从epoch开始的时间跨度
+    auto duration = now.time_since_epoch();
+
+    // 转换为纳秒计数
+    auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration);
+
+    // 返回int64_t类型的纳秒数
+    return static_cast<uint64_t>(nanoseconds.count());
 }
 
-SpanHandle StartSpan()
+uint32_t GetTid()
 {
-    return mstxRangeStartA("", nullptr);
+    return static_cast<uint32_t>(syscall(SYS_gettid));
+}
+
+uint64_t* GetSpanStartTimeCache()
+{
+    thread_local u_int64_t cacheSpanStartTime[SPAN_CACHE_LEN + 8];
+    return cacheSpanStartTime;
 }
 
 SpanHandle StartSpanWithName(const char *name)
@@ -76,7 +93,21 @@ SpanHandle StartSpanWithName(const char *name)
         return StartSpan();
     }
 
-    return mstxRangeStartA(name, nullptr);
+    thread_local int tid = GetTid();  // 每个线程有自己的副本
+    auto timestamp = GetCurrentTimeInNanoseconds();
+    uint64_t *timeCache = GetSpanStartTimeCache();
+    auto threadMarkId = timeCache[0];
+    threadMarkId++;
+    timeCache[0] = threadMarkId;
+    auto location = threadMarkId % SPAN_CACHE_LEN + 1;
+    *(timeCache + location) = timestamp;
+
+    return threadMarkId;
+}
+
+SpanHandle StartSpan()
+{
+    return StartSpanWithName("");
 }
 
 void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
@@ -85,29 +116,28 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
         return;
     }
 
-    std::string spanTag;
-    spanTag.reserve(MAX_TX_MSG_LEN);
-    spanTag.append("span=").append(std::to_string(spanHandle)).append("*");
-    auto spanTagSize = spanTag.size();
-    auto msgLen = strlen(msg);
-    auto maxMarkSize = MAX_TX_MSG_LEN - spanTagSize - 1;
-    if (maxMarkSize <= 0) {
-        return;
-    }
-    const char *oriMsgStart = msg;
-    while (static_cast<decltype(msgLen)>(oriMsgStart - msg) < msgLen) {
-        // maxMarkSize or RemainingSize
-        auto markSize = std::min(maxMarkSize, msgLen - (oriMsgStart - msg));
-        spanTag.append(oriMsgStart, markSize);
-        oriMsgStart += markSize;
-        MarkEvent(spanTag.c_str());
-        spanTag.resize(spanTagSize);
-    }
+    thread_local int tid = GetTid();  // 每个线程有自己的副本
+
+    uint64_t* timeCache = GetSpanStartTimeCache();
+    auto location = spanHandle % SPAN_CACHE_LEN + 1;
+    auto stratTimestamp = *(timeCache + location);
+
+    msServiceProfiler::DbActivityMarker marker;
+    marker.flag = msServiceProfiler::ActivityFlag::ACTIVITY_FLAG_MARKER_SPAN;
+    marker.timestamp = stratTimestamp;
+    marker.endTimestamp = GetCurrentTimeInNanoseconds();
+    marker.id = g_markIndex.fetch_add(1);
+    marker.processId = getpid();
+    marker.threadId = tid;
+    marker.message = msg;
+    marker.domain = "";
+
+    msServiceProfiler::InsertTxData2Writer(&marker);
 }
 
 void EndSpan(SpanHandle spanHandle)
 {
-    mstxRangeEnd(spanHandle);
+    return;
 }
 
 void MarkEvent(const char *msg)
@@ -116,11 +146,18 @@ void MarkEvent(const char *msg)
         return;
     }
 
-    if (strlen(msg) > MAX_TX_MSG_LEN) {
-        MarkEventLongAttr(msg);
-    } else {
-        mstxMarkA(msg, nullptr);
-    }
+    thread_local int tid = GetTid();  // 每个线程有自己的副本
+    msServiceProfiler::DbActivityMarker marker;
+    marker.flag = msServiceProfiler::ActivityFlag::ACTIVITY_FLAG_MARKER_EVENT;
+    marker.timestamp = GetCurrentTimeInNanoseconds();
+    marker.endTimestamp = marker.timestamp;
+    marker.id = g_markIndex.fetch_add(1);
+    marker.processId = getpid();
+    marker.threadId = tid;
+    marker.message = msg;
+    marker.domain = "";
+
+    msServiceProfiler::InsertTxData2Writer(&marker);
 }
 
 void StartServerProfiler()
@@ -224,12 +261,11 @@ namespace msServiceProfiler {
         } while (offset != pathLen);
         return true;
     }
-    
-    ServiceProfilerManager ServiceProfilerManager::static_manager_;
 
     ServiceProfilerManager &ServiceProfilerManager::GetInstance()
     {
-        return static_manager_;
+        static ServiceProfilerManager manager;
+        return manager;
     }
 
     ServiceProfilerManager::ServiceProfilerManager()
@@ -537,28 +573,30 @@ namespace msServiceProfiler {
             }
         }
 
-        aclError ret = aclprofInit(profPath.c_str(), profPath.size());
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            return;
-        }
+        if (config_->GetEnableAclTaskTime() || config_->GetHostCpuUsage() || config_->GetHostMemoryUsage()) {
+            aclError ret = aclprofInit(profPath.c_str(), profPath.size());
+            if (ret != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                return;
+            }
 
-        if (ret == ACL_ERROR_NONE && isMaster_) {
-            SetAclProfHostSysConfig();
-        }
+            if (ret == ACL_ERROR_NONE && isMaster_) {
+                SetAclProfHostSysConfig();
+            }
 
-        auto profConfig = ProfCreateConfig();
-        if (profConfig == nullptr) {
-            config_->SetEnable(false);
-            return;
-        }
+            auto profConfig = ProfCreateConfig();
+            if (profConfig == nullptr) {
+                config_->SetEnable(false);
+                return;
+            }
 
-        PROF_LOGD("begin to start profiling, device_id: %d", g_deviceID);  // LCOV_EXCL_LINE
-        ret = aclprofStart(profConfig);
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            config_->SetEnable(false);
-            return;
+            PROF_LOGD("begin to start profiling, device_id: %d", g_deviceID);  // LCOV_EXCL_LINE
+            ret = aclprofStart(profConfig);
+            if (ret != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                config_->SetEnable(false);
+                return;
+            }
         }
 
         // 设置标志位
@@ -588,23 +626,24 @@ namespace msServiceProfiler {
             msptiEnabled = false;
             UninitMspti(msptiHandle_);
         } else {
-            auto ret = aclprofStop(profConfig);
-            npuFlag_ = false;
-            if (ret != ACL_ERROR_NONE) {
-                PROF_LOGE("acl prof stop failed, ret = %d", ret);  // LCOV_EXCL_LINE
-                return;
-            }
-            ret = aclprofDestroyConfig(profConfig);
-            if (ret != ACL_ERROR_NONE) {
-                PROF_LOGE("acl prof destroy config failed, ret = %d", ret);  // LCOV_EXCL_LINE
-                return;
-            }
-            this->configHandle_ = nullptr;
-
-            ret = aclprofFinalize();
-            if (ret != ACL_ERROR_NONE) {
-                PROF_LOGE("acl prof finalize failed, ret = %d", ret);  // LCOV_EXCL_LINE
-                return;
+            if (config_->GetEnableAclTaskTime() || config_->GetHostCpuUsage() || config_->GetHostMemoryUsage()) {
+                auto ret = aclprofStop(profConfig);
+                npuFlag_ = false;
+                if (ret != ACL_ERROR_NONE) {
+                    PROF_LOGE("acl prof stop failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                    return;
+                }
+                ret = aclprofDestroyConfig(profConfig);
+                if (ret != ACL_ERROR_NONE) {
+                    PROF_LOGE("acl prof destroy config failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                    return;
+                }
+                this->configHandle_ = nullptr;
+                ret = aclprofFinalize();
+                if (ret != ACL_ERROR_NONE) {
+                    PROF_LOGE("acl prof finalize failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                    return;
+                }
             }
         }
     }
@@ -620,6 +659,7 @@ namespace msServiceProfiler {
             StopAclTaskTime();
         }
 
+        msServiceProfiler::FlashTxData2Writer();
         started_ = false;
         g_startFlag = false;
     }

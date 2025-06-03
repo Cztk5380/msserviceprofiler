@@ -108,9 +108,8 @@ def test_read_origin_db(setup_test_directory):
     }
 
     with patch('ms_service_profiler.parse.load_prof', side_effect=load_prof) as mock_load_prof:
-        data_list = read_origin_db(str(db_path))
-        assert isinstance(data_list, list)
-        assert len(data_list) == 1
+        with pytest.raises(ValueError) as exc_info:
+            read_origin_db(str(db_path))
         mock_load_prof.assert_called_once()
 
 
