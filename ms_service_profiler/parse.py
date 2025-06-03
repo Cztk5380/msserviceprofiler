@@ -164,6 +164,13 @@ def load_cpu_freq(info_path):
     return 0
 
 
+def handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths):
+    for fp in Path(folder_path).rglob(pattern):
+        filepaths[alias] = str(fp)
+        break
+    return filepaths
+
+
 def get_filepaths(folder_path, file_filter):
     filepaths = {}
     reverse_d = {value: key for key, value in file_filter.items()}
@@ -175,6 +182,7 @@ def get_filepaths(folder_path, file_filter):
     # 创建映射
     pattern_handlers = {
         "msprof_*.json": handle_msprof_pattern,
+        "ms_service_*.db": handle_service_pattern
     }
 
     # 通配符匹配的文件路径
@@ -191,6 +199,19 @@ def handle_exact_match(folder_path, reverse_d):
     for fp in Path(folder_path).rglob('*'):
         if fp.name in reverse_d:
             filepaths[reverse_d[fp.name]] = str(fp)
+    return filepaths
+
+
+def handle_service_pattern(folder_path, alias, filepaths):
+    regex_pattern = r'^ms_service_[\w.-]+.db'
+    matched_files = []
+    for fp in Path(folder_path).rglob('*.db'):
+        if re.match(regex_pattern, fp.name):
+            matched_files.append(str(fp))
+    if matched_files:
+        if alias not in filepaths:
+            filepaths[alias] = []
+        filepaths[alias].extend(matched_files)
     return filepaths
 
 
@@ -310,9 +331,13 @@ def load_ops_db(filepath, db_id):
 
 def check_sub_profiler_path(input_path):
     # 判断子目录是否有PROF文件夹 如果有则走原来解析逻辑返回True 如果没有尝试走mspti返回False
+    input_path = Path(input_path)
     for fp in Path(input_path).rglob('**'):
         if "PROF_" in fp.name:
             return True
+    for fp in input_path.glob('*'):
+        if "ms_service" in fp.name:
+            return True  # 存在文件名包含'ms_service'的文件
     return False
 
 
@@ -349,6 +374,9 @@ def read_origin_db(db_path: str):
             data_list.append(data)
         except Exception as ex:
             raise LoadDataError(str(dp)) from ex
+
+    data = load_service_data(db_path)
+    data_list.append(data)
     return data_list
 
 
@@ -381,13 +409,7 @@ def parse_run(input_path, exporters, args=None):
         data = PluginMsptiProcess.parse(data)
 
     logger.info('Starting exporter processes.')
-    with ProcessPoolExecutor() as executor:
-        futures = {exporter.name: executor.submit(exporter.export, data) for exporter in exporters}
-        for exporter_name, future in futures.items():
-            try:
-                future.result()
-            except Exception as e:
-                logger.error(f"Error raise from exporter: {exporter_name}, message: {e}")
+    futures = {exporter.name: exporter.export(data) for exporter in exporters}
 
     logger.info('Exporter done.')
 
@@ -465,8 +487,87 @@ def preprocess_prof_folders(input_path, max_parallel=8):
                 logger.error(f"Error executing cmd: {cmd}, message: {e}")
 
     if not find_file_in_dir(input_path, 'msproftx.db'):
+        input_path = Path(input_path)
+        for fp in input_path.glob('*'):
+            if "ms_service" in fp.name:
+                return True
         raise ValueError("msprof failed! No msproftx.db file is generated.")
     return True
+
+
+def load_service_data(db_path: str):
+    file_filter = {
+        "service": "ms_service_*.db"
+    }
+
+    filepaths = get_filepaths(db_path, file_filter)
+    try:
+        db_files = filepaths.get("service", [])
+    except Exception as ex:
+        raise LoadDataError(str(db_path)) from ex
+
+    return process(db_files)
+
+
+def process(files):
+    """
+    处理一组文件，将文件内容转换为DataFrame格式，并进行数据处理和转换。
+    添加hostname列到DataFrame的最前面，并将其重命名为hostuid。
+
+    :param files: 要处理的文件列表
+    :return: 一个字典，包含处理后的数据
+    """
+    from ms_service_profiler.parse_helper.utils import convert_db_to_df, convert_timestamp
+
+    # 将文件内容转换为DataFrame
+    df = convert_db_to_df(files)
+
+    # 重置索引并重命名列
+    df = df.reset_index(drop=True).rename(columns={'timestamp': 'start_time', 'endTimestamp': 'end_time'})
+
+    # 将时间戳单位从毫秒转换为秒
+    df[['start_time', 'end_time']] = df[['start_time', 'end_time']].div(1000)
+
+    # 计算持续时间（结束时间 - 开始时间）
+    df['during_time'] = df['end_time'] - df['start_time']
+
+    # 将开始时间戳转换为本地时间（上海时区），格式化为字符串
+    df['start_datetime'] = pd.to_datetime(df['start_time'], unit='s', utc=True).dt.tz_convert(
+        'Asia/Shanghai').dt.strftime("%Y-%m-%d %H:%M:%S:%f")
+
+    # 将结束时间戳转换为本地时间（上海时区），格式化为字符串
+    df['end_datetime'] = pd.to_datetime(df['end_time'], unit='s', utc=True).dt.tz_convert('Asia/Shanghai').dt.strftime(
+        "%Y-%m-%d %H:%M:%S:%f")
+
+    # 定义一个函数来处理消息字段
+    df['message'] = (
+        df['message']
+        .str.replace(r'\^', '"', regex=True)
+        .where(
+            lambda s: s.str.match(r'^{.*}$'),
+            other=lambda s: "{" + s.str.replace(r",$", "", regex=True) + "}"
+        )
+        .apply(json.loads)
+    )
+
+    # 将消息字段展开为独立的列
+    msg_df = pd.json_normalize(df['message'])
+
+    # 将展开的消息数据与原始数据合并
+    all_data_df = df.join(msg_df)
+
+    # 在最前面添加hostname列，并将其重命名为hostuid
+    all_data_df.insert(0, 'hostuid', df['hostname'])
+
+    # 返回包含处理后数据的字典
+    return dict(
+        tx_data_df=all_data_df,  # 事务数据，包含hostuid列
+        cpu_data_df=None,  # CPU数据（暂无）
+        memory_data_df=None,  # 内存数据（暂无）
+        time_info=None,  # 时间信息（暂无）
+        msprof_data=[],  # msprof数据（暂无）
+        msprof_data_df=[]  # msprof数据（DataFrame格式，暂无）
+    )
 
 
 def main():
