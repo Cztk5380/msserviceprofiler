@@ -73,7 +73,7 @@ private:
     uint32_t timeLimit_ = 0;
     bool enableAclTaskTime_ = false;
     int aclTaskTimeDuration_ = 0;
-    std::string aclTaskTimeLevel_ = "L0"; // 默认配置 ACL_PROF_TASK_TIME_L0           
+    std::string aclTaskTimeLevel_ = "L0";
     std::string configPath_;
     std::string profPathDateTail_;
     std::string profPath_;

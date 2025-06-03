@@ -7,8 +7,8 @@
 
 #include "securec.h"
 #include "msServiceProfiler/Log.h"
-#include "msServiceProfiler/Config.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
+#include "msServiceProfiler/Config.h"
 
 namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
@@ -203,7 +203,8 @@ void Config::ParseAclTaskTime(const Json &config)
         auto aclProfTaskTimeLevel = msServiceProfiler::SplitStr(config["acl_prof_task_time_level"], ';');
         // parser aclTaskTimeLevel
         if (aclProfTaskTimeLevel.first != "L0" && aclProfTaskTimeLevel.first != "L1") {
-            PROF_LOGW("aclProfTaskTimeLevel should be L0 or L1, now it is %s, default to L0", aclProfTaskTimeLevel.first.c_str());
+            PROF_LOGW("aclProfTaskTimeLevel should be L0 or L1, now it is %s, default to L0",
+                aclProfTaskTimeLevel.first.c_str());
             aclProfTaskTimeLevel.first = "L0";
         }
         aclTaskTimeLevel_ = aclProfTaskTimeLevel.first;
@@ -216,7 +217,8 @@ void Config::ParseAclTaskTime(const Json &config)
         try {
             aclTaskTimeDuration_ = std::stoi(aclProfTaskTimeLevel.second);
         } catch (const std::invalid_argument& e) {
-            PROF_LOGW("aclTaskTimeDuration value is Invalid argument, now it is %s", aclProfTaskTimeLevel.second.c_str());
+            PROF_LOGW("aclTaskTimeDuration value is Invalid argument, now it is %s",
+                aclProfTaskTimeLevel.second.c_str());
             return;
         } catch (const std::out_of_range& e) {
             PROF_LOGW("aclTaskTimeDuration value is Out of range, now it is %s", aclProfTaskTimeLevel.second.c_str());

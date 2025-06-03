@@ -469,7 +469,7 @@ namespace msServiceProfiler {
                 } else if (config_->GetAclTaskTimeLevel() == "L1") {
                     profSwitch |= (ACL_PROF_TASK_TIME | ACL_PROF_ACL_API);
                 }
-                npuFlag_ = true;             
+                npuFlag_ = true;
             }
         }
 
@@ -579,8 +579,8 @@ namespace msServiceProfiler {
         }
     }
 
-    void ServiceProfilerManager::StopAclTaskTime() {
-        
+    void ServiceProfilerManager::StopAclTaskTime()
+    {
         auto profConfig = (AclprofConfig *)this->configHandle_;
         
         if (msptiEnabled) {
