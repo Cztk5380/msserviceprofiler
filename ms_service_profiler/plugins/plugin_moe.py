@@ -1,10 +1,8 @@
 # Copyright Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
 import pandas as pd
 import numpy as np
-from ms_service_profiler.plugins.base import PluginBase
-from ms_service_profiler.utils.log import logger
 from scipy import stats
-import matplotlib.pyplot as plt
+from ms_service_profiler.plugins.base import PluginBase
 
 MOE_DISTRIBUTED_COMBINE = "MoeDistributeCombine"
 MOE_DISTRIBUTED_DISPATCH = "MoeDistributeDispatch"

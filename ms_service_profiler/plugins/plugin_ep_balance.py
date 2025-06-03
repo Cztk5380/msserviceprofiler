@@ -7,6 +7,7 @@ from ms_service_profiler.utils.log import logger
 
 GROUPED_MATMUL_API_NAME = "aclnnGroupedMatmulV4_GroupedMatmul_GroupedMatmul"
 GMM_NUM_PER_LAYER = 2
+DEEPSEEK_MOE_DECODER_LAYER_NUMS = 58
 
 
 class PluginEpBalanceProcess(PluginBase):
@@ -31,7 +32,8 @@ class PluginEpBalanceProcess(PluginBase):
 
                 duration_arr = sum([duration_arr[i::GMM_NUM_PER_LAYER] for i in range(GMM_NUM_PER_LAYER)])
 
-                num_layers = 58
+                # 后续改为从api中获取
+                num_layers = DEEPSEEK_MOE_DECODER_LAYER_NUMS
                 if num_layers > 0:
                     ep_balance_per_layer = []
                     for i in range(num_layers):
