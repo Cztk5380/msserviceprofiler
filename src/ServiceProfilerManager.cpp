@@ -33,6 +33,7 @@
 #include "msServiceProfiler/Profiler.h"
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
+#include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
 
 namespace {
@@ -299,7 +300,7 @@ namespace msServiceProfiler {
         char *pInfoStr = static_cast<char *>(mmapPtr);
         std::string infoStr(pInfoStr, infoMaxSize);
 
-        auto splitInfo = SplitStr(infoStr, ',');  // 格式为： pid,目录。所以使用逗号分隔开
+        auto splitInfo = MsUtils::SplitStr(infoStr, ',');  // 格式为： pid,目录。所以使用逗号分隔开
         if (!splitInfo.second.empty()) {
             pid_t pid = static_cast<pid_t>(Str2Uint(splitInfo.first)); // 检查的进程 PID, 如果存在，就将和它放到一个目录中
             if (kill(pid, 0) == 0) {

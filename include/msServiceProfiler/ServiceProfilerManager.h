@@ -32,15 +32,6 @@ using Json = nlohmann::json;
 
 namespace msServiceProfiler {
     using AclprofConfig = struct aclprofConfig;
-    static inline std::pair<std::string, std::string> SplitStr(const std::string &str, char splitChar)
-    {
-        auto start = str.find_first_of(splitChar);
-        if (start == std::string::npos) {
-            return {str, ""};
-        } else {
-            return {str.substr(0, start), str.substr(start + 1)};
-        }
-    }
     class ServiceProfilerManager {
     public:
         ServiceProfilerManager(const ServiceProfilerManager &) = delete;
