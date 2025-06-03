@@ -163,6 +163,7 @@ def load_cpu_freq(info_path):
     logger.warning(f"Missing 'Frequency' value in 'CPU' data.")
     return 0
 
+
 def handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths):
     for fp in Path(folder_path).rglob(pattern):
         filepaths[alias] = str(fp)
@@ -540,7 +541,7 @@ def process(files):
 
     # 处理消息字段，将^替换为"，并确保消息字段是有效的JSON格式
     df['message'] = df['message'].str.replace(r'\^', '"', regex=True).where(lambda s: s.str.match(r'^{.*}$'),
-    other=lambda s: "{" + s.str.replace(r",$","",regex=True) + "}").apply(json.loads)
+    other=lambda s: "{" + s.str.replace(r",$","", regex=True) + "}").apply(json.loads)
 
     # 将消息字段展开为独立的列
     msg_df = pd.json_normalize(df['message'])
