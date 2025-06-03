@@ -167,13 +167,13 @@ class ExporterKVCacheData(ExporterBase):
     @classmethod
     @timer(logger.info)
     def export(cls, data) -> None:
-        if 'db' in cls.args.format or 'csv' in cls.args.format:
-            df = data.get('tx_data_df')
-            if df is None:
-                logger.error("The data is empty, please check")
-                return
-            output = cls.args.output_path
+        df = data.get('tx_data_df')
+        if df is None:
+            logger.error("The data is empty, please check")
+            return
+        output = cls.args.output_path
 
+        if 'db' in cls.args.format or 'csv' in cls.args.format:
             if check_domain_valid(df, ['KVCache'], 'kvcache') is False:
                 return
 

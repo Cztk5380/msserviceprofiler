@@ -93,17 +93,17 @@ public:
 
     inline bool CallIsDomainEnable(const char *currentDomain) const
     {
-        bool domainAllow_ = true;
+        bool domainAllow = true;
 
         if (!ptrEnableDomainFilter_ || !ptrValidDomain_) {
-            return domainAllow_;
+            return domainAllow;
         }
 
         if (ptrEnableDomainFilter_()) {
-            domainAllow_ = ptrValidDomain_().find(std::string(currentDomain)) != ptrValidDomain_().end();
+            domainAllow = ptrValidDomain_().find(std::string(currentDomain)) != ptrValidDomain_().end();
         }
 
-        return domainAllow_;
+        return domainAllow;
     }
 
     inline void CallStartServerProfiler() const
