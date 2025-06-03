@@ -181,6 +181,7 @@ def get_filepaths(folder_path, file_filter):
     # 创建映射
     pattern_handlers = {
         "msprof_*.json": handle_msprof_pattern,
+        "ms_service_*.db": handle_service_pattern
     }
 
     # 通配符匹配的文件路径
@@ -329,9 +330,13 @@ def load_ops_db(filepath, db_id):
 
 def check_sub_profiler_path(input_path):
     # 判断子目录是否有PROF文件夹 如果有则走原来解析逻辑返回True 如果没有尝试走mspti返回False
+    input_path = Path(input_path)
     for fp in Path(input_path).rglob('**'):
         if "PROF_" in fp.name:
             return True
+    for fp in input_path.glob('*'):
+        if "ms_service" in fp.name:
+            return True  # 存在文件名包含'ms_service'的文件
     return False
 
 
@@ -481,6 +486,10 @@ def preprocess_prof_folders(input_path, max_parallel=8):
                 logger.error(f"Error executing cmd: {cmd}, message: {e}")
 
     if not find_file_in_dir(input_path, 'msproftx.db'):
+        input_path = Path(input_path)
+        for fp in input_path.glob('*'):
+            if "ms_service" in fp.name:
+                return True
         raise ValueError("msprof failed! No msproftx.db file is generated.")
     return True
 
@@ -659,6 +668,7 @@ def process(files):
 
     msg_df = pd.json_normalize(df['message'])
     all_data_df = df.join(msg_df)
+    all_data_df.insert(0, 'hostuid', df['hostname'])
 
     return dict(tx_data_df=all_data_df, cpu_data_df=None, memory_data_df=None, time_info=None, msprof_data=[], msprof_data_df=[])
 
@@ -687,26 +697,6 @@ def main():
         default=['db', 'csv', 'json'],
         choices=['db', 'csv', 'json'],
         help='Format to save')
-    parser.add_argument(
-        '--prefill-batch-size',
-        type=int,
-        default=4,
-        help='Batch size for Prefill data.')
-    parser.add_argument(
-        '--decode-batch-size',
-        type=int,
-        default=10,
-        help='Batch size for Decode data.')
-    parser.add_argument(
-        '--prefill-number',
-        type=int,
-        default=1,
-        help='The number of Prefill batch to calc statistical data')
-    parser.add_argument(
-        '--decode-number',
-        type=int,
-        default=1,
-        help='The number of Decode batch to calc statistical data')
 
     args = parser.parse_args()
 
