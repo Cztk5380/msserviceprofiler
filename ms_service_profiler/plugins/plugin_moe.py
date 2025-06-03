@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 from ms_service_profiler.plugins.base import PluginBase
+from ms_service_profiler.utils.log import logger
 
 MOE_DISTRIBUTED_COMBINE = "MoeDistributeCombine"
 MOE_DISTRIBUTED_DISPATCH = "MoeDistributeDispatch"
@@ -13,28 +14,38 @@ class PluginMoeSlowRankProcess(PluginBase):
 
     @classmethod
     def parse(cls, data):
-        if check_df_empty(data, "communication_df"):
-            communication_df = data.get("communication_df")
-            distribute_df = communication_df[(communication_df["name"] == MOE_DISTRIBUTED_COMBINE) | (
-                        communication_df["name"] == MOE_DISTRIBUTED_DISPATCH)]
+        communication_df = data.get("communication_df")
+        if communication_df is None:
+            logger.warning("communication_df is None when processing moe slow_rank analysis.")
+            return data
+        if communication_df.empty:
+            logger.warning("communication_df is empty when processing moe slow_rank analysis.")
+            return data
 
-            confidence_intervals = []
+        distribute_df = communication_df[(communication_df["name"] == MOE_DISTRIBUTED_COMBINE) | (
+                    communication_df["name"] == MOE_DISTRIBUTED_DISPATCH)]
 
-            for db_id, grouped_df in distribute_df.groupby("db_id"):
-                mean = grouped_df.mean().mean()
-                std = grouped_df.stack().std()
-                n = grouped_df.size
+        if distribute_df.empty:
+            logger.warning(f"no {MOE_DISTRIBUTED_DISPATCH} or {MOE_DISTRIBUTED_COMBINE} found in communication_df.")
+            return data
 
-                se = std / np.sqrt(n)
+        confidence_intervals = []
 
-                # 95置信区间
-                margin_of_error = stats.t.ppf(0.975, df=n - 1) * se  # t分布的临界值
-                ci_lower = mean - margin_of_error
-                ci_upper = mean + margin_of_error
+        for db_id, grouped_df in distribute_df.groupby("db_id"):
+            mean = grouped_df.mean().mean()
+            std = grouped_df.stack().std()
+            n = grouped_df.size
 
-                confidence_intervals.append((db_id, mean, ci_lower, ci_upper))
-            ci_df = pd.DataFrame(confidence_intervals, columns=["Dataset", "Mean", "CI_Lower", "CI_Upper"])
-            data["moe_analysis"] = ci_df
+            se = std / np.sqrt(n)
+
+            # 95置信区间
+            margin_of_error = stats.t.ppf(0.975, df=n - 1) * se  # t分布的临界值
+            ci_lower = mean - margin_of_error
+            ci_upper = mean + margin_of_error
+
+            confidence_intervals.append((db_id, mean, ci_lower, ci_upper))
+        ci_df = pd.DataFrame(confidence_intervals, columns=["Dataset", "Mean", "CI_Lower", "CI_Upper"])
+        data["moe_analysis"] = ci_df
         return data
 
 

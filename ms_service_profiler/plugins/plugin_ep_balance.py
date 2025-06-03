@@ -15,43 +15,47 @@ class PluginEpBalanceProcess(PluginBase):
 
     @classmethod
     def parse(cls, data):
-        if check_df_empty(data, "kernel_df"):
-            kernel_df = data.get("kernel_df")
-            grouped_matmul_df = kernel_df[kernel_df["name"] == GROUPED_MATMUL_API_NAME]
+        kernel_df = data.get("kernel_df")
+        if kernel_df is None:
+            logger.warning("kernel_df is None when processing ep_balance analysis.")
+            return data
+        if kernel_df.empty:
+            logger.warning("kernel_df is empty when processing ep_balance analysis.")
+            return data
 
-            res_dic = {}
+        grouped_matmul_df = kernel_df[kernel_df["name"] == GROUPED_MATMUL_API_NAME]
 
-            for db_id, df_group_by_pid in grouped_matmul_df.groupby("db_id"):
-                start_time_arr = df_group_by_pid["start"].values
-                end_time_arr = df_group_by_pid["end"].values
-                duration_arr = end_time_arr - start_time_arr
+        if grouped_matmul_df.empty:
+            logger.warning(f"no {GROUPED_MATMUL_API_NAME} found in kernel_df.")
+            return data
 
-                if len(duration_arr) % GMM_NUM_PER_LAYER != 0:
-                    logger.warning("grouped matmul nums error")
-                    duration_arr = duration_arr[:-1]
+        res_dic = {}
 
-                duration_arr = sum([duration_arr[i::GMM_NUM_PER_LAYER] for i in range(GMM_NUM_PER_LAYER)])
+        for db_id, df_group_by_pid in grouped_matmul_df.groupby("db_id"):
+            start_time_arr = df_group_by_pid["start"].values
+            end_time_arr = df_group_by_pid["end"].values
+            duration_arr = end_time_arr - start_time_arr
 
-                # 后续改为从api中获取
-                num_layers = DEEPSEEK_MOE_DECODER_LAYER_NUMS
-                if num_layers > 0:
-                    ep_balance_per_layer = []
-                    for i in range(num_layers):
-                        ep_balance = np.sum(duration_arr[i::num_layers])
-                        ep_balance_per_layer.append(ep_balance)
-                    res_dic[db_id] = ep_balance_per_layer
-                else:
-                    res_dic[db_id] = duration_arr
-            res_df = pd.DataFrame.from_dict(res_dic)
-            data["ep_balance"] = res_df
+            if len(duration_arr) % GMM_NUM_PER_LAYER != 0:
+                logger.warning("grouped matmul nums error")
+                duration_arr = duration_arr[:-1]
+
+            duration_arr = sum([duration_arr[i::GMM_NUM_PER_LAYER] for i in range(GMM_NUM_PER_LAYER)])
+
+            # 后续改为从api中获取num_layers
+            res_dic[db_id] = group_gmm_by_decoder_layer(duration_arr, DEEPSEEK_MOE_DECODER_LAYER_NUMS)
+
+        res_df = pd.DataFrame.from_dict(res_dic)
+        data["ep_balance"] = res_df
 
         return data
 
 
-def check_df_empty(df_dict, key):
-    if key not in df_dict.keys():
-        return False
-    df = df_dict[key]
-    if df.empty:
-        return False
-    return True
+def group_gmm_by_decoder_layer(duration_arr, num_layers):
+    if num_layers > 0:
+        ep_balance_per_layer = []
+        for i in range(num_layers):
+            ep_balance = np.sum(duration_arr[i::num_layers])
+            ep_balance_per_layer.append(ep_balance)
+        return ep_balance_per_layer
+    return duration_arr
