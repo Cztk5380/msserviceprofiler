@@ -32,6 +32,15 @@ using Json = nlohmann::json;
 
 namespace msServiceProfiler {
     using AclprofConfig = struct aclprofConfig;
+    static inline std::pair<std::string, std::string> SplitStr(const std::string &str, char splitChar)
+    {
+        auto start = str.find_first_of(splitChar);
+        if (start == std::string::npos) {
+            return {str, ""};
+        } else {
+            return {str.substr(0, start), str.substr(start + 1)};
+        }
+    }
     class ServiceProfilerManager {
     public:
         ServiceProfilerManager(const ServiceProfilerManager &) = delete;
@@ -51,6 +60,8 @@ namespace msServiceProfiler {
         void StartProfiler();
 
         void StopProfiler();
+
+        void StopAclTaskTime();
 
         void StopThread();
 
@@ -88,6 +99,7 @@ namespace msServiceProfiler {
         static ServiceProfilerManager static_manager_;
         bool isMaster_ = true;
         bool started_ = false;
+        bool npuFlag_ = false;
         bool isAclInit_ = false;
         void *configHandle_ = nullptr;
         int lastUpdate_ = 0;

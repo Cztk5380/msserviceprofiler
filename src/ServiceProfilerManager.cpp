@@ -202,16 +202,6 @@ namespace msServiceProfiler {
         return std::strtoul(str.c_str(), &endPtr, STRING_TO_UINT_BASE);
     }
 
-    static inline std::pair<std::string, std::string> SplitStr(const std::string &str, char splitChar)
-    {
-        auto start = str.find_first_of(splitChar);
-        if (start == std::string::npos) {
-            return {str, ""};
-        } else {
-            return {str.substr(0, start), str.substr(start + 1)};
-        }
-    }
-
     bool MakeDirs(const std::string &dirPath)
     {
         if (access(dirPath.c_str(), F_OK) == 0) {
@@ -420,6 +410,19 @@ namespace msServiceProfiler {
                               config_->GetTimeLimit());
                 }
             }
+            // 单独控制算子采集
+            if (config_->GetAclTaskTimeDuration() > 0 && npuFlag_) {
+                auto terminate = std::chrono::high_resolution_clock::now(); // 记录结束时间
+
+                auto duration = std::chrono::duration_cast<std::chrono::seconds>(terminate - initiate);
+
+                if (duration.count() >= config_->GetAclTaskTimeDuration()) {
+                    StopAclTaskTime();
+                    PROF_LOGI("Profiler AclTaskTimeDuration %d Seconds Is Reached, AclTaskTime Disabled Successfully!",
+                              config_->GetAclTaskTimeDuration());
+                    config_->SetAclTaskTimeDuration(0);
+                }
+            }
 
             if (msptiEnabled) {
                 FlushBufferByTime();
@@ -461,7 +464,12 @@ namespace msServiceProfiler {
             deviceNums = 1;  // On device process
             deviceIdList[0] = g_deviceID;
             if (config_->GetEnableAclTaskTime()) {
-                profSwitch |= ACL_PROF_TASK_TIME_L0;
+                if (config_->GetAclTaskTimeLevel() == "L0") {
+                    profSwitch |= ACL_PROF_TASK_TIME_L0;
+                } else if (config_->GetAclTaskTimeLevel() == "L1") {
+                    profSwitch |= (ACL_PROF_TASK_TIME | ACL_PROF_ACL_API);
+                }
+                npuFlag_ = true;             
             }
         }
 
@@ -571,20 +579,16 @@ namespace msServiceProfiler {
         }
     }
 
-    void ServiceProfilerManager::StopProfiler()
-    {
-        if (!started_) {
-            return;
-        }
-
-        config_->SetEnable(false);
+    void ServiceProfilerManager::StopAclTaskTime() {
+        
         auto profConfig = (AclprofConfig *)this->configHandle_;
-
+        
         if (msptiEnabled) {
             msptiEnabled = false;
             UninitMspti(msptiHandle_);
         } else {
             auto ret = aclprofStop(profConfig);
+            npuFlag_ = false;
             if (ret != ACL_ERROR_NONE) {
                 PROF_LOGE("acl prof stop failed, ret = %d", ret);  // LCOV_EXCL_LINE
                 return;
@@ -601,6 +605,18 @@ namespace msServiceProfiler {
                 PROF_LOGE("acl prof finalize failed, ret = %d", ret);  // LCOV_EXCL_LINE
                 return;
             }
+        }
+    }
+    
+    void ServiceProfilerManager::StopProfiler()
+    {
+        if (!started_) {
+            return;
+        }
+
+        config_->SetEnable(false);
+        if (npuFlag_) {
+            StopAclTaskTime();
         }
 
         started_ = false;

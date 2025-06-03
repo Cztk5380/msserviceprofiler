@@ -28,6 +28,9 @@ public:
     const std::set<std::string>& GetValidDomain() const { return validDomain_; }
     bool GetEnableDomainFilter() const { return enableDomainFilter_; }
 
+    std::string GetAclTaskTimeLevel() const { return aclTaskTimeLevel_; }
+    int GetAclTaskTimeDuration() const { return aclTaskTimeDuration_; }
+    void SetAclTaskTimeDuration(int aclTaskTimeDuration) {aclTaskTimeDuration_ = aclTaskTimeDuration;}
     bool GetNpuMemoryUsage() const { return npuMemoryUsage_; }
     bool GetNpuMemoryFreq() const { return npuMemoryFreq_; }
     uint32_t GetNpuMemorySleepMilliseconds() const { return npuMemorySleepMilliseconds_; }
@@ -69,6 +72,8 @@ private:
     uint32_t level_ = Level::INFO;
     uint32_t timeLimit_ = 0;
     bool enableAclTaskTime_ = false;
+    int aclTaskTimeDuration_ = 0;
+    std::string aclTaskTimeLevel_ = "L0"; // 默认配置 ACL_PROF_TASK_TIME_L0           
     std::string configPath_;
     std::string profPathDateTail_;
     std::string profPath_;
