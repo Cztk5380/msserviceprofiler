@@ -201,7 +201,6 @@ def handle_exact_match(folder_path, reverse_d):
     return filepaths
 
 def handle_service_pattern(folder_path, alias, filepaths):
-    # regex_pattern = r'^ms_service_[\w.-]+.db'
     regex_pattern = r'^ms_service_[\w.-]+.db'
     matched_files = []
     for fp in Path(folder_path).rglob('*.db'):
@@ -501,176 +500,65 @@ def load_service_data(db_path: str):
 
     filepaths = get_filepaths(db_path, file_filter)
     try:
-
-        hello_files = filepaths.get("service", [])
+        db_files = filepaths.get("service", [])
     except Exception as ex:
         raise LoadDataError(str(db_path)) from ex
 
-    db_dict = {}
-    def dict_factory(cursor, row):
-        d = {}
-        for idx, col in enumerate(cursor.description):
-            d[col[0]] = row[idx]
-        return d
-
-    data_list = []
-
-    data_frame = pd.DataFrame()
-
-    return process(hello_files)
-
-
-    for db_path in hello_files:
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = dict_factory
-        cursor = conn.cursor()
-
-        try:
-            cursor.execute("SELECT * FROM mstx order by markId, flag")
-        except sqlite3.OperationalError as e:
-            logger.warning("%s: %r", e, db_path)
-            continue
-
-        mstx = cursor.fetchall()
-
-        try:
-            cursor.execute("SELECT * FROM meta")
-        except sqlite3.OperationalError as e:
-            logger.warning("%s: %r", e, db_path)
-            continue
-
-        meta_datas = cursor.fetchall()
-        mstx_deal = {}
-
-        for x in mstx:
-            mark_id = x.get("markId")
-            flag = x.get("flag")
-            mstx_deal.setdefault(mark_id, {"markID": mark_id, "processId": x.get("processId"),
-                                           "threadId": x.get("threadId"), "flag": flag})
-            info = mstx_deal.get(mark_id)
-
-            for meta in meta_datas:
-                print(f"info[{meta.get('name')}]: {meta.get('value')}")
-                info[meta.get("name")] = meta.get("value")
-
-            timestamp = x.get("timestamp")
-            if flag == 2:
-                info["start"] = timestamp
-                info["name"] = x.get("name")
-            elif flag == 4:
-                info["end"] = timestamp
-            else:
-                name : str = x.get("name")
-                if name.startswith("span="):
-                    span_msg, msg = name.split("*", 1)
-                    span_id = span_msg.split("=", 1)[-1]  # "=" is within "span="
-                    span_info = mstx_deal.get(int(span_id))
-                    if span_info is None:
-                        print(f"ERROR {db_path} {span_id} not found")
-                        message = ""
-
-                        mstx_deal.setdefault(int(span_id), {"markID": int(span_id),
-                                            "processId": x.get("processId"),
-                                           "threadId": x.get("threadId"),
-                                           "msg": msg,
-                                           "flag": flag})
-                        continue
-                    else:
-                        message = span_info.get("msg", "")
-                        message += msg
-                    span_info["msg"] = message
-                    del mstx_deal[mark_id]
-                else:
-                    info["start"] = timestamp
-                    info["end"] = timestamp
-                    info["msg"] = name
-
-        mstx_parse_msg = {}
-
-        for key, value in mstx_deal.items():
-            if "end" not in value:
-                continue
-            msgs = value.get("msg", "")
-            msgs = msgs.replace("^", "\"")
-            if not (msgs.startswith('{') and msgs.endswith('}')):
-                msgs = '{' + msgs[:-1] + '}'  # -1 is ,
-            if msgs:
-                try:
-                    value["msg"] = json.loads(msgs)
-                except Exception as e:
-                    value["msg"] = dict(msg=msgs)
-            else:
-                value["msg"] = {}
-            value["name"] = value["msg"].get("name", value.get("name", "XX"))
-            mstx_parse_msg[key] = value
-
-        df = pd.DataFrame(list(mstx_parse_msg.values()))
-
-        df.rename(columns={'processId': 'pid'}, inplace=True)
-        df.rename(columns={'threadId': 'tid'}, inplace=True)
-        df.rename(columns={'markID': 'mark_id'}, inplace=True)
-
-        if len(df) == 0:
-            continue
-
-        df['event_type'] = df['flag'].replace({
-            1: "marker", 2: 'start/end'
-        })
-        df.rename(columns={'start': 'start_time'}, inplace=True)
-        df.rename(columns={'end': 'end_time'}, inplace=True)
-
-        import datetime
-
-        from ms_service_profiler.constant import US_PER_SECOND, NS_PER_US
-        def timestamp_converter(timestamp):
-            try:
-                date_time = datetime.datetime.fromtimestamp(timestamp / US_PER_SECOND)
-                return date_time.strftime("%Y-%m-%d %H:%M:%S:%f")
-            except Exception as ex:
-                return str(timestamp)
-
-        df['start_time'] = df['start_time'] / 1000
-        df['end_time'] = df['end_time'] / 1000
-        df['during_time'] = df['end_time'] - df['start_time']
-        df['start_datetime'] = df['start_time'].apply(timestamp_converter)
-        df['end_datetime'] = df['end_time'].apply(timestamp_converter)
-        df.rename(columns={'msg': 'message'}, inplace=True)
-
-        data_frame = pd.concat([data_frame, df], axis=0)
-
-        db_dict[os.path.splitext(os.path.basename(db_path))[0]] = dict(mstx=list(mstx_parse_msg.values()))
-
-    message_df = pd.json_normalize(data_frame['message'])
-    data_frame = data_frame.reset_index(drop=True)
-    all_data_df = pd.concat([data_frame, message_df], axis=1)
-    all_data_df["span_id"] = all_data_df["mark_id"]
-    all_data_df = all_data_df.loc[:, ~all_data_df.columns.duplicated(keep='first')]
-
-
-    all_data_df['start_time'] = all_data_df['start_time'].fillna(all_data_df['end_time'])
-
-
-    data_list = dict(tx_data_df=all_data_df, cpu_data_df=None, memory_data_df=None, time_info=None, msprof_data=[], msprof_data_df=[])
-    return db_dict, data_list
+    return process(db_files)
 
 
 def process(files):
+    """
+    处理一组文件，将文件内容转换为DataFrame格式，并进行数据处理和转换。
+    添加hostname列到DataFrame的最前面，并将其重命名为hostuid。
+
+    :param files: 要处理的文件列表
+    :return: 一个字典，包含处理后的数据
+    """
     from ms_service_profiler.parse_helper.utils import convert_db_to_df, convert_timestamp
 
+    # 将文件内容转换为DataFrame
     df = convert_db_to_df(files)
+
+    # 重置索引并重命名列
     df = df.reset_index(drop=True).rename(columns={'timestamp': 'start_time', 'endTimestamp': 'end_time'})
+
+    # 将时间戳单位从毫秒转换为秒
     df[['start_time', 'end_time']] = df[['start_time', 'end_time']].div(1000)
+
+    # 计算持续时间（结束时间 - 开始时间）
     df['during_time'] = df['end_time'] - df['start_time']
-    df['start_datetime'] = pd.to_datetime(df['start_time'], unit='us', utc=True).dt.tz_convert('Asia/Shanghai').dt.strftime("%Y-%m-%d %H:%M:%S:%f")
-    df['end_datetime'] = pd.to_datetime(df['end_time'], unit='us', utc=True).dt.tz_convert('Asia/Shanghai').dt.strftime("%Y-%m-%d %H:%M:%S:%f")
 
-    df['message'] = df['message'].str.replace(r'\^', '"', regex=True).where(lambda s: s.str.match(r'^{.*}$'), other=lambda s: "{" + s.str.replace(r",$", "", regex=True) + "}").apply(json.loads)
+    # 将开始时间戳转换为本地时间（上海时区），格式化为字符串
+    df['start_datetime'] = pd.to_datetime(df['start_time'], unit='s', utc=True).dt.tz_convert(
+        'Asia/Shanghai').dt.strftime("%Y-%m-%d %H:%M:%S:%f")
 
+    # 将结束时间戳转换为本地时间（上海时区），格式化为字符串
+    df['end_datetime'] = pd.to_datetime(df['end_time'], unit='s', utc=True).dt.tz_convert('Asia/Shanghai').dt.strftime(
+        "%Y-%m-%d %H:%M:%S:%f")
+
+    # 处理消息字段，将^替换为"，并确保消息字段是有效的JSON格式
+    df['message'] = df['message'].str.replace(r'\^', '"', regex=True).where(lambda s: s.str.match(r'^{.*}$'),
+    other=lambda s: "{" + s.str.replace(r",$","",regex=True) + "}").apply(json.loads)
+
+    # 将消息字段展开为独立的列
     msg_df = pd.json_normalize(df['message'])
+
+    # 将展开的消息数据与原始数据合并
     all_data_df = df.join(msg_df)
+
+    # 在最前面添加hostname列，并将其重命名为hostuid
     all_data_df.insert(0, 'hostuid', df['hostname'])
 
-    return dict(tx_data_df=all_data_df, cpu_data_df=None, memory_data_df=None, time_info=None, msprof_data=[], msprof_data_df=[])
+    # 返回包含处理后数据的字典
+    return dict(
+        tx_data_df=all_data_df,  # 事务数据，包含hostuid列
+        cpu_data_df=None,  # CPU数据（暂无）
+        memory_data_df=None,  # 内存数据（暂无）
+        time_info=None,  # 时间信息（暂无）
+        msprof_data=[],  # msprof数据（暂无）
+        msprof_data_df=[]  # msprof数据（DataFrame格式，暂无）
+    )
 
 
 def main():
