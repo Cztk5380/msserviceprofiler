@@ -7,6 +7,7 @@
 
 #include "securec.h"
 #include "msServiceProfiler/Log.h"
+#include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Config.h"
 
 namespace msServiceProfiler {
@@ -198,6 +199,37 @@ void Config::ParseAclTaskTime(const Json &config)
         }
     }
     PROF_LOGI("profile enableAclTaskTime_: %s", enableAclTaskTime_ ? "true" : "false");  // LCOV_EXCL_LINE
+    if (config.contains("acl_prof_task_time_level")) {
+        auto aclProfTaskTimeLevel = MsUtils::SplitStr(config["acl_prof_task_time_level"], ';');
+        // parser aclTaskTimeLevel
+        if (aclProfTaskTimeLevel.first != "L0" && aclProfTaskTimeLevel.first != "L1") {
+            PROF_LOGW("aclProfTaskTimeLevel should be L0 or L1, now it is %s, default to L0",
+                aclProfTaskTimeLevel.first.c_str());
+            aclProfTaskTimeLevel.first = "L0";
+        }
+        aclTaskTimeLevel_ = aclProfTaskTimeLevel.first;
+        PROF_LOGI("profile aclTaskTimeLevel: %s", aclTaskTimeLevel_.c_str());
+        // parser aclTaskTimeDuration
+        if (aclProfTaskTimeLevel.second == "") {
+            PROF_LOGD("Not set aclTaskTimeDuration value");
+            return;
+        }
+        try {
+            aclTaskTimeDuration_ = std::stoi(aclProfTaskTimeLevel.second);
+        } catch (const std::invalid_argument& e) {
+            PROF_LOGW("aclTaskTimeDuration value is Invalid argument, now it is %s",
+                aclProfTaskTimeLevel.second.c_str());
+            return;
+        } catch (const std::out_of_range& e) {
+            PROF_LOGW("aclTaskTimeDuration value is Out of range, now it is %s", aclProfTaskTimeLevel.second.c_str());
+            return;
+        }
+        constexpr int maxAclTaskTimeDuration = 999; // 采集时长上线为999s
+        if (aclTaskTimeDuration_ > maxAclTaskTimeDuration || aclTaskTimeDuration_ < 1) {
+            PROF_LOGW("aclTaskTimeDuration value should between 1 ~ 999, now it is %d", aclTaskTimeDuration_);
+        }
+        PROF_LOGI("profile aclTaskTimeDuration: %d", aclTaskTimeDuration_);
+    }
 }
 
 void Config::ParseLevel(const Json &config)

@@ -52,6 +52,8 @@ namespace msServiceProfiler {
 
         void StopProfiler();
 
+        void StopAclTaskTime();
+
         void StopThread();
 
         static std::string ToSemName(const std::string &oriSemName);
@@ -92,6 +94,7 @@ namespace msServiceProfiler {
     private:
         bool isMaster_ = true;
         bool started_ = false;
+        bool npuFlag_ = false;
         bool isAclInit_ = false;
         void *configHandle_ = nullptr;
         int lastUpdate_ = 0;

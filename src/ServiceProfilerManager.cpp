@@ -35,6 +35,7 @@
 #include "msServiceProfiler/Profiler.h"
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
+#include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/ServiceProfilerDbWriter.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
 
@@ -239,16 +240,6 @@ namespace msServiceProfiler {
         return std::strtoul(str.c_str(), &endPtr, STRING_TO_UINT_BASE);
     }
 
-    static inline std::pair<std::string, std::string> SplitStr(const std::string &str, char splitChar)
-    {
-        auto start = str.find_first_of(splitChar);
-        if (start == std::string::npos) {
-            return {str, ""};
-        } else {
-            return {str.substr(0, start), str.substr(start + 1)};
-        }
-    }
-
     bool MakeDirs(const std::string &dirPath)
     {
         if (access(dirPath.c_str(), F_OK) == 0) {
@@ -345,7 +336,7 @@ namespace msServiceProfiler {
         char *pInfoStr = static_cast<char *>(mmapPtr);
         std::string infoStr(pInfoStr, infoMaxSize);
 
-        auto splitInfo = SplitStr(infoStr, ',');  // 格式为： pid,目录。所以使用逗号分隔开
+        auto splitInfo = MsUtils::SplitStr(infoStr, ',');  // 格式为： pid,目录。所以使用逗号分隔开
         if (!splitInfo.second.empty()) {
             pid_t pid = static_cast<pid_t>(Str2Uint(splitInfo.first)); // 检查的进程 PID, 如果存在，就将和它放到一个目录中
             if (kill(pid, 0) == 0) {
@@ -456,6 +447,19 @@ namespace msServiceProfiler {
                               config_->GetTimeLimit());
                 }
             }
+            // 单独控制算子采集
+            if (config_->GetAclTaskTimeDuration() > 0 && npuFlag_) {
+                auto terminate = std::chrono::high_resolution_clock::now(); // 记录结束时间
+
+                auto duration = std::chrono::duration_cast<std::chrono::seconds>(terminate - initiate);
+
+                if (duration.count() >= config_->GetAclTaskTimeDuration()) {
+                    StopAclTaskTime();
+                    PROF_LOGI("Profiler AclTaskTimeDuration %d Seconds Is Reached, AclTaskTime Disabled Successfully!",
+                              config_->GetAclTaskTimeDuration());
+                    config_->SetAclTaskTimeDuration(0);
+                }
+            }
 
             if (msptiEnabled) {
                 FlushBufferByTime();
@@ -497,7 +501,12 @@ namespace msServiceProfiler {
             deviceNums = 1;  // On device process
             deviceIdList[0] = g_deviceID;
             if (config_->GetEnableAclTaskTime()) {
-                profSwitch |= ACL_PROF_TASK_TIME_L0;
+                if (config_->GetAclTaskTimeLevel() == "L0") {
+                    profSwitch |= ACL_PROF_TASK_TIME_L0;
+                } else if (config_->GetAclTaskTimeLevel() == "L1") {
+                    profSwitch |= (ACL_PROF_TASK_TIME | ACL_PROF_ACL_API);
+                }
+                npuFlag_ = true;
             }
         }
 
@@ -609,21 +618,17 @@ namespace msServiceProfiler {
         }
     }
 
-    void ServiceProfilerManager::StopProfiler()
+    void ServiceProfilerManager::StopAclTaskTime()
     {
-        if (!started_) {
-            return;
-        }
-
-        config_->SetEnable(false);
         auto profConfig = (AclprofConfig *)this->configHandle_;
-
+        
         if (msptiEnabled) {
             msptiEnabled = false;
             UninitMspti(msptiHandle_);
         } else {
             if (config_->GetEnableAclTaskTime() || config_->GetHostCpuUsage() || config_->GetHostMemoryUsage()) {
                 auto ret = aclprofStop(profConfig);
+                npuFlag_ = false;
                 if (ret != ACL_ERROR_NONE) {
                     PROF_LOGE("acl prof stop failed, ret = %d", ret);  // LCOV_EXCL_LINE
                     return;
@@ -634,13 +639,24 @@ namespace msServiceProfiler {
                     return;
                 }
                 this->configHandle_ = nullptr;
-
                 ret = aclprofFinalize();
                 if (ret != ACL_ERROR_NONE) {
                     PROF_LOGE("acl prof finalize failed, ret = %d", ret);  // LCOV_EXCL_LINE
                     return;
                 }
             }
+        }
+    }
+    
+    void ServiceProfilerManager::StopProfiler()
+    {
+        if (!started_) {
+            return;
+        }
+
+        config_->SetEnable(false);
+        if (npuFlag_) {
+            StopAclTaskTime();
         }
 
         msServiceProfiler::FlashTxData2Writer();

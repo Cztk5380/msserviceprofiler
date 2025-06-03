@@ -25,39 +25,13 @@
 #include <mutex>
 
 #include "securec.h"
-
+#include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
 
 std::mutex g_mtx;
 
 namespace msServiceProfiler {
-
-    // 分割字符串并存入set 输入字符串格式为"xxxx;xxx;xxx"或"xxx;xxx;"均可
-    static std::set<std::string> SplitStringToSet(const std::string& str, char splitSymbol)
-    {
-        std::set<std::string> result;
-        std::string token;
-
-        for (char c : str) {
-            if (c == splitSymbol) {
-                if (!token.empty()) {       // 非空子串才插入
-                    result.insert(token);
-                    token.clear();          // 清空临时 token
-                }
-            } else {
-                token += c;                 // 累积字符到临时 token
-            }
-        }
-
-        // 处理最后一个子串（如果末尾没有分号）
-        if (!token.empty()) {
-            result.insert(token);
-        }
-
-        return result;
-    }
-
     // 判断mspti上报的每条数据的名称是否在筛选目标中
     bool IsNameMatch(std::set<std::string>& filterSet, const char* name)
     {
@@ -222,8 +196,8 @@ namespace msServiceProfiler {
 
     void ServiceProfilerMspti::InitFilter(std::string& apiFilter, std::string& kernelFilter)
     {
-        filterApi = SplitStringToSet(apiFilter, SPLIT_SYMBOL);
-        filterKernel = SplitStringToSet(kernelFilter, SPLIT_SYMBOL);
+        filterApi = MsUtils::SplitStringToSet(apiFilter, SPLIT_SYMBOL);
+        filterKernel = MsUtils::SplitStringToSet(kernelFilter, SPLIT_SYMBOL);
     }
 
     void ServiceProfilerMspti::InitOutputPath(std::string& outputPath)
