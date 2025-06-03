@@ -61,6 +61,11 @@ namespace msServiceProfiler {
             return config_->GetConfigPath();
         }
 
+        const std::string &GetProfPath() const
+        {
+            return config_->GetProfPath();
+        }
+
         void AddMetaInfo(const std::string &key, const std::string &value);
 
     private:
@@ -85,7 +90,6 @@ namespace msServiceProfiler {
         void StartAclProf(std::string& profPath);
 
     private:
-        static ServiceProfilerManager static_manager_;
         bool isMaster_ = true;
         bool started_ = false;
         bool isAclInit_ = false;
