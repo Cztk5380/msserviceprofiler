@@ -19,7 +19,10 @@ from ms_service_profiler.parse import (
     handle_other_wildcard_patterns,
     load_start_cnt,
     load_start_time,
-    load_tx_data
+    load_tx_data,
+    handle_service_pattern,
+    load_service_data,
+    process
 )
 
 
@@ -194,3 +197,362 @@ def test_load_tx_data(setup_test_directory):
     assert all(result.columns == ['pid', 'tid', 'event_type', 'start_time', 'end_time', 'mark_id',
        'ori_msg', 'message', 'name', 'span_id'])
     assert result.shape[0] == 1
+
+
+def test_handle_other_wildcard_patterns_empty_folder_path(setup_test_directory):
+    """
+    测试 handle_other_wildcard_patterns 函数在 folder_path 为空时的行为。
+    """
+    folder_path = ""
+    pattern = "*.txt"
+    alias = "test_alias"
+    filepaths = {}
+
+    result = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
+    assert result == {}, "当 folder_path 为空时，filepaths 应该保持不变"
+
+
+def test_handle_other_wildcard_patterns_non_existent_folder_path(setup_test_directory):
+    """
+    测试 handle_other_wildcard_patterns 函数在 folder_path 不存在时的行为。
+    """
+    folder_path = "/non_existent_path"
+    pattern = "*.txt"
+    alias = "test_alias"
+    filepaths = {}
+
+    result = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
+    assert result == {}, "当 folder_path 不存在时，filepaths 应该保持不变"
+
+
+def test_handle_other_wildcard_patterns_pattern_matches_file(setup_test_directory):
+    """
+    测试 handle_other_wildcard_patterns 函数在 pattern 匹配到文件时的行为。
+    """
+    folder_path = setup_test_directory
+    pattern = "*.txt"
+    alias = "test_alias"
+    filepaths = {}
+
+    # 创建一个临时测试文件
+    test_file = folder_path / "test_file.txt"
+    test_file.touch()
+
+    result = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
+    assert alias in result, "当 pattern 匹配到文件时，filepaths 应该包含 alias"
+    assert result[alias] == str(test_file), "filepaths[alias] 应该是匹配到的文件路径"
+
+    # 清理临时文件
+    test_file.unlink()
+
+
+def test_handle_other_wildcard_patterns_pattern_no_match(setup_test_directory):
+    """
+    测试 handle_other_wildcard_patterns 函数在 pattern 没有匹配到任何文件时的行为。
+    """
+    folder_path = setup_test_directory
+    pattern = "*.txt"
+    alias = "test_alias"
+    filepaths = {}
+
+    # 不创建任何文件
+    result = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
+    assert result == {}, "当 pattern 没有匹配到任何文件时，filepaths 应该保持不变"
+
+
+def test_handle_service_pattern_empty_folder_path():
+    """
+    测试 handle_service_pattern 函数在 folder_path 为空时的行为。
+    """
+    folder_path = ""
+    alias = "test_alias"
+    filepaths = {}
+
+    result = handle_service_pattern(folder_path, alias, filepaths)
+    assert result == {}, "当 folder_path 为空时，filepaths 应该保持不变"
+
+
+def test_handle_service_pattern_non_existent_folder_path():
+    """
+    测试 handle_service_pattern 函数在 folder_path 不存在时的行为。
+    """
+    folder_path = "/non_existent_path"
+    alias = "test_alias"
+    filepaths = {}
+
+    result = handle_service_pattern(folder_path, alias, filepaths)
+    assert result == {}, "当 folder_path 不存在时，filepaths 应该保持不变"
+
+
+def test_handle_service_pattern_pattern_matches_files(setup_test_directory):
+    """
+    测试 handle_service_pattern 函数在 regex_pattern 匹配到文件时的行为。
+    """
+    folder_path = setup_test_directory / "PROF_test"
+    alias = "test_alias"
+    filepaths = {}
+
+    # 确保测试目录中有符合 regex_pattern 的文件
+    test_file = folder_path / "ms_service_test_file.db"
+    test_file.touch()
+
+    # 调用函数
+    result = handle_service_pattern(folder_path, alias, filepaths)
+
+    # 检查结果
+    assert alias in result, "当 regex_pattern 匹配到文件时，filepaths 应该包含 alias"
+    assert len(result[alias]) == 1, "filepaths[alias] 应该包含匹配到的文件路径"
+    assert str(test_file) in result[alias], "匹配到的文件路径应该在 filepaths[alias] 中"
+
+
+def test_handle_service_pattern_pattern_no_match(setup_test_directory):
+    """
+    测试 handle_service_pattern 函数在 regex_pattern 没有匹配到任何文件时的行为。
+    """
+    folder_path = setup_test_directory / "PROF_test"
+    alias = "test_alias"
+    filepaths = {}
+
+    # 删除所有匹配的文件
+    for file in folder_path.rglob('ms_service_*.db'):
+        file.unlink()
+
+    result = handle_service_pattern(folder_path, alias, filepaths)
+    assert result == {}, "当 regex_pattern 没有匹配到任何文件时，filepaths 应该保持不变"
+
+
+def test_handle_service_pattern_alias_already_exists(setup_test_directory):
+    """
+    测试 handle_service_pattern 函数在 alias 已存在于 filepaths 中时的行为。
+    """
+    folder_path = setup_test_directory / "PROF_test"
+    alias = "test_alias"
+    filepaths = {alias: ["existing_file_path"]}
+
+    # 确保测试目录中有符合 regex_pattern 的文件
+    test_file1 = folder_path / "ms_service_test_file1.db"
+    test_file1.touch()
+    test_file2 = folder_path / "ms_service_test_file2.db"
+    test_file2.touch()
+    test_file3 = folder_path / "ms_service_test_file3.db"
+    test_file3.touch()
+
+    # 调用函数
+    result = handle_service_pattern(folder_path, alias, filepaths)
+
+    # 检查结果
+    assert alias in result, "filepaths 应该包含 alias"
+    assert len(result[alias]) == 4, "filepaths[alias] 应该包含所有匹配的文件路径和已存在的路径"
+    assert "existing_file_path" in result[alias], "已存在的路径应该在 filepaths[alias] 中"
+    assert str(test_file1) in result[alias], "匹配到的文件路径应该在 filepaths[alias] 中"
+    assert str(test_file2) in result[alias], "匹配到的文件路径应该在 filepaths[alias] 中"
+    assert str(test_file3) in result[alias], "匹配到的文件路径应该在 filepaths[alias] 中"
+
+
+def test_load_service_data_empty_folder_path(setup_test_directory):
+    """
+    测试 load_service_data 函数在 db_path 为空时的行为。
+    """
+    db_path = ""
+    with pytest.raises(ValueError) as exc_info:
+        load_service_data(db_path)
+    assert "No objects to concatenate" in str(exc_info.value), "当 db_path 为空时，应该抛出 ValueError"
+
+
+def test_load_service_data_nonexistent_folder_path(setup_test_directory):
+    """
+    测试 load_service_data 函数在 db_path 不存在时的行为。
+    """
+    db_path = "/path/to/nonexistent/folder"
+    with pytest.raises(ValueError) as exc_info:
+        load_service_data(db_path)
+    assert "No objects to concatenate" in str(exc_info.value), "当 db_path 为空时，应该抛出 ValueError"
+
+
+def test_load_service_data_pattern_matches_files(setup_test_directory):
+    """
+    测试 load_service_data 函数在 file_filter 匹配到文件时的行为。
+    """
+    # 创建临时测试目录
+    tmp_path = Path("tmp_test_directory")
+    tmp_path.mkdir()
+    db_path = tmp_path / "PROF_test"
+    db_path.mkdir()
+
+    # 创建测试文件
+    (db_path / "ms_service_test1.db").write_text("cpu data")
+    (db_path / "ms_service_test2.db").write_text("memory data")
+
+    # 模拟 process 函数
+    def mock_process(db_files):
+        return {"service": db_files}
+
+    with patch('ms_service_profiler.parse.process', side_effect=mock_process) as mock_process:
+        result = load_service_data(str(db_path))
+        assert "service" in result, "结果应该包含 'service' 键"
+        assert len(result["service"]) == 2, "应该找到两个匹配的文件"
+        assert str(db_path / "ms_service_test1.db") in result["service"], "结果应该包含 ms_service_test1.db"
+        assert str(db_path / "ms_service_test2.db") in result["service"], "结果应该包含 ms_service_test2.db"
+        mock_process.assert_called_once()
+
+    # 清理测试目录
+    shutil.rmtree(tmp_path)
+
+
+def test_load_service_data_pattern_no_match(setup_test_directory):
+    """
+    测试 load_service_data 函数在 file_filter 没有匹配到任何文件时的行为。
+    """
+    # 创建临时测试目录
+    tmp_path = Path("tmp_test_directory")
+    tmp_path.mkdir()
+    db_path = tmp_path / "PROF_test"
+    db_path.mkdir()
+
+    # 创建一个不匹配的文件
+    (db_path / "non_matching_file.db").write_text("non matching data")
+
+    with pytest.raises(ValueError) as exc_info:
+        load_service_data(db_path)
+    assert "No objects to concatenate" in str(exc_info.value), "当 db_path 为空时，应该抛出 ValueError"
+
+    # 清理测试目录
+    shutil.rmtree(tmp_path)
+
+
+def test_timestamp_conversion_and_duration_calculation(setup_test_directory):
+    """
+    测试时间戳转换和持续时间计算是否正确。
+    """
+    # 创建测试 DataFrame
+    data = {
+        "timestamp": [1622547600000, 1622547602000],
+        "endTimestamp": [1622547601000, 1622547603000],
+        "message": ["{\"key\":\"value\"}", "{\"key\":\"value2\"}"],
+        "hostname": ["host1", "host2"]
+    }
+    df = pd.DataFrame(data)
+
+    # 调用函数
+    df = df.reset_index(drop=True).rename(columns={'timestamp': 'start_time', 'endTimestamp': 'end_time'})
+    df[['start_time', 'end_time']] = df[['start_time', 'end_time']].div(1000)
+    df['during_time'] = df['end_time'] - df['start_time']
+
+    # 检查时间戳转换和持续时间计算
+    assert df['start_time'].tolist() == [1622547600, 1622547602], "开始时间戳转换应正确"
+    assert df['end_time'].tolist() == [1622547601, 1622547603], "结束时间戳转换应正确"
+    assert df['during_time'].tolist() == [1, 1], "持续时间计算应正确"
+
+
+def test_timestamp_to_local_time(setup_test_directory):
+    """
+    测试时间戳转换为本地时间（上海时区）是否正确。
+    """
+    # 创建测试 DataFrame
+    data = {
+        "start_time": [1622547600, 1622547602],
+        "end_time": [1622547601, 1622547603]
+    }
+    df = pd.DataFrame(data)
+
+    # 调用函数
+    df['start_datetime'] = pd.to_datetime(df['start_time'], unit='s', utc=True).dt.tz_convert(
+        'Asia/Shanghai').dt.strftime("%Y-%m-%d %H:%M:%S:%f")
+    df['end_datetime'] = pd.to_datetime(df['end_time'], unit='s', utc=True).dt.tz_convert(
+        'Asia/Shanghai').dt.strftime("%Y-%m-%d %H:%M:%S:%f")
+
+    # 检查时间戳转换
+    expected_start_datetime = "2021-06-01 19:40:00:000000"
+    expected_end_datetime = "2021-06-01 19:40:01:000000"
+    assert df.iloc[0]['start_datetime'] == expected_start_datetime, "开始时间戳转换应正确"
+    assert df.iloc[0]['end_datetime'] == expected_end_datetime, "结束时间戳转换应正确"
+
+
+def test_message_field_processing(setup_test_directory):
+    """
+    测试消息字段处理和展开是否正确。
+    """
+    # 创建测试 DataFrame
+    data = {
+        "message": ["{\"key\":\"value\"}", "{\"key\":\"value2\"}"],
+        "hostname": ["host1", "host2"]
+    }
+    df = pd.DataFrame(data)
+
+    # 调用函数
+    df['message'] = (
+        df['message']
+        .str.replace(r'\^', '"', regex=True)
+        .where(
+            lambda s: s.str.match(r'^{.*}$'),
+            other=lambda s: "{" + s.str.replace(r",$", "", regex=True) + "}"
+        )
+        .apply(json.loads)
+    )
+    msg_df = pd.json_normalize(df['message'])
+    all_data_df = df.join(msg_df)
+
+    # 检查消息字段处理和展开
+    assert all_data_df.shape == (2, 3), "展开后的 DataFrame 的列数应正确"
+    assert all_data_df.columns.tolist() == ["message", "hostname", "key"], "展开后的列名应正确"
+    assert all_data_df.iloc[0]['key'] == "value", "展开后的 key 值应正确"
+    assert all_data_df.iloc[1]['key'] == "value2", "展开后的 key 值应正确"
+
+
+def test_add_and_rename_hostname(setup_test_directory):
+    """
+    测试添加 hostname 列并将其重命名为 hostuid 是否正确。
+    """
+    # 创建测试 DataFrame
+    data = {
+        "hostname": ["host1", "host2"]
+    }
+    df = pd.DataFrame(data)
+
+    # 调用函数
+    df.insert(0, 'hostuid', df['hostname'])
+
+    # 检查 hostname 列添加和重命名
+    assert df.columns.tolist() == ["hostuid", "hostname"], "列名应正确"
+    assert df.iloc[0]['hostuid'] == "host1", "hostuid 列的值应正确"
+    assert df.iloc[1]['hostuid'] == "host2", "hostuid 列的值应正确"
+
+def test_process_normal(setup_test_directory):
+    # 模拟convert_db_to_df的返回值
+    mock_df = pd.DataFrame({
+        'timestamp': [1623456789000, 1623456889000],
+        'endTimestamp': [1623456799000, 1623456899000],
+        'message': ['{"key1":"value1"}', '{"key2":"value2"}'],
+        'hostname': ['host1', 'host2']
+    })
+
+    # 模拟json_normalize的返回值
+    mock_json_normalize = MagicMock()
+    mock_json_normalize.return_value = pd.DataFrame({
+        'key1': ['value1', None],
+        'key2': [None, 'value2']
+    })
+
+    # 模拟convert_db_to_df的返回值
+    mock_convert_db_to_df = MagicMock()
+    mock_convert_db_to_df.return_value = mock_df
+
+    # 使用patch装饰器来模拟依赖
+    with patch('ms_service_profiler.parse_helper.utils.convert_db_to_df', mock_convert_db_to_df):
+        with patch('pandas.json_normalize', mock_json_normalize):
+            # 调用process函数
+            result = process(mock_df)
+
+            # 验证结果
+            expected_df = pd.DataFrame({
+                'hostuid': ['host1', 'host2'],
+                'start_time': [1623456789.0, 1623456889.0],
+                'end_time': [1623456799.0, 1623456899.0],
+                'during_time': [10.0, 10.0],
+                'start_datetime': ['2021-06-12 03:13:09.000000', '2021-06-12 03:14:49.000000'],
+                'end_datetime': ['2021-06-12 03:13:19.000000', '2021-06-12 03:14:59.000000'],
+                'message': [{'key1': 'value1'}, {'key2': 'value2'}],
+                'key1': ['value1', None],
+                'key2': [None, 'value2']
+            })
+            assert not result.empty

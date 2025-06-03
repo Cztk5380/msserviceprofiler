@@ -43,6 +43,10 @@ def convert_db_to_df(files, max_workers=8):
     with ProcessPoolExecutor(max_workers) as executor:
         dfs = list(executor.map(_convert_db_to_df, files))
 
+    # 检查 dfs 是否为空
+    if not dfs:
+        return pd.DataFrame()  # 返回空的 DataFrame
+
     return pd.concat(dfs, ignore_index=True)
 
 
