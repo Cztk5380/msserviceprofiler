@@ -46,7 +46,7 @@ class ExporterEpBalance(ExporterBase):
 
         heat_map = ep_balance_df.values
 
-        x_pixel = max(min(len(ep_balance_df.cloumns) // 10, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
+        x_pixel = max(min(len(ep_balance_df.columns) // 10, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
         y_pixel = max(min(len(ep_balance_df) // 10, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
 
         plt.figure(figsize=(x_pixel, y_pixel))
