@@ -6,7 +6,6 @@ import os
 import stat
 
 from .base import BasePathConstraint
-from ..utils import get_file_size_config
 
 
 class Exists(BasePathConstraint):
