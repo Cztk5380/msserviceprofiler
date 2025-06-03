@@ -205,8 +205,7 @@ namespace msServiceProfiler {
 
         PROF_LOGD("Initing ServiceFilerWriter.");
         mode_t new_umask = 0137;  // ascend_service_profiler_*.db的权限设置为640
-        mode_t old_umask;
-        old_umask = umask(new_umask);
+        mode_t old_umask = umask(new_umask);
 
         // 打开数据库连接
         int rc = sqlite3_open(file_name.c_str(), &db);
