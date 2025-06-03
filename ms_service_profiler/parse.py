@@ -540,19 +540,9 @@ def process(files):
         "%Y-%m-%d %H:%M:%S:%f")
 
     # 定义一个函数来处理消息字段
-    def process_message(message):
-        # 将^替换为"
-        message = message.replace(r'\^', '"')
-        # 如果消息字段已经是有效的JSON格式，直接返回
-        if message.startswith('{') and message.endswith('}'):
-            return json.loads(message)
-        # 如果消息字段不是有效的JSON格式，尝试修复并返回
-        else:
-            message = "{" + message.replace(r",$", "") + "}"
-            return json.loads(message)
-
-    # 应用处理消息字段的函数
-    df['message'] = df['message'].apply(process_message)
+    df['message'] = df['message'].str.replace(r'\^', '"', regex=True).where(lambda s: s.str.match(
+        r'^{.*}$'), other=lambda s: "{" + s.str.replace(
+        r",$","", regex=True) + "}").apply(json.loads)
 
     # 将消息字段展开为独立的列
     msg_df = pd.json_normalize(df['message'])
