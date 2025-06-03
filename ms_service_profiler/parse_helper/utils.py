@@ -1,10 +1,13 @@
+# Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
+
 import sqlite3
 import datetime
-import pandas as pd
 from concurrent.futures import ProcessPoolExecutor
+import pandas as pd
 
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.parse_helper.constant import MAJOR_TABLE_NAME, MINOR_TABLE_NAME, MAJOR_TABLE_COLS, MINOR_TABLE_COLS, US_PER_SECOND
+from ms_service_profiler.parse_helper.constant import (MAJOR_TABLE_NAME, MINOR_TABLE_NAME, MAJOR_TABLE_COLS,
+                                                       MINOR_TABLE_COLS, US_PER_SECOND)
 
 
 def _convert_db_to_df(file_path):
@@ -14,7 +17,7 @@ def _convert_db_to_df(file_path):
     df = pd.DataFrame()
     with sqlite3.connect(file_path) as conn:
         try:
-           df = pd.read_sql_query(major_sql_query, conn)
+            df = pd.read_sql_query(major_sql_query, conn)
         except Exception as e:
             logger.warning("%s: %r", e, file_path)
             return df
@@ -37,7 +40,6 @@ def _convert_db_to_df(file_path):
 
 
 def convert_db_to_df(files, max_workers=8):
-    dfs = []
     with ProcessPoolExecutor(max_workers) as executor:
         dfs = list(executor.map(_convert_db_to_df, files))
 
