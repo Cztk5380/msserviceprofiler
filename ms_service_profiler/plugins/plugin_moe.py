@@ -47,14 +47,3 @@ class PluginMoeSlowRankProcess(PluginBase):
         ci_df = pd.DataFrame(confidence_intervals, columns=["Dataset", "Mean", "CI_Lower", "CI_Upper"])
         data["moe_analysis"] = ci_df
         return data
-
-
-def check_df_empty(df_dict, key):
-    if key not in df_dict.keys():
-        return False
-    df = df_dict[key]
-    if df.empty:
-        return False
-    return True
-
-
