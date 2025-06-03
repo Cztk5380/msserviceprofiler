@@ -163,6 +163,12 @@ def load_cpu_freq(info_path):
     logger.warning(f"Missing 'Frequency' value in 'CPU' data.")
     return 0
 
+def handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths):
+    for fp in Path(folder_path).rglob(pattern):
+        filepaths[alias] = str(fp)
+        break
+    return filepaths
+
 
 def get_filepaths(folder_path, file_filter):
     filepaths = {}
@@ -191,6 +197,19 @@ def handle_exact_match(folder_path, reverse_d):
     for fp in Path(folder_path).rglob('*'):
         if fp.name in reverse_d:
             filepaths[reverse_d[fp.name]] = str(fp)
+    return filepaths
+
+def handle_service_pattern(folder_path, alias, filepaths):
+    # regex_pattern = r'^ms_service_[\w.-]+.db'
+    regex_pattern = r'^ms_service_[\w.-]+.db'
+    matched_files = []
+    for fp in Path(folder_path).rglob('*.db'):
+        if re.match(regex_pattern, fp.name):
+            matched_files.append(str(fp))
+    if matched_files:
+        if alias not in filepaths:
+            filepaths[alias] = []
+        filepaths[alias].extend(matched_files)
     return filepaths
 
 
@@ -349,6 +368,9 @@ def read_origin_db(db_path: str):
             data_list.append(data)
         except Exception as ex:
             raise LoadDataError(str(dp)) from ex
+
+    data = load_service_data(db_path)
+    data_list.append(data)
     return data_list
 
 
@@ -381,13 +403,7 @@ def parse_run(input_path, exporters, args=None):
         data = PluginMsptiProcess.parse(data)
 
     logger.info('Starting exporter processes.')
-    with ProcessPoolExecutor() as executor:
-        futures = {exporter.name: executor.submit(exporter.export, data) for exporter in exporters}
-        for exporter_name, future in futures.items():
-            try:
-                future.result()
-            except Exception as e:
-                logger.error(f"Error raise from exporter: {exporter_name}, message: {e}")
+    futures = {exporter.name: exporter.export(data) for exporter in exporters}
 
     logger.info('Exporter done.')
 
@@ -469,6 +485,184 @@ def preprocess_prof_folders(input_path, max_parallel=8):
     return True
 
 
+def load_service_data(db_path: str):
+    file_filter = {
+        "service": "ms_service_*.db"
+    }
+
+    filepaths = get_filepaths(db_path, file_filter)
+    try:
+
+        hello_files = filepaths.get("service", [])
+    except Exception as ex:
+        raise LoadDataError(str(db_path)) from ex
+
+    db_dict = {}
+    def dict_factory(cursor, row):
+        d = {}
+        for idx, col in enumerate(cursor.description):
+            d[col[0]] = row[idx]
+        return d
+
+    data_list = []
+
+    data_frame = pd.DataFrame()
+
+    return process(hello_files)
+
+
+    for db_path in hello_files:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = dict_factory
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("SELECT * FROM mstx order by markId, flag")
+        except sqlite3.OperationalError as e:
+            logger.warning("%s: %r", e, db_path)
+            continue
+
+        mstx = cursor.fetchall()
+
+        try:
+            cursor.execute("SELECT * FROM meta")
+        except sqlite3.OperationalError as e:
+            logger.warning("%s: %r", e, db_path)
+            continue
+
+        meta_datas = cursor.fetchall()
+        mstx_deal = {}
+
+        for x in mstx:
+            mark_id = x.get("markId")
+            flag = x.get("flag")
+            mstx_deal.setdefault(mark_id, {"markID": mark_id, "processId": x.get("processId"),
+                                           "threadId": x.get("threadId"), "flag": flag})
+            info = mstx_deal.get(mark_id)
+
+            for meta in meta_datas:
+                print(f"info[{meta.get('name')}]: {meta.get('value')}")
+                info[meta.get("name")] = meta.get("value")
+
+            timestamp = x.get("timestamp")
+            if flag == 2:
+                info["start"] = timestamp
+                info["name"] = x.get("name")
+            elif flag == 4:
+                info["end"] = timestamp
+            else:
+                name : str = x.get("name")
+                if name.startswith("span="):
+                    span_msg, msg = name.split("*", 1)
+                    span_id = span_msg.split("=", 1)[-1]  # "=" is within "span="
+                    span_info = mstx_deal.get(int(span_id))
+                    if span_info is None:
+                        print(f"ERROR {db_path} {span_id} not found")
+                        message = ""
+
+                        mstx_deal.setdefault(int(span_id), {"markID": int(span_id),
+                                            "processId": x.get("processId"),
+                                           "threadId": x.get("threadId"),
+                                           "msg": msg,
+                                           "flag": flag})
+                        continue
+                    else:
+                        message = span_info.get("msg", "")
+                        message += msg
+                    span_info["msg"] = message
+                    del mstx_deal[mark_id]
+                else:
+                    info["start"] = timestamp
+                    info["end"] = timestamp
+                    info["msg"] = name
+
+        mstx_parse_msg = {}
+
+        for key, value in mstx_deal.items():
+            if "end" not in value:
+                continue
+            msgs = value.get("msg", "")
+            msgs = msgs.replace("^", "\"")
+            if not (msgs.startswith('{') and msgs.endswith('}')):
+                msgs = '{' + msgs[:-1] + '}'  # -1 is ,
+            if msgs:
+                try:
+                    value["msg"] = json.loads(msgs)
+                except Exception as e:
+                    value["msg"] = dict(msg=msgs)
+            else:
+                value["msg"] = {}
+            value["name"] = value["msg"].get("name", value.get("name", "XX"))
+            mstx_parse_msg[key] = value
+
+        df = pd.DataFrame(list(mstx_parse_msg.values()))
+
+        df.rename(columns={'processId': 'pid'}, inplace=True)
+        df.rename(columns={'threadId': 'tid'}, inplace=True)
+        df.rename(columns={'markID': 'mark_id'}, inplace=True)
+
+        if len(df) == 0:
+            continue
+
+        df['event_type'] = df['flag'].replace({
+            1: "marker", 2: 'start/end'
+        })
+        df.rename(columns={'start': 'start_time'}, inplace=True)
+        df.rename(columns={'end': 'end_time'}, inplace=True)
+
+        import datetime
+
+        from ms_service_profiler.constant import US_PER_SECOND, NS_PER_US
+        def timestamp_converter(timestamp):
+            try:
+                date_time = datetime.datetime.fromtimestamp(timestamp / US_PER_SECOND)
+                return date_time.strftime("%Y-%m-%d %H:%M:%S:%f")
+            except Exception as ex:
+                return str(timestamp)
+
+        df['start_time'] = df['start_time'] / 1000
+        df['end_time'] = df['end_time'] / 1000
+        df['during_time'] = df['end_time'] - df['start_time']
+        df['start_datetime'] = df['start_time'].apply(timestamp_converter)
+        df['end_datetime'] = df['end_time'].apply(timestamp_converter)
+        df.rename(columns={'msg': 'message'}, inplace=True)
+
+        data_frame = pd.concat([data_frame, df], axis=0)
+
+        db_dict[os.path.splitext(os.path.basename(db_path))[0]] = dict(mstx=list(mstx_parse_msg.values()))
+
+    message_df = pd.json_normalize(data_frame['message'])
+    data_frame = data_frame.reset_index(drop=True)
+    all_data_df = pd.concat([data_frame, message_df], axis=1)
+    all_data_df["span_id"] = all_data_df["mark_id"]
+    all_data_df = all_data_df.loc[:, ~all_data_df.columns.duplicated(keep='first')]
+
+
+    all_data_df['start_time'] = all_data_df['start_time'].fillna(all_data_df['end_time'])
+
+
+    data_list = dict(tx_data_df=all_data_df, cpu_data_df=None, memory_data_df=None, time_info=None, msprof_data=[], msprof_data_df=[])
+    return db_dict, data_list
+
+
+def process(files):
+    from ms_service_profiler.parse_helper.utils import convert_db_to_df, convert_timestamp
+
+    df = convert_db_to_df(files)
+    df = df.reset_index(drop=True).rename(columns={'timestamp': 'start_time', 'endTimestamp': 'end_time'})
+    df[['start_time', 'end_time']] = df[['start_time', 'end_time']].div(1000)
+    df['during_time'] = df['end_time'] - df['start_time']
+    df['start_datetime'] = pd.to_datetime(df['start_time'], unit='us', utc=True).dt.tz_convert('Asia/Shanghai').dt.strftime("%Y-%m-%d %H:%M:%S:%f")
+    df['end_datetime'] = pd.to_datetime(df['end_time'], unit='us', utc=True).dt.tz_convert('Asia/Shanghai').dt.strftime("%Y-%m-%d %H:%M:%S:%f")
+
+    df['message'] = df['message'].str.replace(r'\^', '"', regex=True).where(lambda s: s.str.match(r'^{.*}$'), other=lambda s: "{" + s.str.replace(r",$", "", regex=True) + "}").apply(json.loads)
+
+    msg_df = pd.json_normalize(df['message'])
+    all_data_df = df.join(msg_df)
+
+    return dict(tx_data_df=all_data_df, cpu_data_df=None, memory_data_df=None, time_info=None, msprof_data=[], msprof_data_df=[])
+
+
 def main():
     parser = argparse.ArgumentParser(description='MS Server Profiler')
     parser.add_argument(
@@ -493,6 +687,26 @@ def main():
         default=['db', 'csv', 'json'],
         choices=['db', 'csv', 'json'],
         help='Format to save')
+    parser.add_argument(
+        '--prefill-batch-size',
+        type=int,
+        default=4,
+        help='Batch size for Prefill data.')
+    parser.add_argument(
+        '--decode-batch-size',
+        type=int,
+        default=10,
+        help='Batch size for Decode data.')
+    parser.add_argument(
+        '--prefill-number',
+        type=int,
+        default=1,
+        help='The number of Prefill batch to calc statistical data')
+    parser.add_argument(
+        '--decode-number',
+        type=int,
+        default=1,
+        help='The number of Decode batch to calc statistical data')
 
     args = parser.parse_args()
 
