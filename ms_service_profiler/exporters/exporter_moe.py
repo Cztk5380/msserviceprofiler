@@ -60,5 +60,5 @@ def plot_confidence_interval(ci_df, output_path):
     plt.ylabel("Mean Value")
     plt.grid(True)
 
-    with UmaskWrapper(umask=0o027):
+    with UmaskWrapper(umask=0o137):
         plt.savefig(output_path)

@@ -58,5 +58,5 @@ class ExporterEpBalance(ExporterBase):
         plt.ylabel("decoder_layers")
         plt.yticks(labels=[i for i in range(len(ep_balance_df))])
         plt_output_path = os.path.join(output, OUTPUT_PNG_NAME)
-        with UmaskWrapper(umask=0o027):
+        with UmaskWrapper(umask=0o137):
             plt.savefig(plt_output_path)
