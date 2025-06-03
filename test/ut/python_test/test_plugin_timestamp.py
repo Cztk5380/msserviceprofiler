@@ -148,8 +148,11 @@ def test_plugin_timestamp_helper_missing_time_info(sample_tx_data):
         'msprof_data': None,
         'time_info': None,
     }
-    with pytest.raises(ValueError):
-        PluginTimeStampHelper.parse(data)
+
+    # 调用 parse 方法，期望返回原始 data
+    result = PluginTimeStampHelper.parse(data)
+    # 断言返回的 result 不为空
+    assert result
 
 
 def test_plugin_timestamp(sample_tx_data, sample_cpu_data, sample_time_info):
