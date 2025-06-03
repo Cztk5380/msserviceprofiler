@@ -54,7 +54,7 @@ class ExporterEpBalance(ExporterBase):
         plt.tight_layout()
         plt.title("GMM duration of different devices and decoder_layers")
         plt.xlabel("processId from different devices")
-        plt.xticks(labels=list(ep_balance_df.cloumns))
+        plt.xticks(labels=list(ep_balance_df.columns))
         plt.ylabel("decoder_layers")
         plt.yticks(labels=[i for i in range(len(ep_balance_df))])
         plt_output_path = os.path.join(output, OUTPUT_PNG_NAME)
