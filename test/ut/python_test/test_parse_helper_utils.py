@@ -10,7 +10,9 @@ from concurrent.futures import ProcessPoolExecutor
 import pandas as pd
 
 from ms_service_profiler.parse_helper.utils import _convert_db_to_df, convert_db_to_df, convert_timestamp
-from ms_service_profiler.parse_helper.constant import MAJOR_TABLE_COLS, MAJOR_TABLE_NAME, MINOR_TABLE_COLS, MINOR_TABLE_NAME
+from ms_service_profiler.parse_helper.constant import MAJOR_TABLE_COLS, \
+    MAJOR_TABLE_NAME, MINOR_TABLE_COLS, MINOR_TABLE_NAME
+
 
 # 配置日志记录器
 logger = logging.getLogger(__name__)
