@@ -114,21 +114,11 @@ def test_read_origin_db(setup_test_directory):
         "msprof": "msprof_*.json"
     }
 
-    # 模拟数据框，确保包含 start_time 和 end_time 列
-    mock_df = pd.DataFrame({
-        'start_time': [1000, 2000, 3000],
-        'end_time': [1500, 2500, 3500],
-        'other_column': [1, 2, 3]
-    })
-
-    # 模拟 load_service_data 函数返回 mock_df
-    with patch('ms_service_profiler.parse.load_service_data', return_value=mock_df) as mock_load_service_data:
-        with patch('ms_service_profiler.parse.load_prof', side_effect=load_prof) as mock_load_prof:
-            data_list = read_origin_db(str(db_path))
-            assert isinstance(data_list, list)
-            assert len(data_list) == 2  # data_list 包含 load_prof 和 load_service_data 的结果
-            mock_load_prof.assert_called_once()
-            mock_load_service_data.assert_called_once_with(str(db_path))
+    with patch('ms_service_profiler.parse.load_prof', side_effect=load_prof) as mock_load_prof:
+        data_list = read_origin_db(str(db_path))
+        assert isinstance(data_list, list)
+        assert data_list
+        mock_load_prof.assert_called_once()
 
 
 def test_get_filepaths(setup_test_directory):

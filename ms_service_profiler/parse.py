@@ -521,6 +521,15 @@ def process(files):
 
     # 将文件内容转换为DataFrame
     df = convert_db_to_df(files)
+    if df is None:
+        return dict(
+            tx_data_df=pd.DataFrame(),  # 事务数据，包含hostuid列
+            cpu_data_df=None,  # CPU数据（暂无）
+            memory_data_df=None,  # 内存数据（暂无）
+            time_info=None,  # 时间信息（暂无）
+            msprof_data=[],  # msprof数据（暂无）
+            msprof_data_df=[]  # msprof数据（DataFrame格式，暂无）
+        )
 
     # 重置索引并重命名列
     df = df.reset_index(drop=True).rename(columns={'timestamp': 'start_time', 'endTimestamp': 'end_time'})
