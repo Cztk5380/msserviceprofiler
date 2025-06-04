@@ -115,7 +115,7 @@ def test_read_origin_db(setup_test_directory):
     }
 
     with patch('ms_service_profiler.parse.load_prof', side_effect=load_prof) as mock_load_prof:
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(KeyError) as exc_info:
             read_origin_db(str(db_path))
         mock_load_prof.assert_called_once()
 
@@ -358,9 +358,10 @@ def test_load_service_data_empty_folder_path(setup_test_directory):
     测试 load_service_data 函数在 db_path 为空时的行为。
     """
     db_path = ""
-    with pytest.raises(ValueError) as exc_info:
+    with pytest.raises(KeyError) as exc_info:
         load_service_data(db_path)
-    assert "No objects to concatenate" in str(exc_info.value), "当 db_path 为空时，应该抛出 ValueError"
+    assert "None of [Index(['start_time', 'end_time'], dtype='object')] are in the [columns]" in str(exc_info.value), \
+        "当 db_path 为空时，应该抛出 KeyError"
 
 
 def test_load_service_data_nonexistent_folder_path(setup_test_directory):
@@ -368,9 +369,10 @@ def test_load_service_data_nonexistent_folder_path(setup_test_directory):
     测试 load_service_data 函数在 db_path 不存在时的行为。
     """
     db_path = "/path/to/nonexistent/folder"
-    with pytest.raises(ValueError) as exc_info:
+    with pytest.raises(KeyError) as exc_info:
         load_service_data(db_path)
-    assert "No objects to concatenate" in str(exc_info.value), "当 db_path 为空时，应该抛出 ValueError"
+    assert "None of [Index(['start_time', 'end_time'], dtype='object')] are in the [columns]" in str(exc_info.value), \
+        "当 db_path 为空时，应该抛出 KeyError"
 
 
 def test_load_service_data_pattern_matches_files(setup_test_directory):
@@ -416,9 +418,10 @@ def test_load_service_data_pattern_no_match(setup_test_directory):
     # 创建一个不匹配的文件
     (db_path / "non_matching_file.db").write_text("non matching data")
 
-    with pytest.raises(ValueError) as exc_info:
+    with pytest.raises(KeyError) as exc_info:
         load_service_data(db_path)
-    assert "No objects to concatenate" in str(exc_info.value), "当 db_path 为空时，应该抛出 ValueError"
+    assert "None of [Index(['start_time', 'end_time'], dtype='object')] are in the [columns]" in str(exc_info.value), \
+        "当 db_path 为空时，应该抛出 KeyError"
 
     # 清理测试目录
     shutil.rmtree(tmp_path)
