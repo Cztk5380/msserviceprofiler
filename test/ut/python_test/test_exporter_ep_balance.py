@@ -1,9 +1,11 @@
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
-import pytest
 import os
-import pandas as pd
-from pathlib import Path
 import shutil
+from pathlib import Path
+import pytest
+import pandas as pd
+
+
 from ms_service_profiler.exporters.exporter_ep_balance import ExporterEpBalance
 
 
@@ -16,7 +18,7 @@ data_ep_balance = {
 }
 data = {"ep_balance": pd.DataFrame.from_dict(data_ep_balance)}
 test_path = os.path.join(os.getcwd(), "output_test")
-args = type('Args', (object,), {'output_path': test_path, 'format': ['csv', "db", "json"]})
+test_args = type('Args', (object,), {'output_path': test_path, 'format': ['csv', "db", "json"]})
 
 
 def test_exporter_ep_balance():
@@ -28,7 +30,7 @@ def test_exporter_ep_balance():
         file_png_path = Path(test_path, 'ep_balance.png')
         file_db_path = Path(test_path, 'profiler.db')
         # 初始化args
-        ExporterEpBalance.initialize(args)
+        ExporterEpBalance.initialize(test_args)
         # 调用export方法
         ExporterEpBalance.export(data)
         # 验证CSV文件是否生成
