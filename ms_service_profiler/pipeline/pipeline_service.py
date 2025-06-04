@@ -18,49 +18,27 @@ from ms_service_profiler.plugins.plugin_batch import PluginBatch
 
 @Task.register("pipeline:service")
 class PipelineService(PipelineBase):
-    def __init__(self, args) -> None:
-        super().__init__(args)
-        self.key_plugin_error = False
-        self.total_plugins = 9
-        self.cur_id = 0
-
     @classmethod
     def depends(cls):
-        return ["data_source:msprof"]
+        return ["data_source:msprof", "data_source:db"]
     
     @timer(logger.info)
     def run(self):
-        data = self.get_depends_result("data_source:msprof")
+        data_list = self.get_depends_result("data_source:msprof", [])
+        data_db = self.get_depends_result("data_source:db", None)
+        if data_db is not None:
+            data_list.extend(data_db)
+        if not data_list:
+            return None
 
-        data = self.run_step(PluginTimeStamp, PluginTimeStamp.name, data)
+        data = self.run_step(PluginTimeStamp, PluginTimeStamp.name, data_list)
         data = ProcessorRes().parse(data)
         data = self.run_step(PluginConcat, PluginConcat.name, data)
-        data = self.run_step(PluginCommon, PluginCommon.name, data)
-        data = self.run_step(PluginReqStatus, PluginReqStatus.name, data)
-        data = self.run_step(PluginMetric, PluginMetric.name, data)
-        data = self.run_step(PluginTrace, PluginTrace.name, data)
-        data = self.run_step(PluginProcessName, PluginProcessName.name, data)
-        data = self.run_step(PluginBatch, PluginBatch.name, data)
+        data = self.run_step(PluginCommon, PluginCommon.name, data, False)
+        data = self.run_step(PluginReqStatus, PluginReqStatus.name, data, False)
+        data = self.run_step(PluginMetric, PluginMetric.name, data, False)
+        data = self.run_step(PluginTrace, PluginTrace.name, data, False)
+        data = self.run_step(PluginProcessName, PluginProcessName.name, data, False)
+        data = self.run_step(PluginBatch, PluginBatch.name, data, False)
 
         return data
-
-    def run_step(self, processor, name, data):
-        self.cur_id += 1
-        if self.key_plugin_error:
-            return data
-        try:
-            data = processor.parse(data)
-            logger.info(f'[{self.cur_id + 1}/{self.total_plugins}] {name} success.')
-        except ParseError as ex:
-            # 关键plugins失败，程序执行结束
-            if name in ['plugin_timestamp', 'plugin_concat']:
-                logger.exception(f'{name} failure. Program stopped.')
-                self.key_plugin_error = True
-                return data
-            else:
-                # 非关键plugins失败，程序继续执行
-                logger.exception(f'{name} failure. Skip it.')
-        except Exception as ex:
-            logger.exception(f'{name} failure. Skip it.')
-        return data
-        

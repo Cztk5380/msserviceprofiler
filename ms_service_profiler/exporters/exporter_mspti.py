@@ -4,18 +4,13 @@ from typing import Dict
 
 from ms_service_profiler.utils.trace_to_db import TRACE_TABLE_DEFINITIONS
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.exporters.base import ExporterBase
+from ms_service_profiler.exporters.base import TaskExporterBase
 from ms_service_profiler.exporters.exporter_trace import save_trace_data_into_json, save_trace_data_into_db
 from ms_service_profiler.exporters.utils import create_sqlite_tables
 
 
-class ExporterMspti(ExporterBase):
+class ExporterMspti(TaskExporterBase):
     name: str = 'mspti'
-
-    @classmethod
-    @abstractmethod
-    def initialize(cls, args):
-        cls.args = args
 
     @classmethod
     @abstractmethod
@@ -50,6 +45,14 @@ class ExporterMspti(ExporterBase):
             create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
             save_trace_data_into_db(merged_data)
             logger.info('Write trace data to db success')
+
+    @classmethod
+    def depends(cls):
+        return ["pipeline:mspti"]
+
+    def do_export(self) -> None:
+        data: Dict = self.get_depends_result("pipeline:mspti")
+        self.export(data)
 
 
 def export_event_from_df(df, channel_name, tid):

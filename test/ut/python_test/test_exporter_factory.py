@@ -1,6 +1,6 @@
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
 import pytest
-from ms_service_profiler.exporters.base import ExporterBase
+from ms_service_profiler.exporters.base import TaskExporterBase
 from ms_service_profiler.exporters.factory import ExporterFactory
 from ms_service_profiler.exporters.exporter_trace import ExporterTrace
 from ms_service_profiler.exporters.exporter_req_status import ExporterReqStatus
@@ -21,7 +21,7 @@ def test_create_exporters(mock_args):
     """测试创建所有支持的Exporter"""
     exporters = ExporterFactory.create_exporters(mock_args)
     assert isinstance(exporters, list)
-    assert all(issubclass(exporter, ExporterBase) for exporter in exporters)
+    assert all(issubclass(exporter, TaskExporterBase) for exporter in exporters)
 
 
 def test_create_single_exporter(mock_args):
@@ -49,5 +49,5 @@ def test_create_all_exporters(mock_args):
     exporters = ExporterFactory.create_exporters(mock_args)
     assert isinstance(exporters, list)
     for exporter in exporters:
-        assert issubclass(exporter, ExporterBase)
+        assert issubclass(exporter, TaskExporterBase)
         assert hasattr(exporter, "initialize")

@@ -14,7 +14,6 @@ class PluginProcessName(PluginBase):
     @timer(logger.info)
     def parse(cls, data):
         tx_data_df : pd.DataFrame = data.get('tx_data_df')
-        from ms_service_profiler.exporters.utils import save_dataframe_to_csv
         
         if 'scope#dp' not in tx_data_df or 'rid' not in tx_data_df:
             # nothing to do 
@@ -54,6 +53,7 @@ class PluginProcessName(PluginBase):
             for rid in rid_list:
                 dp = rid_dp_dict.get(rid)
                 if dp is not None:
+                    pid_label_map.setdefault(row.pid, dict())
                     pid_label_map[row.pid]['dp'] = dp
                     break
 

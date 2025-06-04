@@ -21,7 +21,7 @@ class PluginTimeStampHelper(PluginBase):
         time_info = data.get('time_info')
         msprof_data_df = data.get('msprof_data')
 
-        if time_info is None:
+        if time_info is None or tx_data_df is None:
             return data
 
         calculate_timestamp(tx_data_df, time_info, prof_type='system_count')

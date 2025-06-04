@@ -11,3 +11,4 @@ platform/**
 *.xml
 *.db
 cmake-build-debug
+test/test_build/**

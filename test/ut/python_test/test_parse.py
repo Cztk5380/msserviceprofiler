@@ -12,6 +12,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from ms_service_profiler.parse import Task
 from ms_service_profiler.parse import (
     read_origin_db,
     get_filepaths,
@@ -23,7 +24,8 @@ from ms_service_profiler.parse import (
     load_tx_data,
     handle_service_pattern,
     load_service_data,
-    process
+    process,
+    build_task_dag,
 )
 
 # 配置日志
@@ -202,6 +204,61 @@ def test_load_tx_data(setup_test_directory):
     assert all(result.columns == ['pid', 'tid', 'event_type', 'start_time', 'end_time', 'mark_id',
        'ori_msg', 'message', 'name', 'span_id'])
     assert result.shape[0] == 1
+
+
+class MockTask(Task):
+    name = "mock_task"
+
+    @classmethod
+    def depends(cls):
+        return ["depend_task1", "depend_task2"]
+
+
+class MockTask2(Task):
+    name = "mock_task2"
+
+    @classmethod
+    def depends(cls):
+        return []
+
+
+@patch('ms_service_profiler.parse.Task.get_retister_by_name')
+def test_build_task_dag(mock_get_retister_by_name):
+    # 设置get_retister_by_name方法的返回值    
+    def get_task(name):
+        if name == "mock_task":
+            return MockTask
+        elif name == "mock_task2":
+            return MockTask2
+        else:
+            return Task  # 返回一个默认的Task类，以避免返回None
+    mock_get_retister_by_name.side_effect = get_task
+
+    # 调用build_task_dag函数
+    result = build_task_dag(["mock_task", "mock_task2"])
+
+    # 断言结果是一个元组
+    assert isinstance(result, tuple)
+    assert len(result) == 3
+    next_tasks, prev_tasks, head_tasks = result
+
+    # 断言next_tasks是一个字典
+    assert isinstance(next_tasks, dict)
+    assert len(next_tasks) == 2
+    assert next_tasks["depend_task1"] == ["mock_task"]
+    assert next_tasks["depend_task2"] == ["mock_task"]
+
+    # 断言prev_tasks是一个字典
+    assert isinstance(prev_tasks, dict)
+    assert len(prev_tasks) == 1
+    assert prev_tasks["mock_task"] == ["depend_task1", "depend_task2"]
+    assert "mock_task2" not in prev_tasks
+
+    # 断言head_tasks是一个集合
+    assert len(head_tasks) == 3
+    assert "mock_task2" in head_tasks
+    assert "depend_task1" in head_tasks
+    assert "depend_task2" in head_tasks
 
 
 def test_handle_other_wildcard_patterns_empty_folder_path(setup_test_directory):

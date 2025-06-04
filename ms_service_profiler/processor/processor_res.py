@@ -62,6 +62,8 @@ class ProcessorRes(ProcessorBase):
             if process_info.get("is_forward", False) is False:
                 data_df = process_info.get("df")
                 index = process_info.get("index")
+                if data_df is None:
+                    continue
 
                 if "from" not in data_df or "to" not in data_df:
                     continue

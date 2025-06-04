@@ -17,6 +17,10 @@ class Task():
         self._depends_output = dict()
 
     @classmethod
+    def is_deal_single_data(cls):
+        return False
+
+    @classmethod
     def depends(cls):
         return []
 
@@ -25,9 +29,14 @@ class Task():
         return cls.regist_map.get(name, None)
 
     @classmethod
-    def register(cls, name):
+    def register(cls, name=None):
         def decorator(task_type: type):
-            cls.regist_map[name] = task_type
+            task_name = getattr(cls, "name", None) if name is None else name
+
+            if task_name is None:
+                task_name = cls.__name__
+            cls.regist_map[task_name] = task_type
+            setattr(task_type, "name", task_name)
             return task_type
         return decorator
     
