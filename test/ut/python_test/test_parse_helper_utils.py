@@ -1,13 +1,16 @@
+# Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
+
 import unittest
 from unittest.mock import patch, MagicMock
-from ms_service_profiler.parse_helper.utils import _convert_db_to_df, convert_db_to_df, convert_timestamp
-from ms_service_profiler.parse_helper.constant import MAJOR_TABLE_COLS, MAJOR_TABLE_NAME, MINOR_TABLE_COLS, \
-    MINOR_TABLE_NAME, US_PER_SECOND
-import pandas as pd
 import sqlite3
-from concurrent.futures import ProcessPoolExecutor
 import datetime
 import logging
+
+from concurrent.futures import ProcessPoolExecutor
+import pandas as pd
+
+from ms_service_profiler.parse_helper.utils import _convert_db_to_df, convert_db_to_df, convert_timestamp
+from ms_service_profiler.parse_helper.constant import MAJOR_TABLE_COLS, MAJOR_TABLE_NAME, MINOR_TABLE_COLS, MINOR_TABLE_NAME
 
 # 配置日志记录器
 logger = logging.getLogger(__name__)

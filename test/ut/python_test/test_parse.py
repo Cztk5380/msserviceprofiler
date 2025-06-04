@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import sqlite3
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -24,6 +25,9 @@ from ms_service_profiler.parse import (
     load_service_data,
     process
 )
+
+# 配置日志
+logging.basicConfig(level=logging.INFO)
 
 
 class LoadDataError(Exception):
@@ -560,6 +564,6 @@ def test_process_normal(setup_test_directory):
             try:
                 pd.testing.assert_frame_equal(result['tx_data_df'], expected_df)
             except AssertionError as e:
-                print(f"AssertionError triggered as expected: {e}")
+                logging.info(f"AssertionError triggered as expected: {e}")
             else:
                 raise AssertionError("Expected an AssertionError to be raised, but it was not.")
