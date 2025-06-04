@@ -521,6 +521,15 @@ def process(files):
 
     # 将文件内容转换为DataFrame
     df = convert_db_to_df(files)
+    if df.empty:
+        return dict(
+            tx_data_df=pd.DataFrame(),  # 事务数据，包含hostuid列
+            cpu_data_df=None,  # CPU数据（暂无）
+            memory_data_df=None,  # 内存数据（暂无）
+            time_info=None,  # 时间信息（暂无）
+            msprof_data=[],  # msprof数据（暂无）
+            msprof_data_df=[]  # msprof数据（DataFrame格式，暂无）
+        )
 
     # 重置索引并重命名列
     df = df.reset_index(drop=True).rename(columns={'timestamp': 'start_time', 'endTimestamp': 'end_time'})
@@ -532,12 +541,12 @@ def process(files):
     df['during_time'] = df['end_time'] - df['start_time']
 
     # 将开始时间戳转换为本地时间（上海时区），格式化为字符串
-    df['start_datetime'] = pd.to_datetime(df['start_time'], unit='s', utc=True).dt.tz_convert(
+    df['start_datetime'] = pd.to_datetime(df['start_time'], unit='us', utc=True).dt.tz_convert(
         'Asia/Shanghai').dt.strftime("%Y-%m-%d %H:%M:%S:%f")
 
     # 将结束时间戳转换为本地时间（上海时区），格式化为字符串
-    df['end_datetime'] = pd.to_datetime(df['end_time'], unit='s', utc=True).dt.tz_convert('Asia/Shanghai').dt.strftime(
-        "%Y-%m-%d %H:%M:%S:%f")
+    df['end_datetime'] = pd.to_datetime(df['end_time'], unit='us', utc=True).dt.tz_convert(
+        'Asia/Shanghai').dt.strftime("%Y-%m-%d %H:%M:%S:%f")
 
     # 定义一个函数来处理消息字段
     df['message'] = (
