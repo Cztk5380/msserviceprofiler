@@ -40,5 +40,3 @@ def test_exporter_ep_balance():
     finally:
         # 清理
         shutil.rmtree(test_path)
-
-
