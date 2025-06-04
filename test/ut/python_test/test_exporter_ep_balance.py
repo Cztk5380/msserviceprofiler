@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 import pandas as pd
 
-
 from ms_service_profiler.exporters.exporter_ep_balance import ExporterEpBalance
 
 
