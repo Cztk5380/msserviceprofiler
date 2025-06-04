@@ -41,10 +41,8 @@ class ExporterMoe(ExporterBase):
         if "db" in cls.args.format:
             add_table_into_visual_db(moe_analysis_df, NAME)
 
-        moe_analysis_arr = moe_analysis_df.values
-
         plt_output_path = os.path.join(output, OUTPUT_PNG_NAME)
-        plot_confidence_interval(moe_analysis_arr, plt_output_path)
+        plot_confidence_interval(moe_analysis_df, plt_output_path)
 
 
 def plot_confidence_interval(ci_df, output_path):

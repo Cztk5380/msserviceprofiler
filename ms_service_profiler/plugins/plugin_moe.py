@@ -32,9 +32,13 @@ class PluginMoeSlowRankProcess(PluginBase):
         confidence_intervals = []
 
         for db_id, grouped_df in distribute_df.groupby("db_id"):
-            mean = grouped_df.mean().mean()
-            std = grouped_df.stack().std()
-            n = grouped_df.size
+            start_time_arr = grouped_df["start"].values
+            end_time_arr = grouped_df["end"].values
+            duration_arr = end_time_arr - start_time_arr
+
+            mean = duration_arr.mean().mean()
+            std = duration_arr.std()
+            n = duration_arr.size
 
             se = std / np.sqrt(n)
 
