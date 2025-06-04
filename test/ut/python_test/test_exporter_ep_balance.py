@@ -17,7 +17,7 @@ data_ep_balance = {
     3: data_per_pid
 }
 data = {"ep_balance": pd.DataFrame.from_dict(data_ep_balance)}
-test_path = os.path.join(os.getcwd(), "output_test")
+test_path = os.path.join(os.getcwd(), "ep_balance_output_test")
 Args = type('Args', (object,), {'output_path': test_path, 'format': ['csv', "db", "json"]})
 
 
