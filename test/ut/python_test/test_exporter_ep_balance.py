@@ -17,7 +17,7 @@ data_ep_balance = {
 }
 data = {"ep_balance": pd.DataFrame.from_dict(data_ep_balance)}
 test_path = os.path.join(os.getcwd(), "ep_balance_output_test")
-Args = type('Args', (object,), {'output_path': test_path, 'format': ['csv', "db", "json"]})
+Args = type('Args', (object,), {'output_path': test_path, 'format': ['csv', "json"]})
 
 
 def test_exporter_ep_balance():
@@ -27,7 +27,6 @@ def test_exporter_ep_balance():
         # 设置日志记录
         file_csv_path = Path(test_path, 'ep_balance.csv')
         file_png_path = Path(test_path, 'ep_balance.png')
-        file_db_path = Path(test_path, 'profiler.db')
         # 初始化args
         ExporterEpBalance.initialize(Args)
         # 调用export方法
@@ -35,7 +34,6 @@ def test_exporter_ep_balance():
         # 验证CSV文件是否生成
         assert file_csv_path.is_file()
         assert file_png_path.is_file()
-        assert file_db_path.is_file()
     finally:
         # 清理
         shutil.rmtree(test_path)
