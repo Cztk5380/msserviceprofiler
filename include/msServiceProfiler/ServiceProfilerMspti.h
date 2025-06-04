@@ -48,7 +48,7 @@ public:
 
     void InsertKernelData(msptiActivityKernel* activity);
 
-    void InsertCommData(msptiActivityHccl* activity);
+    void InsertCommunicationData(msptiActivityCommunication* activity);
 
     void InsertMstxData(msptiActivityMarker* activity);
 
@@ -78,7 +78,7 @@ private:
 
     void CreateKernelTable();
 
-    void CreateCommTable();
+    void CreateCommunicationTable();
 
 private:
     static constexpr size_t buffer_size = 5 * ONE_K * ONE_K;
@@ -89,7 +89,7 @@ private:
     sqlite3* db;
     sqlite3_stmt* stmtApi;
     sqlite3_stmt* stmtKernel;
-    sqlite3_stmt* stmtComm;
+    sqlite3_stmt* stmtCommunication;
     sqlite3_stmt* stmtMstx;
     std::set<std::string> filterApi;
     std::set<std::string> filterKernel;
