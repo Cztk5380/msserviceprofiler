@@ -15,7 +15,7 @@ import pandas as pd
 from ms_service_profiler.exporters.factory import ExporterFactory
 from ms_service_profiler.constant import US_PER_SECOND, MSPROF_REPORTS_PATH
 from ms_service_profiler.plugins import (
-    builtin_plugins, custom_plugins, PluginMsptiProcess, PluginEpBalanceProcess
+    builtin_plugins, custom_plugins, PluginMsptiProcess, PluginEpBalanceProcess, PluginMoeSlowRankProcess
 )
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
 from ms_service_profiler.utils.log import logger, set_log_level
@@ -389,6 +389,7 @@ def parse_run(input_path, exporters, args=None):
     else:
         data = PluginMsptiProcess.parse(data)
         data = PluginEpBalanceProcess.parse(data)
+        data = PluginMoeSlowRankProcess.parse(data)
 
     logger.info('Starting exporter processes.')
     with ProcessPoolExecutor() as executor:
