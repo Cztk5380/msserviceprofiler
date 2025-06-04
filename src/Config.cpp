@@ -101,18 +101,18 @@ void Config::ParseConfig(const Json& configJson)
 
 void Config::ParseMspti(const Json& config)
 {
-    if (config.contains("mspti_api_filter")) {
-        if (config["mspti_api_filter"].is_string()) {
-            apiFilter_ = config["mspti_api_filter"];
+    if (config.contains("api_filter")) {
+        if (config["api_filter"].is_string()) {
+            apiFilter_ = config["api_filter"];
         } else {
-            PROF_LOGW("Unknown mspti_api_filter type. mspti_api_filter set to nullptr.");  // LCOV_EXCL_LINE
+            PROF_LOGW("Unknown api_filter type. api_filter set to nullptr.");  // LCOV_EXCL_LINE
         }
     }
-    if (config.contains("mspti_kernel_filter")) {
-        if (config["mspti_kernel_filter"].is_string()) {
-            kernelFilter_ = config["mspti_kernel_filter"];
+    if (config.contains("kernel_filter")) {
+        if (config["kernel_filter"].is_string()) {
+            kernelFilter_ = config["kernel_filter"];
         } else {
-            PROF_LOGW("Unknown mspti_kernel_filter type. mspti_kernel_filter set to nullptr.");  // LCOV_EXCL_LINE
+            PROF_LOGW("Unknown kernel_filter type. kernel_filter set to nullptr.");  // LCOV_EXCL_LINE
         }
     }
 }
