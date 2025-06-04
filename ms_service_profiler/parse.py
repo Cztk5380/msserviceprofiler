@@ -521,7 +521,7 @@ def process(files):
 
     # 将文件内容转换为DataFrame
     df = convert_db_to_df(files)
-    if df is None:
+    if df.empty:
         return dict(
             tx_data_df=pd.DataFrame(),  # 事务数据，包含hostuid列
             cpu_data_df=None,  # CPU数据（暂无）

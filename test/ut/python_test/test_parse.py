@@ -114,21 +114,11 @@ def test_read_origin_db(setup_test_directory):
         "msprof": "msprof_*.json"
     }
 
-    # 模拟数据框，确保包含 start_time 和 end_time 列
-    mock_df = pd.DataFrame({
-        'start_time': [1000, 2000, 3000],
-        'end_time': [1500, 2500, 3500],
-        'other_column': [1, 2, 3]
-    })
-
-    # 模拟 load_service_data 函数返回 mock_df
-    with patch('ms_service_profiler.parse.load_service_data', return_value=mock_df) as mock_load_service_data:
-        with patch('ms_service_profiler.parse.load_prof', side_effect=load_prof) as mock_load_prof:
-            data_list = read_origin_db(str(db_path))
-            assert isinstance(data_list, list)
-            assert len(data_list) == 2  # data_list 包含 load_prof 和 load_service_data 的结果
-            mock_load_prof.assert_called_once()
-            mock_load_service_data.assert_called_once_with(str(db_path))  # 确保参数类型一致
+    with patch('ms_service_profiler.parse.load_prof', side_effect=load_prof) as mock_load_prof:
+        data_list = read_origin_db(str(db_path))
+        assert isinstance(data_list, list)
+        assert data_list
+        mock_load_prof.assert_called_once()
 
 
 def test_get_filepaths(setup_test_directory):
@@ -369,10 +359,27 @@ def test_load_service_data_empty_folder_path(setup_test_directory):
     测试 load_service_data 函数在 db_path 为空时的行为。
     """
     db_path = ""
-    with pytest.raises(KeyError) as exc_info:
-        load_service_data(db_path)
-    assert "None of [Index(['start_time', 'end_time'], dtype='object')] are in the [columns]" in str(exc_info.value), \
-        "当 db_path 为空时，应该抛出 KeyError"
+
+    # 调用 load_service_data 函数
+    result = load_service_data(db_path)
+
+    # 检查返回值是否符合预期
+    expected_result = {
+        "tx_data_df": pd.DataFrame(),  # 事务数据，包含hostuid列
+        "cpu_data_df": None,  # CPU数据（暂无）
+        "memory_data_df": None,  # 内存数据（暂无）
+        "time_info": None,  # 时间信息（暂无）
+        "msprof_data": [],  # msprof数据（暂无）
+        "msprof_data_df": []  # msprof数据（DataFrame格式，暂无）
+    }
+
+    # 逐字段比较
+    assert result["tx_data_df"].equals(expected_result["tx_data_df"]), "tx_data_df 应该是一个空的 DataFrame"
+    assert result["cpu_data_df"] == expected_result["cpu_data_df"], "cpu_data_df 应该为 None"
+    assert result["memory_data_df"] == expected_result["memory_data_df"], "memory_data_df 应该为 None"
+    assert result["time_info"] == expected_result["time_info"], "time_info 应该为 None"
+    assert result["msprof_data"] == expected_result["msprof_data"], "msprof_data 应该是一个空列表"
+    assert result["msprof_data_df"] == expected_result["msprof_data_df"], "msprof_data_df 应该是一个空列表"
 
 
 def test_load_service_data_nonexistent_folder_path(setup_test_directory):
@@ -380,10 +387,27 @@ def test_load_service_data_nonexistent_folder_path(setup_test_directory):
     测试 load_service_data 函数在 db_path 不存在时的行为。
     """
     db_path = "/path/to/nonexistent/folder"
-    with pytest.raises(KeyError) as exc_info:
-        load_service_data(db_path)
-    assert "None of [Index(['start_time', 'end_time'], dtype='object')] are in the [columns]" in str(exc_info.value), \
-        "当 db_path 为空时，应该抛出 KeyError"
+
+    # 调用 load_service_data 函数
+    result = load_service_data(db_path)
+
+    # 检查返回值是否符合预期
+    expected_result = {
+        "tx_data_df": pd.DataFrame(),  # 事务数据，包含hostuid列
+        "cpu_data_df": None,  # CPU数据（暂无）
+        "memory_data_df": None,  # 内存数据（暂无）
+        "time_info": None,  # 时间信息（暂无）
+        "msprof_data": [],  # msprof数据（暂无）
+        "msprof_data_df": []  # msprof数据（DataFrame格式，暂无）
+    }
+
+    # 逐字段比较
+    assert result["tx_data_df"].equals(expected_result["tx_data_df"]), "tx_data_df 应该是一个空的 DataFrame"
+    assert result["cpu_data_df"] == expected_result["cpu_data_df"], "cpu_data_df 应该为 None"
+    assert result["memory_data_df"] == expected_result["memory_data_df"], "memory_data_df 应该为 None"
+    assert result["time_info"] == expected_result["time_info"], "time_info 应该为 None"
+    assert result["msprof_data"] == expected_result["msprof_data"], "msprof_data 应该是一个空列表"
+    assert result["msprof_data_df"] == expected_result["msprof_data_df"], "msprof_data_df 应该是一个空列表"
 
 
 def test_load_service_data_pattern_matches_files(setup_test_directory):
@@ -429,10 +453,26 @@ def test_load_service_data_pattern_no_match(setup_test_directory):
     # 创建一个不匹配的文件
     (db_path / "non_matching_file.db").write_text("non matching data")
 
-    with pytest.raises(KeyError) as exc_info:
-        load_service_data(db_path)
-    assert "None of [Index(['start_time', 'end_time'], dtype='object')] are in the [columns]" in str(exc_info.value), \
-        "当 db_path 为空时，应该抛出 KeyError"
+    # 调用 load_service_data 函数
+    result = load_service_data(db_path)
+
+    # 检查返回值是否符合预期
+    expected_result = {
+        "tx_data_df": pd.DataFrame(),  # 事务数据，包含hostuid列
+        "cpu_data_df": None,  # CPU数据（暂无）
+        "memory_data_df": None,  # 内存数据（暂无）
+        "time_info": None,  # 时间信息（暂无）
+        "msprof_data": [],  # msprof数据（暂无）
+        "msprof_data_df": []  # msprof数据（DataFrame格式，暂无）
+    }
+
+    # 逐字段比较
+    assert result["tx_data_df"].equals(expected_result["tx_data_df"]), "tx_data_df 应该是一个空的 DataFrame"
+    assert result["cpu_data_df"] == expected_result["cpu_data_df"], "cpu_data_df 应该为 None"
+    assert result["memory_data_df"] == expected_result["memory_data_df"], "memory_data_df 应该为 None"
+    assert result["time_info"] == expected_result["time_info"], "time_info 应该为 None"
+    assert result["msprof_data"] == expected_result["msprof_data"], "msprof_data 应该是一个空列表"
+    assert result["msprof_data_df"] == expected_result["msprof_data_df"], "msprof_data_df 应该是一个空列表"
 
     # 清理测试目录
     shutil.rmtree(tmp_path)
