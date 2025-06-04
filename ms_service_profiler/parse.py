@@ -14,7 +14,9 @@ import pandas as pd
 
 from ms_service_profiler.exporters.factory import ExporterFactory
 from ms_service_profiler.constant import US_PER_SECOND, MSPROF_REPORTS_PATH
-from ms_service_profiler.plugins import builtin_plugins, custom_plugins, PluginMsptiProcess
+from ms_service_profiler.plugins import (
+    builtin_plugins, custom_plugins, PluginMsptiProcess, PluginEpBalanceProcess, PluginMoeSlowRankProcess
+)
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
 from ms_service_profiler.utils.log import logger, set_log_level
 from ms_service_profiler.utils.timer import timer
@@ -301,11 +303,12 @@ def read_mspti_db(input_path):
     data_list = []
     for db_path, db_id in paths_and_pid:
         try:
-            api_df, kernel_df = load_ops_db(db_path, db_id)
+            api_df, kernel_df, communication_df = load_ops_db(db_path, db_id)
             data_list.append(
                 dict(
                     api_df=api_df,
                     kernel_df=kernel_df,
+                    communication_df=communication_df,
                     db_id=db_id
                 )
             )
@@ -322,11 +325,17 @@ def load_ops_db(filepath, db_id):
         kernel_query = """
         SELECT name, type, start, end, deviceId, streamId, correlationId FROM Kernel order by correlationId asc
         """
+        communication_query = """
+        SELECT name, start, end, deviceId, streamId, dataCount, dataType, commGroupName, correlationId FROM Communication 
+        order by correlationId asc
+        """
         api_df = pd.read_sql_query(api_query, conn)
         kernel_df = pd.read_sql_query(kernel_query, conn)
+        communication_df = pd.read_sql_query(communication_query, conn)
         api_df["db_id"] = db_id
         kernel_df["db_id"] = db_id
-    return api_df, kernel_df
+        communication_df["db_id"] = db_id
+    return api_df, kernel_df, communication_df
 
 
 def check_sub_profiler_path(input_path):
@@ -407,6 +416,8 @@ def parse_run(input_path, exporters, args=None):
         data = pipeline.run()
     else:
         data = PluginMsptiProcess.parse(data)
+        data = PluginEpBalanceProcess.parse(data)
+        data = PluginMoeSlowRankProcess.parse(data)
 
     logger.info('Starting exporter processes.')
     futures = {exporter.name: exporter.export(data) for exporter in exporters}
