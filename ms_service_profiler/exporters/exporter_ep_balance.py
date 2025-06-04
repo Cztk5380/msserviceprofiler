@@ -51,12 +51,12 @@ class ExporterEpBalance(ExporterBase):
 
         plt.figure(figsize=(x_pixel, y_pixel))
         plt.imshow(heat_map)
-        plt.tight_layout()
         plt.title("GMM duration of different devices and decoder_layers")
         plt.xlabel("processId from different devices")
-        plt.xticks(labels=list(ep_balance_df.columns))
+        plt.xticks(ticks=[i for i in range(len(ep_balance_df.columns))], labels=list(ep_balance_df.columns))
         plt.ylabel("decoder_layers")
-        plt.yticks(labels=[i for i in range(len(ep_balance_df))])
+        plt.yticks(ticks=[i for i in range(len(ep_balance_df))], labels=[i for i in range(len(ep_balance_df))])
+        plt.tight_layout()
         plt_output_path = os.path.join(output, OUTPUT_PNG_NAME)
         with UmaskWrapper(umask=0o137):
             plt.savefig(plt_output_path)
