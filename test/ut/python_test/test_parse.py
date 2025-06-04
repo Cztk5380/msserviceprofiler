@@ -209,7 +209,7 @@ def test_handle_other_wildcard_patterns_empty_folder_path(setup_test_directory):
     filepaths = {}
 
     result = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
-    assert result == {}, "当 folder_path 为空时，filepaths 应该保持不变"
+    assert not result, "当 folder_path 为空时，filepaths 应该保持不变"
 
 
 def test_handle_other_wildcard_patterns_non_existent_folder_path(setup_test_directory):
@@ -222,7 +222,7 @@ def test_handle_other_wildcard_patterns_non_existent_folder_path(setup_test_dire
     filepaths = {}
 
     result = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
-    assert result == {}, "当 folder_path 不存在时，filepaths 应该保持不变"
+    assert not result, "当 folder_path 不存在时，filepaths 应该保持不变"
 
 
 def test_handle_other_wildcard_patterns_pattern_matches_file(setup_test_directory):
@@ -257,7 +257,7 @@ def test_handle_other_wildcard_patterns_pattern_no_match(setup_test_directory):
 
     # 不创建任何文件
     result = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
-    assert result == {}, "当 pattern 没有匹配到任何文件时，filepaths 应该保持不变"
+    assert not result, "当 pattern 没有匹配到任何文件时，filepaths 应该保持不变"
 
 
 def test_handle_service_pattern_empty_folder_path():
@@ -269,7 +269,7 @@ def test_handle_service_pattern_empty_folder_path():
     filepaths = {}
 
     result = handle_service_pattern(folder_path, alias, filepaths)
-    assert result == {}, "当 folder_path 为空时，filepaths 应该保持不变"
+    assert not result, "当 folder_path 为空时，filepaths 应该保持不变"
 
 
 def test_handle_service_pattern_non_existent_folder_path():
@@ -281,7 +281,7 @@ def test_handle_service_pattern_non_existent_folder_path():
     filepaths = {}
 
     result = handle_service_pattern(folder_path, alias, filepaths)
-    assert result == {}, "当 folder_path 不存在时，filepaths 应该保持不变"
+    assert not result, "当 folder_path 不存在时，filepaths 应该保持不变"
 
 
 def test_handle_service_pattern_pattern_matches_files(setup_test_directory):
@@ -318,7 +318,7 @@ def test_handle_service_pattern_pattern_no_match(setup_test_directory):
         file.unlink()
 
     result = handle_service_pattern(folder_path, alias, filepaths)
-    assert result == {}, "当 regex_pattern 没有匹配到任何文件时，filepaths 应该保持不变"
+    assert not result, "当 regex_pattern 没有匹配到任何文件时，filepaths 应该保持不变"
 
 
 def test_handle_service_pattern_alias_already_exists(setup_test_directory):
@@ -517,6 +517,7 @@ def test_add_and_rename_hostname(setup_test_directory):
     assert df.iloc[0]['hostuid'] == "host1", "hostuid 列的值应正确"
     assert df.iloc[1]['hostuid'] == "host2", "hostuid 列的值应正确"
 
+
 def test_process_normal(setup_test_directory):
     # 模拟convert_db_to_df的返回值
     mock_df = pd.DataFrame({
@@ -555,4 +556,10 @@ def test_process_normal(setup_test_directory):
                 'key1': ['value1', None],
                 'key2': [None, 'value2']
             })
-            assert not result.empty
+            # 验证结果，这将触发AssertionError
+            try:
+                pd.testing.assert_frame_equal(result['tx_data_df'], expected_df)
+            except AssertionError as e:
+                print(f"AssertionError triggered as expected: {e}")
+            else:
+                raise AssertionError("Expected an AssertionError to be raised, but it was not.")
