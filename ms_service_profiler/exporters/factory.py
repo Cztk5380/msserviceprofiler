@@ -9,13 +9,12 @@ from ms_service_profiler.exporters.exporter_latency import ExporterLatency
 from ms_service_profiler.exporters.exporter_pd_comm import ExporterPDComm
 from ms_service_profiler.exporters.exporter_mspti import ExporterMspti
 from ms_service_profiler.exporters.exporter_ep_balance import ExporterEpBalance
-from ms_service_profiler.exporters.exporter_moe import ExporterMoe
 
 
 # 插件工厂类
 class ExporterFactory:
     exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterReqData, ExporterBatchData, \
-                    ExporterKVCacheData, ExporterLatency, ExporterPDComm, ExporterMspti, ExporterEpBalance, ExporterMoe]
+                    ExporterKVCacheData, ExporterLatency, ExporterPDComm, ExporterMspti, ExporterEpBalance]
 
     @staticmethod
     def create_exporters(args):
@@ -28,7 +27,7 @@ class ExporterFactory:
     @staticmethod
     def create_mspti_exporters(args):
         exporters = []
-        enable_exporter = ['mspti', "ep_balance", "moe_analysis"]
+        enable_exporter = ['mspti', "ep_balance"]
         for name in enable_exporter:
             exporters.append(ExporterFactory.create(name, args))
         return exporters
