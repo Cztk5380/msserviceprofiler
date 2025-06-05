@@ -5,7 +5,7 @@ from typing import Dict
 
 import matplotlib.pyplot as plt
 
-from ms_service_profiler.exporters.base import ExporterBase
+from ms_service_profiler.exporters.base import TaskExporterBase
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv, add_table_into_visual_db
 from ms_service_profiler.utils.file_open_check import UmaskWrapper
 
@@ -17,7 +17,7 @@ MAX_PLT_PIXEL = 2560
 MIN_PLT_PIXEL = 32
 
 
-class ExporterEpBalance(ExporterBase):
+class ExporterEpBalance(TaskExporterBase):
     name: str = NAME
 
     @classmethod
@@ -60,3 +60,11 @@ class ExporterEpBalance(ExporterBase):
         plt_output_path = os.path.join(output, OUTPUT_PNG_NAME)
         with UmaskWrapper(umask=0o137):
             plt.savefig(plt_output_path)
+
+    @classmethod
+    def depends(cls):
+        return ["pipeline:mspti"]
+
+    def do_export(self) -> None:
+        data: Dict = self.get_depends_result("pipeline:mspti")
+        self.export(data)
