@@ -28,7 +28,7 @@ class MsprofDataSource(BaseDataSource):
             "start_info": "start_info",
             "msprof": "msprof_*.json"
         }
-        command = gen_msprof_command(prof_path._str)
+        command = gen_msprof_command(str(prof_path))
         run_msprof_command(command)
         filepaths = self.get_filepaths(prof_path, file_filter)
         try:
