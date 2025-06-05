@@ -5,7 +5,7 @@ from typing import Dict
 
 import matplotlib.pyplot as plt
 
-from ms_service_profiler.exporters.base import ExporterBase
+from ms_service_profiler.exporters.base import TaskExporterBase
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv, add_table_into_visual_db
 from ms_service_profiler.utils.file_open_check import UmaskWrapper
 
@@ -15,7 +15,7 @@ OUTPUT_PNG_NAME = "moe_analysis.png"
 NAME = "moe_analysis"
 
 
-class ExporterMoe(ExporterBase):
+class ExporterMoe(TaskExporterBase):
     name: str = NAME
 
     @classmethod
@@ -43,6 +43,14 @@ class ExporterMoe(ExporterBase):
 
         plt_output_path = os.path.join(output, OUTPUT_PNG_NAME)
         plot_confidence_interval(moe_analysis_df, plt_output_path)
+
+    @classmethod
+    def depends(cls):
+        return ["pipeline:mspti"]
+
+    def do_export(self) -> None:
+        data: Dict = self.get_depends_result("pipeline:mspti")
+        self.export(data)
 
 
 def plot_confidence_interval(ci_df, output_path):
