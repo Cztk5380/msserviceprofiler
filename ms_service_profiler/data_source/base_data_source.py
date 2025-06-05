@@ -15,11 +15,11 @@ class BaseDataSource(Task):
         file_path_map = {}
         for group_name, pattern in file_pattern_map.items():
             if isinstance(pattern, tuple):
-                pattern, mutil_file = pattern
+                pattern, multi_file = pattern
             else:
-                pattern, mutil_file = pattern, False
+                pattern, multi_file = pattern, False
             for fp in Path(folder_path).rglob(pattern):
-                if mutil_file:
+                if multi_file:
                     file_path_map.setdefault(group_name, [])
                     file_path_map[group_name].append(str(fp))
                 else:
