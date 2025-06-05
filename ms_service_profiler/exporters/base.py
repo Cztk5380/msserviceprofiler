@@ -28,7 +28,11 @@ class TaskExporterBase(Task):
 
 class ExporterBase(TaskExporterBase):
     name: str = 'base'
+    args = None
     
+    def __init__(self, args=None) -> None:
+        super().__init__(args if args is not None else self.args)
+
     @classmethod
     def depends(cls):
         return ["pipeline:service"]
