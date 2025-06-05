@@ -465,8 +465,14 @@ def run_task(task, task_results):
 
 def parse_run(input_path, exporters, args=None):
     logger.info('Start to parse.')
-
-    exporters = [exporter(args) for exporter in exporters if exporter.is_provide(args.format)]
+    exporter_new = []
+    for exporter in exporters:
+        if exporter.is_provide(args.format):
+            if isinstance(exporter, Task):
+                exporter_new.append(exporter)
+            else:
+                exporter_new.append(exporter(args))
+    exporters = exporter_new
     exporter_names = [exporter.name for exporter in exporters]
     next_tasks, prev_tasks, data_source_tasks = build_task_dag(exporters)
     ordered_tasks = get_task_run_order(data_source_tasks, next_tasks, prev_tasks)
@@ -518,7 +524,6 @@ def parse_run(input_path, exporters, args=None):
             except Exception as e:
                 logger.error(f"Error raise from exporter: {exporter_name}, message: {e}")
 
-    logger.warning("\n".join((str(x) for x in err_msg)))
     logger.info('Exporter done.')
 
 

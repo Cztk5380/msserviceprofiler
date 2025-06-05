@@ -12,7 +12,7 @@ class DefaultValue(Enum):
 class Task():
     regist_map = dict()
 
-    def __init__(self, args=None) -> None:
+    def __init__(self, args) -> None:
         self._args = args
         self._depends_output = dict()
 
