@@ -24,7 +24,7 @@ class PipelineService(PipelineBase):
     
     @timer(logger.info)
     def run(self):
-        data_list = self.get_depends_result("data_source:msprof", [])
+        data_list = self.get_depends_result("data_source:msprof", []) or []
         data_db = self.get_depends_result("data_source:db", None)
         if data_db is not None:
             data_list.extend(data_db)
