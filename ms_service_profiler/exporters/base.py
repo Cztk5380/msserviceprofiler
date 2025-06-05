@@ -36,7 +36,7 @@ class ExporterBase(TaskExporterBase):
     @classmethod
     @abstractmethod
     def initialize(cls, args):
-        pass
+        cls.args = args
 
     @classmethod
     @abstractmethod
@@ -44,7 +44,8 @@ class ExporterBase(TaskExporterBase):
         pass
 
     def run(self):
-        self.initialize(self._args)
+        if self._args is not None:
+            self.initialize(self._args)
         data = self.get_depends_result("pipeline:service")
         if data is None:
             logger.debug(f"{self.name}: nothing to export")

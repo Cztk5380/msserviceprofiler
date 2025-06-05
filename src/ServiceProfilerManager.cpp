@@ -199,9 +199,7 @@ void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
         return;
     }
     DATA_PTR setCfg = static_cast<DATA_PTR>(data);
-    if (setCfg->deviceId != g_deviceID) {
-        AddMetaInfo("deviceid", std::to_string(g_deviceID).c_str());
-    }
+    
     if (setCfg->deviceId != g_deviceID && g_startFlag) {
         g_deviceID = setCfg->deviceId;
         StopServerProfiler();
