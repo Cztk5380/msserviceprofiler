@@ -4,6 +4,7 @@ import json
 from collections import defaultdict
 import pandas as pd
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.utils.file_open_check import safe_json_dump
 from ms_service_profiler.constant import NS_PER_US
 
 
@@ -85,7 +86,7 @@ def trans_trace_meta_data(event):
 
 # X, I类型: slice
 def trans_trace_slice_data(event):
-    args = json.dumps(event.get('args'))
+    args = safe_json_dump(event.get('args'))
     ts = convert_ts_to_ns(event.get('ts'))
     dur = convert_ts_to_ns(event.get('dur'))
     return {'ts': ts, 'dur': dur, 'name': event.get('name'), 'pid': event.get('pid'),
@@ -103,7 +104,7 @@ def trans_trace_flow_data(event):
 def trans_trace_counter_data(event):
     cid = event.get('id')
     name = event.get('name')
-    args = json.dumps(event.get('args'))
+    args = safe_json_dump(event.get('args'))
     if cid is not None:
         name = name + '[' + cid + ']'
     ts = convert_ts_to_ns(event.get('ts'))

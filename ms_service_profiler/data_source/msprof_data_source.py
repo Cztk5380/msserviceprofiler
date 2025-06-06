@@ -18,7 +18,9 @@ class MsprofDataSource(BaseDataSource):
         return filepaths
 
     def load(self, prof_path):
-        from ms_service_profiler.parse import load_prof, gen_msprof_command, run_msprof_command, clear_last_msprof_output
+        from ms_service_profiler.parse import load_prof, gen_msprof_command, run_msprof_command, \
+                    clear_last_msprof_output, is_need_msprof
+
         file_filter = {
             "tx": "msproftx.db",
             "cpu": "host_cpu_usage.db",
@@ -28,9 +30,11 @@ class MsprofDataSource(BaseDataSource):
             "start_info": "start_info",
             "msprof": "msprof_*.json"
         }
-        command = gen_msprof_command(str(prof_path))
-        clear_last_msprof_output(str(prof_path))
-        run_msprof_command(command)
+        cur_path = str(prof_path)
+        if is_need_msprof(cur_path):
+            command = gen_msprof_command(cur_path)
+            clear_last_msprof_output(cur_path)
+            run_msprof_command(command)
         filepaths = self.get_filepaths(prof_path, file_filter)
         try:
             data = load_prof(filepaths)
