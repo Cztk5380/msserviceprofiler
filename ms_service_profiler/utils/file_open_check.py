@@ -4,6 +4,7 @@ import os
 import sys
 import stat
 import re
+import json
 import logging
 
 from enum import Enum
@@ -381,3 +382,9 @@ def get_valid_lib_path(so_name: str) -> Optional[str]:
     else:
         return so_name
 
+
+def safe_json_dump(obj, *args, **kwargs):
+    if not isinstance(obj, (str, int, float, bool, type(None), list, dict, tuple)):
+        raise TypeError(f"Object of type {type(obj)} is not safe JSON serializable")
+
+    return json.dumps(obj, *args, **kwargs)

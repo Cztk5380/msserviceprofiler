@@ -29,7 +29,7 @@ from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.exporters.utils import (
     create_sqlite_db, check_input_path_valid, check_output_path_valid,
-    find_file_in_dir, delete_dir_safely, create_sqlite_tables
+    find_file_in_dir, delete_dir_safely, find_all_file_complete
 )
 
 
@@ -156,9 +156,12 @@ def load_memory_data(db_path):
 
 def load_cpu_freq(info_path):
     cpu_frequency = None
-    file_description = os.open(info_path, os.O_RDONLY)
-    with os.fdopen(file_description, 'r') as info:
-        data = json.load(info)
+    with ms_open(info_path, 'r') as info:
+        try:
+            data = json.load(info)
+        except JSONDecodeError as ex:
+            logger.error(f"file {info_path} is not a json file. ")
+            return 0
         if 'CPU' not in data or not isinstance(data['CPU'], list) or len(data['CPU']) == 0:
             raise ValueError(f"Invalid or missing 'CPU' data in {info_path}.")
         cpu_data = data['CPU'][0]
@@ -604,7 +607,7 @@ def clear_last_msprof_output(full_path):
 
 
 def is_need_msprof(full_path):
-    if not find_file_in_dir(full_path, 'msproftx.db'):
+    if not find_all_file_complete(full_path, 'all_file.complete'):
         return True
 
     msprof_output_path = os.path.join(full_path, 'mindstudio_profiler_output')

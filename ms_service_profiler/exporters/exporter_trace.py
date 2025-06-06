@@ -5,7 +5,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 
 from ms_service_profiler.exporters.base import ExporterBase
-from ms_service_profiler.utils.file_open_check import ms_open
+from ms_service_profiler.utils.file_open_check import ms_open, safe_json_dump
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
@@ -129,7 +129,7 @@ def write_trace_data_to_file(trace_data, output):
     def write_trace_data(range_index):
         start_index, end_index = range_index
         trace_data_list = trace_data[start_index:end_index]
-        return json.dumps(trace_data_list, ensure_ascii=False)
+        return safe_json_dump(trace_data_list, ensure_ascii=False)
 
     gourp_count = 100000
     data_count = len(trace_data)
