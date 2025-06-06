@@ -240,13 +240,12 @@ def find_file_in_dir(directory, filename):
 
 def find_all_file_complete(directory, filename='all_file.complete'):
     count = 0
-    max_iter = MAX_ITERATIONS
     data_count = 0
     data_with_file_count = 0
  
-    for root, dirs, files in os.walk(directory):
+    for root, _, files in os.walk(directory):
         count += len(files)
-        if count > max_iter:
+        if count > MAX_ITERATIONS:
             break
         if os.path.basename(root) == 'data':
             data_count += 1
