@@ -32,8 +32,8 @@ class MsprofDataSource(BaseDataSource):
         }
         cur_path = str(prof_path)
         if is_need_msprof(cur_path):
-            command = gen_msprof_command(str(prof_path))
-            clear_last_msprof_output(str(prof_path))
+            command = gen_msprof_command(cur_path)
+            clear_last_msprof_output(cur_path)
             run_msprof_command(command)
         filepaths = self.get_filepaths(prof_path, file_filter)
         try:
