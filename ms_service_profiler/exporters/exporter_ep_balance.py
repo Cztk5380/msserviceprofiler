@@ -64,7 +64,7 @@ class ExporterEpBalance(TaskExporterBase):
     @classmethod
     def depends(cls):
         return ["pipeline:mspti"]
-
+ 
     def do_export(self) -> None:
         data: Dict = self.get_depends_result("pipeline:mspti")
         self.export(data)

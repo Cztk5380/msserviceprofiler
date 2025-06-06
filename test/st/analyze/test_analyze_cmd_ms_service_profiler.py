@@ -56,7 +56,7 @@ def check_kvcache_csv_content(output_path, csv_file_name):
             check_row(df, row_index, [column])
 
 
-def check_kvcache_db_content(output_path, db_file_name):
+def check_db_table_content(output_path, db_file_name, table_name):
     db_file = os.path.join(output_path, db_file_name)
     expected_db_columns = [
         'rid',
@@ -69,7 +69,7 @@ def check_kvcache_db_content(output_path, db_file_name):
 
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
-    cursor.execute('PRAGMA table_info("kvcache")')
+    cursor.execute(f'PRAGMA table_info({table_name})')
     columns = cursor.fetchall()
     actual_columns = [column[1] for column in columns]
 
@@ -443,11 +443,17 @@ class TestAnalyzeCmd(TestCase):
         with self.subTest("Check kvcache CSV content"):
             check_kvcache_csv_content(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME)
         with self.subTest("Check kvcache DB content"):
-            check_kvcache_db_content(self.OUTPUT_PATH, self.DB_FILE_NAME)
+            check_db_table_content(self.OUTPUT_PATH, self.DB_FILE_NAME, "kvcache")
 
         # 校验时延数据生成
         with self.subTest():
             check_latency_data(self.OUTPUT_PATH)
+        
+        # 校验profiler.db中的trace数据生成
+        with self.subTest():
+            generate_db_tables = ["batch", "batch_exec", "batch_req", "data_table", "req_data", "kvcache_data"]
+            for name in generate_db_tables:
+                check_db_table_content(self.OUTPUT_PATH, self.DB_FILE_NAME, name)
 
         # 校验请求状态数的数据生成
         with self.subTest():

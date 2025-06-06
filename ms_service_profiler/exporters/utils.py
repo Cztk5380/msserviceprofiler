@@ -26,19 +26,97 @@ CREATE_DATA_TABLE_SQL = """
 UPDATA_DATA_TABLE_SQL = """
     INSERT INTO data_table (name, view_name) VALUES (?,?);
 """
-VIEWS_LIST = [
-    'Batch_Size_by_Batch_ID_curve', 'Kvcache_Usage_Percent_curve', 'Prefill_Generate_Speed_Latency_curve',
-    'Request_Latency_curve', 'Decode_Generate_Speed_Latency_curve', 'First_Token_Latency_curve',
-    'Request_Status_curve'
-]
-
-DATA_TABLE_RECORDS = {
+CURVE_VIEW_NAME_LIST = {
+    # 折线图原始表名: 视图名称
+    'batch': 'Batch_Size_by_Batch_ID_curve',
+    'kvcache': 'Kvcache_Usage_Percent_curve',
+    'prefill_gen_speed': 'Prefill_Generate_Speed_Latency_curve',
+    'req_latency': 'Request_Latency_curve',
+    'decode_gen_speed': 'Decode_Generate_Speed_Latency_curve',
+    'first_token_latency': 'First_Token_Latency_curve',
+    'request_status': 'Request_Status_curve'
+}
+TABLE_DATA_VIEW_NAME_LIST = {
+    # 需要以纯表显示的db中的表名: data_table中的视图名称
     'batch': 'batch_info',
     'kvcache': 'kvcache_usage',
     'pd_split_communication': 'pd_split_communication',
-    'request_data': 'request_data',
-    'pull_kvcache': 'pd_split_pull_kvcache'
+    'request': 'request_data',
+    'pd_split_kvcache': 'pd_split_pull_kvcache'
 }
+RENAME_COLUMNS_LIST = {
+    # csv文件/db表名称: 需要重命名的列
+    'batch': {
+        'start_time': 'start_time(ms)', 'end_time': 'end_time(ms)', 'during_time': 'during_time(ms)'
+    },
+    'pd_split_kvcache': {
+        'start_time': 'start_time(ms)', 'end_time': 'end_time(ms)', 'during_time': 'during_time(ms)',
+        'start_datetime': 'start_datetime(ms)', 'end_datetime': 'end_datetime(ms)'
+    },
+    'kvcache': {
+        'deviceBlock=': 'device_kvcache_left', 'start_time': 'timestamp(ms)',
+        'start_datetime': 'start_datetime(ms)'
+    },
+    'pd_split_communication': {
+        'http_req_time': 'http_req_time(ms)', 'send_request_time': 'send_request_time(ms)',
+        'send_request_succ_time': 'send_request_succ_time(ms)', 'prefill_res_time': 'prefill_res_time(ms)',
+        'requset_end_time': 'requset_end_time(ms)'
+    },
+    'request_data': {
+        'start_time': 'start_time(ms)', 'execution_time': 'execution_time(ms)',
+        'queue_wait_time': 'queue_wait_time(ms)', 'first_token_latency': 'first_token_latency(ms)'
+    }
+}
+
+
+def write_result_to_db(df_param_list, name, create_sql_views=[]):
+    try:
+        # 写入数据库表
+        for df, df_name in df_param_list:
+            add_table_into_visual_db(df, df_name)
+
+        # 创建视图
+        create_sqlite_views(name, create_sql_views)
+    except Exception as error:
+        logger.warning(f"{name} write to db failed due to {error}")
+
+
+def write_result_to_csv(df, output, name):
+    if name in RENAME_COLUMNS_LIST.keys():
+        df.rename(columns=RENAME_COLUMNS_LIST[name])
+    save_dataframe_to_csv(df, output, f"{name}.csv")
+
+
+def create_view_with_renamed_column(cursor, table_name, view_name):
+    # 获取所有列名
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    columns = [column[1] for column in cursor.fetchall()]  # 第2个元素是列名
+    
+    # 构建SELECT部分，重命名指定列
+    select_parts = []
+    for col in columns:
+        if col in RENAME_COLUMNS_LIST.get(RENAME_COLUMNS_LIST, {}).keys():
+            select_parts.append(f"{col} AS {RENAME_COLUMNS_LIST[table_name][col]}")
+        else:
+            select_parts.append(col)
+    
+    select_clause = ", ".join(select_parts)
+
+    # 创建视图
+    create_view_sql = f"""
+    CREATE VIEW {view_name} AS
+    SELECT {select_clause}
+    FROM {table_name}
+    """
+
+    cursor.execute(create_view_sql)
+
+
+def del_all_visual_table(views, cursor):
+    for view in views:
+        if view[0] in CURVE_VIEW_NAME_LIST.values() or\
+            view[0] in TABLE_DATA_VIEW_NAME_LIST.values():
+         cursor.execute(f"DROP VIEW IF EXISTS {view[0]};")
 
 
 def create_sqlite_db(output):
@@ -64,9 +142,7 @@ def create_sqlite_db(output):
         views = cursor.fetchall()
 
         # 删除所有视图
-        for view in views:
-            if view[0] in VIEWS_LIST:
-                cursor.execute(f"DROP VIEW IF EXISTS {view[0]};")
+        del_all_visual_table(views, cursor)
     except Exception as ex:
         conn.rollback()  # 失败时回滚
         raise DatabaseError("Cannot create sqlite database.") from ex
@@ -75,19 +151,20 @@ def create_sqlite_db(output):
             conn.close()
 
 
-def create_sqlite_views(name, create_view_sql=None):
-    if create_view_sql is None:
-        return
-
+def create_sqlite_views(name, create_view_sql=[]):
     with db_write_lock:
         with ms_open(visual_db_fp, "a") as f:
             try:
                 conn = sqlite3.connect(visual_db_fp)
                 cursor = conn.cursor()
-                cursor.execute(create_view_sql)
+                for sql in create_view_sql:
+                    cursor.execute(sql)
+                if name in TABLE_DATA_VIEW_NAME_LIST.keys():
+                    create_view_with_renamed_column(cursor, name, TABLE_DATA_VIEW_NAME_LIST[name])
                 conn.commit()
                 conn.close()
             except Exception as ex:
+                conn.rollback()  # 失败时回滚
                 raise DatabaseError(f"Cannot update sqlite database when create {name} views.") from ex
 
 
@@ -117,9 +194,10 @@ def get_db_connection():
 
 
 def add_record_to_data_table(table_name, conn):
-    if table_name in DATA_TABLE_RECORDS.keys():
+    if table_name in TABLE_DATA_VIEW_NAME_LIST.keys():
         cursor = conn.cursor()
-        cursor.execute(UPDATA_DATA_TABLE_SQL, (table_name, DATA_TABLE_RECORDS[table_name]))
+        view_name = TABLE_DATA_VIEW_NAME_LIST[table_name]
+        cursor.execute(UPDATA_DATA_TABLE_SQL, (view_name, view_name))
 
 
 def add_table_into_visual_db(df, table_name):
@@ -137,11 +215,12 @@ def add_table_into_visual_db(df, table_name):
                 conn = sqlite3.connect(visual_db_fp)
                 df.to_sql(table_name, conn, if_exists='replace', index=False)
 
-                # 判断如果改表需要在Insight中用纯表展示，则刷新data_table中记录
+                # 判断如果此表需要在Insight中用纯表展示，则刷新data_table中记录
                 add_record_to_data_table(table_name, conn)
                 conn.commit()
                 conn.close()
             except Exception as ex:
+                conn.rollback()  # 失败时回滚
                 raise DatabaseError("Cannot update sqlite database.") from ex
 
 
