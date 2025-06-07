@@ -21,7 +21,7 @@ class ExporterFactory:
     def create_exporters(args):
         exporters = []
         enable_exporter = ['trace', 'req_status', 'req_data', 'batch_data', 'kvcache_data', 'latency', 'pd_comm', 
-            'mspti', "ep_balance", "moe_analysis"]
+            "ep_balance", "moe_analysis"]
         for name in enable_exporter:
             exporters.append(ExporterFactory.create(name, args))
         return exporters

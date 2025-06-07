@@ -4,19 +4,19 @@ import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 
-from ms_service_profiler.exporters.base import ExporterBase
+from ms_service_profiler.exporters.base import TaskExporterBase
 from ms_service_profiler.utils.file_open_check import ms_open, safe_json_dump
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.error import DatabaseError
-from ms_service_profiler.exporters.utils import get_db_connection, create_sqlite_tables
+from ms_service_profiler.exporters.utils import get_db_connection, create_sqlite_tables, export_event_from_df
 from ms_service_profiler.utils.trace_to_db import (
     trans_trace_event, save_cache_data_to_db, TRACE_TABLE_DEFINITIONS
 )
 
 
-class ExporterTrace(ExporterBase):
+class ExporterTrace(TaskExporterBase):
     name = "trace"
 
     @classmethod
@@ -24,8 +24,15 @@ class ExporterTrace(ExporterBase):
         cls.args = args
 
     @classmethod
+    def depends(cls):
+        return ["pipeline:service", "pipeline:mspti"]
+
+    def do_export(self):
+        self.export(self.get_depends_result("pipeline:service"), self.get_depends_result("pipeline:mspti"))
+
+    @classmethod
     @timer(logger.info)
-    def export(cls, data) -> None:
+    def export(cls, data, mspti) -> None:
         if 'db' not in cls.args.format and 'json' not in cls.args.format:
             return
 
@@ -43,6 +50,20 @@ class ExporterTrace(ExporterBase):
         cann_data = [load_single_prof(pf, index) for index, pf in enumerate(msprof_data_df)]
         trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
         merged_data = merge_json_data(trace_data, cann_data)
+
+        api_df, kernel_df = mspti['api_df'], mspti['kernel_df']
+        if not api_df.empty or not kernel_df.empty:
+
+            tarce_events_list = []
+
+            api_events = export_event_from_df(api_df, "Api", "Api")
+            tarce_events_list.extend(api_events)
+
+            kernel_events = export_event_from_df(kernel_df, "Kernel", "Kernel")
+            tarce_events_list.extend(kernel_events)
+
+            mspti_data = {"traceEvents": tarce_events_list}
+            merged_data = merge_json_data(merged_data, [mspti_data])
 
         if 'json' in cls.args.format:
             save_trace_data_into_json(merged_data, output)
@@ -255,13 +276,10 @@ def sort_trace_events_by_pid(pid_label_map):
 
 
 def sort_trace_events_by_tid(trace_events):
-    req_status_names = list(ReqStatus.__members__.keys())
-    # mindie 330将BatchScheduler打点修改为batchFrameworkProcessing，此处做新旧版本的兼容处理
-    tid_sorting_order = ['http', 'Queue'] + req_status_names + \
-        ['batchFrameworkProcessing', 'BatchSchedule', 'modelExec']
+    tid_sorting_order = ['KVCache', 'Communication', 'BatchSchedule', 'ModelExecute', 'Request', 'Api', 'Kernel']
     main_pid = 0
     for event_info in trace_events:
-        if event_info.get("cat") in tid_sorting_order:
+        if event_info.get("tid") in tid_sorting_order:
             main_pid = event_info.get("pid")
             break
     tid_sorting_meta = [dict(
