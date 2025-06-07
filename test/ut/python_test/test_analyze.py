@@ -28,6 +28,7 @@ class TestCheckInputPathValid(unittest.TestCase):
         path = self.temp_dir
         result = check_input_path_valid(path)
         self.assertEqual(result, path)
+        self.tearDown()
 
 
     def test_invalid_directory(self):
@@ -36,6 +37,7 @@ class TestCheckInputPathValid(unittest.TestCase):
         with self.assertRaises(ArgumentTypeError) as context:
             check_input_path_valid(path)
         self.assertIn(f"Path is not a valid directory: {path}", str(context.exception))
+        self.tearDown()
 
 
     def test_not_a_directory(self):
@@ -46,6 +48,7 @@ class TestCheckInputPathValid(unittest.TestCase):
         with self.assertRaises(ArgumentTypeError) as context:
             check_input_path_valid(path)
         self.assertIn(f"Path is not a valid directory: {path}", str(context.exception))
+        self.tearDown()
 
 
     @patch('ms_service_profiler.utils.file_open_check.FileStat')
@@ -54,6 +57,7 @@ class TestCheckInputPathValid(unittest.TestCase):
         with self.assertRaises(ArgumentTypeError) as context:
             check_input_path_valid(path)
         self.assertIn(f"input path:{path} is illegal. Please check.", str(context.exception))
+        self.tearDown()
 
 
 if __name__ == '__main__':
