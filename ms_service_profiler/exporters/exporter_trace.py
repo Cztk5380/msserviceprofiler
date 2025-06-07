@@ -14,7 +14,6 @@ from ms_service_profiler.exporters.utils import get_db_connection, create_sqlite
 from ms_service_profiler.utils.trace_to_db import (
     trans_trace_event, save_cache_data_to_db, TRACE_TABLE_DEFINITIONS
 )
-from ms_service_profiler.exporters.exporter_mspti import export_event_from_df
 
 
 class ExporterTrace(TaskExporterBase):
@@ -423,3 +422,45 @@ def add_pull_kvcache_events(df):
         all_events.extend(events)
 
     return all_events
+
+
+def export_event_from_df(df, channel_name, tid):
+    tarce_events_list = []
+
+    name_arr = df["name"].values
+    start_arr = df["start"].values
+    end_arr = df["end"].values
+    process_arr = df["db_id"].values
+
+    for i in range(len(df)):
+        name = name_arr[i]
+        start = start_arr[i] // 1000
+        end = end_arr[i] // 1000
+        process_id = process_arr[i]
+
+        trace_event = {
+            "name": name,
+            "ph": "X",
+            "ts": int(start),
+            "dur": int(end - start),
+            "pid": int(process_id),
+            "tid": tid,
+            "args": {}
+        }
+
+        tarce_events_list.append(trace_event)
+
+    process_ids = list(set(list(process_arr)))
+    for process_id in process_ids:
+        channel_event = {
+            "ph": "M",
+            "pid": int(process_id),
+            "tid": tid,
+            "name": "thread_name",
+            "args": {
+                "name": channel_name
+            }
+        }
+        tarce_events_list.append(channel_event)
+
+    return tarce_events_list
