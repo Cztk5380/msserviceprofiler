@@ -19,7 +19,8 @@ class TestCheckInputPathValid(unittest.TestCase):
     def tearDown(self):
         # 删除临时目录
         import shutil
-        shutil.rmtree(self.temp_dir)
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
 
 
     def test_valid_directory(self):

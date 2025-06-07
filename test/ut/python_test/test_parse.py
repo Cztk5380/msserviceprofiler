@@ -687,7 +687,7 @@ def test_process_normal(setup_test_directory):
 def test_empty_directory(setup_test_directory):
     empty_dir = setup_test_directory / "empty_dir"
     empty_dir.mkdir()
-    assert preprocess_prof_folders(empty_dir) == False
+    assert not preprocess_prof_folders(empty_dir)
 
 
 # 测试目录中没有需要处理的 PROF_ 文件夹的情况
@@ -695,17 +695,17 @@ def test_no_msprof_needed(setup_test_directory):
     no_prof_dir = setup_test_directory / "NO_PROF_1"
     no_prof_dir.mkdir()
     (no_prof_dir / "valid_file").write_text("Valid content")
-    assert preprocess_prof_folders(setup_test_directory) == True
+    assert preprocess_prof_folders(setup_test_directory)
 
 
 # 测试生成 msprof 命令并成功执行的情况
 def test_msprof_command_generation(setup_test_directory):
-    assert preprocess_prof_folders(setup_test_directory) == True
+    assert preprocess_prof_folders(setup_test_directory)
 
 
 # 测试 msprof 命令执行后成功生成 msproftx.db 文件的情况
 def test_msprof_output_found(setup_test_directory):
-    assert preprocess_prof_folders(setup_test_directory) == True
+    assert preprocess_prof_folders(setup_test_directory)
 
 
 def test_main():
