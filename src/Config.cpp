@@ -40,7 +40,8 @@ void Config::ReadConfigPath()
     }
 }
 
-void Config::CheckProfEnvVars() {
+void Config::CheckProfEnvVars()
+{
     // 检查环境变量 PROFILER_SAMPLECONFIG 是否被设置
     if (getenv("PROFILER_SAMPLECONFIG")) {
         configPath_ = "";
@@ -212,7 +213,8 @@ void Config::ParseProfPath(const Json& config)
     profPath_.append(profPathDateTail_);
 }
 
-void Config::CheckMsptiAndEnableMspti(const Json &config) {
+void Config::CheckMsptiAndEnableMspti(const Json &config)
+{
     char* ld_preload = getenv("LD_PRELOAD");
     std::string ld_preload_str = ld_preload ? ld_preload : "";
     if (ld_preload_str.find("libmspti.so") != std::string::npos) {
@@ -230,12 +232,10 @@ void Config::ParseAclTaskTime(const Json &config)
     if (config.contains("acl_task_time")) {
         if (config["acl_task_time"].is_number_integer()) {
             enableAclTaskTime_ = config["acl_task_time"] == ACL_PROF_ENABLE_TASK_TIME;
-
             // 需要检测是否开启了mspti，如果开启了则会导致mstx和aclprof的数据丢失
             if (enableAclTaskTime_) {
                 CheckMsptiAndEnableMspti(config);
             }
-
         } else {
             PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");  // LCOV_EXCL_LINE
         }
