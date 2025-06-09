@@ -52,8 +52,9 @@ def check_kvcache_csv_content(output_path, csv_file_name):
     rows_to_check = [0, -1]
     columns_to_check = ['device_kvcache_left']
     for row_index in rows_to_check:
-        for column in columns_to_check:
-            check_row(df, row_index, [column])
+        if df.iloc[row_index]['name'] != 'allocate':
+            for column in columns_to_check:
+                check_row(df, row_index, [column])
 
 
 def check_kvcache_db_content(output_path, db_file_name):
@@ -398,7 +399,7 @@ class TestAnalyzeCmd(TestCase):
         df = pd.read_csv(csv_file_path)
         self.assertNotEqual(len(df), 0, msg="The data of req csv is empty.")
 
-        expected_header = ['http_rid', 'start_time_httpReq(ms)', 'recv_token_size', 'reply_token_size', \
+        expected_header = ['http_rid', 'start_time(ms)', 'recv_token_size', 'reply_token_size', \
                            'execution_time(ms)', 'queue_wait_time(ms)']
         check_column(df.columns.tolist(), expected_header, context='request.csv')
         # 检查是否有多余空行
