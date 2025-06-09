@@ -212,7 +212,7 @@ void Config::ParseProfPath(const Json& config)
     profPath_.append(profPathDateTail_);
 }
 
-void Config:: CheckMsptiAndEnableMspti(const Json &config) {
+void Config::CheckMsptiAndEnableMspti(const Json &config) {
     char* ld_preload = getenv("LD_PRELOAD");
     std::string ld_preload_str = ld_preload ? ld_preload : "";
     if (ld_preload_str.find("libmspti.so") != std::string::npos) {
