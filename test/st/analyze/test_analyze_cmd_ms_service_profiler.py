@@ -417,10 +417,10 @@ class TestAnalyzeCmd(TestCase):
                 if not is_whole_number(df.iloc[row_index][column]):
                     raise AssertionError(f"Row {row_index}, column {column}: not an integer.")
 
-        # 检查数据框的第一行和最后一行的特定列
-        rows_to_check = [0, -1]
+        # 检查execution_time(ms)列有数据行
+        rows_to_check = df[df['execution_time(ms)'].notna()]
         columns_to_check = ['recv_token_size', 'reply_token_size']
-        for row_index in rows_to_check:
+        for row_index, _ in rows_to_check.iterrows():
             for column in columns_to_check:
                 check_row(df, row_index, [column])
 
