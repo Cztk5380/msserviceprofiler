@@ -48,7 +48,7 @@ def load_start_cnt(config_path):
 
 
 def load_start_time(start_info_path):
-    file_description = os.open(start_info_path, os.O_RDONLY)
+    file_description = ms_open(start_info_path, os.O_RDONLY)
     with os.fdopen(file_description, 'r') as info:
         data = json.load(info)
         if 'collectionTimeBegin' not in data or 'clockMonotonicRaw' not in data:
