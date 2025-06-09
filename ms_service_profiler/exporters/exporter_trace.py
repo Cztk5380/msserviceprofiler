@@ -4,6 +4,8 @@ import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 
+import pandas as pd
+
 from ms_service_profiler.exporters.base import TaskExporterBase
 from ms_service_profiler.utils.file_open_check import ms_open, safe_json_dump
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
@@ -51,7 +53,13 @@ class ExporterTrace(TaskExporterBase):
         trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
         merged_data = merge_json_data(trace_data, cann_data)
 
-        api_df, kernel_df = mspti['api_df'], mspti['kernel_df']
+        api_df = pd.DataFrame()
+        kernel_df = pd.DataFrame()
+
+        if mspti is not None:
+            api_df = mspti.get('api_df', pd.DataFrame())
+            kernel_df = mspti.get('kernel_df', pd.DataFrame())
+
         if not api_df.empty or not kernel_df.empty:
 
             tarce_events_list = []
