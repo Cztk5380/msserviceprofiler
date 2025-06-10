@@ -12,6 +12,7 @@
 
 namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
+constexpr int ACL_PROF_ENABLE_TASK_TIME = 1;
 constexpr int MSPTI_ENABLE_TASK_TIME = 2;
 constexpr int MAX_TIME_LIMIT = 7200;
 Config::Config()
@@ -30,10 +31,35 @@ void Config::ReadAndSaveConfig()
 void Config::ReadConfigPath()
 {
     configPath_ = getenv("SERVICE_PROF_CONFIG_PATH") ? getenv("SERVICE_PROF_CONFIG_PATH") : "";
+
+    // 检查msprof是否开启了动态或静态采集，如果开启则不读取配置文件以防采集冲突
+    CheckProfEnvVars();
+
     if (!configPath_.empty() && access(configPath_.c_str(), F_OK) != 0) {
         configPath_ = "";
     }
 }
+
+void Config::CheckProfEnvVars()
+{
+    // 检查环境变量 PROFILER_SAMPLECONFIG 是否被设置
+    if (getenv("PROFILER_SAMPLECONFIG")) {
+        configPath_ = "";
+        PROF_LOGE("Failed to initialize profiling config, env variable `PROFILER_SAMPLECONFIG` is set. "
+                  "This causes conflicts with dynamic profiling. ");
+        return;
+    }
+
+    // 检查环境变量 PROFILING_MODE 是否等于 dynamic
+    char* profilingMode = getenv("PROFILING_MODE");
+    if (profilingMode && std::string(profilingMode) == "dynamic") {
+        configPath_ = "";
+        PROF_LOGE("Failed to initialize profiling config, env variable `PROFILING_MODE` is set to dynamic. "
+                  "This causes conflicts with dynamic profiling. ");
+        return;
+    }
+}
+
 
 Json Config::ReadConfigFile()
 {
@@ -187,18 +213,36 @@ void Config::ParseProfPath(const Json& config)
     profPath_.append(profPathDateTail_);
 }
 
+void Config::CheckMsptiAndEnableMspti(const Json &config)
+{
+    char* ld_preload = getenv("LD_PRELOAD");
+    std::string ld_preload_str = ld_preload ? ld_preload : "";
+    if (ld_preload_str.find("libmspti.so") != std::string::npos) {
+        PROF_LOGW("Detected mspti is enabled, which conflicts with acl prof. "
+                  "`acl_task_time` has been reset to the default value 0. If you need to enable it, "
+                  "check the loading of libmspti.so in LD_PRELOAD.");
+        enableAclTaskTime_ = false;
+    }
+    msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
+}
+
 void Config::ParseAclTaskTime(const Json &config)
 {
     enableAclTaskTime_ = false;  // Default to false
     if (config.contains("acl_task_time")) {
         if (config["acl_task_time"].is_number_integer()) {
-            enableAclTaskTime_ = config["acl_task_time"] == 1;
-            msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
+            enableAclTaskTime_ = config["acl_task_time"] == ACL_PROF_ENABLE_TASK_TIME;
+            // 需要检测是否开启了mspti，如果开启了则会导致mstx和aclprof的数据丢失
+            if (enableAclTaskTime_) {
+                CheckMsptiAndEnableMspti(config);
+            }
         } else {
             PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");  // LCOV_EXCL_LINE
         }
     }
     PROF_LOGI("profile enableAclTaskTime_: %s", enableAclTaskTime_ ? "true" : "false");  // LCOV_EXCL_LINE
+    PROF_LOGI("profile msptiEnable_: %s", msptiEnable_ ? "true" : "false");
+
     if (config.contains("acl_prof_task_time_level")) {
         auto aclProfTaskTimeLevel = MsUtils::SplitStr(config["acl_prof_task_time_level"], ';');
         // parser aclTaskTimeLevel

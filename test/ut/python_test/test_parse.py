@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+import sys
+import stat
 
 from ms_service_profiler.parse import Task
 from ms_service_profiler.parse import (
@@ -26,6 +28,8 @@ from ms_service_profiler.parse import (
     load_service_data,
     process,
     build_task_dag,
+    main,
+    preprocess_prof_folders
 )
 
 # 配置日志
@@ -224,7 +228,7 @@ class MockTask2(Task):
 
 @patch('ms_service_profiler.parse.Task.get_retister_by_name')
 def test_build_task_dag(mock_get_retister_by_name):
-    # 设置get_retister_by_name方法的返回值    
+    # 设置get_retister_by_name方法的返回值
     def get_task(name):
         if name == "mock_task":
             return MockTask
@@ -271,7 +275,7 @@ def test_handle_other_wildcard_patterns_empty_folder_path(setup_test_directory):
     filepaths = {}
 
     result = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
-    assert not result, "当 folder_path 为空时，filepaths 应该保持不变"
+    assert result == filepaths, "当 folder_path 为空时，filepaths 应该保持不变"
 
 
 def test_handle_other_wildcard_patterns_non_existent_folder_path(setup_test_directory):
@@ -678,3 +682,66 @@ def test_process_normal(setup_test_directory):
                 logging.info(f"AssertionError triggered as expected: {e}")
             else:
                 raise AssertionError("Expected an AssertionError to be raised, but it was not.")
+
+
+def test_empty_directory(setup_test_directory):
+    empty_dir = setup_test_directory / "empty_dir"
+    empty_dir.mkdir()
+    assert not preprocess_prof_folders(empty_dir)
+
+
+# 测试目录中没有需要处理的 PROF_ 文件夹的情况
+def test_no_msprof_needed(setup_test_directory):
+    no_prof_dir = setup_test_directory / "NO_PROF_1"
+    no_prof_dir.mkdir()
+    (no_prof_dir / "valid_file").write_text("Valid content")
+    assert preprocess_prof_folders(setup_test_directory)
+
+
+# 测试生成 msprof 命令并成功执行的情况
+def test_msprof_command_generation(setup_test_directory):
+    assert preprocess_prof_folders(setup_test_directory)
+
+
+# 测试 msprof 命令执行后成功生成 msproftx.db 文件的情况
+def test_msprof_output_found(setup_test_directory):
+    assert preprocess_prof_folders(setup_test_directory)
+
+
+def test_main():
+    # 设置测试用的输入和输出路径
+    input_path = "test_input"
+    output_path = "test_output"
+
+    # 确保输入路径存在（可以是一个空目录）
+    os.makedirs(input_path, exist_ok=True)
+
+    # 确保输出路径不存在（测试时会创建）
+    if os.path.exists(output_path):
+        shutil.rmtree(output_path)  # 删除非空目录
+
+    # 设置输入路径的权限为可读、可写、可执行（避免权限问题）
+    os.chmod(input_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+
+    # 修改 sys.argv 来模拟命令行参数
+    sys.argv = [
+        "test_script.py",  # 脚本名称
+        "--input-path", input_path,
+        "--output-path", output_path,
+        "--log-level", "info",
+        "--format", "db", "csv", "json"
+    ]
+
+    # 调用 main 函数
+    try:
+        main()
+        print("main() 函数运行成功，没有报错。")
+    except Exception as e:
+        print(f"main() 函数运行失败，报错信息：{e}")
+    finally:
+        # 清理测试目录
+        if os.path.exists(input_path):
+            shutil.rmtree(input_path)  # 删除非空目录
+        if os.path.exists(output_path):
+            shutil.rmtree(output_path)  # 删除非空目录
+

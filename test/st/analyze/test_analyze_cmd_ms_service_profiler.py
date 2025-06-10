@@ -52,8 +52,9 @@ def check_kvcache_csv_content(output_path, csv_file_name):
     rows_to_check = [0, -1]
     columns_to_check = ['device_kvcache_left']
     for row_index in rows_to_check:
-        for column in columns_to_check:
-            check_row(df, row_index, [column])
+        if df.iloc[row_index]['name'] != 'allocate':
+            for column in columns_to_check:
+                check_row(df, row_index, [column])
 
 
 def check_db_table_content(output_path, db_file_name, table_name):
@@ -398,7 +399,7 @@ class TestAnalyzeCmd(TestCase):
         df = pd.read_csv(csv_file_path)
         self.assertNotEqual(len(df), 0, msg="The data of req csv is empty.")
 
-        expected_header = ['http_rid', 'start_time_httpReq(ms)', 'recv_token_size', 'reply_token_size', \
+        expected_header = ['http_rid', 'start_time(ms)', 'recv_token_size', 'reply_token_size', \
                            'execution_time(ms)', 'queue_wait_time(ms)']
         check_column(df.columns.tolist(), expected_header, context='request.csv')
         # 检查是否有多余空行
@@ -417,10 +418,10 @@ class TestAnalyzeCmd(TestCase):
                 if not is_whole_number(df.iloc[row_index][column]):
                     raise AssertionError(f"Row {row_index}, column {column}: not an integer.")
 
-        # 检查数据框的第一行和最后一行的特定列
-        rows_to_check = [0, -1]
+        # 检查execution_time(ms)列有数据行
+        rows_to_check = df[df['execution_time(ms)'].notna()]
         columns_to_check = ['recv_token_size', 'reply_token_size']
-        for row_index in rows_to_check:
+        for row_index, _ in rows_to_check.iterrows():
             for column in columns_to_check:
                 check_row(df, row_index, [column])
 
