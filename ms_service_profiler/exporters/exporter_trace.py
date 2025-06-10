@@ -87,7 +87,7 @@ def process_prof_trace_events(events, index):
 
 def load_single_prof(pf, prof_id):
     try:
-        with ms_open(pf, 'r', encoding='utf-8') as file:
+        with ms_open(pf, 'r', encoding='utf-8', max_size=-1) as file:
             trace_events = json.load(file)
 
     except FileNotFoundError:
