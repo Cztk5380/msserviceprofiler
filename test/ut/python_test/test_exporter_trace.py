@@ -72,6 +72,31 @@ def mock_data():
     }
 
 
+@pytest.fixture
+def mock_mspti():
+    return {
+        'api_df': pd.DataFrame({
+            'name': ['aclnnInplaceCopy_SliceAiCore_Slice', 'aclnnEmbedding_GatherV2AiCore_GatherV2'],
+            'start': [12345, 12346],
+            'end': [12355, 12356],
+            'processId': [409726, 409726],
+            'threadId': [409895, 409895],
+            'correlationId': [1268, 1273],
+            'db_id': [409726, 409726],
+        }),
+        'kernel_df': pd.DataFrame({
+            'name': ['aclnnInplaceCopy_SliceAiCore_Slice', 'aclnnEmbedding_GatherV2AiCore_GatherV2'],
+            'type': ['KERNEL_AIVEC', 'KERNEL_AIVEC'],
+            'start': [12345, 12346],
+            'end': [12355, 12356],
+            'deviceId': [0, 0],
+            'streamId': [2, 2],
+            'correlationId': [1268, 1273],
+            'db_id': [409726, 409726],
+        }),
+    }
+
+
 def test_find_cann_pid():
     # 测试找到 CANN PID 的情况
     trace_events = [
@@ -146,13 +171,13 @@ def test_exporter_initialize():
 # 测试 ExporterTrace 的 export 方法
 @mock.patch('ms_service_profiler.exporters.exporter_trace.create_trace_events')
 @mock.patch('ms_service_profiler.exporters.exporter_trace.save_trace_data_into_json')
-def test_exporter_export(mock_save, mock_create, mock_data):
+def test_exporter_export(mock_save, mock_create, mock_data, mock_mspti):
     # 模拟 create_trace_events 返回值
     mock_create.return_value = {'traceEvents': []}
     mock_save.return_value = None  # 模拟保存行为
 
     ExporterTrace.initialize(mock.Mock(output_path='/tmp', format=['json']))
-    ExporterTrace.export(mock_data)
+    ExporterTrace.export(mock_data, mock_mspti)
 
     # 验证 create_trace_events 被调用一次
     mock_create.assert_called_once()
@@ -189,16 +214,18 @@ def test_create_trace_events(mock_data):
 # 测试 sort_trace_events_by_tid
 def test_sort_trace_events_by_tid():
     trace_events = [
-        {'tid': 'http', 'name': 'event1'},
-        {'tid': 'Queue', 'name': 'event2'},
-        {'tid': 'BatchSchedule', 'name': 'event3'}
+        {'tid': 'KVCache', 'name': 'event1'},
+        {'tid': 'BatchSchedule', 'name': 'event2'},
+        {'tid': 'Api', 'name': 'event3'},
+        {'tid': 'Kernel', 'name': 'event4'},
     ]
     sorted_trace_events = sort_trace_events_by_tid(trace_events)
 
     # 验证事件是否按正确顺序排序
-    assert sorted_trace_events[0]['tid'] == 'http'
-    assert sorted_trace_events[1]['tid'] == 'Queue'
-    assert sorted_trace_events[2]['tid'] == 'BatchSchedule'
+    assert sorted_trace_events[0]['tid'] == 'KVCache'
+    assert sorted_trace_events[1]['tid'] == 'BatchSchedule'
+    assert sorted_trace_events[2]['tid'] == 'Api'
+    assert sorted_trace_events[3]['tid'] == 'Kernel'
 
 
 def test_add_mem_events_valid_data():
