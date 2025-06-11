@@ -18,6 +18,11 @@ msptiResult msptiActivityEnable(int kind)
 
 msptiResult msptiActivityGetNextRecord(uint8_t *buffer, size_t validBufferSizeBytes, msptiActivity **record)
 {
+    thread_local uint8_t *localBuffer = nullptr;
+    if (buffer == localBuffer) {
+        return MSPTI_ERROR_MAX_LIMIT_REACHED;
+    }
+    localBuffer = buffer;
     *record = reinterpret_cast<msptiActivity *>(buffer);
     if (buffer == nullptr) {
         return MSPTI_ERROR_INVALID_PARAMETER;
