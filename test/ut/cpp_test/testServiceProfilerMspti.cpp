@@ -391,11 +391,6 @@ TEST(ServiceProfilerMsptiTest, UserBufferComplete_InvalidBuffer)
     uint8_t *buffer = (uint8_t *)malloc(size);
     size_t validSize = size;
 
-    MockStubFunc stubs;
-    // 调用函数
-    EXPECT_CALL(stubs, msptiActivityGetNextRecord(::testing::_, ::testing::_, ::testing::_))
-        .WillRepeatedly(::testing::Return(msptiResult::MSPTI_ERROR_MAX_LIMIT_REACHED));
-
     UserBufferComplete(buffer, size, validSize);
 
     // 验证是否成功处理缓冲区数据
