@@ -18,7 +18,7 @@ msptiResult msptiActivityEnable(int kind)
 
 msptiResult msptiActivityGetNextRecord(uint8_t *buffer, size_t validBufferSizeBytes, msptiActivity **record)
 {
-    *record = (msptiActivity *)buffer;
+    *record = reinterpret_cast<msptiActivity *>(buffer);
     if (buffer == nullptr) {
         return MSPTI_ERROR_INVALID_PARAMETER;
     } else if (validBufferSizeBytes < sizeof(msptiActivity)) {
