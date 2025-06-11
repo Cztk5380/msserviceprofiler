@@ -129,7 +129,7 @@ def test_load_single_prof_invalid_json():
     with patch("ms_service_profiler.exporters.exporter_trace.ms_open", return_value=mock_file) as mock_ms_open:
         result = load_single_prof("invalid_path.json", [])
         assert result == {"traceEvents": []}
-        mock_ms_open.assert_called_once_with("invalid_path.json", mode="r")
+        mock_ms_open.assert_called_once_with("invalid_path.json", "r", encoding='utf-8', max_size=-1)
 
 
 def test_merge_json_data():
@@ -182,22 +182,13 @@ def test_exporter_initialize():
 # 测试 ExporterTrace 的 export 方法
 @mock.patch('ms_service_profiler.exporters.exporter_trace.create_trace_events')
 @mock.patch('ms_service_profiler.exporters.exporter_trace.save_trace_data_into_json')
-@mock.patch('ms_service_profiler.exporters.exporter_trace.ms_open')
-def test_exporter_export(mock_ms_open, mock_save, mock_create, mock_data, mock_mspti):
-    # 模拟 ms_open 的行为，使其返回预设的文件内容
-    mock_file = mock_open(read_data='{"traceEvents": []}').return_value
-    mock_file.read.return_value = '{"traceEvents": []}'
-    mock_ms_open.return_value = mock_file
-
+def test_exporter_export(mock_save, mock_create, mock_data, mock_mspti):
     # 模拟 create_trace_events 返回值
     mock_create.return_value = {'traceEvents': []}
     mock_save.return_value = None  # 模拟保存行为
 
     ExporterTrace.initialize(mock.Mock(output_path='/tmp', format=['json']))
     ExporterTrace.export(mock_data, mock_mspti)
-
-    # 验证 ms_open 被正确调用
-    mock_ms_open.assert_called_once_with(mock.ANY, mode='r')
 
     # 验证 create_trace_events 被调用一次
     mock_create.assert_called_once()

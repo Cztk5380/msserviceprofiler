@@ -5,7 +5,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 
 from ms_service_profiler.exporters.base import TaskExporterBase
-from ms_service_profiler.utils.file_open_check import ms_open, safe_json_dump
+from ms_service_profiler.utils.file_open_check import ms_open, safe_json_dump, OpenException
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
@@ -89,7 +89,9 @@ def load_single_prof(pf, prof_id):
     try:
         with ms_open(pf, 'r', encoding='utf-8', max_size=-1) as file:
             trace_events = json.load(file)
-
+    except OpenException as oe:
+        logger.warning(f"OpenException occurred {oe}")
+        return {"traceEvents": []}
     except FileNotFoundError:
         logger.warning(f"The msprof.json file was not found. Please check the file path.")
         return {"traceEvents": []}
