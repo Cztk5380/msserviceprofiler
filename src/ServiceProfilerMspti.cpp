@@ -194,13 +194,13 @@ namespace msServiceProfiler {
         PROF_LOGD("Init ServiceProfilerFilerWriter Success.");  // LCOV_EXCL_LINE
     }
 
-    void ServiceProfilerMspti::InitFilter(std::string& apiFilter, std::string& kernelFilter)
+    void ServiceProfilerMspti::InitFilter(const std::string& apiFilter, const std::string& kernelFilter)
     {
         filterApi = MsUtils::SplitStringToSet(apiFilter, SPLIT_SYMBOL);
         filterKernel = MsUtils::SplitStringToSet(kernelFilter, SPLIT_SYMBOL);
     }
 
-    void ServiceProfilerMspti::InitOutputPath(std::string& outputPath)
+    void ServiceProfilerMspti::InitOutputPath(const std::string& outputPath)
     {
         file_name = outputPath + "ascend_service_profiler_" + std::to_string(getpid()) + ".db";
         PROF_LOGD("set mspti output path: %s", file_name.c_str());  // LCOV_EXCL_LINE
@@ -438,8 +438,10 @@ namespace msServiceProfiler {
                 break;
             }
         } while (1);
-
-        free(buffer);
+        
+        if (buffer) {
+            free(buffer);
+        }
         ServiceProfilerMspti::GetInstance().PopWorkingThreadNum();
     }
 

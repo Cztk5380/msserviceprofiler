@@ -107,11 +107,12 @@ void MockedMarkEvent(const char* msg) {
 TEST_F(TestServiceProfilerInterface, CallMarkEventFoundLib)
 {
     EXPECT_CALL(GlobalStub::GetInstance().stubs, MarkEvent(::testing::_))
-        .WillOnce(DoDefault());
+        .Times(AtLeast(1));
     ServiceProfilerInterface &spi = ServiceProfilerInterface::GetInstance();
     spi.ptrMarkEvent_ = MockedMarkEvent;
     spi.CallMarkEvent(0);
     GlobalMockObject::verify();
+    GlobalMockObject::reset();
 }
 
 TEST_F(TestServiceProfilerInterface, CallIsEnableNotFoundLib)

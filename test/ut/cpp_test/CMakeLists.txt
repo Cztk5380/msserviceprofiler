@@ -74,15 +74,14 @@ add_link_options(
         --coverage
 )
 
-aux_source_directory(${PROJECT_TOP_DIR}/src/ PROFILER_SRC)
+aux_source_directory(${PROJECT_TOP_DIR}/src PROFILER_SRC)
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} PROFILER_TEST_SRC)
+list(REMOVE_ITEM PROFILER_TEST_SRC "${CMAKE_CURRENT_SOURCE_DIR}/test.cpp")
 add_subdirectory(${PROJECT_TOP_DIR}/platform platform)
 
 add_executable(ut_server_profiler
         ${PROFILER_SRC}
-        testNpuMemoryUsage.cpp
-        testServiceProfilerInterface.cpp
-        testServiceProfilerManager.cpp
-        testProfiler.cpp
+        ${PROFILER_TEST_SRC}
 )
 
 target_link_libraries(ut_server_profiler
