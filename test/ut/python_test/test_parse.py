@@ -1,6 +1,6 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 import json
 import os
 import re
@@ -182,21 +182,24 @@ def test_handle_other_wildcard_patterns(setup_test_directory):
 
 
 def test_load_start_cnt(setup_test_directory):
-    config_path = setup_test_directory / "PROF_test" / "host_start.log"
+    mock_file_content = "cntvct: 123\nclock_monotonic_raw: 456"
+    mock_path = setup_test_directory / "PROF_test" / "host_start.log"
 
-    # 测试函数并获取结果
-    cntvct, clock_monotonic_raw = load_start_cnt(config_path)
+    with patch("ms_service_profiler.parse.ms_open", mock_open(read_data=mock_file_content)):
+        cntvct, clock_monotonic_raw = load_start_cnt(str(mock_path))
 
-    # 验证返回值
-    assert cntvct == 123
-    assert clock_monotonic_raw == 456
+        assert cntvct == 123
+        assert clock_monotonic_raw == 456
 
 
 def test_load_start_time(setup_test_directory):
-    start_info_path = setup_test_directory / "PROF_test" / "start_info"
+    mock_file_content = '{"collectionTimeBegin": 123456.789, "clockMonotonicRaw": 0}'
 
-    result = load_start_time(start_info_path)
-    assert result == (123456.789, 0)
+    mock_path = setup_test_directory / "PROF_test" / "start_info"
+
+    with patch("ms_service_profiler.parse.ms_open", mock_open(read_data=mock_file_content)):
+        result = load_start_time(str(mock_path))
+        assert result == (123456.789, 0)
 
 
 def test_load_tx_data(setup_test_directory):
