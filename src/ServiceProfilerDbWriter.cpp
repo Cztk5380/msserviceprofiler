@@ -76,6 +76,9 @@ public:
             return;
         }
 
+        // 开始事务
+        sqlite3_exec(db_, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
+
         // 绑定参数
         int bindIndex = 1;
         sqlite3_bind_text(stmtMstx_, bindIndex++, activity->message, -1, SQLITE_STATIC);
@@ -92,6 +95,14 @@ public:
         }
         sqlite3_reset(stmtMstx_);
 
+        // 提交最终事务
+        sqlite3_exec(db_, "COMMIT", nullptr, nullptr, nullptr);
+    }
+
+    void Flash()
+    {
+        // 提交最终事务
+        sqlite3_exec(db_, "COMMIT", nullptr, nullptr, nullptr);
     }
 
     void InsertMetaData(const std::string &name, const std::string &value)
