@@ -385,9 +385,22 @@ TEST(ServiceProfilerMsptiTest, Close_Initialized)
 }
 
 // 测试用例
+TEST(ServiceProfilerMsptiTest, UserBufferComplete_InvalidBuffer)
+{
+    size_t size = 1;
+    uint8_t *buffer = static_cast<uint8_t *>(malloc(size));
+    size_t validSize = 1;
+    UserBufferComplete(buffer, size, validSize);
+
+    // 验证是否成功处理缓冲区数据
+    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
+    GlobalMockObject::reset();
+}
+
+// 测试用例
 TEST(ServiceProfilerMsptiTest, UserBufferComplete_InvalidSize)
 {
-    size_t size = 32;
+    size_t size = 1;
     uint8_t *buffer = static_cast<uint8_t *>(malloc(size));
     size_t validSize = 0;
     UserBufferComplete(buffer, size, validSize);

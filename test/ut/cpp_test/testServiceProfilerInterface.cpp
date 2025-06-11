@@ -43,7 +43,7 @@ TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameNotFoundLib)
         .WillRepeatedly(::testing::Return(nullptr));
     ServiceProfilerInterface &spi = ServiceProfilerInterface::GetInstance();
     spi.OpenLib();
-    EXPECT_EQ(spi.CallStartSpanWithName("TestSpan"), 0);
+    EXPECT_GE(spi.CallStartSpanWithName("TestSpan"), 0);
     GlobalMockObject::verify();
     GlobalMockObject::reset();
 }

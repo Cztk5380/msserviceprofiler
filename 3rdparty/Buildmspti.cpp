@@ -18,7 +18,14 @@ msptiResult msptiActivityEnable(int kind)
 
 msptiResult msptiActivityGetNextRecord(uint8_t *buffer, size_t validBufferSizeBytes, msptiActivity **record)
 {
-    return MSPTI_ERROR_MAX_LIMIT_REACHED;
+    *record = (msptiActivity *)buffer;
+    if (buffer == nullptr) {
+        return MSPTI_ERROR_INVALID_PARAMETER;
+    } else if (validBufferSizeBytes < sizeof(msptiActivity)) {
+        return MSPTI_ERROR_MAX_LIMIT_REACHED;
+    } else {
+        return MSPTI_SUCCESS;
+    }
 }
 
 msptiResult msptiActivityFlushAll(int kind)
