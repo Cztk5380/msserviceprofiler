@@ -18,7 +18,7 @@ msptiResult msptiActivityEnable(int kind)
 
 msptiResult msptiActivityGetNextRecord(uint8_t *buffer, size_t validBufferSizeBytes, msptiActivity **record)
 {
-    return MSPTI_SUCCESS;
+    return MSPTI_ERROR_MAX_LIMIT_REACHED;
 }
 
 msptiResult msptiActivityFlushAll(int kind)
