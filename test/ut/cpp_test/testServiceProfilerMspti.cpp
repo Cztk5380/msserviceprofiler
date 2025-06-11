@@ -388,7 +388,7 @@ TEST(ServiceProfilerMsptiTest, Close_Initialized)
 TEST(ServiceProfilerMsptiTest, UserBufferComplete_InvalidBuffer)
 {
     size_t size = 32;
-    uint8_t *buffer = (uint8_t *)malloc(size);
+    uint8_t *buffer = static_cast<uint8_t *>(malloc(size));
     size_t validSize = size;
 
     UserBufferComplete(buffer, size, validSize);
@@ -403,7 +403,7 @@ TEST(ServiceProfilerMsptiTest, UserBufferComplete_InvalidBuffer)
 TEST(ServiceProfilerMsptiTest, UserBufferComplete_InvalidSize)
 {
     size_t size = 32;
-    uint8_t *buffer = (uint8_t *)malloc(size);
+    uint8_t *buffer = static_cast<uint8_t *>(malloc(size));
     size_t validSize = 0;
     UserBufferComplete(buffer, size, validSize);
 
