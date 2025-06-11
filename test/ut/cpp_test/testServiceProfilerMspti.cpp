@@ -385,20 +385,6 @@ TEST(ServiceProfilerMsptiTest, Close_Initialized)
 }
 
 // 测试用例
-TEST(ServiceProfilerMsptiTest, UserBufferComplete_InvalidBuffer)
-{
-    size_t size = 32;
-    uint8_t *buffer = static_cast<uint8_t *>(malloc(size));
-    memset_s(buffer, size, 0, size);
-    size_t validSize = size;
-
-    UserBufferComplete(buffer, size, validSize);
-
-    // 验证是否成功处理缓冲区数据
-    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
-}
-
-// 测试用例
 TEST(ServiceProfilerMsptiTest, UserBufferComplete_InvalidSize)
 {
     size_t size = 32;
