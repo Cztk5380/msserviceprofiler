@@ -43,7 +43,6 @@
 
 namespace {
 constexpr int ALIGN_SIZE = 8;
-constexpr int MAX_ARRAY_CNT = 5;
 
 }  // end of anonymous namespace
 
@@ -76,11 +75,8 @@ public:
         if (!inited || !activity || !stmtMstx_) {
             return;
         }
-        if (count_ % MAX_ARRAY_CNT == 0) {
-            // 开始事务
-            sqlite3_exec(db_, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
-        }
-        count_++;
+
+        sqlite3_exec(db_, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
 
         // 绑定参数
         int bindIndex = 1;
@@ -98,20 +94,13 @@ public:
         }
         sqlite3_reset(stmtMstx_);
 
-        if (count_ % MAX_ARRAY_CNT == 0) {
-            // 提交最终事务
-            sqlite3_exec(db_, "COMMIT", nullptr, nullptr, nullptr);
-            count_ = 0;
-        }
+        sqlite3_exec(db_, "COMMIT", nullptr, nullptr, nullptr);
     }
 
     void Flash()
     {
-        if (count_ % MAX_ARRAY_CNT != 0) {
-            // 提交最终事务
-            sqlite3_exec(db_, "COMMIT", nullptr, nullptr, nullptr);
-            count_ = 0;
-        }
+        // 提交最终事务
+        sqlite3_exec(db_, "COMMIT", nullptr, nullptr, nullptr);
     }
 
     void InsertMetaData(const std::string &name, const std::string &value)
@@ -223,7 +212,6 @@ public:
 private:
     bool inited = false;
     sqlite3 *db_;
-    int count_ = 0;
     sqlite3_stmt *stmtMstx_;
     sqlite3_stmt *stmtMeta_;
     ServiceProfilerDbWriter()
