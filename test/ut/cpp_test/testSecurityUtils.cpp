@@ -12,8 +12,7 @@
 using namespace SecurityUtils;
 using namespace testing;
 
-class SecurityUtilsTest : public Test
-{
+class SecurityUtilsTest : public Test {
 protected:
     void SetUp() override
     {
@@ -158,8 +157,7 @@ TEST_F(SecurityUtilsTest, TestIsPathDepthLegal)
 
     // 测试路径深度超过限制
     std::string deepPath;
-    for (int i = 0; i < PATH_DEPTH_MAX + 1; ++i)
-{
+    for (int i = 0; i < PATH_DEPTH_MAX + 1; ++i) {
         deepPath += "/testdir";
     }
     EXPECT_FALSE(IsPathDepthLegal(deepPath));
