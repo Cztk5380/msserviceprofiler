@@ -53,9 +53,9 @@ uint32_t g_deviceID = INVALID_DEVICE_ID;
 std::atomic<u_int64_t> g_markIndex(0);
 bool g_startFlag = false;
 
-using DATA_PTR = struct ProfSetDevPara *;
+using DATA_PTR = struct ProfSetDevParaDevice *;
 
-struct ProfSetDevPara {
+struct ProfSetDevParaDevice {
     uint32_t chipId;
     uint32_t deviceId;
     bool isOpen;
@@ -192,7 +192,7 @@ void AddMetaInfo(const char* key, const char* value)
 
 void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
 {
-    if (len != sizeof(::ProfSetDevPara)) {
+    if (len != sizeof(::ProfSetDevParaDevice)) {
         return;
     }
     if (data == nullptr) {

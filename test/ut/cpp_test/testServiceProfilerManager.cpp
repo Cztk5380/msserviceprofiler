@@ -50,9 +50,9 @@ public:
     MOCK_METHOD0(aclprofFinalize, aclError());
 };
 
-using DATA_PTR = struct ProfSetDevPara *;
+using DATA_PTR = struct ProfSetDevParaDevice *;
 
-struct ProfSetDevPara {
+struct ProfSetDevParaDevice {
     uint32_t chipId;
     uint32_t deviceId;
     bool isOpen;
@@ -164,15 +164,15 @@ TEST(ProfilerTest, MsprofSetDeviceCallbackImplLen0)
 TEST(ProfilerTest, MsprofSetDeviceCallbackImplDataNull)
 {
     DATA_PTR data = nullptr;
-    uint32_t len = sizeof(ProfSetDevPara);
+    uint32_t len = sizeof(ProfSetDevParaDevice);
     MsprofSetDeviceCallbackImpl(data, len);
 }
 
 TEST(ProfilerTest, MsprofSetDeviceCallbackImplDeviceID)
 {
-    ProfSetDevPara temp;
+    ProfSetDevParaDevice temp;
     DATA_PTR data = &temp;
-    uint32_t len = sizeof(ProfSetDevPara);
+    uint32_t len = sizeof(ProfSetDevParaDevice);
     MsprofSetDeviceCallbackImpl(data, len);
 }
 extern int g_deviceID;
@@ -180,10 +180,10 @@ extern bool g_startFlag;
 
 TEST(ProfilerTest, MsprofSetDeviceCallbackImplStartServerProfiler1)
 {
-    ProfSetDevPara temp;
+    ProfSetDevParaDevice temp;
     temp.deviceId = 1;
     DATA_PTR data = &temp;
-    uint32_t len = sizeof(ProfSetDevPara);
+    uint32_t len = sizeof(ProfSetDevParaDevice);
     g_deviceID = 1;
     g_startFlag = true;
     MsprofSetDeviceCallbackImpl(data, len);
@@ -191,10 +191,10 @@ TEST(ProfilerTest, MsprofSetDeviceCallbackImplStartServerProfiler1)
 
 TEST(ProfilerTest, MsprofSetDeviceCallbackImplStartServerProfiler2)
 {
-    ProfSetDevPara temp;
+    ProfSetDevParaDevice temp;
     temp.deviceId = 1;
     DATA_PTR data = &temp;
-    uint32_t len = sizeof(ProfSetDevPara);
+    uint32_t len = sizeof(ProfSetDevParaDevice);
     g_deviceID = 2;
     g_startFlag = true;
     MsprofSetDeviceCallbackImpl(data, len);
