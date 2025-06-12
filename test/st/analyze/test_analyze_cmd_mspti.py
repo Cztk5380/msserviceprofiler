@@ -136,3 +136,4 @@ class TestAnalyzeCmd(TestCase):
             self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
 
         self.run_ep_balance_sub_test()
+        self.run_moe_analysis_test()
