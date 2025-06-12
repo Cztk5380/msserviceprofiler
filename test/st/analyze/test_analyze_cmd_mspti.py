@@ -11,8 +11,8 @@ from ...st.utils import execute_cmd
 
 
 class TestAnalyzeCmd(TestCase):
-    ST_DATA_PATH = os.getenv("MS_SERVICE_PROFILER", "/data/ms_service_profiler")
-    INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/latest_PD_competition")
+    ST_DATA_PATH = "/data/ms_service_profiler"
+    INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/ms_service_mspti")
     OUTPUT_PATH = os.path.join(ST_DATA_PATH, "output/analyze")
     DB_FILE_NAME = "profiler.db"
     COMMAND_SUCCESS = 0
