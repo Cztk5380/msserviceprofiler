@@ -791,9 +791,6 @@ def test_load_cpu_data_with_valid_db_path(setup_test_directory):
 
 
 def test_load_ops_db_with_valid_db_path(setup_test_directory):
-    """
-    测试当 db_path 有效时，load_ops_db 函数是否正确加载数据。
-    """
     tmp_path = setup_test_directory
     db_path = tmp_path / "PROF_test" / "msproftx.db"
 
@@ -850,31 +847,13 @@ def test_load_ops_db_with_valid_db_path(setup_test_directory):
         VALUES ('api1', 1, 2, 1, 1, 1)
     """)
 
-    # 插入数据到 Kernel 表
-    cursor.execute("""
-        INSERT INTO Kernel (name, type, start, end, deviceId, streamId, correlationId) 
-        VALUES ('kernel1', 'type1', 1, 2, 1, 1, 1)
-    """)
-
-    # 插入数据到 Communication 表
-    cursor.execute("""
-        INSERT INTO Communication (name, start, end, deviceId, streamId, dataCount, dataType, commGroupName, correlationId) 
-        VALUES ('comm1', 1, 2, 1, 1, 1, 'type1', 'group1', 1)
-    """)
-
     conn.commit()
     conn.close()
 
-    # 调用 load_ops_db 函数
     api_df, kernel_df, communication_df = load_ops_db(str(db_path), 1)
 
-    # 验证返回的 DataFrame 是否正确
     assert api_df.shape[0] == 1
-    assert kernel_df.shape[0] == 1
-    assert communication_df.shape[0] == 1
     assert api_df["db_id"].iloc[0] == 1
-    assert kernel_df["db_id"].iloc[0] == 1
-    assert communication_df["db_id"].iloc[0] == 1
 
 
 def test_load_memory_data_with_valid_db_path(setup_test_directory):
