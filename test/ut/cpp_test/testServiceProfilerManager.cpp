@@ -42,7 +42,8 @@ class MockAclStubFunc : public AclStubFunc {
 public:
     MOCK_METHOD1(aclInit, aclError(const char*));
     MOCK_METHOD2(aclprofInit, aclError(const char*, size_t));
-    MOCK_METHOD5(aclprofCreateConfig, aclprofConfig*(uint32_t*, uint32_t, aclprofAicoreMetrics, aclprofAicoreEvents*, uint64_t));
+    MOCK_METHOD5(aclprofCreateConfig, aclprofConfig*(
+        uint32_t*, uint32_t, aclprofAicoreMetrics, aclprofAicoreEvents*, uint64_t));
     MOCK_METHOD1(aclprofStart, aclError(const aclprofConfig *));
     MOCK_METHOD1(aclprofStop, aclError(const aclprofConfig *));
     MOCK_METHOD1(aclprofDestroyConfig, aclError(const aclprofConfig *));
@@ -100,7 +101,7 @@ TEST(ProfilerTest, GetValidDomain)
 
 TEST(ProfilerTest, AddMetaInfo)
 {
-    AddMetaInfo("test","test2");
+    AddMetaInfo("test", "test2");
 }
 
 
@@ -511,10 +512,11 @@ TEST(ProfilerTest, TestWrite2TxMemoryInfoEmpty)
 
 TEST(ProfilerTest, TestWrite2Tx)
 {
-    std::vector<int> memoryInfo {1,1};
+    std::vector<int> memoryInfo {1, 1};
     std::string metricName;
     Write2Tx(memoryInfo, metricName);
 }
+
 extern bool g_threadRunFlag;
 
 TEST(ProfilerTest, ThreadFunctionTimeLimit)
@@ -527,7 +529,7 @@ TEST(ProfilerTest, ThreadFunctionTimeLimit)
         std::this_thread::sleep_for(std::chrono::seconds(2)); // 等待 1 秒
         g_threadRunFlag = false;
         std::cout << "g_threadRunFlag has been set to false." << std::endl;
-    }).detach(); 
+    }).detach();
     manager.ThreadFunction();
 }
 
@@ -541,7 +543,7 @@ TEST(ProfilerTest, ThreadFunctionAclTaskTimeLimit)
         std::this_thread::sleep_for(std::chrono::seconds(2)); // 等待 1 秒
         g_threadRunFlag = false;
         std::cout << "g_threadRunFlag has been set to false." << std::endl;
-    }).detach(); 
+    }).detach();
     manager.ThreadFunction();
 }
 
@@ -557,7 +559,7 @@ TEST(ProfilerTest, ThreadFunctionGetEnable)
         std::this_thread::sleep_for(std::chrono::seconds(1)); // 等待 1 秒
         g_threadRunFlag = false;
         std::cout << "g_threadRunFlag has been set to false." << std::endl;
-    }).detach(); 
+    }).detach();
     manager.ThreadFunction();
 }
 
@@ -570,10 +572,10 @@ TEST(ProfilerTest, ThreadFunctionGetEnable2)
     manager.isMaster_ = true;
     g_threadRunFlag = true;
     std::thread([]() {
-        std::this_thread::sleep_for(std::chrono::seconds(1)); // 等待 1 秒
+        std::this_thread::sleep_for(std::chrono::seconds(1)); // 等待 2 秒
         g_threadRunFlag = false;
         std::cout << "g_threadRunFlag has been set to false." << std::endl;
-    }).detach(); 
+    }).detach();
     manager.ThreadFunction();
 }
 
