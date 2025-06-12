@@ -9,6 +9,7 @@
 #include <chrono>
 #include <mockcpp/mockcpp.hpp>
 #include <nlohmann/json.hpp>
+#include <fstream>
 
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
@@ -16,6 +17,7 @@
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
 #include "msServiceProfiler/Utils.h"
+#include "msServiceProfiler/Config.h"
 #include "stubs.h"
 
 using namespace ::testing;
