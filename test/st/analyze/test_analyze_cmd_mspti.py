@@ -78,10 +78,10 @@ class TestAnalyzeCmd(TestCase):
 
             for _ in range(sample_nums):
                 random_num = random.randint(0, len(csv_df) - 1)
-                self.assertEqual(csv_df.loc[random_num], db_df.loc[random_num])
+                self.assertEqual(list(csv_df.loc[random_num]), list(db_df.loc[random_num]))
 
     def run_ep_balance_sub_test(self):
-        with self.subTest(msg="ep balance csv test"):
+        with self.subTest(msg="ep_balance csv test"):
             ep_balance_csv_path = os.path.join(self.OUTPUT_PATH, "ep_balance.csv")
             ep_balance_columns = ["19362", "19364", "19366", "19371", "19381", "19391", "19406", "19416"]
             self._common_csv_check(ep_balance_csv_path, ep_balance_columns)
@@ -104,6 +104,31 @@ class TestAnalyzeCmd(TestCase):
             ep_balance_png_path = os.path.join(self.OUTPUT_PATH, "ep_balance.png")
             assert os.path.exists(ep_balance_png_path)
             assert os.path.isfile(ep_balance_png_path)
+
+    def run_moe_analysis_test(self):
+        with self.subTest(msg="moe_analysis csv test"):
+            moe_analysis_path = os.path.join(self.OUTPUT_PATH, "moe_analysis.csv")
+            moe_analysis_columns = ["Dataset", "Mean", "CI_Lower", "CI_Upper"]
+            self._common_csv_check(moe_analysis_path, moe_analysis_columns)
+
+        with self.subTest(msg="moe_analysis db test"):
+            moe_analysis_db_path = os.path.join(self.OUTPUT_PATH, "profiler.db")
+            moe_analysis_query = """
+                SELECT * FROM moe_analysis
+            """
+            self._common_db_table_check(moe_analysis_db_path, "moe_analysis", moe_analysis_query, moe_analysis_columns)
+
+        with self.subTest(msg="moe_analysis match check"):
+            self._common_csv_match_db_table_check(moe_analysis_db_path,
+                                                  moe_analysis_path,
+                                                  "moe_analysis",
+                                                  moe_analysis_query,
+                                                  10)
+
+        with self.subTest(msg="moe_analysis png check"):
+            moe_analysis_png_path = os.path.join(self.OUTPUT_PATH, "moe_analysis.png")
+            assert os.path.exists(moe_analysis_png_path)
+            assert os.path.isfile(moe_analysis_png_path)
 
     def test_parse_mspti(self):
         cmd = ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH,
