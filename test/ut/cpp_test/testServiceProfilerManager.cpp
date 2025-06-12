@@ -143,23 +143,6 @@ TEST(ProfilerTest, TestServiceProfilerManager)
 TEST(ProfilerTest, TestRegisterSetDeviceCallbackDlopenNull)
 {
     MockStubFunc stubs;
-    // char mockRealpath[] = "aa";
-    // EXPECT_CALL(stubs, StartSpanWithName(::testing::_)).Times(0);
-    // EXPECT_CALL(stubs, access(::testing::_, ::testing::_))
-    //     .WillRepeatedly(::testing::Return(0));
-    // EXPECT_CALL(stubs, realpath(::testing::_, ::testing::_))
-    //     .WillRepeatedly(::testing::Return((char*)mockRealpath));
-    // EXPECT_CALL(stubs, stat(::testing::_, ::testing::_))
-    //     .WillRepeatedly(::testing::Return(1));
-    // EXPECT_CALL(stubs, dlsym(::testing::_, ::testing::_))
-    //     .WillRepeatedly(ReturnNull());
-    // using ProfSetDeviceHandle = void (*)(DATA_PTR, uint32_t);
-    // using ProfRegDeviceStateCallbackFunc = int32_t (*)(ProfSetDeviceHandle);
-    // void* fake_handle = (ProfRegDeviceStateCallbackFunc)(0xdeadbeef);
-    // MOCKER(dlopen)
-    //     .expects(once())
-    //     .with(eq("/path/to/library.so"), eq(RTLD_LAZY))
-    //     .will(returnValue(fake_handle));
     ServiceProfilerManager manager;
     
     // set Profiling env name
@@ -396,17 +379,6 @@ TEST(ProfilerTest, TestMarkFirstProcessAsMain)
     manager.config_->SetConfigPath("/home");
     manager.MarkFirstProcessAsMain();
 }
-
-// TEST(ProfilerTest, TestMarkFirstProcessAsMainMsUtilsSplitStr)
-// {
-//     MockStubFunc stubs;
-//     EXPECT_CALL(stubs, MsUtils::SplitStr(::testing::_, ::testing::_))
-//         .WillRepeatedly(::testing::Return(""));
-//     ServiceProfilerManager manager;
-//     manager.config_->SetConfigPath("/home");
-//     manager.MarkFirstProcessAsMain();
-//     GlobalMockObject::reset();
-// }
 
 TEST(ProfilerTest, TestReadConfigFileFailed)
 {
