@@ -10,9 +10,12 @@ from ms_service_profiler.mstx import LibServiceProfiler
 class TestLibServiceProfiler(unittest.TestCase):
 
     @patch("ms_service_profiler.utils.file_open_check.get_valid_lib_path")
-    def setUp(self, mock_get_valid_lib_path):
+    def setUp(self, mock_get_valid_lib_path=None):
         # 模拟get_valid_lib_path返回一个有效的路径
-        mock_get_valid_lib_path.return_value = "/path/to/libms_service_profiler.so"
+        if mock_get_valid_lib_path is not None:
+            mock_get_valid_lib_path.return_value = "/path/to/libms_service_profiler.so"
+
+        # 初始化 service_profiler 属性
         self.service_profiler = LibServiceProfiler()
 
     @patch("ms_service_profiler.utils.file_open_check.get_valid_lib_path")
