@@ -15,6 +15,7 @@
 
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
+#include "msServiceProfiler/Utils.h"
 #include "stubs.h"
 
 using namespace ::testing;
@@ -41,11 +42,20 @@ class MockAclStubFunc : public AclStubFunc {
 public:
     MOCK_METHOD1(aclInit, aclError(const char*));
     MOCK_METHOD2(aclprofInit, aclError(const char*, size_t));
-    MOCK_METHOD5(aclprofCreateConfig, aclprofConfig*(uint32_t*, uint32_t, aclprofAicoreMetrics, aclprofAicoreEvents*, uint64_t));
+    MOCK_METHOD5(aclprofCreateConfig, aclprofConfig*(
+        uint32_t*, uint32_t, aclprofAicoreMetrics, aclprofAicoreEvents*, uint64_t));
     MOCK_METHOD1(aclprofStart, aclError(const aclprofConfig *));
     MOCK_METHOD1(aclprofStop, aclError(const aclprofConfig *));
     MOCK_METHOD1(aclprofDestroyConfig, aclError(const aclprofConfig *));
     MOCK_METHOD0(aclprofFinalize, aclError());
+};
+
+using DATA_PTR = struct ProfSetDevPara *;
+
+struct ProfSetDevPara {
+    uint32_t chipId;
+    uint32_t deviceId;
+    bool isOpen;
 };
 
 // Test suite for StartSpan function
@@ -61,12 +71,39 @@ TEST(ProfilerTest, StartSpanWithName)
     ASSERT_GE(span, 0U);
 }
 
+TEST(ProfilerTest, StartSpanWithNameNull)
+{
+    SpanHandle span = StartSpanWithName(nullptr);
+}
+
 TEST(ProfilerTest, MarkSpanAttr)
 {
     SpanHandle span = StartSpan();
     MarkSpanAttr("MarkSpanAttr", span);
     ASSERT_GE(span, 0U);
 }
+
+TEST(ProfilerTest, MarkSpanAttrNull)
+{
+    SpanHandle span = StartSpan();
+    MarkSpanAttr(nullptr, span);
+}
+
+TEST(ProfilerTest, MarkEventNull)
+{
+    MarkEvent(nullptr);
+}
+
+TEST(ProfilerTest, GetValidDomain)
+{
+    GetValidDomain();
+}
+
+TEST(ProfilerTest, AddMetaInfo)
+{
+    AddMetaInfo("test", "test2");
+}
+
 
 TEST(ProfilerTest, EndSpan)
 {
@@ -96,12 +133,112 @@ TEST(ProfilerTest, TestServiceProfilerManager)
         .WillRepeatedly(::testing::Return((char*)mockRealpath));
     EXPECT_CALL(stubs, stat(::testing::_, ::testing::_))
         .WillRepeatedly(::testing::Return(1));
+    EXPECT_CALL(stubs, dlopen(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return((void*)(1)));
+    ServiceProfilerManager manager;
+    // set Profiling env name
+    setenv("SERVICE_PROF_CONFIG_PATH", "/ut_test/prof.json", 1);
+    GlobalMockObject::reset();
+}
+
+TEST(ProfilerTest, TestRegisterSetDeviceCallbackDlopenNull)
+{
+    MockStubFunc stubs;
+    ServiceProfilerManager manager;
     
     // set Profiling env name
     setenv("SERVICE_PROF_CONFIG_PATH", "/ut_test/prof.json", 1);
+        // Clean up
+    GlobalMockObject::reset();
+}
 
+void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len);
+
+TEST(ProfilerTest, MsprofSetDeviceCallbackImplLen0)
+{
+    DATA_PTR data;
+    uint32_t len = 0;
+    MsprofSetDeviceCallbackImpl(data, len);
+}
+
+TEST(ProfilerTest, MsprofSetDeviceCallbackImplDataNull)
+{
+    DATA_PTR data = nullptr;
+    uint32_t len = sizeof(ProfSetDevPara);
+    MsprofSetDeviceCallbackImpl(data, len);
+}
+
+TEST(ProfilerTest, MsprofSetDeviceCallbackImplDeviceID)
+{
+    ProfSetDevPara temp;
+    DATA_PTR data = &temp;
+    uint32_t len = sizeof(ProfSetDevPara);
+    MsprofSetDeviceCallbackImpl(data, len);
+}
+extern int g_deviceID;
+extern bool g_startFlag;
+
+TEST(ProfilerTest, MsprofSetDeviceCallbackImplStartServerProfiler1)
+{
+    ProfSetDevPara temp;
+    temp.deviceId = 1;
+    DATA_PTR data = &temp;
+    uint32_t len = sizeof(ProfSetDevPara);
+    g_deviceID = 1;
+    g_startFlag = true;
+    MsprofSetDeviceCallbackImpl(data, len);
+}
+
+TEST(ProfilerTest, MsprofSetDeviceCallbackImplStartServerProfiler2)
+{
+    ProfSetDevPara temp;
+    temp.deviceId = 1;
+    DATA_PTR data = &temp;
+    uint32_t len = sizeof(ProfSetDevPara);
+    g_deviceID = 2;
+    g_startFlag = true;
+    MsprofSetDeviceCallbackImpl(data, len);
+}
+
+TEST(ProfilerTest, TestRegisterSetDeviceCallbackProfRegDeviceStateCallbackNull)
+{
+    MockStubFunc stubs;
+    char mockRealpath[] = "aa";
+    EXPECT_CALL(stubs, StartSpanWithName(::testing::_)).Times(0);
+    EXPECT_CALL(stubs, access(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(0));
+    EXPECT_CALL(stubs, realpath(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return((char*)mockRealpath));
+    EXPECT_CALL(stubs, stat(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(1));
+    EXPECT_CALL(stubs, dlopen(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return((void*)(1)));
+    EXPECT_CALL(stubs, dlsym(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(nullptr));
     ServiceProfilerManager manager;
+    // set Profiling env name
+    setenv("SERVICE_PROF_CONFIG_PATH", "/ut_test/prof.json", 1);
+    GlobalMockObject::reset();
+}
 
+TEST(ProfilerTest, MakeDirs)
+{
+    MockStubFunc stubs;
+    char mockRealpath[] = "aa";
+    EXPECT_CALL(stubs, StartSpanWithName(::testing::_)).Times(0);
+    EXPECT_CALL(stubs, access(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(0));
+    EXPECT_CALL(stubs, realpath(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return((char*)mockRealpath));
+    EXPECT_CALL(stubs, stat(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(1));
+    EXPECT_CALL(stubs, dlopen(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return((void*)(1)));
+    EXPECT_CALL(stubs, dlsym(::testing::_, ::testing::_))
+        .WillRepeatedly(::testing::Return(nullptr));
+    ServiceProfilerManager manager;
+    // set Profiling env name
+    setenv("SERVICE_PROF_CONFIG_PATH", "/ut_test/prof.json", 1);
     GlobalMockObject::reset();
 }
 
@@ -134,7 +271,7 @@ TEST(ProfilerTest, TestReadEnableYes)
     EXPECT_NO_THROW(manager.config_->ParseConfig(configTest4));
 }
 
-TEST(ProfilerTest, TestDynamicControlStart2Stop)
+TEST(ProfilerTest, TestDynamicControlStart2Stop1)
 {
     nlohmann::json configTest = nlohmann::json::object();
     configTest["enable"] = 1;
@@ -147,6 +284,7 @@ TEST(ProfilerTest, TestDynamicControlStart2Stop)
         .WillRepeatedly(::testing::Return(0));
 
     manager.lastUpdate_ = 123;
+    manager.config_->SetConfigPath("/home");
 
     // set Profiling env name
     setenv("SERVICE_PROF_CONFIG_PATH", "/ut_test/prof.json", 1);
@@ -199,6 +337,7 @@ TEST(ProfilerTest, TestMarkFirstProcessAsMainShmOpenFailed)
         .WillRepeatedly(::testing::Return(-1));
 
     ServiceProfilerManager manager;
+    manager.config_->SetConfigPath("/home");
     manager.MarkFirstProcessAsMain();
 
     GlobalMockObject::reset();
@@ -211,6 +350,7 @@ TEST(ProfilerTest, TestMarkFirstProcessAsMainFtruncateFailed)
         .WillRepeatedly(::testing::Return(-1));
 
     ServiceProfilerManager manager;
+    manager.config_->SetConfigPath("/home");
     manager.MarkFirstProcessAsMain();
 
     GlobalMockObject::reset();
@@ -228,9 +368,16 @@ TEST(ProfilerTest, TestReadConfigFailed)
     GlobalMockObject::reset();
 }
 
-TEST(ProfilerTest, TestMarkFirstProcessAsMainMmapFailed)
+TEST(ProfilerTest, TestMarkFirstProcessAsMainReturn)
 {
     ServiceProfilerManager manager;
+    manager.MarkFirstProcessAsMain();
+}
+
+TEST(ProfilerTest, TestMarkFirstProcessAsMain)
+{
+    ServiceProfilerManager manager;
+    manager.config_->SetConfigPath("/home");
     manager.MarkFirstProcessAsMain();
 }
 
@@ -247,6 +394,15 @@ TEST(ProfilerTest, TestDynamicControlReadConfigFileStatFailed)
     EXPECT_CALL(stubs, stat(::testing::_, ::testing::_))
         .WillRepeatedly(::testing::Return(1));
 
+    ServiceProfilerManager manager;
+    manager.config_->SetConfigPath("/home");
+    manager.DynamicControl();
+
+    GlobalMockObject::reset();
+}
+
+TEST(ProfilerTest, TestDynamicControlReturn)
+{
     ServiceProfilerManager manager;
     manager.DynamicControl();
 
@@ -269,6 +425,13 @@ TEST(ProfilerTest, TestStartProfilerCreatConfigFailed)
     manager.StartProfiler();
 
     GlobalMockObject::reset();
+}
+
+TEST(ProfilerTest, TestStartProfilerStarted)
+{
+    ServiceProfilerManager manager;
+    manager.started_ = true;
+    manager.StartProfiler();
 }
 
 TEST(ProfilerTest, TestStartProfilerAclProfStartFailed)
@@ -338,4 +501,139 @@ TEST(ProfilerTest, TestStopProfilerAclFrofFinalizeFailed)
     manager.StopProfiler();
 
     GlobalMockObject::reset();
+}
+
+TEST(ProfilerTest, TestWrite2TxMemoryInfoEmpty)
+{
+    std::vector<int> memoryInfo;
+    std::string metricName;
+    Write2Tx(memoryInfo, metricName);
+}
+
+TEST(ProfilerTest, TestWrite2Tx)
+{
+    std::vector<int> memoryInfo {1, 1};
+    std::string metricName;
+    Write2Tx(memoryInfo, metricName);
+}
+
+extern bool g_threadRunFlag;
+
+TEST(ProfilerTest, ThreadFunctionTimeLimit)
+{
+    ServiceProfilerManager manager;
+    manager.started_ = true;
+    manager.config_->SetTimeLimit(1);
+    g_threadRunFlag = true;
+    std::thread([]() {
+        std::this_thread::sleep_for(std::chrono::seconds(2)); // 等待 1 秒
+        g_threadRunFlag = false;
+        std::cout << "g_threadRunFlag has been set to false." << std::endl;
+    }).detach();
+    manager.ThreadFunction();
+}
+
+TEST(ProfilerTest, ThreadFunctionAclTaskTimeLimit)
+{
+    ServiceProfilerManager manager;
+    manager.npuFlag_ = true;
+    manager.config_->SetAclTaskTimeDuration(1);
+    g_threadRunFlag = true;
+    std::thread([]() {
+        std::this_thread::sleep_for(std::chrono::seconds(2)); // 等待 1 秒
+        g_threadRunFlag = false;
+        std::cout << "g_threadRunFlag has been set to false." << std::endl;
+    }).detach();
+    manager.ThreadFunction();
+}
+
+TEST(ProfilerTest, ThreadFunctionGetEnable)
+{
+    ServiceProfilerManager manager;
+    manager.npuFlag_ = true;
+    manager.config_->SetEnable(true);
+    manager.config_->npuMemoryUsage_ = true;
+    manager.isMaster_ = true;
+    g_threadRunFlag = true;
+    std::thread([]() {
+        std::this_thread::sleep_for(std::chrono::seconds(1)); // 等待 1 秒
+        g_threadRunFlag = false;
+        std::cout << "g_threadRunFlag has been set to false." << std::endl;
+    }).detach();
+    manager.ThreadFunction();
+}
+
+TEST(ProfilerTest, ThreadFunctionGetEnable2)
+{
+    ServiceProfilerManager manager;
+    manager.npuFlag_ = true;
+    manager.config_->SetEnable(false);
+    manager.config_->npuMemoryUsage_ = false;
+    manager.isMaster_ = true;
+    g_threadRunFlag = true;
+    std::thread([]() {
+        std::this_thread::sleep_for(std::chrono::seconds(1)); // 等待 2 秒
+        g_threadRunFlag = false;
+        std::cout << "g_threadRunFlag has been set to false." << std::endl;
+    }).detach();
+    manager.ThreadFunction();
+}
+
+TEST(ProfilerTest, SetAclProfHostSysConfigCPU)
+{
+    ServiceProfilerManager manager;
+    manager.config_->hostCpuUsage_ = true;
+    manager.config_->hostMemoryUsage_ = false;
+   
+    manager.SetAclProfHostSysConfig();
+}
+
+TEST(ProfilerTest, SetAclProfHostSysConfigMEN)
+{
+    ServiceProfilerManager manager;
+    manager.config_->hostCpuUsage_ = false;
+    manager.config_->hostMemoryUsage_ = true;
+   
+    manager.SetAclProfHostSysConfig();
+}
+
+TEST(ProfilerTest, ProfCreateConfig)
+{
+    ServiceProfilerManager manager;
+    g_deviceID = static_cast<uint32_t>(-1);
+   
+    manager.ProfCreateConfig();
+}
+
+TEST(ProfilerTest, ProfCreateConfigL1)
+{
+    ServiceProfilerManager manager;
+    g_deviceID = 1;
+    manager.config_->enableAclTaskTime_ = 1;
+    manager.config_->aclTaskTimeLevel_ = "L1";
+    manager.ProfCreateConfig();
+}
+
+TEST(ProfilerTest, StartMsptiProf)
+{
+    ServiceProfilerManager manager;
+    std::string profPath = "/home";
+    manager.StartMsptiProf(profPath);
+}
+
+TEST(ProfilerTest, StopAclTaskTimeMsptiEnabled)
+{
+    ServiceProfilerManager manager;
+    manager.msptiEnabled = true;
+    manager.StopAclTaskTime();
+}
+
+TEST(ProfilerTest, StopAclTaskTime)
+{
+    ServiceProfilerManager manager;
+    manager.msptiEnabled = false;
+    manager.config_->enableAclTaskTime_ = 1;
+    manager.config_->hostCpuUsage_ = true;
+    manager.config_->hostMemoryUsage_ = true;
+    manager.StopAclTaskTime();
 }

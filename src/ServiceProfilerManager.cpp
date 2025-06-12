@@ -45,6 +45,13 @@ constexpr int MAX_DEVICE_NUM = 128;
 constexpr int STRING_TO_UINT_BASE = 10;
 constexpr int SPAN_CACHE_LEN = 64;
 constexpr uint32_t INVALID_DEVICE_ID = static_cast<uint32_t>(-1);
+}  // end of anonymous namespace
+
+// 全局标志位，用于控制线程退出
+std::atomic<bool> g_threadRunFlag(true);
+uint32_t g_deviceID = INVALID_DEVICE_ID;
+std::atomic<u_int64_t> g_markIndex(0);
+bool g_startFlag = false;
 
 using DATA_PTR = struct ProfSetDevPara *;
 
@@ -53,13 +60,6 @@ struct ProfSetDevPara {
     uint32_t deviceId;
     bool isOpen;
 };
-
-// 全局标志位，用于控制线程退出
-std::atomic<bool> g_threadRunFlag(true);
-uint32_t g_deviceID = INVALID_DEVICE_ID;
-std::atomic<u_int64_t> g_markIndex(0);
-bool g_startFlag = false;
-}  // end of anonymous namespace
 
 uint64_t GetCurrentTimeInNanoseconds()
 {
