@@ -18,7 +18,19 @@ msptiResult msptiActivityEnable(int kind)
 
 msptiResult msptiActivityGetNextRecord(uint8_t *buffer, size_t validBufferSizeBytes, msptiActivity **record)
 {
-    return MSPTI_SUCCESS;
+    thread_local uint8_t *localBuffer = nullptr;
+    if (buffer == localBuffer) {
+        return MSPTI_ERROR_MAX_LIMIT_REACHED;
+    }
+    localBuffer = buffer;
+    *record = reinterpret_cast<msptiActivity *>(buffer);
+    if (buffer == nullptr) {
+        return MSPTI_ERROR_INVALID_PARAMETER;
+    } else if (validBufferSizeBytes < sizeof(msptiActivity)) {
+        return MSPTI_ERROR_MAX_LIMIT_REACHED;
+    } else {
+        return MSPTI_SUCCESS;
+    }
 }
 
 msptiResult msptiActivityFlushAll(int kind)

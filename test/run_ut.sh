@@ -44,7 +44,7 @@ function fn_build_mock_cpp()
   cd ${CUR_DIR}/../opensource
   MOCK_CPP_DIR="${CUR_DIR}/../opensource/mock_cpp"
   if [ ! -d "$MOCK_CPP_DIR" ]; then
-    git clone https://szv-y.codehub.huawei.com/d00437232/mock_cpp.git mock_cpp -b msprof
+    git clone https://szv-y.codehub.huawei.com/mindstudio/MindStudio_Opensource/mock_cpp.git mock_cpp -b msprof
   else
       echo "opensource/mock_cpp already exists. no need to download."
   fi
@@ -83,7 +83,8 @@ run_test_cpp() {
   fi
   cd ${TEST_DIR}
   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${TEST_DIR}/test_build/3rdparty
-  (./test_build/st_server_profiler & ./test_build/st_server_profiler) && ./test_build/ut_server_profiler
+  ./test_build/st_server_profiler & ./test_build/st_server_profiler
+  ./test_build/ut_server_profiler
 
   if [ $? -ne 0 ]; then
     echo "Run test failed"
@@ -96,7 +97,11 @@ run_test_cpp() {
   lcov_opt="--rc lcov_branch_coverage=1 --rc geninfo_no_exception_branch=1"
   lcov -c -d ./test_build/CMakeFiles/st_server_profiler.dir -o ./coverage/st_server_profiler.info -b ./coverage $lcov_opt
   lcov -c -d ./test_build/CMakeFiles/ut_server_profiler.dir -o ./coverage/ut_server_profiler.info -b ./coverage $lcov_opt
-  lcov -a ./coverage/ut_server_profiler.info  -a ./coverage/st_server_profiler.info  -o ./coverage/test_server_profiler.info  $lcov_opt
+  if [ -f "./coverage/st_server_profiler.info " ]; then
+    lcov -a ./coverage/ut_server_profiler.info  -a ./coverage/st_server_profiler.info  -o ./coverage/test_server_profiler.info  $lcov_opt
+  else
+    lcov -a ./coverage/ut_server_profiler.info  -o ./coverage/test_server_profiler.info  $lcov_opt
+  fi
 
   lcov -r ./coverage/test_server_profiler.info '*platform*' -o ./coverage/test_server_profiler.info $lcov_opt -q
   lcov -r ./coverage/test_server_profiler.info '*opensource*' -o ./coverage/test_server_profiler.info $lcov_opt -q

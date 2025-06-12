@@ -54,9 +54,9 @@ public:
 
     void Init();
 
-    void InitFilter(std::string& apiFilter, std::string& kernelFilter);
+    void InitFilter(const std::string& apiFilter, const std::string& kernelFilter);
 
-    void InitOutputPath(std::string& outputPath);
+    void InitOutputPath(const std::string& outputPath);
 
     void Close();
 
