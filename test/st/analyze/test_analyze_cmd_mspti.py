@@ -1,8 +1,6 @@
 # Copyright Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
 import os
-import numpy as np
 import pandas as pd
-import pytest
 from unittest import TestCase
 import sqlite3
 import random
