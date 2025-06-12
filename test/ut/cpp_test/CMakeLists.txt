@@ -8,6 +8,9 @@ set(PROJECT_TOP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
 set(TOOLKIT_BASE_PATH $ENV{ASCEND_TOOLKIT_HOME})
 set(CMAKE_CXX_FLAGS "-fprofile-arcs -ftest-coverage -lgcov")
 set(CMAKE_C_FLAGS "-fprofile-arcs -ftest-coverage -lgcov")
+aux_source_directory(${PROJECT_TOP_DIR}/src PROFILER_SRC)
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} PROFILER_TEST_SRC)
+list(REMOVE_ITEM PROFILER_TEST_SRC "${CMAKE_CURRENT_SOURCE_DIR}/test.cpp")
 
 add_compile_definitions(
         ENABLE_PROF
@@ -18,6 +21,7 @@ add_compile_options(
         -fprofile-arcs
         -ftest-coverage
         -g
+        -Og
         -Wall
         -fpermissive
 )
@@ -29,7 +33,10 @@ if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
     include_directories(
             ${PROJECT_TOP_DIR}/3rdparty
     )
+    list(REMOVE_ITEM PROFILER_TEST_SRC "${CMAKE_CURRENT_SOURCE_DIR}/msptiHelper.cpp")
 endif ()
+
+message("PROFILER_TEST_SRC: ${PROFILER_TEST_SRC}")
 
 include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -74,9 +81,6 @@ add_link_options(
         --coverage
 )
 
-aux_source_directory(${PROJECT_TOP_DIR}/src PROFILER_SRC)
-aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} PROFILER_TEST_SRC)
-list(REMOVE_ITEM PROFILER_TEST_SRC "${CMAKE_CURRENT_SOURCE_DIR}/test.cpp")
 add_subdirectory(${PROJECT_TOP_DIR}/platform platform)
 
 add_executable(ut_server_profiler
@@ -102,5 +106,9 @@ target_link_libraries(st_server_profiler
 )
 
 target_compile_definitions(st_server_profiler PUBLIC
+        ENABLE_SERVICE_PROF_UNIT_TEST
+)
+
+target_compile_definitions(ut_server_profiler PUBLIC
         ENABLE_SERVICE_PROF_UNIT_TEST
 )

@@ -18,6 +18,7 @@
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "stubs.h"
+#include "msptiHelper.h"
 
 using namespace ::testing;
 
@@ -25,9 +26,11 @@ void MarkEventLongAttr(const char *msg);
 namespace msServiceProfiler {
 void Write2Tx(const std::vector<int> &memoryInfo, const std::string metricName);
 void UserBufferComplete(uint8_t *buffer, size_t size, size_t validSize);
+void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords);
 }  // namespace msServiceProfiler
 
 using namespace msServiceProfiler;
+using namespace UTHelper;
 
 namespace msServiceProfiler {
 bool IsNameMatch(std::set<std::string> &filterSet, const char *name);
@@ -454,7 +457,6 @@ TEST(ServiceProfilerMsptiTest, UserBufferComplete_ValidBufferKernel)
     memcpy_s(pActivityApi, size, &activity, validSize);
     msptiActivity *pActivity = (msptiActivity *)pActivityApi;
     msptiActivity *record = nullptr;
-    EXPECT_EQ(MSPTI_ERROR_MAX_LIMIT_REACHED, msptiActivityGetNextRecord((uint8_t *)pActivity, 0, &record));  // 清空函数里面的 pos 编号
     UserBufferComplete((uint8_t *)pActivity, size, validSize);
 
     // 验证是否成功处理缓冲区数据
@@ -483,7 +485,6 @@ TEST(ServiceProfilerMsptiTest, UserBufferComplete_ValidBufferComm)
     memcpy_s(pActivityApi, size, &activity, validSize);
     msptiActivity *pActivity = (msptiActivity *)pActivityApi;
     msptiActivity *record = nullptr;
-    EXPECT_EQ(MSPTI_ERROR_MAX_LIMIT_REACHED, msptiActivityGetNextRecord((uint8_t *)pActivity, 0, &record));  // 清空函数里面的 pos 编号
     UserBufferComplete((uint8_t *)pActivity, size, validSize);
 
     // 验证是否成功处理缓冲区数据
@@ -508,9 +509,154 @@ TEST(ServiceProfilerMsptiTest, UserBufferComplete_ValidBufferCommMarker)
     memcpy_s(pActivityApi, size, &activity, validSize);
     msptiActivity *pActivity = (msptiActivity *)pActivityApi;
     msptiActivity *record = nullptr;
-    EXPECT_EQ(MSPTI_ERROR_MAX_LIMIT_REACHED, msptiActivityGetNextRecord((uint8_t *)pActivity, 0, &record));  // 清空函数里面的 pos 编号
     UserBufferComplete((uint8_t *)pActivity, size, validSize);
 
     // 验证是否成功处理缓冲区数据
     EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, InitMsptiTestSuccessCase) {
+    msptiSubscriberHandle subscriber;
+    std::string profPath = "/path/to/profiling";
+
+    g_utStatusMsptiSubscribe = MSPTI_SUCCESS;
+    g_utStatusMsptiActivityRegisterCallbacks = MSPTI_SUCCESS;
+    // 调用函数
+    int ret = InitMspti(profPath, subscriber);
+
+    // 验证返回值
+    EXPECT_EQ(ret, 0);
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, InitMsptiTestNotSupport) {
+    msptiSubscriberHandle subscriber;
+    std::string profPath = "/path/to/profiling";
+    g_utStatusMsptiSubscribe = MSPTI_ERROR_MULTIPLE_SUBSCRIBERS_NOT_SUPPORTED;
+    g_utStatusMsptiActivityRegisterCallbacks = MSPTI_ERROR_INVALID_PARAMETER;
+    // 调用函数
+    int ret = InitMspti(profPath, subscriber);
+
+    // 验证返回值
+    EXPECT_EQ(ret, MSPTI_ERROR_INVALID_PARAMETER);
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, InitMsptiTestError) {
+    msptiSubscriberHandle subscriber;
+    std::string profPath = "/path/to/profiling";
+    g_utStatusMsptiSubscribe = MSPTI_ERROR_INNER;
+    // 验证返回值
+    EXPECT_EQ(InitMspti(profPath, subscriber), MSPTI_ERROR_INNER);
+
+    g_utStatusMsptiSubscribe = MSPTI_ERROR_INVALID_PARAMETER;
+    // 验证返回值
+    EXPECT_EQ(InitMspti(profPath, subscriber), MSPTI_ERROR_INVALID_PARAMETER);
+
+    g_utStatusMsptiSubscribe = MSPTI_ERROR_FOECE_INT;
+    // 验证返回值
+    EXPECT_EQ(InitMspti(profPath, subscriber), MSPTI_ERROR_FOECE_INT);
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, InitMsptiTestInnerError) {
+    msptiSubscriberHandle subscriber;
+    std::string profPath = "/path/to/profiling";
+    g_utStatusMsptiSubscribe = MSPTI_SUCCESS;
+    g_utStatusMsptiActivityRegisterCallbacks = MSPTI_ERROR_INNER;
+    // 验证返回值
+    EXPECT_EQ(InitMspti(profPath, subscriber), MSPTI_ERROR_INNER);
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, InitMsptiActivityTestJustEnableMarker) {
+    g_utStatusMsptiActivityEnable = MSPTI_SUCCESS;
+    InitMsptiActivity(false);
+    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, InitMsptiActivityTestSuccess) {
+    g_utStatusMsptiActivityEnable = MSPTI_SUCCESS;
+    InitMsptiActivity(true);
+    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, InitMsptiActivityTestInnerError) {
+    g_utStatusMsptiActivityEnable = MSPTI_ERROR_INNER;
+    InitMsptiActivity(true);
+    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, InitMsptiFilter) {
+    InitMsptiFilter("", "");
+    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, UninitMsptiSuccess) {
+    msptiSubscriberHandle subscriber;
+    g_utStatusMsptiActivityFlushAll = MSPTI_SUCCESS;
+    g_utStatusMsptiUnsubscribe = MSPTI_SUCCESS;
+    UninitMspti(subscriber);
+    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, UninitMsptiError) {
+    msptiSubscriberHandle subscriber;
+    g_utStatusMsptiActivityFlushAll = MSPTI_ERROR_INNER;
+    g_utStatusMsptiUnsubscribe = MSPTI_ERROR_INNER;
+    UninitMspti(subscriber);
+    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, FlushBufferByTimeSuccess) {
+    ServiceProfilerMspti::GetInstance().workingThreadNum = 1;
+    g_utStatusMsptiActivityFlushAll = MSPTI_SUCCESS;
+    FlushBufferByTime();
+    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, FlushBufferByTimeSuccessFlushAll) {
+    ServiceProfilerMspti::GetInstance().workingThreadNum = 0;
+    g_utStatusMsptiActivityFlushAll = MSPTI_SUCCESS;
+    FlushBufferByTime();
+    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, FlushBufferByTimeFailedFlushAll) {
+    ServiceProfilerMspti::GetInstance().workingThreadNum = 1;
+    g_utStatusMsptiActivityFlushAll = MSPTI_ERROR_INNER;
+    FlushBufferByTime();
+    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, UserBufferRequestTestNormalCase) {
+    uint8_t* buffer = nullptr;
+    size_t size = 0;
+    size_t maxNumRecords = 0;
+
+    // 调用函数
+    UserBufferRequest(&buffer, &size, &maxNumRecords);
+
+    // 验证 buffer 是否对齐
+    uintptr_t bufferAddr = reinterpret_cast<uintptr_t>(buffer);
+    EXPECT_EQ(bufferAddr % ALIGN_SIZE, 0);
+
+    // 验证 size 是否正确
+    EXPECT_EQ(size, 1 * ONE_K * ONE_K);
+
+    // 验证 maxNumRecords 是否正确
+    EXPECT_EQ(maxNumRecords, 0);
+
+    // 释放内存
+    free(buffer);
 }

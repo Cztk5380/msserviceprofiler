@@ -515,7 +515,7 @@ namespace msServiceProfiler {
         }
     }
 
-    void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter)
+    void InitMsptiFilter(const std::string& apiFilter, const std::string& kernelFilter)
     {
         ServiceProfilerMspti::GetInstance().InitFilter(apiFilter, kernelFilter);
     }

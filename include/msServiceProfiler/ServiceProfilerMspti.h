@@ -32,7 +32,7 @@ namespace {
 namespace msServiceProfiler {
 int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber);
 void InitMsptiActivity(bool msptiEnable_);
-void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter);
+void InitMsptiFilter(const std::string& apiFilter, const std::string& kernelFilter);
 void UninitMspti(msptiSubscriberHandle& subscriber);
 void FlushBufferByTime();
 
