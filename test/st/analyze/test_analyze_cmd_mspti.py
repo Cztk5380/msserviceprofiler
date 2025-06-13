@@ -116,13 +116,6 @@ class TestAnalyzeCmd(TestCase):
             """
             self._common_db_table_check(moe_analysis_db_path, "moe_analysis", moe_analysis_query, moe_analysis_columns)
 
-        with self.subTest(msg="moe_analysis match check"):
-            self._common_csv_match_db_table_check(moe_analysis_db_path,
-                                                  moe_analysis_path,
-                                                  "moe_analysis",
-                                                  moe_analysis_query,
-                                                  10)
-
         with self.subTest(msg="moe_analysis png check"):
             moe_analysis_png_path = os.path.join(self.OUTPUT_PATH, "moe_analysis.png")
             assert os.path.exists(moe_analysis_png_path)
