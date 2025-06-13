@@ -36,7 +36,7 @@ public:
     uint32_t GetNpuMemorySleepMilliseconds() const { return npuMemorySleepMilliseconds_; }
 
     void SetEnable(bool enable) { enable_ = enable; }
-    void SetTimeLimit(uint32_t timelimit) { timeLimit_ = timelimit; }
+    void SetTimeLimit(int timelimit) { timeLimit_ = timelimit; }
     void SetProfPathDateTail(std::string profPathDateTail) { profPathDateTail_ = profPathDateTail; }
     void SetConfigPath(std::string configPath) { configPath_ = configPath; }
 
@@ -72,7 +72,7 @@ private:
 
     bool enable_ = false;
     uint32_t level_ = Level::INFO;
-    uint32_t timeLimit_ = 0;
+    int timeLimit_ = 0;
     bool enableAclTaskTime_ = false;
     int aclTaskTimeDuration_ = 0;
     std::string aclTaskTimeLevel_ = "L0";
