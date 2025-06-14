@@ -4,7 +4,6 @@ from ms_service_profiler.pipeline.pipeline_base import PipelineBase
 from ms_service_profiler.task.task import Task
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
-from ms_service_profiler.utils.error import ParseError
 from ms_service_profiler.processor.processor_res import ProcessorRes
 from ms_service_profiler.plugins.plugin_common import PluginCommon
 from ms_service_profiler.plugins.plugin_timestamp import PluginTimeStamp

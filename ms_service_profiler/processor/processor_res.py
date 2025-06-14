@@ -42,12 +42,13 @@ class ProcessorRes(ProcessorBase):
     def mapping_rid(self, rid, rid_map):
         if isinstance(rid, list):
             return [self.mapping_rid(i, rid_map) for i in rid]
-        elif isinstance(rid, dict):
+
+        if isinstance(rid, dict):
             if 'rid' in rid:
                 rid['rid'] = rid_map.get(rid['rid'], rid['rid'])
             return rid
-        else:
-            return rid_map.get(rid, rid)
+        
+        return rid_map.get(rid, rid)
 
     def parse(self, data):
         process_list = list()

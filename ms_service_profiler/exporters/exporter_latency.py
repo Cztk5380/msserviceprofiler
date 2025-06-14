@@ -1,6 +1,5 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-from decimal import Decimal
 import numpy as np
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
@@ -134,7 +133,7 @@ def calculate_gen_token_speed_latency(req_map, is_prefill):
             # 计算生成token平均时延，s级
             cur_gen_speed = round(cur_req_gen_token_num / (diff_time / 1000000), 4) # 1000000:换算为秒级
             gen_token_speed.append(cur_gen_speed)
-        except KeyError as e:
+        except KeyError:
             # 并发场景下，若请求到达后还未生成token，则跳过当前请求不计算
             continue
 
@@ -203,7 +202,6 @@ class ExporterLatency(ExporterBase):
         if 'db' not in cls.args.format:
             return
 
-        output = cls.args.output_path
         all_data_df = data['tx_data_df']
         
         if check_domain_valid(all_data_df, ['ModelExecute', 'BatchSchedule', 'Request'], 'latency') is False:

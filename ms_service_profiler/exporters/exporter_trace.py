@@ -8,7 +8,6 @@ import pandas as pd
 
 from ms_service_profiler.exporters.base import TaskExporterBase
 from ms_service_profiler.utils.file_open_check import ms_open, safe_json_dump, OpenException
-from ms_service_profiler.plugins.plugin_req_status import ReqStatus
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.error import DatabaseError
@@ -101,7 +100,7 @@ def load_single_prof(pf, prof_id):
         logger.warning(f"OpenException occurred {oe}")
         return {"traceEvents": []}
     except FileNotFoundError:
-        logger.warning(f"The msprof.json file was not found. Please check the file path.")
+        logger.warning("The msprof.json file was not found. Please check the file path.")
         return {"traceEvents": []}
     except json.JSONDecodeError:
         logger.warning(

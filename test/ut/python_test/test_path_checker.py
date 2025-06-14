@@ -134,12 +134,14 @@ class TestPathChecker(unittest.TestCase):
 
         self.assertRegex(str(cm.exception), "No such file or directory")
 
+    @unittest.skipIf(os.geteuid() == 0, "root pass this test by default")
     def test_is_safe_parent_dir_when_other_has_w_then_failed(self):
         with tempfile.TemporaryDirectory() as dp:
             os.chmod(dp, 0o702)
             fp = os.path.join(dp, "test_file")
             self.assertFalse(bool(path_checker.PathChecker().is_safe_parent_dir().check(fp)))
 
+    @unittest.skipIf(os.geteuid() == 0, "root pass this test by default")
     def test_is_safe_parent_dir_when_group_has_w_then_failed(self):
         with tempfile.TemporaryDirectory() as dp:
             os.chmod(dp, 0o720)
