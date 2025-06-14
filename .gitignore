@@ -10,5 +10,6 @@ test/coverage
 platform/**
 *.xml
 *.db
+*.coverage
 cmake-build-debug
 test/test_build/**

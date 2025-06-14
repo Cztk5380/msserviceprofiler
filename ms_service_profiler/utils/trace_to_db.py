@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
-import json
 from collections import defaultdict
-import pandas as pd
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.file_open_check import safe_json_dump
 from ms_service_profiler.constant import NS_PER_US

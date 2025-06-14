@@ -1,12 +1,7 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-from enum import Enum
-from pathlib import Path
-import argparse
-import os
-import sqlite3
-import json
 from concurrent.futures import ThreadPoolExecutor
+
 import pandas as pd
 import numpy as np
 

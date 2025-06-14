@@ -76,7 +76,7 @@ class PluginBatch(PluginBase):
         try:
             if row.blocks and len(row.blocks) != len(row.rid_list):
                 return
-        except AttributeError as ex:
+        except AttributeError:
             return
         for index, rid in enumerate(row.rid_list):
             cls.add_req_info(batch_id, rid, block=row.blocks[index])

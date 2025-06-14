@@ -1,8 +1,5 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-from enum import Enum
-from pathlib import Path
-import json
 import pandas as pd
 
 from ms_service_profiler.exporters.base import ExporterBase
@@ -175,7 +172,7 @@ def calculate_first_token_latency(df):
                 continue
             try:
                 valid_ids.append(int(tid))
-            except ValueError as e:
+            except ValueError:
                 continue
         return valid_ids
 

@@ -6,7 +6,6 @@ from pathlib import Path
 import json
 import re
 import sqlite3
-from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from json import JSONDecodeError
 from collections import deque
@@ -14,14 +13,9 @@ from collections import deque
 import pandas as pd
 
 from ms_service_profiler.task.task import Task
-import ms_service_profiler.pipeline
-import ms_service_profiler.data_source
 from ms_service_profiler.exporters.factory import ExporterFactory
 from ms_service_profiler.constant import US_PER_SECOND, MSPROF_REPORTS_PATH
-from ms_service_profiler.plugins import (
-    builtin_plugins, custom_plugins, PluginMsptiProcess, PluginEpBalanceProcess, PluginMoeSlowRankProcess
-)
-from ms_service_profiler.plugins.sort_plugins import sort_plugins
+from ms_service_profiler.plugins import custom_plugins
 from ms_service_profiler.utils.log import logger, set_log_level
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.error import ParseError, LoadDataError
@@ -158,7 +152,7 @@ def load_cpu_freq(info_path):
     with ms_open(info_path, 'r') as info:
         try:
             data = json.load(info)
-        except JSONDecodeError as ex:
+        except JSONDecodeError:
             logger.error(f"file {info_path} is not a json file. ")
             return 0
         if 'CPU' not in data or not isinstance(data['CPU'], list) or len(data['CPU']) == 0:
@@ -168,7 +162,7 @@ def load_cpu_freq(info_path):
         if cpu_frequency != "":
             return float(cpu_frequency) * US_PER_SECOND
 
-    logger.warning(f"Missing 'Frequency' value in 'CPU' data.")
+    logger.warning("Missing 'Frequency' value in 'CPU' data.")
     return 0
 
 
@@ -236,13 +230,6 @@ def handle_msprof_pattern(folder_path, alias, filepaths):
     return filepaths
 
 
-def handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths):
-    for fp in Path(folder_path).rglob(pattern):
-        filepaths[alias] = str(fp)
-        break
-    return filepaths
-
-
 def load_time_info(filepaths):
     cntvct, host_clock_monotonic_raw = load_start_cnt(filepaths.get("host_start"))
     cpu_frequency = load_cpu_freq(filepaths.get("info"))
@@ -257,11 +244,10 @@ def load_time_info(filepaths):
 
 
 def load_host_name(tx_data_df, info_path):
-    cpu_frequency = None
     with ms_open(info_path, 'r') as info:
         try:
             data = json.load(info)
-        except JSONDecodeError as ex:
+        except JSONDecodeError:
             logger.error(f"file {info_path} is not a json file. ")
             data = {
                 "hostname": "",
@@ -673,7 +659,7 @@ def process(files):
     :param files: 要处理的文件列表
     :return: 一个字典，包含处理后的数据
     """
-    from ms_service_profiler.parse_helper.utils import convert_db_to_df, convert_timestamp
+    from ms_service_profiler.parse_helper.utils import convert_db_to_df
 
     # 将文件内容转换为DataFrame
     df = convert_db_to_df(files)

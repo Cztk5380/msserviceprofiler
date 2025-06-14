@@ -1,6 +1,5 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-import pandas as pd
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger
@@ -46,10 +45,9 @@ def extract_batch_type(token_list, batch_type):
         return None
     if all(token == 0 for token in token_list):
         return 'Prefill'
-    elif 0 in token_list and len(set(token_list)) > 1:
+    if 0 in token_list and len(set(token_list)) > 1:
         return 'Prefill, Decode'
-    else:
-        return 'Decode'
+    return 'Decode'
 
 
 def extract_batch_size(rid_list):

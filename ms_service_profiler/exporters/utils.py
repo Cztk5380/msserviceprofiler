@@ -9,7 +9,6 @@ import numpy as np
 
 import pandas as pd
 
-from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.check.rule import Rule
 from ms_service_profiler.utils.error import DatabaseError
 from ms_service_profiler.utils.file_open_check import ms_open
@@ -80,7 +79,7 @@ def create_sqlite_views(name, create_view_sql=None):
         return
 
     with db_write_lock:
-        with ms_open(visual_db_fp, "a") as f:
+        with ms_open(visual_db_fp, "a"):
             try:
                 conn = sqlite3.connect(visual_db_fp)
                 cursor = conn.cursor()
@@ -99,7 +98,7 @@ def handle_sqlite_table_list(table_list, cursor):
 
 def create_sqlite_tables(table_list):
     with db_write_lock:
-        with ms_open(visual_db_fp, "a") as f:
+        with ms_open(visual_db_fp, "a"):
             try:
                 conn = sqlite3.connect(visual_db_fp)
                 cursor = conn.cursor()
@@ -112,7 +111,7 @@ def create_sqlite_tables(table_list):
 
 def get_db_connection():
     with db_write_lock:
-        with ms_open(visual_db_fp, "a") as f:
+        with ms_open(visual_db_fp, "a"):
             return sqlite3.connect(visual_db_fp)
 
 
@@ -132,7 +131,7 @@ def add_table_into_visual_db(df, table_name):
             df[col] = df[col].astype(str)
 
     with db_write_lock:
-        with ms_open(visual_db_fp, "a") as f:
+        with ms_open(visual_db_fp, "a"):
             try:
                 conn = sqlite3.connect(visual_db_fp)
                 df.to_sql(table_name, conn, if_exists='replace', index=False)
@@ -171,7 +170,7 @@ def _check_directory(dir_path, iteration_count):
         # 校验文件夹
         traverse_dir_common_check(dir_path)
     except argparse.ArgumentTypeError as e:
-        raise argparse.ArgumentTypeError(f"Directory is NOT safe")
+        raise argparse.ArgumentTypeError("Directory is NOT safe") from e
 
 
 def _check_file(file_path, iteration_count):
@@ -185,7 +184,7 @@ def _check_file(file_path, iteration_count):
         # 校验文件
         read_file_common_check(file_path)
     except argparse.ArgumentTypeError as e:
-        raise argparse.ArgumentTypeError(f"File is NOT safe")
+        raise argparse.ArgumentTypeError("File is NOT safe") from e
 
 
 def check_input_path_valid(path):

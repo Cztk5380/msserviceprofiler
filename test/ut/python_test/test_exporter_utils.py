@@ -1,4 +1,5 @@
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
+import unittest
 import argparse
 import os
 import sqlite3
@@ -116,6 +117,7 @@ def test_check_output_path_valid_create_dir(tmpdir):
     assert result == os.path.abspath(test_dir)
 
 
+@unittest.skipIf(os.getuid() == 0, "root can write anything")
 def test_check_output_path_valid_failure_not_writable(tmpdir):
     """测试输出路径不可写时的失败"""
     test_dir = tmpdir.mkdir("test_output")
@@ -123,3 +125,4 @@ def test_check_output_path_valid_failure_not_writable(tmpdir):
 
     with pytest.raises(argparse.ArgumentTypeError, match="File is not writable"):
         check_output_path_valid(str(test_dir))
+
