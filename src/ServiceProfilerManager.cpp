@@ -441,7 +441,7 @@ namespace msServiceProfiler {
 
                 if (duration.count() >= config_->GetTimeLimit()) {
                     StopProfiler();
-                    PROF_LOGI("Profiler Timelimit %d Seconds Is Reached, Profiler Disabled Successfully!",
+                    PROF_LOGI("Profiler Timelimit %u Seconds Is Reached, Profiler Disabled Successfully!",
                               config_->GetTimeLimit());
                 }
             }
