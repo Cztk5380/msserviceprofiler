@@ -40,18 +40,22 @@ class ExporterTrace(TaskExporterBase):
 
         output = cls.args.output_path
 
-        cpu_data_df, memory_data_df = data['cpu_data_df'], data['memory_data_df']
-        all_data_df = data['tx_data_df'].copy()
-        if 'pid_label_map' in data:
-            pid_label_map = data['pid_label_map']
-        else:
-            pid_label_map = None
-        all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
-        msprof_data_df = data['msprof_data']
+        if data is not None:
+            cpu_data_df = data.get('cpu_data_df', pd.DataFrame())
+            memory_data_df = data.get('memory_data_df', pd.DataFrame())
+            all_data_df = data.get('tx_data_df', pd.DataFrame()).copy()
+            if 'pid_label_map' in data:
+                pid_label_map = data['pid_label_map']
+            else:
+                pid_label_map = None
+            all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
+            msprof_data_df = data.get('msprof_data', pd.DataFrame())
 
-        cann_data = [load_single_prof(pf, index) for index, pf in enumerate(msprof_data_df)]
-        trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
-        merged_data = merge_json_data(trace_data, cann_data)
+            cann_data = [load_single_prof(pf, index) for index, pf in enumerate(msprof_data_df)]
+            trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
+            merged_data = merge_json_data(trace_data, cann_data)
+        else:
+            merged_data = {"traceEvents": []}
 
         api_df = pd.DataFrame()
         kernel_df = pd.DataFrame()
