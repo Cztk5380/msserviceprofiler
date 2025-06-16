@@ -630,7 +630,7 @@ def preprocess_prof_folders(input_path, max_parallel=8):
 
     if not find_file_in_dir(input_path, 'msproftx.db'):
         input_path = Path(input_path)
-        for fp in input_path.glob('*'):
+        for fp in input_path.rglob('*'):
             if "ms_service" in fp.name:
                 return True
         raise ValueError("msprof failed! No msproftx.db file is generated.")
