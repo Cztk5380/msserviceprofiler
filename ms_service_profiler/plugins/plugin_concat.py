@@ -15,10 +15,10 @@ class PluginConcat(PluginBase):
 
     @staticmethod
     def _merge_msprof_data(data):
-        """合并 msprof_data_df 数据"""
+        """合并 msprof_data 数据"""
         msprof_merged = []
         for data_single in data:
-            value = data_single.get("msprof_data_df")
+            value = data_single.get("msprof_data")
             if isinstance(value, list):
                 msprof_merged.extend(value)
             elif value is not None:

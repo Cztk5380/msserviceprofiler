@@ -674,7 +674,7 @@ def process(files):
             cpu_data_df=None,  # CPU数据（暂无）
             memory_data_df=None,  # 内存数据（暂无）
             time_info=None,  # 时间信息（暂无）
-            msprof_data=[],  # msprof数据（暂无）
+            msprof_data=[],  # msprof算子数据，是个包含路径的列表，msprof_xxxx.json
             msprof_data_df=[]  # msprof数据（DataFrame格式，暂无）
         )
 
@@ -721,7 +721,7 @@ def process(files):
         cpu_data_df=None,  # CPU数据（暂无）
         memory_data_df=None,  # 内存数据（暂无）
         time_info=None,  # 时间信息（暂无）
-        msprof_data=[],  # msprof数据（暂无）
+        msprof_data=[],  # msprof算子数据，是个包含路径的列表，msprof_xxxx.json
         msprof_data_df=[]  # msprof数据（DataFrame格式，暂无）
     )
 
