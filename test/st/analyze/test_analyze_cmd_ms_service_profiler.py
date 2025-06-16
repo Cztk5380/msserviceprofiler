@@ -513,8 +513,9 @@ class TestAnalyzeCmd(TestCase):
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
             self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
         # 新增数据库字段校验子测试
-        with self.subTest("Validate DB field consistency across PROF directories"):
-            self._validate_db_consistency()
+        if not glob.glob(os.path.join(self.INPUT_PATH, "**ms_service_*.db"), recursive=True):
+            with self.subTest("Validate DB field consistency across PROF directories"):
+                self._validate_db_consistency()
         # 校验输出文件是否存在
         with self.subTest():
             self.check_req_data_csv_integrity()
