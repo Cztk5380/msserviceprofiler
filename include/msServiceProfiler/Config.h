@@ -52,9 +52,11 @@ public:
 
 private:
     void ReadConfigPath();
+    void CheckProfEnvVars();
     void ParseEnable(const Json& config);
     void ParseTimeLimit(const Json& config);
     void ParseAclTaskTime(const Json& config);
+    void CheckMsptiAndEnableMspti(const Json &config);
     std::string getDefaultProfPath();
     std::string getDirPath(std::string configPath);
     void ParseProfPath(const Json& config);

@@ -14,15 +14,12 @@ class DBDataSource(BaseDataSource):
         }
 
         filepaths = get_filepaths(input_path, file_filter)
-        try:
-            db_files = filepaths.get("service", [])
-        except Exception as ex:
-            raise LoadDataError(str(input_path)) from ex
 
+        db_files = filepaths.get("service", [])
         if db_files:
-            return [db_files]
-        else:
-            return db_files
+            db_files = [db_files]
+
+        return db_files
 
     def load(self, prof_path):
         db_files = prof_path

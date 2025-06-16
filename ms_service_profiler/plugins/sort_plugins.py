@@ -11,7 +11,7 @@ class DependencyNotFoundError(Exception):
 
 
 class DependencyCycleError(Exception):
-    def __init__(self, message=f"A cycle was detected in the plugin dependencies."):
+    def __init__(self, message="A cycle was detected in the plugin dependencies."):
         super().__init__(message)
 
 

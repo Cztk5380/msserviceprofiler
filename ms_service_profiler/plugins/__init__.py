@@ -1,5 +1,8 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
+__all__ = ['PluginMsptiProcess', 'PluginEpBalanceProcess', 'PluginMoeSlowRankProcess']
+
+
 from ms_service_profiler.plugins.plugin_common import PluginCommon
 from ms_service_profiler.plugins.plugin_timestamp import PluginTimeStamp
 from ms_service_profiler.plugins.plugin_metric import PluginMetric
