@@ -527,7 +527,10 @@ namespace msServiceProfiler {
 
         auto profPath = config_->GetProfPath();
         if (!MakeDirs(profPath)) {
-            PROF_LOGE("create path(%s) failed", profPath.c_str());  // LCOV_EXCL_LINE
+            PROF_LOGE("Failed to create directory(%s), possibly due to lack of permission", profPath.c_str());  // LCOV_EXCL_LINE
+            // 无法创建目录，就直接返回
+            config_->SetEnable(false);
+            return;
         }
         PROF_LOGI("prof path: %s", profPath.c_str());  // LCOV_EXCL_LINE
 
@@ -653,7 +656,7 @@ namespace msServiceProfiler {
         }
 
         config_->SetEnable(false);
-        if (npuFlag_) {
+        if (npuFlag_ | msptiEnabled) {
             StopAclTaskTime();
         }
 
