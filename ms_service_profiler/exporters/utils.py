@@ -134,6 +134,8 @@ def add_table_into_visual_db(df, table_name):
         with ms_open(visual_db_fp, "a"):
             try:
                 conn = sqlite3.connect(visual_db_fp)
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.execute("PRAGMA busy_timeout=300000")  # 等5分钟
                 df.to_sql(table_name, conn, if_exists='replace', index=False)
 
                 # 判断如果改表需要在Insight中用纯表展示，则刷新data_table中记录

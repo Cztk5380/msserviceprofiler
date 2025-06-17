@@ -19,6 +19,9 @@ class ProcessorRes(ProcessorBase):
         if data_df is None or data_df.empty:
             return dict()
 
+        if "hostname" not in data_df or "pid" not in data_df or "name" not in data_df:
+            return dict()
+
         hostname = data_df.iloc[-1]["hostname"]
         pid = data_df.iloc[-1]["pid"]
         is_forward = any(data_df["name"] == "forward")
