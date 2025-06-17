@@ -2,6 +2,7 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
  */
 
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -56,7 +57,7 @@ namespace msServiceProfiler {
         }
 
         // mspti数据上报时 多线程之间存在抢占 需要使用线程锁防止数据踩踏
-        g_mtx.lock();
+        std::lock_guard<std::mutex> lg(g_mtx);
 
         // 绑定参数
         int bindIndex = 1;
@@ -72,9 +73,6 @@ namespace msServiceProfiler {
             PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));  // LCOV_EXCL_LINE
         }
         sqlite3_reset(stmtApi);
-
-        // 解锁线程锁
-        g_mtx.unlock();
     }
 
     void ServiceProfilerMspti::InsertKernelData(msptiActivityKernel* activity)
@@ -87,7 +85,7 @@ namespace msServiceProfiler {
             return;
         }
 
-        g_mtx.lock();
+        std::lock_guard<std::mutex> lg(g_mtx);
 
         // 绑定参数
         int bindIndex = 1;
@@ -104,7 +102,6 @@ namespace msServiceProfiler {
             PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));  // LCOV_EXCL_LINE
         }
         sqlite3_reset(stmtKernel);
-        g_mtx.unlock();
     }
 
     void ServiceProfilerMspti::InsertCommunicationData(msptiActivityCommunication* activity)
@@ -113,7 +110,7 @@ namespace msServiceProfiler {
             return;
         }
 
-        g_mtx.lock();
+        std::lock_guard<std::mutex> lg(g_mtx);
 
         // 绑定参数
         int bindIndex = 1;
@@ -132,8 +129,6 @@ namespace msServiceProfiler {
             PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));  // LCOV_EXCL_LINE
         }
         sqlite3_reset(stmtCommunication);
-
-        g_mtx.unlock();
     }
 
     void ServiceProfilerMspti::InsertMstxData(msptiActivityMarker* activity)
@@ -403,7 +398,7 @@ namespace msServiceProfiler {
         ServiceProfilerMspti::GetInstance().AddWorkingThreadNum();
         // profiler manager会在每个进程上创建 而host上的进程暂时不会有mspti数据上报 因此在这个位置初始化 防止创建host上的空db
         ServiceProfilerMspti::GetInstance().Init();
-        if (validSize <= 0) {
+        if (validSize < 1) {
             PROF_LOGE("Invalid validSize.");  // LCOV_EXCL_LINE
             return;
         }
@@ -445,8 +440,7 @@ namespace msServiceProfiler {
     // MSPTI
     void UserBufferRequest(uint8_t **buffer, size_t *requestSize, size_t *maxNumRecords)
     {
-        constexpr uint32_t size = 1 * ONE_K * ONE_K;
-        uint8_t *pBuffer = (uint8_t *) malloc(size + ALIGN_SIZE);
+        uint8_t *pBuffer = (uint8_t *) malloc(1 * ONE_K * ONE_K + ALIGN_SIZE);
         *buffer = (((uintptr_t) (pBuffer) & ((ALIGN_SIZE) - 1)) ? ((pBuffer) + (ALIGN_SIZE) - \
             ((uintptr_t) (pBuffer) & ((ALIGN_SIZE) - 1))) : (pBuffer));
         *requestSize = 1 * ONE_K * ONE_K;

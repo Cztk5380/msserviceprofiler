@@ -223,7 +223,6 @@ void Config::CheckMsptiAndEnableMspti(const Json &config)
                   "check the loading of libmspti.so in LD_PRELOAD.");
         enableAclTaskTime_ = false;
     }
-    msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
 }
 
 void Config::ParseAclTaskTime(const Json &config)
@@ -236,6 +235,7 @@ void Config::ParseAclTaskTime(const Json &config)
             if (enableAclTaskTime_) {
                 CheckMsptiAndEnableMspti(config);
             }
+            msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
         } else {
             PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");  // LCOV_EXCL_LINE
         }
