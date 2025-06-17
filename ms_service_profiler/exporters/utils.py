@@ -17,6 +17,7 @@ from ms_service_profiler.utils.sec import traverse_dir_common_check, read_file_c
 
 visual_db_fp = ''
 db_write_lock = multiprocessing.Lock()
+CSV_BLACK_LIST = r'^[＋－＝％＠\+\-=%@]|;[＋－＝％＠\+\-=%@]'
 MAX_ITERATIONS = 10000
 DATA_TABLE_NAME = 'data_table'
 CREATE_DATA_TABLE_SQL = """
@@ -144,19 +145,56 @@ def add_table_into_visual_db(df, table_name):
                 raise DatabaseError("Cannot update sqlite database.") from ex
 
 
-def save_dataframe_to_csv(filtered_df, output, file_name):
-    if filtered_df is None or not isinstance(filtered_df, pd.DataFrame) or filtered_df.empty:
+def save_dataframe_to_csv(filtered_df, output, file_name, check_columns=None):
+    if filtered_df is None or not isinstance(filtered_df, pd.DataFrame) or filtered_df.empty or output is None:
         logger.warning("Writing csv %r failed due to invalid dataframe:\n\t%s", file_name, filtered_df)
         return
+    
+    # check column names
+    for col in filtered_df.columns:
+        if not _check_csv_value_is_valid(col):
+            logger.error(f"Column name {col} contains malicious value.")
+            return
+    
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path = output_path / file_name
+    file_path = str(file_path)
 
-    if output is not None:
-        output_path = Path(output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path = output_path / file_name
-        file_path = str(file_path)
-        with ms_open(file_path, "w") as f:
-            filtered_df.to_csv(f, index=False)
-            logger.info(f"Write to {file_name} success.")
+    if not _preprocess_dataframe(filtered_df, check_columns):
+        logger.warning(f"DataFrame contains invalid values. Aborting write to {file_name}.")
+        return
+    
+    with ms_open(file_path, "w") as f:
+        filtered_df.to_csv(f, index=False)
+        logger.info(f"Write to {file_name} success.")
+
+
+def _preprocess_dataframe(df, check_columns=None):
+    if not check_columns:
+        return True
+    
+    # 校验单元格是否合法
+    for col in check_columns:
+        if col in df.columns:
+            has_invalid_value = any(not _check_csv_value_is_valid(x) for x in df[col])
+            if has_invalid_value:
+                logger.warning(f"Column {col} contains malicious values")
+                return False
+    
+    return True
+
+
+def _check_csv_value_is_valid(value: str):
+    import re
+    if not isinstance(value, str):
+        return True
+    try:
+        # -1.00 or +1.00 should be considered as digit numbers
+        float(value)
+    except ValueError:
+        return not bool(re.compile(CSV_BLACK_LIST).search(value))
+    return True
 
 
 def _check_directory(dir_path, iteration_count):
