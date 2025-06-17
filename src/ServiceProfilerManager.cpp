@@ -498,7 +498,7 @@ namespace msServiceProfiler {
         } else {
             deviceNums = 1;  // On device process
             deviceIdList[0] = g_deviceID;
-            if (config_->GetEnableAclTaskTime()) {
+            if (static_cast<bool>(config_->GetEnableAclTaskTime())) {
                 if (config_->GetAclTaskTimeLevel() == "L0") {
                     profSwitch |= ACL_PROF_TASK_TIME_L0;
                 } else if (config_->GetAclTaskTimeLevel() == "L1") {
@@ -527,10 +527,7 @@ namespace msServiceProfiler {
 
         auto profPath = config_->GetProfPath();
         if (!MakeDirs(profPath)) {
-            PROF_LOGE("Failed to create directory(%s), possibly due to lack of permission", profPath.c_str());  // LCOV_EXCL_LINE
-            // 无法创建目录，就直接返回
-            config_->SetEnable(false);
-            return;
+            PROF_LOGE("create path(%s) failed", profPath.c_str());  // LCOV_EXCL_LINE
         }
         PROF_LOGI("prof path: %s", profPath.c_str());  // LCOV_EXCL_LINE
 
@@ -656,7 +653,7 @@ namespace msServiceProfiler {
         }
 
         config_->SetEnable(false);
-        if (npuFlag_ | msptiEnabled) {
+        if (npuFlag_) {
             StopAclTaskTime();
         }
 

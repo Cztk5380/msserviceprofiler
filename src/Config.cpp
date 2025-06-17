@@ -9,6 +9,7 @@
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Config.h"
+#include "msServiceProfiler/SecurityUtils.h"
 
 namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
@@ -179,7 +180,7 @@ void Config::ParseTimeLimit(const Json& config)
     }
 }
 
-std::string Config::getDefaultProfPath()
+std::string Config::GetDefaultProfPath() const
 {
     std::string profPath;
     std::string homePath = getenv("HOME") ? getenv("HOME") : "";
@@ -187,7 +188,7 @@ std::string Config::getDefaultProfPath()
     return profPath;
 }
 
-std::string Config::getDirPath(std::string configPath)
+std::string Config::GetDirPath(std::string configPath) const
 {
     std::string dirPath;
     size_t lastSlash = configPath.find_last_of("/\\");
@@ -207,7 +208,7 @@ void Config::ParseProfPath(const Json& config)
             profPath_.append("/");
         }
     } else {
-        profPath_ = getDefaultProfPath();
+        profPath_ = GetDefaultProfPath();
     }
 
     profPath_.append(profPathDateTail_);
@@ -323,7 +324,7 @@ std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char
     size_t end = str.find(delimiter);
     while (end != std::string::npos) {
         std::string token = str.substr(start, end - start);
-        token = TrimWhitespace(token);
+        token = Config::TrimWhitespace(token);
         if (!token.empty()) {
             tokens.push_back(token);
         }
@@ -332,7 +333,7 @@ std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char
     }
     // Process last token
     std::string lastToken = str.substr(start);
-    lastToken = TrimWhitespace(lastToken);
+    lastToken = Config::TrimWhitespace(lastToken);
     if (!lastToken.empty()) {
         tokens.push_back(lastToken);
     }
@@ -486,7 +487,7 @@ bool Config::PrepareConfigAndPath(std::string& configPath)
     if (access(configPath.c_str(), F_OK) == 0) {
         return false;
     }
-    std::string dirPath = getDirPath(configPath);
+    std::string dirPath = GetDirPath(configPath);
     if (access(dirPath.c_str(), W_OK) != 0) {
         return false;
     }
@@ -494,17 +495,11 @@ bool Config::PrepareConfigAndPath(std::string& configPath)
     return true;
 }
 
-void Config::SaveConfigToJsonFile()
+nlohmann::ordered_json Config::GetConfigData() const
 {
-    const int jsonIndentSize = 4;
-    std::string configPath = getenv("SERVICE_PROF_CONFIG_PATH") ? getenv("SERVICE_PROF_CONFIG_PATH") : "";
-    if (!PrepareConfigAndPath(configPath)) {
-        return;
-    }
-    std::string profPath = getDefaultProfPath();
-    nlohmann::ordered_json configData = {
+    return {
         {"enable", enable_ ? 1 : 0},
-        {"prof_dir", profPath},
+        {"prof_dir", GetDefaultProfPath()},
         {"profiler_level", "INFO"},
         {"host_system_usage_freq", -1},
         {"npu_memory_usage_freq", -1},
@@ -514,8 +509,17 @@ void Config::SaveConfigToJsonFile()
         {"domain", ""},
         {"timelimit", 0},
     };
+}
+
+void Config::SaveConfigToJsonFile()
+{
+    const int jsonIndentSize = 4;
+    std::string configPath = getenv("SERVICE_PROF_CONFIG_PATH") ? getenv("SERVICE_PROF_CONFIG_PATH") : "";
+    if (!PrepareConfigAndPath(configPath)) {
+        return;
+    }
     try {
-        std::string dirPath = getDirPath(configPath);
+        std::string dirPath = GetDirPath(configPath);
         char tempFile[] = "temp_XXXXXX";
         const int fd = mkstemp(tempFile);
         if (fd == -1) {
@@ -524,13 +528,16 @@ void Config::SaveConfigToJsonFile()
         }
         close(fd);
         std::string tempPath = dirPath+"/"+tempFile;
+        if (!SecurityUtils::CheckFileBeforeWrite(tempPath)) {
+            return;
+        }
         PROF_LOGD("file generation in the path %s", tempPath.c_str());
         std::ofstream outputFile(tempPath);
         if (!outputFile.is_open()) {
             PROF_LOGW("Automatic config file generation failed %s", tempPath.c_str());
             return;
         }
-        outputFile << configData.dump(jsonIndentSize);
+        outputFile << GetConfigData().dump(jsonIndentSize);
         outputFile.close();
 
         auto ret = rename(tempPath.c_str(), configPath.c_str());

@@ -57,18 +57,19 @@ private:
     void ParseTimeLimit(const Json& config);
     void ParseAclTaskTime(const Json& config);
     void CheckMsptiAndEnableMspti(const Json &config);
-    std::string getDefaultProfPath();
-    std::string getDirPath(std::string configPath);
+    std::string GetDefaultProfPath() const;
+    std::string GetDirPath(std::string configPath) const;
     void ParseProfPath(const Json& config);
     void ParseLevel(const Json& config);
     bool ParseCollectConfig(const Json& config);
     bool ParseHostConfig(const Json& config);
     bool ParseNpuConfig(const Json& config);
     void ParseMspti(const Json& config);
-    std::string TrimWhitespace(const std::string& str);
+    static std::string TrimWhitespace(const std::string& str);
     std::vector<std::string> SplitAndTrimString(const std::string& str, char delimiter);
     void LogDomainInfo() const;
     void ParseDomain(const Json& config);
+    nlohmann::ordered_json GetConfigData() const;
 
     bool enable_ = false;
     uint32_t level_ = Level::INFO;
