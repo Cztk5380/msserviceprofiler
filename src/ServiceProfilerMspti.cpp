@@ -438,12 +438,12 @@ namespace msServiceProfiler {
     }
 
     // MSPTI
-    void UserBufferRequest(uint8_t **buffer, size_t *requestSize, size_t *maxNumRecords)
+    void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords)
     {
         uint8_t *pBuffer = (uint8_t *) malloc(1 * ONE_K * ONE_K + ALIGN_SIZE);
         *buffer = (((uintptr_t) (pBuffer) & ((ALIGN_SIZE) - 1)) ? ((pBuffer) + (ALIGN_SIZE) - \
             ((uintptr_t) (pBuffer) & ((ALIGN_SIZE) - 1))) : (pBuffer));
-        *requestSize = 1 * ONE_K * ONE_K;
+        *size = 1 * ONE_K * ONE_K;
         *maxNumRecords = 0;
     }
 
