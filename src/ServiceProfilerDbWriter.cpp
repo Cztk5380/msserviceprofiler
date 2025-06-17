@@ -185,12 +185,12 @@ public:
     void ApplyOptimizations()
     {
         // 组合优化设置
-        Execute("PRAGMA journal_mode = OFF;");        // 急速模式
+        Execute("PRAGMA journal_mode = WAL;");        // 急速模式（非）
         Execute("PRAGMA synchronous = OFF;");         // 急速模式
         Execute("PRAGMA cache_size = -1000;");        // 1MB缓存
         Execute("PRAGMA temp_store = MEMORY;");       // 内存临时存储
         Execute("PRAGMA page_size = 4096;");          // 页面大小
-        Execute("PRAGMA locking_mode = EXCLUSIVE;");  // 独占锁定模式
+        Execute("PRAGMA locking_mode = NORMAL;");     // 独占锁定模式(非)
     }
 
     void Execute(const char *sql)
