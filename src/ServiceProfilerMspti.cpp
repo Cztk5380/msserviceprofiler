@@ -440,9 +440,10 @@ namespace msServiceProfiler {
     // MSPTI
     void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords)
     {
-        uint8_t *pBuffer = (uint8_t *) malloc(1 * ONE_K * ONE_K + ALIGN_SIZE);
-        *buffer = (((uintptr_t) (pBuffer) & ((ALIGN_SIZE) - 1)) ? ((pBuffer) + (ALIGN_SIZE) - \
-            ((uintptr_t) (pBuffer) & ((ALIGN_SIZE) - 1))) : (pBuffer));
+        uint8_t *pBuffer = static_cast<uint8_t *>(malloc(1 * ONE_K * ONE_K + ALIGN_SIZE));
+        *buffer = (((reinterpret_cast<uintptr_t>(pBuffer) & (ALIGN_SIZE - 1)) != 0)
+                ? (pBuffer + (ALIGN_SIZE - (reinterpret_cast<uintptr_t>(pBuffer) & (ALIGN_SIZE - 1))))
+                : pBuffer);
         *size = 1 * ONE_K * ONE_K;
         *maxNumRecords = 0;
     }
