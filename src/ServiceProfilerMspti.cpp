@@ -352,7 +352,7 @@ namespace msServiceProfiler {
         workingThreadNum = 0;
     }
 
-    bool ServiceProfilerMspti::GetWorkingStatus()
+    bool ServiceProfilerMspti::GetWorkingStatus() const
     {
         return (workingThreadNum > 0);
     }
