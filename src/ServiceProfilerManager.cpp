@@ -656,7 +656,7 @@ namespace msServiceProfiler {
         }
 
         config_->SetEnable(false);
-        if (npuFlag_ | msptiEnabled) {
+        if (npuFlag_ || msptiEnabled) {
             StopAclTaskTime();
         }
 
