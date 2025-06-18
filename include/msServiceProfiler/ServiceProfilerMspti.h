@@ -31,7 +31,7 @@ namespace {
 
 namespace msServiceProfiler {
 int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber);
-void InitMsptiActivity(bool msptiEnable_);
+void InitMsptiActivity(bool msptiEnable);
 void InitMsptiFilter(const std::string& apiFilter, const std::string& kernelFilter);
 void UninitMspti(msptiSubscriberHandle& subscriber);
 void FlushBufferByTime();
@@ -48,9 +48,9 @@ public:
 
     void InsertKernelData(msptiActivityKernel* activity);
 
-    void InsertCommunicationData(msptiActivityCommunication* activity);
+    void InsertCommunicationData(msptiActivityCommunication* activity) const;
 
-    void InsertMstxData(msptiActivityMarker* activity);
+    void InsertMstxData(msptiActivityMarker* activity) const;
 
     void Init();
 
