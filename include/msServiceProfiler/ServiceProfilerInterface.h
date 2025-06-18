@@ -137,7 +137,7 @@ private:
             return;
         }
         std::string soName = ascendHomePath + "/lib64/libms_service_profiler.so";
-        if (!IsReadable(soName)) {
+        if (!SecurityUtils::IsReadable(soName)) {
             printf("Error: Shared library %s is not readable!\n", soName.c_str());
             return;
         }
