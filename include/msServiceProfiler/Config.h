@@ -65,7 +65,6 @@ private:
     bool ParseHostConfig(const Json& config);
     bool ParseNpuConfig(const Json& config);
     void ParseMspti(const Json& config);
-    static std::string TrimWhitespace(const std::string& str);
     std::vector<std::string> SplitAndTrimString(const std::string& str, char delimiter);
     void LogDomainInfo() const;
     void ParseDomain(const Json& config);

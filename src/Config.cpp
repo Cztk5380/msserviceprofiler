@@ -16,6 +16,15 @@ constexpr int MILLISECONDS_IN_SECOND = 1000;
 constexpr int ACL_PROF_ENABLE_TASK_TIME = 1;
 constexpr int MSPTI_ENABLE_TASK_TIME = 2;
 constexpr int MAX_TIME_LIMIT = 7200;
+
+static std::string TrimWhitespace(const std::string& str)
+{
+    std::string result = str;
+    result.erase(0, result.find_first_not_of(" \t\n\r\f\v"));
+    result.erase(result.find_last_not_of(" \t\n\r\f\v") + 1);
+    return result;
+}
+
 Config::Config()
 {
     ReadConfigPath();
@@ -309,14 +318,6 @@ void Config::ParseLevel(const Json &config)
     PROF_LOGD("profiler_level: %u", level_);
 }
 
-std::string Config::TrimWhitespace(const std::string& str)
-{
-    std::string result = str;
-    result.erase(0, result.find_first_not_of(" \t\n\r\f\v"));
-    result.erase(result.find_last_not_of(" \t\n\r\f\v") + 1);
-    return result;
-}
-
 std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char delimiter)
 {
     std::vector<std::string> tokens;
@@ -324,7 +325,7 @@ std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char
     size_t end = str.find(delimiter);
     while (end != std::string::npos) {
         std::string token = str.substr(start, end - start);
-        token = Config::TrimWhitespace(token);
+        token = TrimWhitespace(token);
         if (!token.empty()) {
             tokens.push_back(token);
         }
@@ -333,7 +334,7 @@ std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char
     }
     // Process last token
     std::string lastToken = str.substr(start);
-    lastToken = Config::TrimWhitespace(lastToken);
+    lastToken = TrimWhitespace(lastToken);
     if (!lastToken.empty()) {
         tokens.push_back(lastToken);
     }
