@@ -438,7 +438,8 @@ namespace msServiceProfiler {
     }
 
     // MSPTI
-    void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords) {
+    void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords)
+    {
         const size_t bufferSize = 1 * ONE_K * ONE_K;
         const size_t alignment = ALIGN_SIZE;
         // 多分配空间确保能对齐
