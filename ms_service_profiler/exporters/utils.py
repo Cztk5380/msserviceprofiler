@@ -1,5 +1,6 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 import os
+import re
 import shutil
 import sqlite3
 import argparse
@@ -26,19 +27,81 @@ CREATE_DATA_TABLE_SQL = """
 UPDATA_DATA_TABLE_SQL = """
     INSERT INTO data_table (name, view_name) VALUES (?,?);
 """
-VIEWS_LIST = [
-    'Batch_Size_by_Batch_ID_curve', 'Kvcache_Usage_Percent_curve', 'Prefill_Generate_Speed_Latency_curve',
-    'Request_Latency_curve', 'Decode_Generate_Speed_Latency_curve', 'First_Token_Latency_curve',
-    'Request_Status_curve'
-]
-
-DATA_TABLE_RECORDS = {
+CURVE_VIEW_NAME_LIST = {
+    # 折线图原始表名: 视图名称
+    'batch': 'Batch_Size_by_Batch_ID_curve',
+    'kvcache': 'Kvcache_Usage_Percent_curve',
+    'prefill_gen_speed': 'Prefill_Generate_Speed_Latency_curve',
+    'req_latency': 'Request_Latency_curve',
+    'decode_gen_speed': 'Decode_Generate_Speed_Latency_curve',
+    'first_token_latency': 'First_Token_Latency_curve',
+    'request_status': 'Request_Status_curve'
+}
+TABLE_DATA_VIEW_NAME_LIST = {
+    # 需要以纯表显示的db中的表名: data_table中的视图名称
+    # data_table中(name, view_name)都为视图名称
     'batch': 'batch_info',
     'kvcache': 'kvcache_usage',
-    'pd_split_communication': 'pd_split_communication',
-    'request_data': 'request_data',
-    'pull_kvcache': 'pd_split_pull_kvcache'
+    'pd_split_communication': 'pd_communication_info',
+    'request': 'request_data',
+    'pd_split_kvcache': 'pd_split_pull_kvcache'
 }
+
+
+def write_result_to_db(df_param_list, create_view_sql=None, table_name="", rename_cols=None):
+    """
+        df_param_list: [[需要存入db中table的df, table name], [...]]
+        create_view_sql: 需要创建用于折线图展示的视图的sql语句列表
+        table_name: 需要以纯表显示的db中的表名(df_param_list中最多只有一个表需要以纯表形式展示)
+        rename_cols: 纯表展示数据需要修改的列名，该视图创建语句动态生成
+    """
+    try:
+        create_view_sql = create_view_sql or []
+        rename_cols = rename_cols or []
+        for df, df_name in df_param_list:
+            add_table_into_visual_db(df, df_name)
+
+        create_sqlite_views(table_name, create_view_sql, rename_cols)
+
+    except Exception as error:
+        logger.warning(f"{table_name} write to db table failed due to {error}")
+
+
+def write_result_to_csv(df, output, csv_name, rename_col):
+    df = df.rename(columns=rename_col)
+    save_dataframe_to_csv(df, output, f"{csv_name}.csv")
+
+
+def create_view_with_renamed_column(cursor, table_name, view_name, rename_cols):
+    # 获取所有列名
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    columns = [column[1] for column in cursor.fetchall()]  # 第2个元素是列名
+    
+    # 构建SELECT部分，重命名指定列
+    select_parts = []
+    for col in columns:
+        if col in rename_cols:
+            select_parts.append(f'"{col}" AS "{rename_cols[col]}"')
+        else:
+            select_parts.append(col)
+    
+    select_clause = ", ".join(select_parts)
+
+    # 创建视图
+    create_view_sql = f"""
+    CREATE VIEW {view_name} AS
+    SELECT {select_clause}
+    FROM {table_name}
+    """
+    cursor.execute(create_view_sql)
+
+
+def del_all_visual_table(views, cursor):
+    for view in views:
+        if not view or len(view) < 1:
+            continue
+        if view[0] in CURVE_VIEW_NAME_LIST.values() or view[0] in TABLE_DATA_VIEW_NAME_LIST.values():
+            cursor.execute(f"DROP VIEW IF EXISTS {view[0]};")
 
 
 def create_sqlite_db(output):
@@ -64,9 +127,7 @@ def create_sqlite_db(output):
         views = cursor.fetchall()
 
         # 删除所有视图
-        for view in views:
-            if view[0] in VIEWS_LIST:
-                cursor.execute(f"DROP VIEW IF EXISTS {view[0]};")
+        del_all_visual_table(views, cursor)
     except Exception as ex:
         conn.rollback()  # 失败时回滚
         raise DatabaseError("Cannot create sqlite database.") from ex
@@ -75,20 +136,30 @@ def create_sqlite_db(output):
             conn.close()
 
 
-def create_sqlite_views(name, create_view_sql=None):
-    if create_view_sql is None:
-        return
+def create_views_with_sqls(cursor, create_view_sql):
+    for sql in create_view_sql:
+        cursor.execute(sql)
 
+
+def create_views_with_table_name(cursor, table_name, rename_cols):
+    if table_name in TABLE_DATA_VIEW_NAME_LIST.keys():
+        create_view_with_renamed_column(cursor, table_name,
+            TABLE_DATA_VIEW_NAME_LIST[table_name], rename_cols)
+
+
+def create_sqlite_views(table_name, create_view_sql, rename_cols):
     with db_write_lock:
         with ms_open(visual_db_fp, "a"):
             try:
                 conn = sqlite3.connect(visual_db_fp)
                 cursor = conn.cursor()
-                cursor.execute(create_view_sql)
+                create_views_with_sqls(cursor, create_view_sql)
+                create_views_with_table_name(cursor, table_name, rename_cols)
                 conn.commit()
                 conn.close()
             except Exception as ex:
-                raise DatabaseError(f"Cannot update sqlite database when create {name} views.") from ex
+                conn.rollback()  # 失败时回滚
+                raise DatabaseError(f"Cannot update sqlite {table_name} views.") from ex
 
 
 def handle_sqlite_table_list(table_list, cursor):
@@ -117,9 +188,10 @@ def get_db_connection():
 
 
 def add_record_to_data_table(table_name, conn):
-    if table_name in DATA_TABLE_RECORDS.keys():
+    if table_name in TABLE_DATA_VIEW_NAME_LIST.keys():
         cursor = conn.cursor()
-        cursor.execute(UPDATA_DATA_TABLE_SQL, (table_name, DATA_TABLE_RECORDS[table_name]))
+        view_name = TABLE_DATA_VIEW_NAME_LIST[table_name]
+        cursor.execute(UPDATA_DATA_TABLE_SQL, (view_name, view_name))
 
 
 def add_table_into_visual_db(df, table_name):
@@ -139,12 +211,13 @@ def add_table_into_visual_db(df, table_name):
                 conn.execute("PRAGMA busy_timeout=300000")  # 等5分钟
                 df.to_sql(table_name, conn, if_exists='replace', index=False)
 
-                # 判断如果改表需要在Insight中用纯表展示，则刷新data_table中记录
+                # 判断如果此表需要在Insight中用纯表展示，则刷新data_table中记录
                 add_record_to_data_table(table_name, conn)
                 conn.commit()
                 conn.close()
             except Exception as ex:
-                raise DatabaseError("Cannot update sqlite database.") from ex
+                conn.rollback()  # 失败时回滚
+                raise DatabaseError(f"Cannot update {table_name} sqlite database.") from ex
 
 
 def save_dataframe_to_csv(filtered_df, output, file_name, check_columns=None):
@@ -188,7 +261,6 @@ def _preprocess_dataframe(df, check_columns=None):
 
 
 def _check_csv_value_is_valid(value: str):
-    import re
     if not isinstance(value, str):
         return True
     try:

@@ -13,7 +13,7 @@ class PluginProcessName(PluginBase):
     @classmethod
     @timer(logger.info)
     def parse(cls, data):
-        tx_data_df : pd.DataFrame = data.get('tx_data_df')
+        tx_data_df: pd.DataFrame = data.get('tx_data_df')
         
         if 'scope#dp' not in tx_data_df or 'rid' not in tx_data_df:
             # nothing to do 
