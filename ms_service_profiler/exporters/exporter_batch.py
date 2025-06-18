@@ -3,7 +3,7 @@ import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.exporters.utils import (
-    write_result_to_csv, write_result_to_db, create_sqlite_views,
+    write_result_to_csv, write_result_to_db,
     check_domain_valid, CURVE_VIEW_NAME_LIST
 )
 from ms_service_profiler.constant import US_PER_MS

@@ -40,6 +40,12 @@ int NpuMemoryUsage::DcmiInit() const
     }
 
     DcmiInitFunc dcmiInit = (DcmiInitFunc)dlsym(handleDcmi, "dcmi_init");
+    if (!dcmiInit) {
+        PROF_LOGW("Error: %s", dlerror());
+        dlclose(handleDcmi);
+        return EXITCODE_EMPTY_DLSYM_ADDR;
+    }
+
     int ret = dcmiInit();
     return ret;
 }
@@ -102,13 +108,15 @@ int NpuMemoryUsage::InitDcmiCardAndDevices()
     }
 
     int cardNum = 0;
-    int cardList[64] = {0};
-    int listLen = 64;
+    int cardList[MAX_CHIP_NUM] = {0};
+    int listLen = MAX_CHIP_NUM;
 
     ret = DcmiGetCardList(&cardNum, cardList, listLen);
     if (ret != EXITCODE_SUCCESS) {
         return ret;
     }
+
+    cardNum = std::min(MAX_CHIP_NUM, cardNum);
 
     for (int cardId = 0; cardId < cardNum; cardId++) {
         int deviceIdMax = 0;
@@ -148,10 +156,11 @@ int NpuMemoryUsage::GetByDcmi(std::vector<int> &memoryUsed, std::vector<int> &me
             if (curRet != EXITCODE_SUCCESS) {
                 ret = ret + curRet;
                 continue;
-            } else {
-                memoryUsed.push_back(hbmInfo.memory_usage);
-                memoryUtiliza.push_back(hbmInfo.memory_usage * PERCENTAGE_SCALE / hbmInfo.memory_size);
             }
+
+            const int hbmMemorySize = std::max(HBM_MEMORY_SIZE_FALL_BACK, hbmInfo.memory_size);
+            memoryUsed.push_back(hbmInfo.memory_usage);
+            memoryUtiliza.push_back(hbmInfo.memory_usage * PERCENTAGE_SCALE / hbmMemorySize);
         }
     }
     return ret;

@@ -45,21 +45,21 @@ constexpr int MAX_DEVICE_NUM = 128;
 constexpr int STRING_TO_UINT_BASE = 10;
 constexpr int SPAN_CACHE_LEN = 64;
 constexpr uint32_t INVALID_DEVICE_ID = static_cast<uint32_t>(-1);
-
-using DATA_PTR = struct ProfSetDevPara *;
-
-struct ProfSetDevPara {
-    uint32_t chipId;
-    uint32_t deviceId;
-    bool isOpen;
-};
+}  // end of anonymous namespace
 
 // 全局标志位，用于控制线程退出
 std::atomic<bool> g_threadRunFlag(true);
 uint32_t g_deviceID = INVALID_DEVICE_ID;
 std::atomic<u_int64_t> g_markIndex(0);
 bool g_startFlag = false;
-}  // end of anonymous namespace
+
+using DATA_PTR = struct ProfSetDevParaDevice *;
+
+struct ProfSetDevParaDevice {
+    uint32_t chipId;
+    uint32_t deviceId;
+    bool isOpen;
+};
 
 uint64_t GetCurrentTimeInNanoseconds()
 {
@@ -192,7 +192,7 @@ void AddMetaInfo(const char* key, const char* value)
 
 void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
 {
-    if (len != sizeof(::ProfSetDevPara)) {
+    if (len != sizeof(::ProfSetDevParaDevice)) {
         return;
     }
     if (data == nullptr) {
@@ -441,7 +441,7 @@ namespace msServiceProfiler {
 
                 if (duration.count() >= config_->GetTimeLimit()) {
                     StopProfiler();
-                    PROF_LOGI("Profiler Timelimit %d Seconds Is Reached, Profiler Disabled Successfully!",
+                    PROF_LOGI("Profiler Timelimit %u Seconds Is Reached, Profiler Disabled Successfully!",
                               config_->GetTimeLimit());
                 }
             }
@@ -527,7 +527,10 @@ namespace msServiceProfiler {
 
         auto profPath = config_->GetProfPath();
         if (!MakeDirs(profPath)) {
-            PROF_LOGE("create path(%s) failed", profPath.c_str());  // LCOV_EXCL_LINE
+            PROF_LOGE("Failed to create directory(%s), possibly due to lack of permission", profPath.c_str());  // LCOV_EXCL_LINE
+            // 无法创建目录，就直接返回
+            config_->SetEnable(false);
+            return;
         }
         PROF_LOGI("prof path: %s", profPath.c_str());  // LCOV_EXCL_LINE
 
@@ -653,7 +656,7 @@ namespace msServiceProfiler {
         }
 
         config_->SetEnable(false);
-        if (npuFlag_) {
+        if (npuFlag_ | msptiEnabled) {
             StopAclTaskTime();
         }
 

@@ -4,7 +4,6 @@ import glob
 import io
 import re
 import os
-import logging
 import json
 import shutil
 import sqlite3
@@ -17,6 +16,7 @@ import pytest
 import pandas as pd
 from jsonschema import validate, ValidationError
 from ...st.utils import execute_cmd
+from ms_service_profiler.exporters.utils import VIEWS_LIST
 
 
 def check_kvcache_csv_content(output_path, csv_file_name):
@@ -111,7 +111,7 @@ def check_communication_csv_content(csv_file):
     check_no_empty_lines_between_first_last_line(df, context=csv_file)
 
 
-def check_has_vaild_table(cursor, table_name, columns_to_check):
+def check_table_with_no_empty_data(cursor, table_name, columns_to_check):
     # 校验存在数据表
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
     table_exists = cursor.fetchone()
@@ -122,13 +122,50 @@ def check_has_vaild_table(cursor, table_name, columns_to_check):
     columns_in_table = [row[1] for row in cursor]
     pytest.assume(all(column in columns_in_table for column in columns_to_check))
 
-    # 校验至少存在一行所有的列都不为空
+    # 校验所有列数据每行都不为空（严格检查 NULL 值）
     cursor.execute(f"SELECT * FROM {table_name}")
     data = cursor.fetchall()
+    
+    # 若表为空则直接失败
+    if not data:
+        pytest.assume(False, f"Table {table_name} is empty")
+
+    # 逐行检查是否存在空值（NULL）
+    for row_idx, row in enumerate(data, start=1):
+        # 检查每个字段是否为 None（即 SQL NULL）
+        if any(field is None for field in row):
+            pytest.assume(False, f"Null values detected in row {row_idx}")
+
+
+def check_has_vaild_table(cursor, table_name, columns_to_check):
+    # 校验存在数据表
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+    table_exists = cursor.fetchone()
+    assert table_exists is not None
+
+    # 校验生成的列
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    columns_info = cursor.fetchall()
+    columns_in_table = [col[1] for col in columns_info]  # 提取列名
+    pytest.assume(
+        all(column in columns_in_table for column in columns_to_check),
+        f"Missing required columns in {table_name}"
+    )
+
+    # 构建列名到索引的映射 {列名: 列位置}
+    column_indices = {col[1]: col[0] for col in columns_info}
+
+    # 仅查询目标列并检查空值
+    query_columns = ", ".join(columns_to_check)
+    cursor.execute(f"SELECT {query_columns} FROM {table_name}")
+    data = cursor.fetchall()
+
+    # 检查至少有一行所有目标列不为空
     for row in data:
-        if all(row):
-            return
-    pytest.assume(False)
+        if all(field is not None for field in row):
+            return  # 找到有效行，校验通过
+
+    pytest.assume(False, f"No rows with all non-null values in columns: {columns_to_check}")
 
 
 def check_latency_data(output_path):
@@ -144,6 +181,50 @@ def check_latency_data(output_path):
     check_has_vaild_table(cursor, 'first_token_latency', columns_to_check)
     check_has_vaild_table(cursor, 'prefill_gen_speed', columns_to_check)
     check_has_vaild_table(cursor, 'req_latency', columns_to_check)
+
+    # 关闭连接
+    conn.close()
+
+
+def check_insight_table(output_path):
+    # 校验db文件正常生成
+    db_path = os.path.join(output_path, 'profiler.db')
+    assert os.path.exists(db_path)
+
+    # 校验Insight中table名称及列
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # 校验trace图可视化数据
+    check_has_vaild_table(cursor, 'counter', ['id', 'name', 'pid', 'args', 'timestamp'])
+    check_has_vaild_table(cursor, 'flow', ['id', 'flow_id', 'name', 'cat', 'timestamp', 'track_id', 'type'])
+    check_has_vaild_table(cursor, 'process', ['pid', 'process_name', 'process_sort_index'])
+    check_has_vaild_table(cursor, 'slice', ['id', 'timestamp', 'duration', 'name', 'track_id', 'args', 'end_time'])
+    check_has_vaild_table(cursor, 'thread', ['tid', 'pid', 'thread_name', 'track_id'])
+
+    # 校验纯表数据
+    check_table_with_no_empty_data(cursor, 'batch', ['name', 'res_list', 'batch_size', 'batch_type'])
+    check_table_with_no_empty_data(cursor, 'batch_exec', ['batch_id', 'name', 'pid', 'start', 'end'])
+    check_table_with_no_empty_data(cursor, 'batch_req', ['req_id', 'iter', 'rid', 'block', 'batch_id'])
+    check_has_vaild_table(cursor, 'request_data', ['http_rid', 'recv_token_size', 'reply_token_size'])
+    check_table_with_no_empty_data(cursor, 'data_table', ['id', 'name', 'view_name'])
+
+    # 关闭连接
+    conn.close()
+
+
+def check_insight_views(output_path):
+    # 校验db文件正常生成
+    db_path = os.path.join(output_path, 'profiler.db')
+    assert os.path.exists(db_path)
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # 校验table中是否包含下述views
+    for view in VIEWS_LIST:
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='view' AND name=?", (view,))
+        assert cursor.fetchone() is not None, f"View {view} does not exist"
 
     # 关闭连接
     conn.close()
@@ -432,8 +513,9 @@ class TestAnalyzeCmd(TestCase):
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
             self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
         # 新增数据库字段校验子测试
-        with self.subTest("Validate DB field consistency across PROF directories"):
-            self._validate_db_consistency()
+        if not glob.glob(os.path.join(self.INPUT_PATH, "**ms_service_*.db"), recursive=True):
+            with self.subTest("Validate DB field consistency across PROF directories"):
+                self._validate_db_consistency()
         # 校验输出文件是否存在
         with self.subTest():
             self.check_req_data_csv_integrity()
@@ -455,6 +537,11 @@ class TestAnalyzeCmd(TestCase):
             generate_db_tables = ["batch", "batch_exec", "batch_req", "data_table", "req_data", "kvcache_data"]
             for name in generate_db_tables:
                 check_db_table_content(self.OUTPUT_PATH, self.DB_FILE_NAME, name)
+
+        # 校验Insight可视化数据生成
+        with self.subTest():
+            check_insight_table(self.OUTPUT_PATH)
+            check_insight_views(self.OUTPUT_PATH)
 
         # 校验请求状态数的数据生成
         with self.subTest():

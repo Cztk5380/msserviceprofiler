@@ -7,8 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 
 from ms_service_profiler.exporters.base import TaskExporterBase
-from ms_service_profiler.utils.file_open_check import ms_open, safe_json_dump
-from ms_service_profiler.plugins.plugin_req_status import ReqStatus
+from ms_service_profiler.utils.file_open_check import ms_open, safe_json_dump, OpenException
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.error import DatabaseError
@@ -40,18 +39,22 @@ class ExporterTrace(TaskExporterBase):
 
         output = cls.args.output_path
 
-        cpu_data_df, memory_data_df = data['cpu_data_df'], data['memory_data_df']
-        all_data_df = data['tx_data_df'].copy()
-        if 'pid_label_map' in data:
-            pid_label_map = data['pid_label_map']
-        else:
-            pid_label_map = None
-        all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
-        msprof_data_df = data['msprof_data']
+        if data is not None:
+            cpu_data_df = data.get('cpu_data_df', pd.DataFrame())
+            memory_data_df = data.get('memory_data_df', pd.DataFrame())
+            all_data_df = data.get('tx_data_df', pd.DataFrame()).copy()
+            if 'pid_label_map' in data:
+                pid_label_map = data['pid_label_map']
+            else:
+                pid_label_map = None
+            all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
+            msprof_data_df = data.get('msprof_data', pd.DataFrame())
 
-        cann_data = [load_single_prof(pf, index) for index, pf in enumerate(msprof_data_df)]
-        trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
-        merged_data = merge_json_data(trace_data, cann_data)
+            cann_data = [load_single_prof(pf, index) for index, pf in enumerate(msprof_data_df)]
+            trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
+            merged_data = merge_json_data(trace_data, cann_data)
+        else:
+            merged_data = {"traceEvents": []}
 
         api_df = pd.DataFrame()
         kernel_df = pd.DataFrame()
@@ -95,11 +98,13 @@ def process_prof_trace_events(events, index):
 
 def load_single_prof(pf, prof_id):
     try:
-        with open(pf, 'r', encoding='utf-8') as file:
+        with ms_open(pf, 'r', encoding='utf-8', max_size=-1) as file:
             trace_events = json.load(file)
-
+    except OpenException as oe:
+        logger.warning(f"OpenException occurred {oe}")
+        return {"traceEvents": []}
     except FileNotFoundError:
-        logger.warning(f"The msprof.json file was not found. Please check the file path.")
+        logger.warning("The msprof.json file was not found. Please check the file path.")
         return {"traceEvents": []}
     except json.JSONDecodeError:
         logger.warning(

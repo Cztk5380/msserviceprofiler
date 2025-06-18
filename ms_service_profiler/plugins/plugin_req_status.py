@@ -1,9 +1,6 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
 from enum import Enum
-import datetime
-
-import pandas as pd
 
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.plugins.plugin_metric import is_metric

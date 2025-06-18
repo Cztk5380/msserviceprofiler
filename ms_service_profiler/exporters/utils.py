@@ -10,7 +10,6 @@ import numpy as np
 
 import pandas as pd
 
-from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.check.rule import Rule
 from ms_service_profiler.utils.error import DatabaseError
 from ms_service_profiler.utils.file_open_check import ms_open
@@ -19,6 +18,7 @@ from ms_service_profiler.utils.sec import traverse_dir_common_check, read_file_c
 
 visual_db_fp = ''
 db_write_lock = multiprocessing.Lock()
+CSV_BLACK_LIST = r'^[＋－＝％＠\+\-=%@]|;[＋－＝％＠\+\-=%@]'
 MAX_ITERATIONS = 10000
 DATA_TABLE_NAME = 'data_table'
 CREATE_DATA_TABLE_SQL = """
@@ -134,19 +134,21 @@ def create_sqlite_db(output):
 
 
 def create_sqlite_views(table_name, create_view_sql=[], rename_cols=[]):
-    try:
-        conn = sqlite3.connect(visual_db_fp)
-        cursor = conn.cursor()
-        for sql in create_view_sql:
-            cursor.execute(sql)
-        if table_name in TABLE_DATA_VIEW_NAME_LIST.keys():
-            create_view_with_renamed_column(cursor, table_name,
-                TABLE_DATA_VIEW_NAME_LIST[table_name], rename_cols)
-        conn.commit()
-        conn.close()
-    except Exception as ex:
-        conn.rollback()  # 失败时回滚
-        logger.warning(f"Cannot update sqlite database when create {table_name} views due to {ex}.")
+    with db_write_lock:
+        with ms_open(visual_db_fp, "a"):
+            try:
+                conn = sqlite3.connect(visual_db_fp)
+                cursor = conn.cursor()
+                for sql in create_view_sql:
+                    cursor.execute(sql)
+                if table_name in TABLE_DATA_VIEW_NAME_LIST.keys():
+                    create_view_with_renamed_column(cursor, table_name,
+                        TABLE_DATA_VIEW_NAME_LIST[table_name], rename_cols)
+                conn.commit()
+                conn.close()
+            except Exception as ex:
+                conn.rollback()  # 失败时回滚
+                raise DatabaseError(f"Cannot update sqlite database views when create {table_name}.") from ex
 
 
 def handle_sqlite_table_list(table_list, cursor):
@@ -157,7 +159,7 @@ def handle_sqlite_table_list(table_list, cursor):
 
 def create_sqlite_tables(table_list):
     with db_write_lock:
-        with ms_open(visual_db_fp, "a") as f:
+        with ms_open(visual_db_fp, "a"):
             try:
                 conn = sqlite3.connect(visual_db_fp)
                 cursor = conn.cursor()
@@ -170,7 +172,7 @@ def create_sqlite_tables(table_list):
 
 def get_db_connection():
     with db_write_lock:
-        with ms_open(visual_db_fp, "a") as f:
+        with ms_open(visual_db_fp, "a"):
             return sqlite3.connect(visual_db_fp)
 
 
@@ -191,7 +193,7 @@ def add_table_into_visual_db(df, table_name):
             df[col] = df[col].astype(str)
 
     with db_write_lock:
-        with ms_open(visual_db_fp, "a") as f:
+        with ms_open(visual_db_fp, "a"):
             try:
                 conn = sqlite3.connect(visual_db_fp)
                 df.to_sql(table_name, conn, if_exists='replace', index=False)
@@ -202,22 +204,59 @@ def add_table_into_visual_db(df, table_name):
                 conn.close()
             except Exception as ex:
                 conn.rollback()  # 失败时回滚
-                raise DatabaseError("Cannot update sqlite database.") from ex
+                raise DatabaseError(f"Cannot update {table_name} sqlite database.") from ex
 
 
-def save_dataframe_to_csv(filtered_df, output, file_name):
-    if filtered_df is None or not isinstance(filtered_df, pd.DataFrame) or filtered_df.empty:
+def save_dataframe_to_csv(filtered_df, output, file_name, check_columns=None):
+    if filtered_df is None or not isinstance(filtered_df, pd.DataFrame) or filtered_df.empty or output is None:
         logger.warning("Writing csv %r failed due to invalid dataframe:\n\t%s", file_name, filtered_df)
         return
+    
+    # check column names
+    for col in filtered_df.columns:
+        if not _check_csv_value_is_valid(col):
+            logger.error(f"Column name {col} contains malicious value.")
+            return
+    
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path = output_path / file_name
+    file_path = str(file_path)
 
-    if output is not None:
-        output_path = Path(output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path = output_path / file_name
-        file_path = str(file_path)
-        with ms_open(file_path, "w") as f:
-            filtered_df.to_csv(f, index=False)
-            logger.info(f"Write to {file_name} success.")
+    if not _preprocess_dataframe(filtered_df, check_columns):
+        logger.warning(f"DataFrame contains invalid values. Aborting write to {file_name}.")
+        return
+    
+    with ms_open(file_path, "w") as f:
+        filtered_df.to_csv(f, index=False)
+        logger.info(f"Write to {file_name} success.")
+
+
+def _preprocess_dataframe(df, check_columns=None):
+    if not check_columns:
+        return True
+    
+    # 校验单元格是否合法
+    for col in check_columns:
+        if col in df.columns:
+            has_invalid_value = any(not _check_csv_value_is_valid(x) for x in df[col])
+            if has_invalid_value:
+                logger.warning(f"Column {col} contains malicious values")
+                return False
+    
+    return True
+
+
+def _check_csv_value_is_valid(value: str):
+    import re
+    if not isinstance(value, str):
+        return True
+    try:
+        # -1.00 or +1.00 should be considered as digit numbers
+        float(value)
+    except ValueError:
+        return not bool(re.compile(CSV_BLACK_LIST).search(value))
+    return True
 
 
 def _check_directory(dir_path, iteration_count):
@@ -231,7 +270,7 @@ def _check_directory(dir_path, iteration_count):
         # 校验文件夹
         traverse_dir_common_check(dir_path)
     except argparse.ArgumentTypeError as e:
-        raise argparse.ArgumentTypeError(f"Directory is NOT safe")
+        raise argparse.ArgumentTypeError("Directory is NOT safe") from e
 
 
 def _check_file(file_path, iteration_count):
@@ -245,7 +284,7 @@ def _check_file(file_path, iteration_count):
         # 校验文件
         read_file_common_check(file_path)
     except argparse.ArgumentTypeError as e:
-        raise argparse.ArgumentTypeError(f"File is NOT safe")
+        raise argparse.ArgumentTypeError("File is NOT safe") from e
 
 
 def check_input_path_valid(path):

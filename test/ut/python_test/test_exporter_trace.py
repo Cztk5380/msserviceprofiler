@@ -11,6 +11,7 @@ import math
 import pytest
 import pandas as pd
 
+from ms_service_profiler.utils.file_open_check import OpenException
 from ms_service_profiler.exporters.exporter_trace import ExporterTrace, write_trace_data_to_file, \
     save_trace_data_into_json, add_flow_event, create_trace_events, sort_trace_events_by_tid, add_mem_events, \
     load_single_prof, find_cann_pid, merge_json_data, add_npu_events, add_kvcache_events, add_cpu_events, \
@@ -114,17 +115,21 @@ def test_find_cann_pid():
 
 
 def test_load_single_prof_file_not_found():
-    # 模拟文件未找到的情况
-    with patch("builtins.open", side_effect=FileNotFoundError):
+    # 模拟 ms_open 在文件不存在时抛出 OpenException
+    with patch("ms_service_profiler.exporters.exporter_trace.ms_open",
+               side_effect=OpenException("No such file or directory")):
         result = load_single_prof("nonexistent_path.json", [])
         assert result == {"traceEvents": []}
 
 
 def test_load_single_prof_invalid_json():
-    # 模拟无效的 JSON 文件内容
-    with patch("builtins.open", mock_open(read_data="invalid json")):
+    mock_file = mock_open(read_data="invalid json").return_value
+    mock_file.read.return_value = "invalid json"
+
+    with patch("ms_service_profiler.exporters.exporter_trace.ms_open", return_value=mock_file) as mock_ms_open:
         result = load_single_prof("invalid_path.json", [])
         assert result == {"traceEvents": []}
+        mock_ms_open.assert_called_once_with("invalid_path.json", "r", encoding='utf-8', max_size=-1)
 
 
 def test_merge_json_data():
@@ -152,12 +157,18 @@ def test_integration(mock_data):
         {"name": "event2", "pid": 456}
     ])
 
-    with patch("builtins.open", mock_open(read_data=mock_json_content)):
+    # 模拟 ms_open 的行为，使其返回预设的 JSON 内容
+    mock_file = mock_open(read_data=mock_json_content).return_value
+    mock_file.read.return_value = mock_json_content
+
+    with patch("ms_service_profiler.exporters.exporter_trace.ms_open", return_value=mock_file) as mock_ms_open:
         trace_data = {"traceEvents": []}
         for pf in mock_data["msprof_data"]:
             result = load_single_prof(pf, ["123"])
             trace_data = merge_json_data(trace_data, [result])
 
+        # 验证 ms_open 被正确调用
+        mock_ms_open.assert_called()
         assert len(trace_data["traceEvents"]) == 9
 
 

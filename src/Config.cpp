@@ -168,7 +168,7 @@ void Config::ParseTimeLimit(const Json& config)
                 PROF_LOGW("timelimit value is not higher than 0, the profiling time is not assigned.");
             } else if (config["timelimit"] > 0 && config["timelimit"] <= MAX_TIME_LIMIT) {
                 timeLimit_ = config["timelimit"];
-                PROF_LOGI("profile timeLimit_: %d", timeLimit_);
+                PROF_LOGI("profile timeLimit_: %u", timeLimit_);
             } else {
                 timeLimit_ = MAX_TIME_LIMIT;
                 PROF_LOGW("timelimit value is higher than %d, will set %d", MAX_TIME_LIMIT, MAX_TIME_LIMIT);
@@ -223,7 +223,6 @@ void Config::CheckMsptiAndEnableMspti(const Json &config)
                   "check the loading of libmspti.so in LD_PRELOAD.");
         enableAclTaskTime_ = false;
     }
-    msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
 }
 
 void Config::ParseAclTaskTime(const Json &config)
@@ -236,6 +235,7 @@ void Config::ParseAclTaskTime(const Json &config)
             if (enableAclTaskTime_) {
                 CheckMsptiAndEnableMspti(config);
             }
+            msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
         } else {
             PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");  // LCOV_EXCL_LINE
         }

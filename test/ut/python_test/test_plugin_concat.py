@@ -30,9 +30,9 @@ def test_msprof_merge_with_variants():
     df_single = pd.DataFrame({'start_time': [3]})
 
     data = [
-        {'msprof_data_df': df_list},
-        {'msprof_data_df': df_single},
-        {'msprof_data_df': None}  # 测试None值情况
+        {'msprof_data': df_list},
+        {'msprof_data': df_single},
+        {'msprof_data': None}  # 测试None值情况
     ]
     result = PluginConcat.parse(data)
 

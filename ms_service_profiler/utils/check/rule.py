@@ -1,7 +1,5 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-from typing import Any
-
 from ms_service_profiler.utils.check.path_checker import PathChecker
 from ms_service_profiler.utils.check.checker import Checker
 

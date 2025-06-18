@@ -7,7 +7,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <semaphore.h>
-#include <utime.h>
 #include <fcntl.h>
 #include <algorithm>
 #include <atomic>
@@ -58,25 +57,22 @@ namespace msServiceProfiler {
         }
 
         // mspti数据上报时 多线程之间存在抢占 需要使用线程锁防止数据踩踏
-        g_mtx.lock();
+        std::lock_guard<std::mutex> lg(g_mtx);
 
         // 绑定参数
-        int bind_index = 1;
-        sqlite3_bind_text(stmtApi, bind_index++, activity->name, -1, SQLITE_STATIC);
-        sqlite3_bind_int64(stmtApi, bind_index++, static_cast<int64_t>(activity->start));
-        sqlite3_bind_int64(stmtApi, bind_index++, static_cast<int64_t>(activity->end));
-        sqlite3_bind_int64(stmtApi, bind_index++, activity->pt.processId);
-        sqlite3_bind_int64(stmtApi, bind_index++, activity->pt.threadId);
-        sqlite3_bind_int64(stmtApi, bind_index++, static_cast<int64_t>(activity->correlationId));
+        int bindIndex = 1;
+        sqlite3_bind_text(stmtApi, bindIndex++, activity->name, -1, SQLITE_STATIC);
+        sqlite3_bind_int64(stmtApi, bindIndex++, static_cast<int64_t>(activity->start));
+        sqlite3_bind_int64(stmtApi, bindIndex++, static_cast<int64_t>(activity->end));
+        sqlite3_bind_int64(stmtApi, bindIndex++, activity->pt.processId);
+        sqlite3_bind_int64(stmtApi, bindIndex++, activity->pt.threadId);
+        sqlite3_bind_int64(stmtApi, bindIndex++, static_cast<int64_t>(activity->correlationId));
 
         // 执行插入
         if (sqlite3_step(stmtApi) != SQLITE_DONE) {
             PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));  // LCOV_EXCL_LINE
         }
         sqlite3_reset(stmtApi);
-
-        // 解锁线程锁
-        g_mtx.unlock();
     }
 
     void ServiceProfilerMspti::InsertKernelData(msptiActivityKernel* activity)
@@ -89,24 +85,23 @@ namespace msServiceProfiler {
             return;
         }
 
-        g_mtx.lock();
+        std::lock_guard<std::mutex> lg(g_mtx);
 
         // 绑定参数
-        int bind_index = 1;
-        sqlite3_bind_text(stmtKernel, bind_index++, activity->type, -1, SQLITE_STATIC);
-        sqlite3_bind_text(stmtKernel, bind_index++, activity->name, -1, SQLITE_STATIC);
-        sqlite3_bind_int64(stmtKernel, bind_index++, static_cast<int64_t>(activity->start));
-        sqlite3_bind_int64(stmtKernel, bind_index++, static_cast<int64_t>(activity->end));
-        sqlite3_bind_int64(stmtKernel, bind_index++, activity->ds.deviceId);
-        sqlite3_bind_int64(stmtKernel, bind_index++, activity->ds.streamId);
-        sqlite3_bind_int64(stmtKernel, bind_index++, static_cast<int64_t>(activity->correlationId));
+        int bindIndex = 1;
+        sqlite3_bind_text(stmtKernel, bindIndex++, activity->type, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmtKernel, bindIndex++, activity->name, -1, SQLITE_STATIC);
+        sqlite3_bind_int64(stmtKernel, bindIndex++, static_cast<int64_t>(activity->start));
+        sqlite3_bind_int64(stmtKernel, bindIndex++, static_cast<int64_t>(activity->end));
+        sqlite3_bind_int64(stmtKernel, bindIndex++, activity->ds.deviceId);
+        sqlite3_bind_int64(stmtKernel, bindIndex++, activity->ds.streamId);
+        sqlite3_bind_int64(stmtKernel, bindIndex++, static_cast<int64_t>(activity->correlationId));
 
         // 执行插入
         if (sqlite3_step(stmtKernel) != SQLITE_DONE) {
             PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));  // LCOV_EXCL_LINE
         }
         sqlite3_reset(stmtKernel);
-        g_mtx.unlock();
     }
 
     void ServiceProfilerMspti::InsertCommunicationData(msptiActivityCommunication* activity)
@@ -115,27 +110,25 @@ namespace msServiceProfiler {
             return;
         }
 
-        g_mtx.lock();
+        std::lock_guard<std::mutex> lg(g_mtx);
 
         // 绑定参数
-        int bind_index = 1;
-        sqlite3_bind_text(stmtCommunication, bind_index++, activity->name, -1, SQLITE_STATIC);
-        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->start));
-        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->end));
-        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->ds.deviceId));
-        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->ds.streamId));
-        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->count));
-        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->dataType));
-        sqlite3_bind_text(stmtCommunication, bind_index++, activity->commName, -1, SQLITE_STATIC);
-        sqlite3_bind_int64(stmtCommunication, bind_index++, static_cast<int64_t>(activity->correlationId));
+        int bindIndex = 1;
+        sqlite3_bind_text(stmtCommunication, bindIndex++, activity->name, -1, SQLITE_STATIC);
+        sqlite3_bind_int64(stmtCommunication, bindIndex++, static_cast<int64_t>(activity->start));
+        sqlite3_bind_int64(stmtCommunication, bindIndex++, static_cast<int64_t>(activity->end));
+        sqlite3_bind_int64(stmtCommunication, bindIndex++, static_cast<int64_t>(activity->ds.deviceId));
+        sqlite3_bind_int64(stmtCommunication, bindIndex++, static_cast<int64_t>(activity->ds.streamId));
+        sqlite3_bind_int64(stmtCommunication, bindIndex++, static_cast<int64_t>(activity->count));
+        sqlite3_bind_int64(stmtCommunication, bindIndex++, static_cast<int64_t>(activity->dataType));
+        sqlite3_bind_text(stmtCommunication, bindIndex++, activity->commName, -1, SQLITE_STATIC);
+        sqlite3_bind_int64(stmtCommunication, bindIndex++, static_cast<int64_t>(activity->correlationId));
 
         // 执行插入
         if (sqlite3_step(stmtCommunication) != SQLITE_DONE) {
             PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));  // LCOV_EXCL_LINE
         }
         sqlite3_reset(stmtCommunication);
-
-        g_mtx.unlock();
     }
 
     void ServiceProfilerMspti::InsertMstxData(msptiActivityMarker* activity)
@@ -144,30 +137,29 @@ namespace msServiceProfiler {
             return;
         }
 
-        g_mtx.lock();
+        std::lock_guard<std::mutex> lg(g_mtx);
 
         // 绑定参数
-        int bind_index = 1;
+        int bindIndex = 1;
         if (activity->sourceKind == MSPTI_ACTIVITY_SOURCE_KIND_HOST) {
-            sqlite3_bind_int64(stmtMstx, bind_index++, activity->objectId.pt.processId);
-            sqlite3_bind_int64(stmtMstx, bind_index++, activity->objectId.pt.threadId);
+            sqlite3_bind_int64(stmtMstx, bindIndex++, activity->objectId.pt.processId);
+            sqlite3_bind_int64(stmtMstx, bindIndex++, activity->objectId.pt.threadId);
         } else {
-            sqlite3_bind_int64(stmtMstx, bind_index++, -1);
-            sqlite3_bind_int64(stmtMstx, bind_index++, -1);
+            sqlite3_bind_int64(stmtMstx, bindIndex++, -1);
+            sqlite3_bind_int64(stmtMstx, bindIndex++, -1);
         }
-        sqlite3_bind_int64(stmtMstx, bind_index++, activity->flag);
-        sqlite3_bind_int64(stmtMstx, bind_index++, static_cast<int64_t>(activity->timestamp));
+        sqlite3_bind_int64(stmtMstx, bindIndex++, activity->flag);
+        sqlite3_bind_int64(stmtMstx, bindIndex++, static_cast<int64_t>(activity->timestamp));
         
-        sqlite3_bind_int64(stmtMstx, bind_index++, static_cast<int64_t>(activity->id));
-        sqlite3_bind_int64(stmtMstx, bind_index++, activity->sourceKind);
-        sqlite3_bind_text(stmtMstx, bind_index++, activity->name, -1, SQLITE_STATIC);
+        sqlite3_bind_int64(stmtMstx, bindIndex++, static_cast<int64_t>(activity->id));
+        sqlite3_bind_int64(stmtMstx, bindIndex++, activity->sourceKind);
+        sqlite3_bind_text(stmtMstx, bindIndex++, activity->name, -1, SQLITE_STATIC);
 
         // 执行插入
         if (sqlite3_step(stmtMstx) != SQLITE_DONE) {
             PROF_LOGE("Execution failed: %s.", sqlite3_errmsg(db));  // LCOV_EXCL_LINE
         }
         sqlite3_reset(stmtMstx);
-        g_mtx.unlock();
     }
 
 
@@ -183,7 +175,7 @@ namespace msServiceProfiler {
 
         // 打开数据库连接
         int rc = sqlite3_open(file_name.c_str(), &db);
-        if (rc) {
+        if (rc != 0) {
             PROF_LOGE("Can't open database: %s.", sqlite3_errmsg(db));  // LCOV_EXCL_LINE
             return;
         }
@@ -194,13 +186,13 @@ namespace msServiceProfiler {
         PROF_LOGD("Init ServiceProfilerFilerWriter Success.");  // LCOV_EXCL_LINE
     }
 
-    void ServiceProfilerMspti::InitFilter(std::string& apiFilter, std::string& kernelFilter)
+    void ServiceProfilerMspti::InitFilter(const std::string& apiFilter, const std::string& kernelFilter)
     {
         filterApi = MsUtils::SplitStringToSet(apiFilter, SPLIT_SYMBOL);
         filterKernel = MsUtils::SplitStringToSet(kernelFilter, SPLIT_SYMBOL);
     }
 
-    void ServiceProfilerMspti::InitOutputPath(std::string& outputPath)
+    void ServiceProfilerMspti::InitOutputPath(const std::string& outputPath)
     {
         file_name = outputPath + "ascend_service_profiler_" + std::to_string(getpid()) + ".db";
         PROF_LOGD("set mspti output path: %s", file_name.c_str());  // LCOV_EXCL_LINE
@@ -360,7 +352,7 @@ namespace msServiceProfiler {
         workingThreadNum = 0;
     }
 
-    bool ServiceProfilerMspti::GetWorkingStatus()
+    bool ServiceProfilerMspti::GetWorkingStatus() const
     {
         return (workingThreadNum > 0);
     }
@@ -406,11 +398,11 @@ namespace msServiceProfiler {
         ServiceProfilerMspti::GetInstance().AddWorkingThreadNum();
         // profiler manager会在每个进程上创建 而host上的进程暂时不会有mspti数据上报 因此在这个位置初始化 防止创建host上的空db
         ServiceProfilerMspti::GetInstance().Init();
-        if (validSize <= 0) {
+        if (validSize < 1) {
             PROF_LOGE("Invalid validSize.");  // LCOV_EXCL_LINE
             return;
         }
-        msptiActivity *pRecord = NULL;
+        msptiActivity *pRecord = nullptr;
         msptiResult status = MSPTI_SUCCESS;
         do {
             status = msptiActivityGetNextRecord(buffer, validSize, &pRecord);
@@ -437,20 +429,35 @@ namespace msServiceProfiler {
                 PROF_LOGD("unexpected status: %d", status);  // LCOV_EXCL_LINE
                 break;
             }
-        } while (1);
-
-        free(buffer);
+        } while (true);
+        
+        if (buffer) {
+            free(buffer);
+        }
         ServiceProfilerMspti::GetInstance().PopWorkingThreadNum();
     }
 
     // MSPTI
     void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords)
     {
-        constexpr uint32_t SIZE = 1 * ONE_K * ONE_K;
-        uint8_t *pBuffer = (uint8_t *) malloc(SIZE + ALIGN_SIZE);
-        *buffer = (((uintptr_t) (pBuffer) & ((ALIGN_SIZE) - 1)) ? ((pBuffer) + (ALIGN_SIZE) - \
-            ((uintptr_t) (pBuffer) & ((ALIGN_SIZE) - 1))) : (pBuffer));
-        *size = 1 * ONE_K * ONE_K;
+        const size_t bufferSize = 1 * ONE_K * ONE_K;
+        const size_t alignment = ALIGN_SIZE;
+        // 多分配空间确保能对齐
+        uint8_t *pBuffer = static_cast<uint8_t*>(malloc(bufferSize + alignment));
+        if (!pBuffer) {
+            PROF_LOGE("Buffer request failed.");
+        }
+        // 使用 std::align 计算对齐地址
+        void* alignedPtr = pBuffer;
+        size_t space = bufferSize + alignment;
+        if (!std::align(alignment, bufferSize, alignedPtr, space)) {
+            free(pBuffer);
+            *buffer = nullptr;
+            PROF_LOGE("Buffer request failed.");
+            return;
+        }
+        *buffer = static_cast<uint8_t*>(alignedPtr);
+        *size = bufferSize;
         *maxNumRecords = 0;
     }
 
@@ -489,10 +496,10 @@ namespace msServiceProfiler {
         return 0;
     }
 
-    void InitMsptiActivity(bool msptiEnable_)
+    void InitMsptiActivity(bool msptiEnable)
     {
         msptiResult ret;
-        if (msptiEnable_) {
+        if (msptiEnable) {
             ret = msptiActivityEnable(MSPTI_ACTIVITY_KIND_API);
             if (ret != MSPTI_SUCCESS) {
                 PROF_LOGE("Mspti enable api activity failed.");  // LCOV_EXCL_LINE
@@ -513,7 +520,7 @@ namespace msServiceProfiler {
         }
     }
 
-    void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter)
+    void InitMsptiFilter(const std::string& apiFilter, const std::string& kernelFilter)
     {
         ServiceProfilerMspti::GetInstance().InitFilter(apiFilter, kernelFilter);
     }

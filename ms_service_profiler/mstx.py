@@ -11,16 +11,13 @@ class LibServiceProfiler:
         so_name = "libms_service_profiler.so"
         fp = get_valid_lib_path(so_name)
 
-        if fp == "":
-            self.lib = None
-            return
-        elif not fp:
+        if not fp:
             self.lib = None
             return
 
         try:
             self.lib = ctypes.cdll.LoadLibrary(fp)
-        except Exception as ex:
+        except Exception:
             self.lib = None
 
         self.func_start_span = None

@@ -1,6 +1,9 @@
 #!/bin/bash
 # This script is used to run ut and st testcase.
 # Copyright Huawei Technologies Co., Ltd. 2021-2022. All rights reserved.
+
+set -e
+
 CUR_DIR=$(dirname $(readlink -f $0))
 TOP_DIR=$(readlink -f ${CUR_DIR}/..)
 TEST_DIR=${TOP_DIR}/"test"
@@ -20,22 +23,24 @@ clean() {
 
 function fn_build_googletest()
 {
-  mkdir -p ${CUR_DIR}/../opensource
-  cd ${CUR_DIR}/../opensource
-  GTEST_DIR="${CUR_DIR}/../opensource/googletest"
-  if [ ! -d "$GTEST_DIR" ]; then
-      git clone https://codehub-dg-y.huawei.com/OpenSourceCenter/googletest.git googletest -b release-1.12.1
-  else
-      echo "opensource/googletest already exists. no need to download."
-  fi
-  if [ ! -d "$GTEST_DIR/googletest-1.12.1" ]; then
-    cd googletest
-    mkdir gtest_build
-    cd gtest_build
-    cmake -DCMAKE_INSTALL_PREFIX=$GTEST_DIR/googletest-1.12.1 ..
-    make -j20
-    make install
-  fi
+    OPENSOURCE_DIR=${CUR_DIR}/../opensource
+    if [ ! -d $OPENSOURCE_DIR ]; then
+        mkdir -p ${CUR_DIR}/../opensource
+    fi
+
+    cd ${OPENSOURCE_DIR}
+    GTEST_DIR="${OPENSOURCE_DIR}/googletest"
+    if [ ! -d "$GTEST_DIR" ]; then
+        git clone https://codehub-dg-y.huawei.com/OpenSourceCenter/googletest.git googletest -b release-1.12.1
+    else
+        echo "opensource/googletest already exists. no need to download."
+    fi
+    if [ ! -d "$GTEST_DIR/googletest-1.12.1" ]; then
+        cd googletest
+        cmake -S . -DCMAKE_INSTALL_PREFIX=$GTEST_DIR/googletest-1.12.1 -B gtest_build
+        cmake --build gtest_build -j 20
+        cmake --install gtest_build
+    fi
 }
 
 function fn_build_mock_cpp()
@@ -44,7 +49,7 @@ function fn_build_mock_cpp()
   cd ${CUR_DIR}/../opensource
   MOCK_CPP_DIR="${CUR_DIR}/../opensource/mock_cpp"
   if [ ! -d "$MOCK_CPP_DIR" ]; then
-    git clone https://szv-y.codehub.huawei.com/d00437232/mock_cpp.git mock_cpp -b msprof
+    git clone https://szv-y.codehub.huawei.com/mindstudio/MindStudio_Opensource/mock_cpp.git mock_cpp -b msprof
   else
       echo "opensource/mock_cpp already exists. no need to download."
   fi
@@ -83,7 +88,8 @@ run_test_cpp() {
   fi
   cd ${TEST_DIR}
   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${TEST_DIR}/test_build/3rdparty
-  (./test_build/st_server_profiler & ./test_build/st_server_profiler) && ./test_build/ut_server_profiler
+  ./test_build/st_server_profiler & ./test_build/st_server_profiler
+  ./test_build/ut_server_profiler
 
   if [ $? -ne 0 ]; then
     echo "Run test failed"
@@ -96,7 +102,11 @@ run_test_cpp() {
   lcov_opt="--rc lcov_branch_coverage=1 --rc geninfo_no_exception_branch=1"
   lcov -c -d ./test_build/CMakeFiles/st_server_profiler.dir -o ./coverage/st_server_profiler.info -b ./coverage $lcov_opt
   lcov -c -d ./test_build/CMakeFiles/ut_server_profiler.dir -o ./coverage/ut_server_profiler.info -b ./coverage $lcov_opt
-  lcov -a ./coverage/ut_server_profiler.info  -a ./coverage/st_server_profiler.info  -o ./coverage/test_server_profiler.info  $lcov_opt
+  if [ -f "./coverage/st_server_profiler.info " ]; then
+    lcov -a ./coverage/ut_server_profiler.info  -a ./coverage/st_server_profiler.info  -o ./coverage/test_server_profiler.info  $lcov_opt
+  else
+    lcov -a ./coverage/ut_server_profiler.info  -o ./coverage/test_server_profiler.info  $lcov_opt
+  fi
 
   lcov -r ./coverage/test_server_profiler.info '*platform*' -o ./coverage/test_server_profiler.info $lcov_opt -q
   lcov -r ./coverage/test_server_profiler.info '*opensource*' -o ./coverage/test_server_profiler.info $lcov_opt -q
@@ -114,8 +124,7 @@ run_test_cpp() {
 }
 
 run_test_python() {
-  python3 --version
-  pip3 install pytest "pandas>=2.2" --default-timeout=20
+  pip3 install -r "${CUR_DIR}/requirements.txt" --default-timeout=20
   export PYTHONPATH=${TOP_DIR}:${PYTHONPATH}
   python3 -m coverage run --branch --source ${TOP_DIR}/'ms_service_profiler' -m pytest ${TEST_DIR}/ut/python_test
 
@@ -128,24 +137,20 @@ run_test_python() {
   python3 -m coverage xml -o ${TEST_DIR}/coverage.xml
 }
 
-run_test() {
-  if [ "$TEST_LANG" != "python" ]; then
-    run_test_cpp
-  fi
-
-  if [ "$TEST_LANG" != "cpp" ]; then
-    run_test_python
-  fi
-}
-
 main() {
-  export VERBOSE=1
-  cd ${TEST_DIR}
-  fn_build_googletest
-  fn_build_mock_cpp
-  clean
-  run_test
-  echo "UT Success"
+    export VERBOSE=1
+    cd ${TEST_DIR}
+
+    clean
+    if [ "$TEST_LANG" != "cpp" ]; then
+        run_test_python
+    fi
+    if [ "$TEST_LANG" != "python" ]; then
+        fn_build_googletest
+        fn_build_mock_cpp
+        run_test_cpp
+    fi
+    echo "UT Success"
 }
 
-main
+main "$@"
