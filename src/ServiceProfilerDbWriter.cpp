@@ -209,8 +209,6 @@ public:
         Init(msServiceProfiler::ServiceProfilerManager::GetInstance().GetProfPath());
     }
 
-    void InsertMstxData(msServiceProfiler::DbActivityMarker *activity);
-
 private:
     bool inited = false;
     sqlite3 *db_;
