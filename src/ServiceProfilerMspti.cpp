@@ -438,13 +438,25 @@ namespace msServiceProfiler {
     }
 
     // MSPTI
-    void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords)
-    {
-        uint8_t *pBuffer = static_cast<uint8_t *>(malloc(1 * ONE_K * ONE_K + ALIGN_SIZE));
-        *buffer = (((reinterpret_cast<uintptr_t>(pBuffer) & (ALIGN_SIZE - 1)) != 0)
-                ? (pBuffer + (ALIGN_SIZE - (reinterpret_cast<uintptr_t>(pBuffer) & (ALIGN_SIZE - 1))))
-                : pBuffer);
-        *size = 1 * ONE_K * ONE_K;
+    void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords) {
+        const size_t bufferSize = 1 * ONE_K * ONE_K;
+        const size_t alignment = ALIGN_SIZE;
+        // 多分配空间确保能对齐
+        uint8_t *pBuffer = static_cast<uint8_t*>(malloc(bufferSize + alignment));
+        if (!pBuffer) {
+            PROF_LOGE("Buffer request failed.");
+        }
+        // 使用 std::align 计算对齐地址
+        void* alignedPtr = pBuffer;
+        size_t space = bufferSize + alignment;
+        if (!std::align(alignment, bufferSize, alignedPtr, space)) {
+            free(pBuffer);
+            *buffer = nullptr;
+            PROF_LOGE("Buffer request failed.");
+            return;
+        }
+        *buffer = static_cast<uint8_t*>(alignedPtr);
+        *size = bufferSize;
         *maxNumRecords = 0;
     }
 
