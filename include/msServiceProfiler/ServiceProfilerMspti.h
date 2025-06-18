@@ -23,13 +23,10 @@
 
 #include "mspti/mspti.h"
 
-namespace {
-    constexpr int ALIGN_SIZE = 8;
-    constexpr int ONE_K = 1024;
-    const char SPLIT_SYMBOL = ';';
-} // end of anonymous namespace
-
 namespace msServiceProfiler {
+constexpr int ALIGN_SIZE = 8;
+constexpr int ONE_K = 1024;
+const char SPLIT_SYMBOL = ';';
 int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber);
 void InitMsptiActivity(bool msptiEnable_);
 void InitMsptiFilter(const std::string& apiFilter, const std::string& kernelFilter);
