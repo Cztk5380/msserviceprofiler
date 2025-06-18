@@ -113,6 +113,9 @@ def get_req_base_info(df):
         current_rids = [r.strip() for r in rid.split(',')]
         total_latency = latency_df[latency_df['rid'].isin(current_rids)]['first_token_latency'].sum()
 
+        if total_latency <= 0:
+            continue
+
         # 构造请求信息
         new_req = {
             'rid': rid,

@@ -71,7 +71,6 @@ class ProcessorRes(ProcessorBase):
 
                 rid_map = data_df[data_df['from'].notna()].set_index("to").to_dict(orient='dict')["from"]
                 rid_map.update({"{:g}".format(k): v for k, v in rid_map.items()})
-                data[index]["tx_data_df"] = data_df[data_df['from'].isna()]
 
                 hostname = process_info.get("hostname")
                 pid = process_info.get("pid")
@@ -79,6 +78,7 @@ class ProcessorRes(ProcessorBase):
                 rid_map_of_process[(hostname, pid)].update(rid_map)
 
                 data_df['rid'] = data_df['rid'].map(lambda x: self.mapping_rid(x, rid_map))
+                data[index]["tx_data_df"] = data_df[data_df['from'].isna()]
         
         # 处理 forward 进程
         for process_info in process_list:
