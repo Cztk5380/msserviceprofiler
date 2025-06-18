@@ -102,6 +102,10 @@ int NpuMemoryUsage::DcmiGetDeviceHbmInfo(int cardId, int deviceId, struct dsmi_h
 
 int NpuMemoryUsage::InitDcmiCardAndDevices()
 {
+    if (isDcmiInited) {
+        return EXITCODE_SUCCESS;
+    }
+    isDcmiInited = true;
     int ret = DcmiInit();
     if (ret != EXITCODE_SUCCESS) {
         return ret;

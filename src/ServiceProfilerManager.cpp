@@ -408,27 +408,32 @@ namespace msServiceProfiler {
     void ServiceProfilerManager::ThreadFunction()
     {
         msServiceProfiler::NpuMemoryUsage npuMemoryUsage = msServiceProfiler::NpuMemoryUsage();
-        int ret = npuMemoryUsage.InitDcmiCardAndDevices();
-        if (ret != EXITCODE_SUCCESS) {
-            PROF_LOGE(
-                "InitDcmiCardAndDevices failed. Check whether a NPU server "
-                "or if NPU driver installed.");  // LCOV_EXCL_LINE
-            return;
-        }
-
         AddMetaInfo("ppid", std::to_string(getppid()).c_str());
 
         while (g_threadRunFlag) {
             // dynamic start_and_stop
+            std::this_thread::sleep_for(std::chrono::milliseconds(config_->GetNpuMemorySleepMilliseconds()));
+
             DynamicControl();
 
             std::vector<int> memoryUsed;
             std::vector<int> memoryUtiliza;
             try {
-                if (config_->GetEnable() && config_->GetNpuMemoryUsage() && isMaster_
-                    && npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza) == EXITCODE_SUCCESS) {
+                if (!(config_->GetEnable() && config_->GetNpuMemoryUsage() && isMaster_)) {
+                    continue;
+                }
+
+                int ret = npuMemoryUsage.InitDcmiCardAndDevices();
+                if (ret != EXITCODE_SUCCESS) {
+                    PROF_LOGE(
+                        "InitDcmiCardAndDevices failed. Check whether a NPU server "
+                        "or if NPU driver installed.");  // LCOV_EXCL_LINE
+                    return;
+                }
+                if (npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza) == EXITCODE_SUCCESS) {
                     Write2Tx(memoryUsed, "usage");
                     Write2Tx(memoryUtiliza, "utiliza");
+                }
                 }
             } catch (std::exception &e) {
                 PROF_LOGD("get npu memory usage failed");  // LCOV_EXCL_LINE
@@ -463,7 +468,6 @@ namespace msServiceProfiler {
                 FlushBufferByTime();
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(config_->GetNpuMemorySleepMilliseconds()));
         }
     }
 

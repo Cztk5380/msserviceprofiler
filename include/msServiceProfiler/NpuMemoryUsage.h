@@ -61,6 +61,7 @@ public:
 private:
     void *handleDcmi = nullptr;
     bool isHbmDevice = false;
+    bool isDcmiInited = false;
     std::vector<CardDevice> cardDevices;
 
     int DcmiInit() const;
