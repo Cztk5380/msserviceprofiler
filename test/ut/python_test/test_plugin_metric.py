@@ -75,8 +75,10 @@ def test_no_tx_data_df(empty_data):
 
 def test_no_start_datetime(sample_data_without_start_datetime, capsys):
     plugin = PluginMetric()
-    with pytest.raises(ColumnMissingError):
+    with patch("ms_service_profiler.utils.error.logger.warning") as mock_warning:
         plugin.parse(sample_data_without_start_datetime)
+        mock_warning.assert_called_once_with(
+            ColumnMissingError(("start_datetime",), "ignoring current process by default."))
 
 
 def test_is_metric():
@@ -114,11 +116,12 @@ def test_missing_tx_data():
 
 
 def test_missing_required_columns(valid_tx_data):
-    # 删除start_time列测试
-    invalid_data = valid_tx_data.drop(columns=['start_time'])
-    with pytest.raises(ColumnMissingError) as exc_info:
+    with patch("ms_service_profiler.utils.error.logger.warning") as mock_warning:
+        # 删除start_time列测试
+        invalid_data = valid_tx_data.drop(columns=['start_time'])
         PluginMetric.parse({'tx_data_df': invalid_data})
-    assert "['start_time']" in str(exc_info.value)
+        mock_warning.assert_called_once_with(
+            ColumnMissingError(("start_time",), "ignoring current process by default."))
 
 
 def test_increase_calculation():
