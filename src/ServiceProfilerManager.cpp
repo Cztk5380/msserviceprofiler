@@ -434,7 +434,6 @@ namespace msServiceProfiler {
                     Write2Tx(memoryUsed, "usage");
                     Write2Tx(memoryUtiliza, "utiliza");
                 }
-                }
             } catch (std::exception &e) {
                 PROF_LOGD("get npu memory usage failed");  // LCOV_EXCL_LINE
             }
