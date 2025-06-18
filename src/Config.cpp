@@ -9,12 +9,22 @@
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Config.h"
+#include "msServiceProfiler/SecurityUtils.h"
 
 namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
 constexpr int ACL_PROF_ENABLE_TASK_TIME = 1;
 constexpr int MSPTI_ENABLE_TASK_TIME = 2;
 constexpr int MAX_TIME_LIMIT = 7200;
+
+static std::string TrimWhitespace(const std::string& str)
+{
+    std::string result = str;
+    result.erase(0, result.find_first_not_of(" \t\n\r\f\v"));
+    result.erase(result.find_last_not_of(" \t\n\r\f\v") + 1);
+    return result;
+}
+
 Config::Config()
 {
     ReadConfigPath();
@@ -179,7 +189,7 @@ void Config::ParseTimeLimit(const Json& config)
     }
 }
 
-std::string Config::getDefaultProfPath()
+std::string Config::GetDefaultProfPath() const
 {
     std::string profPath;
     std::string homePath = getenv("HOME") ? getenv("HOME") : "";
@@ -187,7 +197,7 @@ std::string Config::getDefaultProfPath()
     return profPath;
 }
 
-std::string Config::getDirPath(std::string configPath)
+std::string Config::GetDirPath(std::string configPath) const
 {
     std::string dirPath;
     size_t lastSlash = configPath.find_last_of("/\\");
@@ -207,7 +217,7 @@ void Config::ParseProfPath(const Json& config)
             profPath_.append("/");
         }
     } else {
-        profPath_ = getDefaultProfPath();
+        profPath_ = GetDefaultProfPath();
     }
 
     profPath_.append(profPathDateTail_);
@@ -223,7 +233,6 @@ void Config::CheckMsptiAndEnableMspti(const Json &config)
                   "check the loading of libmspti.so in LD_PRELOAD.");
         enableAclTaskTime_ = false;
     }
-    msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
 }
 
 void Config::ParseAclTaskTime(const Json &config)
@@ -236,6 +245,7 @@ void Config::ParseAclTaskTime(const Json &config)
             if (enableAclTaskTime_) {
                 CheckMsptiAndEnableMspti(config);
             }
+            msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
         } else {
             PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");  // LCOV_EXCL_LINE
         }
@@ -306,14 +316,6 @@ void Config::ParseLevel(const Json &config)
         }
     }
     PROF_LOGD("profiler_level: %u", level_);
-}
-
-std::string Config::TrimWhitespace(const std::string& str)
-{
-    std::string result = str;
-    result.erase(0, result.find_first_not_of(" \t\n\r\f\v"));
-    result.erase(result.find_last_not_of(" \t\n\r\f\v") + 1);
-    return result;
 }
 
 std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char delimiter)
@@ -486,7 +488,7 @@ bool Config::PrepareConfigAndPath(std::string& configPath)
     if (access(configPath.c_str(), F_OK) == 0) {
         return false;
     }
-    std::string dirPath = getDirPath(configPath);
+    std::string dirPath = GetDirPath(configPath);
     if (access(dirPath.c_str(), W_OK) != 0) {
         return false;
     }
@@ -494,17 +496,11 @@ bool Config::PrepareConfigAndPath(std::string& configPath)
     return true;
 }
 
-void Config::SaveConfigToJsonFile()
+nlohmann::ordered_json Config::GetConfigData() const
 {
-    const int jsonIndentSize = 4;
-    std::string configPath = getenv("SERVICE_PROF_CONFIG_PATH") ? getenv("SERVICE_PROF_CONFIG_PATH") : "";
-    if (!PrepareConfigAndPath(configPath)) {
-        return;
-    }
-    std::string profPath = getDefaultProfPath();
-    nlohmann::ordered_json configData = {
+    return {
         {"enable", enable_ ? 1 : 0},
-        {"prof_dir", profPath},
+        {"prof_dir", GetDefaultProfPath()},
         {"profiler_level", "INFO"},
         {"host_system_usage_freq", -1},
         {"npu_memory_usage_freq", -1},
@@ -514,8 +510,17 @@ void Config::SaveConfigToJsonFile()
         {"domain", ""},
         {"timelimit", 0},
     };
+}
+
+void Config::SaveConfigToJsonFile()
+{
+    const int jsonIndentSize = 4;
+    std::string configPath = getenv("SERVICE_PROF_CONFIG_PATH") ? getenv("SERVICE_PROF_CONFIG_PATH") : "";
+    if (!PrepareConfigAndPath(configPath)) {
+        return;
+    }
     try {
-        std::string dirPath = getDirPath(configPath);
+        std::string dirPath = GetDirPath(configPath);
         char tempFile[] = "temp_XXXXXX";
         const int fd = mkstemp(tempFile);
         if (fd == -1) {
@@ -524,13 +529,16 @@ void Config::SaveConfigToJsonFile()
         }
         close(fd);
         std::string tempPath = dirPath+"/"+tempFile;
+        if (!SecurityUtils::CheckFileBeforeWrite(tempPath)) {
+            return;
+        }
         PROF_LOGD("file generation in the path %s", tempPath.c_str());
         std::ofstream outputFile(tempPath);
         if (!outputFile.is_open()) {
             PROF_LOGW("Automatic config file generation failed %s", tempPath.c_str());
             return;
         }
-        outputFile << configData.dump(jsonIndentSize);
+        outputFile << GetConfigData().dump(jsonIndentSize);
         outputFile.close();
 
         auto ret = rename(tempPath.c_str(), configPath.c_str());

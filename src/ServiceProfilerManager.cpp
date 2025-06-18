@@ -61,7 +61,7 @@ struct ProfSetDevParaDevice {
     bool isOpen;
 };
 
-uint64_t GetCurrentTimeInNanoseconds()
+static uint64_t GetCurrentTimeInNanoseconds()
 {
     // 获取当前时间点
     auto now = std::chrono::high_resolution_clock::now();
@@ -76,12 +76,12 @@ uint64_t GetCurrentTimeInNanoseconds()
     return static_cast<uint64_t>(nanoseconds.count());
 }
 
-uint32_t GetTid()
+static uint32_t GetTid()
 {
     return static_cast<uint32_t>(syscall(SYS_gettid));
 }
 
-uint64_t* GetSpanStartTimeCache()
+static uint64_t* GetSpanStartTimeCache()
 {
     thread_local u_int64_t cacheSpanStartTime[SPAN_CACHE_LEN + 8];
     return cacheSpanStartTime;
@@ -93,7 +93,7 @@ SpanHandle StartSpanWithName(const char *name)
         return StartSpan();
     }
 
-    thread_local int tid = GetTid();  // 每个线程有自己的副本
+    thread_local uint32_t tid = GetTid();  // 每个线程有自己的副本
     auto timestamp = GetCurrentTimeInNanoseconds();
     uint64_t *timeCache = GetSpanStartTimeCache();
     auto threadMarkId = timeCache[0];
@@ -116,7 +116,7 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
         return;
     }
 
-    thread_local int tid = GetTid();  // 每个线程有自己的副本
+    thread_local uint32_t tid = GetTid();  // 每个线程有自己的副本
 
     uint64_t* timeCache = GetSpanStartTimeCache();
     auto location = spanHandle % SPAN_CACHE_LEN + 1;
@@ -127,7 +127,7 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
     marker.timestamp = stratTimestamp;
     marker.endTimestamp = GetCurrentTimeInNanoseconds();
     marker.id = g_markIndex.fetch_add(1);
-    marker.processId = getpid();
+    marker.processId = static_cast<uint32_t>(getpid());
     marker.threadId = tid;
     marker.message = msg;
     marker.domain = "";
@@ -146,13 +146,13 @@ void MarkEvent(const char *msg)
         return;
     }
 
-    thread_local int tid = GetTid();  // 每个线程有自己的副本
+    thread_local uint32_t tid = GetTid();  // 每个线程有自己的副本
     msServiceProfiler::DbActivityMarker marker;
     marker.flag = msServiceProfiler::ActivityFlag::ACTIVITY_FLAG_MARKER_EVENT;
     marker.timestamp = GetCurrentTimeInNanoseconds();
     marker.endTimestamp = marker.timestamp;
     marker.id = g_markIndex.fetch_add(1);
-    marker.processId = getpid();
+    marker.processId = static_cast<uint32_t>(getpid());
     marker.threadId = tid;
     marker.message = msg;
     marker.domain = "";
@@ -199,7 +199,7 @@ void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
         return;
     }
     DATA_PTR setCfg = static_cast<DATA_PTR>(data);
-    
+
     if (setCfg->deviceId != g_deviceID && g_startFlag) {
         g_deviceID = setCfg->deviceId;
         StopServerProfiler();
@@ -210,7 +210,7 @@ void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
     return;
 }
 
-void RegisterSetDeviceCallback()
+static void RegisterSetDeviceCallback()
 {
     void *handle = dlopen("libprofapi.so", RTLD_LAZY | RTLD_LOCAL);
     if (handle == nullptr) {
@@ -267,7 +267,7 @@ namespace msServiceProfiler {
     }
 
     ServiceProfilerManager::ServiceProfilerManager()
-        : configHandle_(nullptr), config_(std::unique_ptr<Config>(new Config()))
+        : configHandle_(nullptr), config_(std::unique_ptr<Config>(new Config())), msptiHandle_(nullptr)
     {
         ProfLogInit();
         MarkFirstProcessAsMain();
@@ -498,7 +498,7 @@ namespace msServiceProfiler {
         } else {
             deviceNums = 1;  // On device process
             deviceIdList[0] = g_deviceID;
-            if (config_->GetEnableAclTaskTime()) {
+            if (static_cast<bool>(config_->GetEnableAclTaskTime())) {
                 if (config_->GetAclTaskTimeLevel() == "L0") {
                     profSwitch |= ACL_PROF_TASK_TIME_L0;
                 } else if (config_->GetAclTaskTimeLevel() == "L1") {
@@ -591,7 +591,7 @@ namespace msServiceProfiler {
                 return;
             }
 
-            PROF_LOGD("begin to start profiling, device_id: %d", g_deviceID);  // LCOV_EXCL_LINE
+            PROF_LOGD("begin to start profiling, device_id: %u", g_deviceID);  // LCOV_EXCL_LINE
             ret = aclprofStart(profConfig);
             if (ret != ACL_ERROR_NONE) {
                 PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
@@ -622,7 +622,7 @@ namespace msServiceProfiler {
     void ServiceProfilerManager::StopAclTaskTime()
     {
         auto profConfig = (AclprofConfig *)this->configHandle_;
-        
+
         if (msptiEnabled) {
             msptiEnabled = false;
             UninitMspti(msptiHandle_);
@@ -648,7 +648,7 @@ namespace msServiceProfiler {
             }
         }
     }
-    
+
     void ServiceProfilerManager::StopProfiler()
     {
         if (!started_) {
@@ -656,7 +656,7 @@ namespace msServiceProfiler {
         }
 
         config_->SetEnable(false);
-        if (npuFlag_) {
+        if (npuFlag_ | msptiEnabled) {
             StopAclTaskTime();
         }
 

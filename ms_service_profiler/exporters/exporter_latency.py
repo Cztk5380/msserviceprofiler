@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.exporters.utils import add_table_into_visual_db, create_sqlite_views, check_domain_valid
+from ms_service_profiler.exporters.utils import write_result_to_db, CURVE_VIEW_NAME_LIST, check_domain_valid
 from ms_service_profiler.utils.timer import timer
 
 
@@ -210,21 +210,24 @@ class ExporterLatency(ExporterBase):
         first_token_latency_views, req_latency_views, prefill_gen_speed_views, decode_gen_speed_views = \
             gen_exporter_results(all_data_df)
 
-        add_table_into_visual_db(pd.DataFrame(first_token_latency_views), 'first_token_latency')
-        create_sqlite_views('First_Token_Latency', CREATE_FIRST_TOKEN_LATENCY_SQL)
+        df_param_list = [
+            [pd.DataFrame(first_token_latency_views), 'first_token_latency'],
+            [pd.DataFrame(req_latency_views), 'req_latency'],
+            [pd.DataFrame(prefill_gen_speed_views), 'prefill_gen_speed'],
+            [pd.DataFrame(decode_gen_speed_views), 'decode_gen_speed']
+        ]
+        view_sql_list = [
+            CREATE_FIRST_TOKEN_LATENCY_SQL, CREATE_REQUEST_LATENCY_SQL,
+            CREATE_PREFILL_GEN_SPEED_VIEW_SQL, CREATE_DECODE_GEN_SPEED_SQL
+        ]
+        write_result_to_db(
+            df_param_list=df_param_list,
+            create_view_sql=view_sql_list
+        )
 
-        add_table_into_visual_db(pd.DataFrame(req_latency_views), 'req_latency')
-        create_sqlite_views('Request_Latency', CREATE_REQUEST_LATENCY_SQL)
 
-        add_table_into_visual_db(pd.DataFrame(prefill_gen_speed_views), 'prefill_gen_speed')
-        create_sqlite_views('Prefill_Generate_Speed_Latency', CREATE_PREFILL_GEN_SPEED_VIEW_SQL)
-
-        add_table_into_visual_db(pd.DataFrame(decode_gen_speed_views), 'decode_gen_speed')
-        create_sqlite_views('Decode_Generate_Speed_Latency', CREATE_DECODE_GEN_SPEED_SQL)
-
-
-CREATE_PREFILL_GEN_SPEED_VIEW_SQL = """
-    CREATE VIEW Prefill_Generate_Speed_Latency_curve AS
+CREATE_PREFILL_GEN_SPEED_VIEW_SQL = f"""
+    CREATE VIEW {CURVE_VIEW_NAME_LIST['prefill_gen_speed']} AS
     WITH converted AS (
         SELECT
             substr(timestamp, 1, 10) || ' ' || substr(timestamp, 12, 8) || '.' || substr(timestamp, 21, 6) AS datetime,
@@ -245,8 +248,8 @@ CREATE_PREFILL_GEN_SPEED_VIEW_SQL = """
 """
 
 
-CREATE_REQUEST_LATENCY_SQL = """
-    CREATE VIEW Request_Latency_curve AS
+CREATE_REQUEST_LATENCY_SQL = f"""
+    CREATE VIEW {CURVE_VIEW_NAME_LIST['req_latency']} AS
     WITH converted AS (
         SELECT
             substr(timestamp, 1, 10) || ' ' || substr(timestamp, 12, 8) || '.' || substr(timestamp, 21, 6) AS datetime,
@@ -269,8 +272,8 @@ CREATE_REQUEST_LATENCY_SQL = """
         datetime ASC
 """
 
-CREATE_DECODE_GEN_SPEED_SQL = """
-    CREATE VIEW Decode_Generate_Speed_Latency_curve AS
+CREATE_DECODE_GEN_SPEED_SQL = f"""
+    CREATE VIEW {CURVE_VIEW_NAME_LIST['decode_gen_speed']} AS
     WITH converted AS (
         SELECT
             substr(timestamp, 1, 10) || ' ' || substr(timestamp, 12, 8) || '.' || substr(timestamp, 21, 6) AS datetime,
@@ -290,8 +293,8 @@ CREATE_DECODE_GEN_SPEED_SQL = """
         datetime ASC
 """
 
-CREATE_FIRST_TOKEN_LATENCY_SQL = """
-    CREATE VIEW First_Token_Latency_curve AS
+CREATE_FIRST_TOKEN_LATENCY_SQL = f"""
+    CREATE VIEW {CURVE_VIEW_NAME_LIST['first_token_latency']} AS
     WITH converted AS (
         SELECT
         substr(timestamp, 1, 10) || ' ' || substr(timestamp, 12, 8) || '.' || substr(timestamp, 21, 6) AS datetime,

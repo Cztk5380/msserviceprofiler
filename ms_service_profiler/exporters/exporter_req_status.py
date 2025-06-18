@@ -2,7 +2,7 @@
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
-from ms_service_profiler.exporters.utils import add_table_into_visual_db, create_sqlite_views, check_domain_valid
+from ms_service_profiler.exporters.utils import write_result_to_db, CURVE_VIEW_NAME_LIST, check_domain_valid
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import key_except
@@ -47,12 +47,15 @@ class ExporterReqStatus(ExporterBase):
                 if column_name not in df.columns:
                     df = df.assign(**{column_name: [None] * len(df)})
 
-            add_table_into_visual_db(df, 'request_status')
-            create_sqlite_views('Request_Status', CREATE_REQUEST_STATE_VIEW_SQL)
+            write_result_to_db(
+                df_param_list=[[df, 'request_status']],
+                table_name='request_status',
+                create_view_sql=[CREATE_REQUEST_STATE_VIEW_SQL]
+            )
 
 
-CREATE_REQUEST_STATE_VIEW_SQL = """
-    CREATE VIEW Request_Status_curve AS
+CREATE_REQUEST_STATE_VIEW_SQL = f"""
+    CREATE VIEW {CURVE_VIEW_NAME_LIST['request_status']} AS
     SELECT
         substr( timestamp, 1, 10 ) || ' ' || substr( timestamp, 12, 8 ) || '.' || substr( timestamp, 21, 6 ) AS time,
         WAITING, PENDING, RUNNING 

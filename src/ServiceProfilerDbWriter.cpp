@@ -1,20 +1,14 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 
-#include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/mman.h>
 #include <unistd.h>
 #include <semaphore.h>
-#include <utime.h>
-#include <fcntl.h>
 #include <algorithm>
 #include <atomic>
 #include <chrono>
-#include <cstring>
 #include <climits>
-#include <ctime>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -22,9 +16,7 @@
 #include <vector>
 #include <map>
 #include <cmath>
-#include <csignal>
 #include <sqlite3.h>
-#include <pthread.h>
 #include <functional>  // for std::hash
 #include <sys/syscall.h>
 #include <vector>
@@ -56,7 +48,7 @@ uint32_t GetTid()
 std::string GetHostName()
 {
     char hostname[HOST_NAME_MAX + 1] = {'\0'};  // 分配足够大的缓冲区
-    if (gethostname(hostname, sizeof(hostname))) {
+    if (gethostname(hostname, sizeof(hostname)) != 0) {
         PROF_LOGE("get hostname failed");
     }
     return std::string(hostname);
@@ -70,7 +62,7 @@ public:
         return manager;
     };
 
-    void InsertMstxData(msServiceProfiler::DbActivityMarker *activity)
+    void InsertMstxData(msServiceProfiler::DbActivityMarker *activity) const
     {
         if (!inited || !activity || !stmtMstx_) {
             return;
@@ -99,13 +91,13 @@ public:
         sqlite3_exec(db_, "COMMIT", nullptr, nullptr, nullptr);
     }
 
-    void Flash()
+    void Flash() const
     {
         // 提交最终事务
         sqlite3_exec(db_, "COMMIT", nullptr, nullptr, nullptr);
     }
 
-    void InsertMetaData(const std::string &name, const std::string &value)
+    void InsertMetaData(const std::string &name, const std::string &value) const
     {
         if (!inited || !stmtMeta_) {
             return;
@@ -135,7 +127,7 @@ public:
 
         // 打开数据库连接
         int rc = sqlite3_open(dbPath.c_str(), &db_);
-        if (rc) {
+        if (rc != SQLITE_OK) {
             std::cerr << "Can't open database: " << sqlite3_errmsg(db_) << std::endl;
             return;
         }
@@ -193,7 +185,7 @@ public:
         Execute("PRAGMA locking_mode = NORMAL;");     // 独占锁定模式(非)
     }
 
-    void Execute(const char *sql)
+    void Execute(const char *sql) const
     {
         char *errMsg = nullptr;
         if (sqlite3_exec(db_, sql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
@@ -211,15 +203,17 @@ public:
         inited = false;
     }
 
+    ServiceProfilerDbWriter()
+        : inited(false), db_(nullptr), stmtMstx_(nullptr), stmtMeta_(nullptr)
+    {
+        Init(msServiceProfiler::ServiceProfilerManager::GetInstance().GetProfPath());
+    }
+
 private:
     bool inited = false;
     sqlite3 *db_;
     sqlite3_stmt *stmtMstx_;
     sqlite3_stmt *stmtMeta_;
-    ServiceProfilerDbWriter()
-    {
-        Init(msServiceProfiler::ServiceProfilerManager::GetInstance().GetProfPath());
-    }
 };
 
 void InsertTxData2Writer(msServiceProfiler::DbActivityMarker *activity)

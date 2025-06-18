@@ -3,7 +3,7 @@
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.exporters.utils import save_dataframe_to_csv, add_table_into_visual_db, check_domain_valid
+from ms_service_profiler.exporters.utils import write_result_to_db, write_result_to_csv, check_domain_valid
 from ms_service_profiler.utils.timer import timer
 
 
@@ -67,16 +67,27 @@ class ExporterPDComm(ExporterBase):
             for rid, pre_req_data in req_group_df:
                 http_req, request_send, request_send_succ, prefill_res, \
                 requset_end = process_each_req_group(pre_req_data)
-                cls.req_result_list.append({'rid': rid, 'http_req_time(ms)': http_req,
-                'send_request_time(ms)': request_send, 'send_request_succ_time(ms)': request_send_succ,
-                'prefill_res_time(ms)': prefill_res, 'requset_end_time(ms)': requset_end})
+                cls.req_result_list.append({'rid': rid, 'http_req_time': http_req,
+                'send_request_time': request_send, 'send_request_succ_time': request_send_succ,
+                'prefill_res_time': prefill_res, 'requset_end_time': requset_end})
 
         if not cls.req_result_list:
             return
 
-        if 'csv' in cls.args.format:
-            save_dataframe_to_csv(pd.DataFrame(cls.req_result_list), output, "pd_split_communication.csv")
-
+        result_df = pd.DataFrame(cls.req_result_list)
         if 'db' in cls.args.format:
-            add_table_into_visual_db(pd.DataFrame(cls.req_result_list), 'pd_split_communication')
+            write_result_to_db(
+                df_param_list=[[result_df, 'pd_split_communication']],
+                table_name='pd_split_communication',
+                rename_cols=PD_SPLIT_COMM_RENAME_COLS
+            )
 
+        if 'csv' in cls.args.format:
+            write_result_to_csv(result_df, output, "pd_split_communication", PD_SPLIT_COMM_RENAME_COLS)
+
+
+PD_SPLIT_COMM_RENAME_COLS = {
+    'http_req_time': 'http_req_time(ms)', 'send_request_time': 'send_request_time(ms)',
+    'send_request_succ_time': 'send_request_succ_time(ms)', 'prefill_res_time': 'prefill_res_time(ms)',
+    'requset_end_time': 'requset_end_time(ms)'
+}

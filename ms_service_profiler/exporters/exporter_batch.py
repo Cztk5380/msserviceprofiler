@@ -1,9 +1,11 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
-from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.exporters.utils import add_table_into_visual_db, create_sqlite_views, check_domain_valid
+from ms_service_profiler.exporters.utils import (
+    write_result_to_csv, write_result_to_db,
+    check_domain_valid, CURVE_VIEW_NAME_LIST
+)
 from ms_service_profiler.constant import US_PER_MS
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.error import key_except
@@ -50,7 +52,7 @@ def get_forward_info(df):
 
         for key, value in max_df_index.items():
             select_row = forward_df_list[value].loc[row_index]
-            dp_name = 'dp' + key + '_forward(ms)'
+            dp_name = 'dp' + key + '_forward'
             max_forward_during_time[dp_name] = select_row.get('during_time') / US_PER_MS
         all_max_forward_during_time.append(max_forward_during_time)
 
@@ -150,7 +152,7 @@ def get_new_columns_order(ori_columns, new_columns, dp_number):
     for i in range(dp_number):
         ori_columns.append('dp' + str(i) + '_rid')
         ori_columns.append('dp' + str(i) + '_size')
-        ori_columns.append('dp' + str(i) + '_forward(ms)')
+        ori_columns.append('dp' + str(i) + '_forward')
 
     # 创建过滤后的顺序列表
     existing_cols = [col for col in ori_columns if col in new_columns]
@@ -204,18 +206,25 @@ def exporter_dp_batch(batch_name, all_dp_batch_df):
 
 
 def filter_batch_df(batch_name, batch_df):
+    batch_df['batch_size'] = batch_df['batch_size'].astype(float)
     batch_df = batch_df[batch_df['name'].isin(['modelExec', batch_name])]
     drop_columns = [col for col in ['pid', 'rid_list', 'rid', 'dp_rank', 'dp_list'] if col in batch_df.columns]
     batch_df = batch_df.drop(drop_columns, axis=1)
     batch_df['during_time'] = batch_df['during_time'] / US_PER_MS
     batch_df['start_time'] = batch_df['start_time'] // US_PER_MS
     batch_df['end_time'] = batch_df['end_time'] // US_PER_MS
-    batch_df = batch_df.rename(columns={
-        'start_time': 'start_time(ms)',
-        'end_time': 'end_time(ms)',
-        'during_time': 'during_time(ms)'
-    })
     return batch_df
+
+
+def get_rename_cols(ori_cols):
+    rename_cols = {
+        'start_time': 'start_time(ms)', 'end_time': 'end_time(ms)',
+        'during_time': 'during_time(ms)'
+    }
+    for col in ori_cols:
+        if 'forward' in col:
+            rename_cols[col] = col + '(ms)'
+    return rename_cols
 
 
 class ExporterBatchData(ExporterBase):
@@ -259,25 +268,30 @@ class ExporterBatchData(ExporterBase):
                 batch_df = filter_batch_df(batch_name, batch_df)
             except KeyError as e:
                 logger.warning(f"Field '{e.args[0]}' not found in tx_data_df.")
-
-        if 'csv' in cls.args.format:
-            save_dataframe_to_csv(batch_df, output, "batch.csv")
+            rename_cols = get_rename_cols(batch_df.columns)
 
         if 'db' in cls.args.format:
-            batch_df['batch_size'] = batch_df['batch_size'].astype(float)
+            df_param_list = [
+                [batch_df, 'batch'],
+                [data.get('batch_req_df'), 'batch_req'],
+                [data.get('batch_exec_df'), 'batch_exec']
+            ]
+            write_result_to_db(
+                df_param_list=df_param_list,
+                create_view_sql=[CREATE_BATCH_VIEW_SQL],
+                table_name='batch',
+                rename_cols=rename_cols
+            )
 
-            add_table_into_visual_db(batch_df, 'batch')
-            create_sqlite_views('Batch_Size_by_Batch_ID', CREATE_BATCH_VIEW_SQL)
-
-            add_table_into_visual_db(data.get('batch_req_df'), 'batch_req')
-            add_table_into_visual_db(data.get('batch_exec_df'), 'batch_exec')
+        if 'csv' in cls.args.format:
+            write_result_to_csv(batch_df, output, 'batch', rename_cols)
 
 
-CREATE_BATCH_VIEW_SQL = """
-    CREATE VIEW Batch_Size_by_Batch_ID_curve AS
+CREATE_BATCH_VIEW_SQL = f"""
+    CREATE VIEW {CURVE_VIEW_NAME_LIST['batch']} AS
     WITH numbered_data AS (
         SELECT 
-            ROW_NUMBER() OVER (ORDER BY "start_time(microsecond)") - 1 AS batch_id,
+            ROW_NUMBER() OVER (ORDER BY "start_time") - 1 AS batch_id,
             batch_size,
             batch_type
         FROM 

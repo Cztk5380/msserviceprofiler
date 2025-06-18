@@ -63,7 +63,7 @@ def test_add_table_into_visual_db_failure(tmpdir, sample_dataframe, cleanup_db_f
         create_sqlite_db(str(output_dir))
 
         with patch('pandas.DataFrame.to_sql', side_effect=Exception("Insert failed")):
-            with pytest.raises(DatabaseError, match="Cannot update sqlite database."):
+            with pytest.raises(DatabaseError, match="Cannot update test_table sqlite database."):
                 add_table_into_visual_db(sample_dataframe, 'test_table')
     finally:
         # 清理

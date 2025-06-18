@@ -8,6 +8,10 @@ from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.error import key_except
 from ms_service_profiler.exporters.utils import add_table_into_visual_db, save_dataframe_to_csv, check_domain_valid
+from ms_service_profiler.exporters.utils import (
+    CURVE_VIEW_NAME_LIST, write_result_to_csv,
+    write_result_to_db, check_domain_valid
+)
 
 
 def update_name(row):
@@ -246,15 +250,21 @@ class ExporterReqData(ExporterBase):
             filtered_df = filtered_df.rename(columns={
                 'rid': 'http_rid',
                 'recvTokenSize=': 'recv_token_size',
-                'replyTokenSize=': 'reply_token_size',
-                'start_time': 'start_time(ms)',
-                'execution_time': 'execution_time(ms)',
-                'queue_wait_time': 'queue_wait_time(ms)',
-                'first_token_latency': 'first_token_latency(ms)'
+                'replyTokenSize=': 'reply_token_size'
             })
 
-        if 'csv' in cls.args.format:
-            save_dataframe_to_csv(filtered_df, output, "request.csv")
-
         if 'db' in cls.args.format:
-            add_table_into_visual_db(filtered_df, 'request_data')
+            write_result_to_db(
+                df_param_list=[[filtered_df, 'request']],
+                table_name='request',
+                rename_cols=REQUEST_DATA_RENAME_COLS
+            )
+
+        if 'csv' in cls.args.format:
+            write_result_to_csv(filtered_df, output, "request", REQUEST_DATA_RENAME_COLS)
+
+
+REQUEST_DATA_RENAME_COLS = {
+    'start_time': 'start_time(ms)', 'execution_time': 'execution_time(ms)',
+    'queue_wait_time': 'queue_wait_time(ms)', 'first_token_latency': 'first_token_latency(ms)'
+}

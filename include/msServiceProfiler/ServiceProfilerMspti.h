@@ -66,7 +66,7 @@ public:
 
     void ResetWorkingThreadNum();
 
-    bool GetWorkingStatus();
+    bool GetWorkingStatus() const;
 
 private:
 

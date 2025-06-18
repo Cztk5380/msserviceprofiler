@@ -101,9 +101,9 @@
               "type": "frser-sqlite-datasource",
               "uid": "be9gcyy5a15hcd"
             },
-            "queryText": "\nWITH numbered_data AS (\n    SELECT \n        ROW_NUMBER() OVER (ORDER BY `start_time(ms)`) - 1 AS batch_id,\n        batch_size,\n        batch_type\n    FROM batch\n    WHERE name in ('BatchSchedule', 'batchFrameworkProcessing')\n)\nSELECT \n    batch_id, \n    CASE \n        WHEN batch_type = 'Prefill' THEN batch_size\n        ELSE NULL\n    END AS Prefill_batch_size,\n    CASE \n        WHEN batch_type = 'Decode' THEN batch_size\n        ELSE NULL\n    END AS Decode_batch_size\nFROM numbered_data\nORDER BY batch_id;\n",
+            "queryText": "\nWITH numbered_data AS (\n    SELECT \n        ROW_NUMBER() OVER (ORDER BY `start_time`) - 1 AS batch_id,\n        batch_size,\n        batch_type\n    FROM batch\n    WHERE name in ('BatchSchedule', 'batchFrameworkProcessing')\n)\nSELECT \n    batch_id, \n    CASE \n        WHEN batch_type = 'Prefill' THEN batch_size\n        ELSE NULL\n    END AS Prefill_batch_size,\n    CASE \n        WHEN batch_type = 'Decode' THEN batch_size\n        ELSE NULL\n    END AS Decode_batch_size\nFROM numbered_data\nORDER BY batch_id;\n",
             "queryType": "table",
-            "rawQueryText": "\nWITH numbered_data AS (\n    SELECT \n        ROW_NUMBER() OVER (ORDER BY `start_time(ms)`) - 1 AS batch_id,\n        batch_size,\n        batch_type\n    FROM batch\n    WHERE name in ('BatchSchedule', 'batchFrameworkProcessing')\n)\nSELECT \n    batch_id, \n    CASE \n        WHEN batch_type = 'Prefill' THEN batch_size\n        ELSE NULL\n    END AS Prefill_batch_size,\n    CASE \n        WHEN batch_type = 'Decode' THEN batch_size\n        ELSE NULL\n    END AS Decode_batch_size\nFROM numbered_data\nORDER BY batch_id;\n",
+            "rawQueryText": "\nWITH numbered_data AS (\n    SELECT \n        ROW_NUMBER() OVER (ORDER BY `start_time`) - 1 AS batch_id,\n        batch_size,\n        batch_type\n    FROM batch\n    WHERE name in ('BatchSchedule', 'batchFrameworkProcessing')\n)\nSELECT \n    batch_id, \n    CASE \n        WHEN batch_type = 'Prefill' THEN batch_size\n        ELSE NULL\n    END AS Prefill_batch_size,\n    CASE \n        WHEN batch_type = 'Decode' THEN batch_size\n        ELSE NULL\n    END AS Decode_batch_size\nFROM numbered_data\nORDER BY batch_id;\n",
             "refId": "A"
           }
         ],
@@ -592,9 +592,9 @@
               "type": "frser-sqlite-datasource",
               "uid": "be9gcyy5a15hcd"
             },
-            "queryText": "\nWITH converted AS (\n    SELECT\n        kvcache_usage_rate * 100 AS kvcache_usage_percent,\n        substr(\"real_start_time(ms)\", 1, 10) || 'T' || substr(\"real_start_time(ms)\", 12, 8) || 'Z' AS datetime\n    FROM\n        kvcache\n)\nSELECT\n    datetime as time,\n    cast(kvcache_usage_percent as REAL) as \"kvcacge_usage\"\nFROM\n    converted\nORDER BY\n    datetime ASC;\n",
+            "queryText": "\nWITH converted AS (\n    SELECT\n        kvcache_usage_rate * 100 AS kvcache_usage_percent,\n        substr(\"start_datetime\", 1, 10) || 'T' || substr(\"start_datetime\", 12, 8) || 'Z' AS datetime\n    FROM\n        kvcache\n)\nSELECT\n    datetime as time,\n    cast(kvcache_usage_percent as REAL) as \"kvcacge_usage\"\nFROM\n    converted\nORDER BY\n    datetime ASC;\n",
             "queryType": "time series",
-            "rawQueryText": "\nWITH converted AS (\n    SELECT\n        kvcache_usage_rate * 100 AS kvcache_usage_percent,\n        substr(\"real_start_time(ms)\", 1, 10) || 'T' || substr(\"real_start_time(ms)\", 12, 8) || 'Z' AS datetime\n    FROM\n        kvcache\n)\nSELECT\n    datetime as time,\n    cast(kvcache_usage_percent as REAL) as \"kvcacge_usage\"\nFROM\n    converted\nORDER BY\n    datetime ASC;\n",
+            "rawQueryText": "\nWITH converted AS (\n    SELECT\n        kvcache_usage_rate * 100 AS kvcache_usage_percent,\n        substr(\"start_datetime\", 1, 10) || 'T' || substr(\"start_datetime\", 12, 8) || 'Z' AS datetime\n    FROM\n        kvcache\n)\nSELECT\n    datetime as time,\n    cast(kvcache_usage_percent as REAL) as \"kvcacge_usage\"\nFROM\n    converted\nORDER BY\n    datetime ASC;\n",
             "refId": "A",
             "timeColumns": [
               "time",
