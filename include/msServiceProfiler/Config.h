@@ -18,7 +18,7 @@ public:
     bool GetEnable() const { return enable_; }
     uint32_t GetTimeLimit() const { return timeLimit_; }
     uint32_t GetLevel() const { return level_; }
-    uint32_t GetEnableAclTaskTime() const { return enableAclTaskTime_; }
+    bool GetEnableAclTaskTime() const { return enableAclTaskTime_; }
     const std::string& GetProfPath() const { return profPath_; }
     const std::string& GetConfigPath() const { return configPath_; }
     const std::string& GetProfPathDateTail() const { return profPathDateTail_; }
