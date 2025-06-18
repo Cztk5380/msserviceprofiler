@@ -7,7 +7,7 @@
 #include <set>
 
 namespace MsUtils {
-    static inline std::pair<std::string, std::string> SplitStr(const std::string &str, char splitChar)
+    inline std::pair<std::string, std::string> SplitStr(const std::string &str, char splitChar)
     {
         auto start = str.find_first_of(splitChar);
         if (start == std::string::npos) {
@@ -18,7 +18,7 @@ namespace MsUtils {
     }
     
     // 分割字符串并存入set 输入字符串格式为"xxxx;xxx;xxx"或"xxx;xxx;"均可
-    static std::set<std::string> SplitStringToSet(const std::string& str, char splitSymbol)
+    inline std::set<std::string> SplitStringToSet(const std::string& str, char splitSymbol)
     {
         std::set<std::string> result;
         std::string token;

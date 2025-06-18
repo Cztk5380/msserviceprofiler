@@ -137,7 +137,7 @@ bool IsPathCharactersValid(const std::string &absPath)
 
 static std::string GetRealPath(std::string const &path)
 {
-    char* absPath = realpath(path.c_str(), NULL);
+    char* absPath = realpath(path.c_str(), nullptr);
     if (absPath == nullptr) {
         LogWarn("Cannot GetRealPath");
         return "";
@@ -159,21 +159,24 @@ static std::string GetParentDir(const std::string &path)
     return ".";
 }
 
-template<typename Iterator>
-static void Split(std::string const &str, Iterator it, std::string const &seps)
+static void Split(std::string const &str, std::back_insert_iterator<std::vector<std::string>> it,
+                    std::string const &seps)
 {
-    std::string::size_type fast = 0;
-    if (!seps.empty() && str.rfind(seps, 0) == 0) {
+    if (!seps.empty() && !str.empty() && str.find_first_of(seps) == 0) {
         *it = "";
         ++it;
     }
     std::string::size_type slow = str.find_first_not_of(seps);
-    for (; fast < str.length(); slow = str.find_first_not_of(seps, fast)) {
-        fast = str.find_first_of(seps, slow);
+    while (slow != std::string::npos && slow < str.length()) {
+        std::string::size_type fast = str.find_first_of(seps, slow);
+        if (fast == std::string::npos) {
+            fast = str.length();
+        }
         if (fast != slow) {
             *it = str.substr(slow, fast - slow);
             ++it;
         }
+        slow = fast + 1;
     }
 }
 
@@ -253,7 +256,7 @@ bool CheckFileBeforeRead(const std::string &path, long long maxSize)
         LogWarn("File not exist: %s", absPath.c_str());
         return false;
     }
-    if (fileStat.st_mode & (S_IWGRP | S_IWOTH)) {
+    if ((fileStat.st_mode & (S_IWGRP | S_IWOTH)) != 0) {
         LogWarn("Group or others user can write, path: %s", path.c_str());
         return false;
     }
