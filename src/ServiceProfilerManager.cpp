@@ -498,7 +498,7 @@ namespace msServiceProfiler {
         } else {
             deviceNums = 1;  // On device process
             deviceIdList[0] = g_deviceID;
-            if (config_->GetEnableAclTaskTime()) {
+            if (static_cast<bool>(config_->GetEnableAclTaskTime())) {
                 if (config_->GetAclTaskTimeLevel() == "L0") {
                     profSwitch |= ACL_PROF_TASK_TIME_L0;
                 } else if (config_->GetAclTaskTimeLevel() == "L1") {
