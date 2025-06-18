@@ -160,7 +160,7 @@ static std::string GetParentDir(const std::string &path)
 }
 
 static void Split(std::string const &str, std::back_insert_iterator<std::vector<std::string>> it,
-                    std::string const &seps)
+    std::string const &seps)
 {
     if (!seps.empty() && !str.empty() && str.find_first_of(seps) == 0) {
         *it = "";
