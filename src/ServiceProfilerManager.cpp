@@ -466,7 +466,6 @@ namespace msServiceProfiler {
             if (msptiEnabled) {
                 FlushBufferByTime();
             }
-
         }
     }
 
