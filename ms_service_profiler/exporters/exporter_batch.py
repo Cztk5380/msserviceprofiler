@@ -151,7 +151,7 @@ def get_new_columns_order(ori_columns, new_columns, dp_number):
     for i in range(dp_number):
         ori_columns.append('dp' + str(i) + '_rid')
         ori_columns.append('dp' + str(i) + '_size')
-        ori_columns.append('dp' + str(i) + '_forward(ms)')
+        ori_columns.append('dp' + str(i) + '_forward')
 
     # 创建过滤后的顺序列表
     existing_cols = [col for col in ori_columns if col in new_columns]
@@ -266,8 +266,7 @@ class ExporterBatchData(ExporterBase):
                 batch_df = filter_batch_df(batch_name, batch_df)
             except KeyError as e:
                 logger.warning(f"Field '{e.args[0]}' not found in tx_data_df.")
-
-        rename_cols = get_rename_cols(batch_df.columns)
+            rename_cols = get_rename_cols(batch_df.columns)
 
         if 'db' in cls.args.format:
             df_param_list = [

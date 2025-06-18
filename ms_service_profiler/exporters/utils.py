@@ -42,13 +42,13 @@ TABLE_DATA_VIEW_NAME_LIST = {
     # data_table中(name, view_name)都为视图名称
     'batch': 'batch_info',
     'kvcache': 'kvcache_usage',
-    'pd_split_communication': 'pd_split_communication',
+    'pd_split_communication': 'pd_communication_info',
     'request': 'request_data',
     'pd_split_kvcache': 'pd_split_pull_kvcache'
 }
 
 
-def write_result_to_db(df_param_list, create_view_sql=[], table_name="", rename_cols=[]):
+def write_result_to_db(df_param_list, create_view_sql=None, table_name="", rename_cols=None):
     """
         df_param_list: [[需要存入db中table的df, table name], [...]]
         create_view_sql: 需要创建用于折线图展示的视图的sql语句列表
@@ -56,6 +56,8 @@ def write_result_to_db(df_param_list, create_view_sql=[], table_name="", rename_
         rename_cols: 纯表展示数据需要修改的列名，该视图创建语句动态生成
     """
     try:
+        create_view_sql = create_view_sql or []
+        rename_cols = rename_cols or []
         for df, df_name in df_param_list:
             add_table_into_visual_db(df, df_name)
 
@@ -96,9 +98,10 @@ def create_view_with_renamed_column(cursor, table_name, view_name, rename_cols):
 
 def del_all_visual_table(views, cursor):
     for view in views:
-        if view[0] in CURVE_VIEW_NAME_LIST.values() or\
-            view[0] in TABLE_DATA_VIEW_NAME_LIST.values():
-         cursor.execute(f"DROP VIEW IF EXISTS {view[0]};")
+        if not view or len(view) < 1:
+            continue
+        if view[0] in CURVE_VIEW_NAME_LIST.values() or view[0] in TABLE_DATA_VIEW_NAME_LIST.values():
+            cursor.execute(f"DROP VIEW IF EXISTS {view[0]};")
 
 
 def create_sqlite_db(output):
@@ -133,22 +136,30 @@ def create_sqlite_db(output):
             conn.close()
 
 
-def create_sqlite_views(table_name, create_view_sql=[], rename_cols=[]):
+def create_views_with_sqls(cursor, create_view_sql):
+    for sql in create_view_sql:
+        cursor.execute(sql)
+
+
+def create_views_with_table_name(cursor, table_name, rename_cols):
+    if table_name in TABLE_DATA_VIEW_NAME_LIST.keys():
+        create_view_with_renamed_column(cursor, table_name,
+            TABLE_DATA_VIEW_NAME_LIST[table_name], rename_cols)
+
+
+def create_sqlite_views(table_name, create_view_sql, rename_cols):
     with db_write_lock:
         with ms_open(visual_db_fp, "a"):
             try:
                 conn = sqlite3.connect(visual_db_fp)
                 cursor = conn.cursor()
-                for sql in create_view_sql:
-                    cursor.execute(sql)
-                if table_name in TABLE_DATA_VIEW_NAME_LIST.keys():
-                    create_view_with_renamed_column(cursor, table_name,
-                        TABLE_DATA_VIEW_NAME_LIST[table_name], rename_cols)
+                create_views_with_sqls(cursor, create_view_sql)
+                create_views_with_table_name(cursor, table_name, rename_cols)
                 conn.commit()
                 conn.close()
             except Exception as ex:
                 conn.rollback()  # 失败时回滚
-                raise DatabaseError(f"Cannot update sqlite database views when create {table_name}.") from ex
+                raise DatabaseError(f"Cannot update sqlite {table_name} views.") from ex
 
 
 def handle_sqlite_table_list(table_list, cursor):
@@ -248,7 +259,6 @@ def _preprocess_dataframe(df, check_columns=None):
 
 
 def _check_csv_value_is_valid(value: str):
-    import re
     if not isinstance(value, str):
         return True
     try:
