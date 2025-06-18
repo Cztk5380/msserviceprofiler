@@ -1,5 +1,8 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
+import functools
+from ms_service_profiler.utils.log import logger
+
 
 class ExportError(Exception):
     def __init__(self, message):
@@ -70,3 +73,43 @@ class LoadDataError(ParseError):
         return f"{self.message}: {self.path}"
 
 
+def key_except(*keys, ignore=False, msg=None):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)  # 执行函数
+            except KeyError as key_err:
+                if not hasattr(key_err, "args") or all(item not in keys for item in key_err.args):
+                    raise key_err
+                error = ColumnMissingError(key_err.args, msg)
+                if ignore:
+                    logger.warning(error)
+                else:
+                    raise error from key_err
+        return wrapper
+    return decorator
+
+class KeyExcept:
+    def __init__(self, *keys, ignore=False, msg=None):
+        self.keys = keys
+        self.ignore = ignore
+        self.msg = msg
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type is not KeyError:
+            return False
+        if not hasattr(exc_value, "args"):
+            return False
+        if all(item not in self.keys for item in exc_value.args):
+            return False
+
+        error = ColumnMissingError(exc_value.args, self.msg)
+        if self.ignore:
+            logger.warning(error)
+        else:
+            raise error from exc_value
+        return True

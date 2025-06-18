@@ -10,7 +10,7 @@ from ms_service_profiler.exporters.base import TaskExporterBase
 from ms_service_profiler.utils.file_open_check import ms_open, safe_json_dump, OpenException
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
-from ms_service_profiler.utils.error import DatabaseError
+from ms_service_profiler.utils.error import DatabaseError, key_except
 from ms_service_profiler.exporters.utils import get_db_connection, create_sqlite_tables
 from ms_service_profiler.utils.trace_to_db import (
     trans_trace_event, save_cache_data_to_db, TRACE_TABLE_DEFINITIONS
@@ -42,7 +42,7 @@ class ExporterTrace(TaskExporterBase):
         if data is not None:
             cpu_data_df = data.get('cpu_data_df', pd.DataFrame())
             memory_data_df = data.get('memory_data_df', pd.DataFrame())
-            all_data_df = data.get('tx_data_df', pd.DataFrame()).copy()
+            all_data_df = data.get('tx_data_df', pd.DataFrame(columns=["name", "domain"])).copy()
             if 'pid_label_map' in data:
                 pid_label_map = data['pid_label_map']
             else:
@@ -235,19 +235,21 @@ def create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map=
     mem_trace_events = add_mem_events(memory_data_df)
     trace_events.extend(mem_trace_events)
 
-    npu_trace_events = add_npu_events(all_data_df[all_data_df['name'] == 'npu'])
-    trace_events.extend(npu_trace_events)
+    if not all_data_df.empty and "name" in all_data_df:
+        npu_trace_events = add_npu_events(all_data_df[all_data_df['name'] == 'npu'])
+        trace_events.extend(npu_trace_events)
 
-    kv_trace_events = add_kvcache_events(all_data_df[all_data_df['domain'] == 'KVCache'])
-    trace_events.extend(kv_trace_events)
+        kv_trace_events = add_kvcache_events(all_data_df[all_data_df['domain'] == 'KVCache'])
+        trace_events.extend(kv_trace_events)
 
-    pull_kvcache_events = add_pull_kvcache_events(all_data_df[all_data_df['domain'] == 'PullKVCache'])
-    trace_events.extend(pull_kvcache_events)
+        pull_kvcache_events = add_pull_kvcache_events(all_data_df[all_data_df['domain'] == 'PullKVCache'])
+        trace_events.extend(pull_kvcache_events)
 
-    # flow事件
-    flow_event_df = valid_name_df[valid_name_df['rid'].notna()]
-    flow_trace_events = add_flow_event(flow_event_df)
-    trace_events.extend(flow_trace_events)
+        # flow事件
+        flow_event_df = valid_name_df[valid_name_df['rid'].notna()]
+        flow_trace_events = add_flow_event(flow_event_df)
+        trace_events.extend(flow_trace_events)
+        
     trace_events = sort_trace_events_by_tid(trace_events)
     if pid_label_map is not None:
         trace_events.extend(sort_trace_events_by_pid(pid_label_map))

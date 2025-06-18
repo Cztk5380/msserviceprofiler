@@ -6,6 +6,7 @@ from ms_service_profiler.utils.log import logger
 from ms_service_profiler.exporters.utils import add_table_into_visual_db, create_sqlite_views, check_domain_valid
 from ms_service_profiler.constant import US_PER_MS
 from ms_service_profiler.utils.timer import timer
+from ms_service_profiler.utils.error import key_except
 
 
 def is_vaild_id_list(id_list):
@@ -226,6 +227,7 @@ class ExporterBatchData(ExporterBase):
 
     @classmethod
     @timer(logger.info)
+    @key_except('domain', 'name', ignore=True, msg="ignoring current exporter by default.")
     def export(cls, data) -> None:
         if 'csv' in cls.args.format or 'db' in cls.args.format:
             df = data.get('tx_data_df')
