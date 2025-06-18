@@ -46,7 +46,11 @@ class ExporterReqStatus(ExporterBase):
                 if column_name not in df.columns:
                     df = df.assign(**{column_name: [None] * len(df)})
 
-            write_result_to_db(df, 'request_status')
+            write_result_to_db(
+                df_param_list=[[df, 'request_status']],
+                table_name='request_status',
+                create_view_sql=[CREATE_REQUEST_STATE_VIEW_SQL]
+            )
 
 
 CREATE_REQUEST_STATE_VIEW_SQL = f"""

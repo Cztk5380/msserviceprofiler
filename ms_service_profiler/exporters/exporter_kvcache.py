@@ -137,10 +137,14 @@ def export_pull_kvcache(df, output, args_format):
     pull_kvcache_df['end_datetime'] = pull_kvcache_df['end_datetime'].str[:-3]
 
     if 'db' in args_format:
-        write_result_to_db([pull_kvcache_df, 'pd_split_kvcache'], 'pd_split_kvcache')
+        write_result_to_db(
+            df_param_list=[[pull_kvcache_df, 'pd_split_kvcache']],
+            table_name='pd_split_kvcache',
+            rename_cols=PULL_KV_RENAME_COLS
+        )
 
     if 'csv' in args_format:
-        write_result_to_csv(pull_kvcache_df, output, 'pd_split_kvcache')
+        write_result_to_csv(pull_kvcache_df, output, 'pd_split_kvcache', PULL_KV_RENAME_COLS)
 
 
 class ExporterKVCacheData(ExporterBase):
@@ -182,11 +186,16 @@ class ExporterKVCacheData(ExporterBase):
         if 'db' in cls.args.format:
             kvcache_usuage_df = kvcache_usage_rate_calculator(kvcache_df)
             kvcache_usuage_df['start_datetime'] = truncate_timestamp_np(kvcache_usuage_df['start_datetime'])
-            write_result_to_db([kvcache_usuage_df, 'kvcache'], 'kvcache', [CREATE_KVCACHE_VIEW_SQL])
+            write_result_to_db(
+                df_param_list=[[kvcache_usuage_df, 'kvcache']],
+                table_name='kvcache',
+                create_view_sql=[CREATE_KVCACHE_VIEW_SQL],
+                rename_cols=KVCACHE_RENAME_COLS
+            )
 
         if 'csv' in cls.args.format:
             kvcache_df = kvcache_df.drop(['start_datetime'], axis=1)
-            write_result_to_csv(kvcache_df, output, "kvcache")
+            write_result_to_csv(kvcache_df, output, "kvcache", KVCACHE_RENAME_COLS)
 
         # PullKVCache
         export_pull_kvcache(df, cls.args.output_path, cls.args.format)
@@ -209,3 +218,13 @@ CREATE_KVCACHE_VIEW_SQL = f"""
     ORDER BY
         datetime ASC
 """
+
+KVCACHE_RENAME_COLS = {
+    'deviceBlock=': 'device_kvcache_left', 'start_time': 'timestamp(ms)',
+    'start_datetime': 'start_datetime(ms)'
+}
+
+PULL_KV_RENAME_COLS = {
+    'start_time': 'start_time(ms)', 'end_time': 'end_time(ms)', 'during_time': 'during_time(ms)',
+    'start_datetime': 'start_datetime(ms)', 'end_datetime': 'end_datetime(ms)'
+}

@@ -3,7 +3,7 @@ import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.exporters.utils import (
-    write_result_to_csv, write_result_to_db,
+    write_result_to_csv, write_result_to_db, create_sqlite_views,
     check_domain_valid, CURVE_VIEW_NAME_LIST
 )
 from ms_service_profiler.constant import US_PER_MS
@@ -51,7 +51,7 @@ def get_forward_info(df):
 
         for key, value in max_df_index.items():
             select_row = forward_df_list[value].loc[row_index]
-            dp_name = 'dp' + key + '_forward(ms)'
+            dp_name = 'dp' + key + '_forward'
             max_forward_during_time[dp_name] = select_row.get('during_time') / US_PER_MS
         all_max_forward_during_time.append(max_forward_during_time)
 
@@ -215,6 +215,17 @@ def filter_batch_df(batch_name, batch_df):
     return batch_df
 
 
+def get_rename_cols(ori_cols):
+    rename_cols = {
+        'start_time': 'start_time(ms)', 'end_time': 'end_time(ms)',
+        'during_time': 'during_time(ms)'
+    }
+    for col in ori_cols:
+        if 'forward' in col:
+            rename_cols[col] = col + '(ms)'
+    return rename_cols
+
+
 class ExporterBatchData(ExporterBase):
     name = "batch_data"
 
@@ -256,16 +267,23 @@ class ExporterBatchData(ExporterBase):
             except KeyError as e:
                 logger.warning(f"Field '{e.args[0]}' not found in tx_data_df.")
 
+        rename_cols = get_rename_cols(batch_df.columns)
+
         if 'db' in cls.args.format:
             df_param_list = [
                 [batch_df, 'batch'],
                 [data.get('batch_req_df'), 'batch_req'],
                 [data.get('batch_exec_df'), 'batch_exec']
             ]
-            write_result_to_db(df_param_list, 'batch', [CREATE_BATCH_VIEW_SQL])
+            write_result_to_db(
+                df_param_list=df_param_list,
+                create_view_sql=[CREATE_BATCH_VIEW_SQL],
+                table_name='batch',
+                rename_cols=rename_cols
+            )
 
         if 'csv' in cls.args.format:
-            write_result_to_csv(batch_df, output, 'batch')
+            write_result_to_csv(batch_df, output, 'batch', rename_cols)
 
 
 CREATE_BATCH_VIEW_SQL = f"""

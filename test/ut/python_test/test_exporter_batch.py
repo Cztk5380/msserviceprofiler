@@ -72,8 +72,8 @@ class TestExporterBatchData(unittest.TestCase):
 
     def check_dp_info(self, csv_file_path):
         df = pd.read_csv(csv_file_path)
-        dp_columns = ['during_time(ms)', 'dp0_rid', 'dp0_size', 'dp0_forward(ms)',
-            'dp1_rid', 'dp1_size', 'dp1_forward(ms)']
+        dp_columns = ['during_time', 'dp0_rid', 'dp0_size', 'dp0_forward',
+            'dp1_rid', 'dp1_size', 'dp1_forward']
 
         # 校验是否存在上述列
         col_index = []

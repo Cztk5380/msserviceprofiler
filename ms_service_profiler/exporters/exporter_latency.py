@@ -222,7 +222,10 @@ class ExporterLatency(ExporterBase):
             CREATE_FIRST_TOKEN_LATENCY_SQL, CREATE_REQUEST_LATENCY_SQL,
             CREATE_PREFILL_GEN_SPEED_VIEW_SQL, CREATE_DECODE_GEN_SPEED_SQL
         ]
-        write_result_to_db(df_param_list, 'latency', view_sql_list)
+        write_result_to_db(
+            df_param_list=df_param_list,
+            create_view_sql=view_sql_list
+        )
 
 
 CREATE_PREFILL_GEN_SPEED_VIEW_SQL = f"""

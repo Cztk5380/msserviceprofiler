@@ -251,7 +251,17 @@ class ExporterReqData(ExporterBase):
             })
 
         if 'db' in cls.args.format:
-            write_result_to_db(filtered_df, 'request')
+            write_result_to_db(
+                df_param_list=[[filtered_df, 'request']],
+                table_name='request',
+                rename_cols=REQUEST_DATA_RENAME_COLS
+            )
 
         if 'csv' in cls.args.format:
-            write_result_to_csv(filtered_df, output, "request")
+            write_result_to_csv(filtered_df, output, "request", REQUEST_DATA_RENAME_COLS)
+
+
+REQUEST_DATA_RENAME_COLS = {
+    'start_time': 'start_time(ms)', 'execution_time': 'execution_time(ms)',
+    'queue_wait_time': 'queue_wait_time(ms)', 'first_token_latency': 'first_token_latency(ms)'
+}

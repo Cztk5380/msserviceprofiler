@@ -1,5 +1,6 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 import os
+import re
 import shutil
 import sqlite3
 import argparse
@@ -38,56 +39,38 @@ CURVE_VIEW_NAME_LIST = {
 }
 TABLE_DATA_VIEW_NAME_LIST = {
     # 需要以纯表显示的db中的表名: data_table中的视图名称
+    # data_table中(name, view_name)都为视图名称
     'batch': 'batch_info',
     'kvcache': 'kvcache_usage',
     'pd_split_communication': 'pd_split_communication',
     'request': 'request_data',
     'pd_split_kvcache': 'pd_split_pull_kvcache'
 }
-RENAME_COLUMNS_LIST = {
-    # csv文件/db表名称: 需要重命名的列
-    'batch': {
-        'start_time': 'start_time(ms)', 'end_time': 'end_time(ms)', 'during_time': 'during_time(ms)'
-    },
-    'pd_split_kvcache': {
-        'start_time': 'start_time(ms)', 'end_time': 'end_time(ms)', 'during_time': 'during_time(ms)',
-        'start_datetime': 'start_datetime(ms)', 'end_datetime': 'end_datetime(ms)'
-    },
-    'kvcache': {
-        'deviceBlock=': 'device_kvcache_left', 'start_time': 'timestamp(ms)',
-        'start_datetime': 'start_datetime(ms)'
-    },
-    'pd_split_communication': {
-        'http_req_time': 'http_req_time(ms)', 'send_request_time': 'send_request_time(ms)',
-        'send_request_succ_time': 'send_request_succ_time(ms)', 'prefill_res_time': 'prefill_res_time(ms)',
-        'requset_end_time': 'requset_end_time(ms)'
-    },
-    'request_data': {
-        'start_time': 'start_time(ms)', 'execution_time': 'execution_time(ms)',
-        'queue_wait_time': 'queue_wait_time(ms)', 'first_token_latency': 'first_token_latency(ms)'
-    }
-}
 
 
-def write_result_to_db(df_param_list, name, create_sql_views=[]):
+def write_result_to_db(df_param_list, create_view_sql=[], table_name="", rename_cols=[]):
+    """
+        df_param_list: [[需要存入db中table的df, table name], [...]]
+        create_view_sql: 需要创建用于折线图展示的视图的sql语句列表
+        table_name: 需要以纯表显示的db中的表名(df_param_list中最多只有一个表需要以纯表形式展示)
+        rename_cols: 纯表展示数据需要修改的列名，该视图创建语句动态生成
+    """
     try:
-        # 写入数据库表
         for df, df_name in df_param_list:
             add_table_into_visual_db(df, df_name)
 
-        # 创建视图
-        create_sqlite_views(name, create_sql_views)
+        create_sqlite_views(table_name, create_view_sql, rename_cols)
+
     except Exception as error:
-        logger.warning(f"{name} write to db failed due to {error}")
+        logger.warning(f"{table_name} write to db table failed due to {error}")
 
 
-def write_result_to_csv(df, output, name):
-    if name in RENAME_COLUMNS_LIST.keys():
-        df.rename(columns=RENAME_COLUMNS_LIST[name])
-    save_dataframe_to_csv(df, output, f"{name}.csv")
+def write_result_to_csv(df, output, csv_name, rename_col):
+    df = df.rename(columns=rename_col)
+    save_dataframe_to_csv(df, output, f"{csv_name}.csv")
 
 
-def create_view_with_renamed_column(cursor, table_name, view_name):
+def create_view_with_renamed_column(cursor, table_name, view_name, rename_cols):
     # 获取所有列名
     cursor.execute(f"PRAGMA table_info({table_name})")
     columns = [column[1] for column in cursor.fetchall()]  # 第2个元素是列名
@@ -95,8 +78,8 @@ def create_view_with_renamed_column(cursor, table_name, view_name):
     # 构建SELECT部分，重命名指定列
     select_parts = []
     for col in columns:
-        if col in RENAME_COLUMNS_LIST.get(RENAME_COLUMNS_LIST, {}).keys():
-            select_parts.append(f"{col} AS {RENAME_COLUMNS_LIST[table_name][col]}")
+        if col in rename_cols:
+            select_parts.append(f'"{col}" AS "{rename_cols[col]}"')
         else:
             select_parts.append(col)
     
@@ -108,7 +91,6 @@ def create_view_with_renamed_column(cursor, table_name, view_name):
     SELECT {select_clause}
     FROM {table_name}
     """
-
     cursor.execute(create_view_sql)
 
 
@@ -151,21 +133,20 @@ def create_sqlite_db(output):
             conn.close()
 
 
-def create_sqlite_views(name, create_view_sql=[]):
-    with db_write_lock:
-        with ms_open(visual_db_fp, "a") as f:
-            try:
-                conn = sqlite3.connect(visual_db_fp)
-                cursor = conn.cursor()
-                for sql in create_view_sql:
-                    cursor.execute(sql)
-                if name in TABLE_DATA_VIEW_NAME_LIST.keys():
-                    create_view_with_renamed_column(cursor, name, TABLE_DATA_VIEW_NAME_LIST[name])
-                conn.commit()
-                conn.close()
-            except Exception as ex:
-                conn.rollback()  # 失败时回滚
-                raise DatabaseError(f"Cannot update sqlite database when create {name} views.") from ex
+def create_sqlite_views(table_name, create_view_sql=[], rename_cols=[]):
+    try:
+        conn = sqlite3.connect(visual_db_fp)
+        cursor = conn.cursor()
+        for sql in create_view_sql:
+            cursor.execute(sql)
+        if table_name in TABLE_DATA_VIEW_NAME_LIST.keys():
+            create_view_with_renamed_column(cursor, table_name,
+                TABLE_DATA_VIEW_NAME_LIST[table_name], rename_cols)
+        conn.commit()
+        conn.close()
+    except Exception as ex:
+        conn.rollback()  # 失败时回滚
+        logger.warning(f"Cannot update sqlite database when create {table_name} views due to {ex}.")
 
 
 def handle_sqlite_table_list(table_list, cursor):

@@ -74,9 +74,20 @@ class ExporterPDComm(ExporterBase):
         if not cls.req_result_list:
             return
 
+        result_df = pd.DataFrame(cls.req_result_list)
         if 'db' in cls.args.format:
-            write_result_to_db([pd.DataFrame(cls.req_result_list), 'pd_split_communication'], 'pd_split_communication')
+            write_result_to_db(
+                df_param_list=[[result_df, 'pd_split_communication']],
+                table_name='pd_split_communication',
+                rename_cols=PD_SPLIT_COMM_RENAME_COLS
+            )
 
         if 'csv' in cls.args.format:
-            write_result_to_csv(pd.DataFrame(cls.req_result_list), output, "pd_split_communication")
+            write_result_to_csv(result_df, output, "pd_split_communication", PD_SPLIT_COMM_RENAME_COLS)
 
+
+PD_SPLIT_COMM_RENAME_COLS = {
+    'http_req_time': 'http_req_time(ms)', 'send_request_time': 'send_request_time(ms)',
+    'send_request_succ_time': 'send_request_succ_time(ms)', 'prefill_res_time': 'prefill_res_time(ms)',
+    'requset_end_time': 'requset_end_time(ms)'
+}
