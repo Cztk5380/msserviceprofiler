@@ -203,7 +203,6 @@ public:
         inited = false;
     }
 
-public:
     ServiceProfilerDbWriter()
         : inited(false), db_(nullptr), stmtMstx_(nullptr), stmtMeta_(nullptr)
     {
