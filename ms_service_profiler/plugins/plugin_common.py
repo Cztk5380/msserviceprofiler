@@ -94,7 +94,7 @@ def parse_rid_map(all_data_df):
 
 def parse_rid(tx_data_df):
     if "type" not in tx_data_df.columns or "rid" not in tx_data_df.columns:
-        logger.error('Missing columns "type" or "rid". Skip parsing')
+        logger.warning('Missing columns "type" or "rid". Skip parsing')
         return tx_data_df, None
     tx_data_df['res_list'] = tx_data_df['rid']
     rid_link_map = parse_rid_map(tx_data_df)

@@ -6,6 +6,7 @@ from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import DataFrameMissingError, ColumnMissingError
 from ms_service_profiler.utils.timer import timer
+from ms_service_profiler.utils.error import KeyExcept
 
 
 class PluginMetric(PluginBase):
@@ -17,30 +18,31 @@ class PluginMetric(PluginBase):
     @classmethod
     @timer(logger.info)
     def parse(cls, data):
-        tx_data_df = data.get('tx_data_df')
-        if tx_data_df is None:
-            raise DataFrameMissingError(key="tx_data_df")
+        with KeyExcept('name', 'start_time', 'start_datetime', ignore=True, msg="ignoring current process by default."):
+            tx_data_df = data.get('tx_data_df')
+            if tx_data_df is None:
+                raise DataFrameMissingError(key="tx_data_df")
 
-        metric_cols = [col for col in tx_data_df.columns if is_metric(col)]
+            metric_cols = [col for col in tx_data_df.columns if is_metric(col)]
 
-        missing_col = [col for col in ['name', 'start_time', 'start_datetime'] if col not in tx_data_df.columns]
-        if missing_col:
-            raise ColumnMissingError(key=missing_col)
+            missing_col = [col for col in ['name', 'start_time', 'start_datetime'] if col not in tx_data_df.columns]
+            if missing_col:
+                raise KeyError(*missing_col)
 
-        metric_data_df = tx_data_df[['start_time', 'start_datetime'] + metric_cols].copy()
+            metric_data_df = tx_data_df[['start_time', 'start_datetime'] + metric_cols].copy()
 
-        if 'FINISHED+' not in metric_data_df.columns:
-            metric_data_df.loc[tx_data_df['name'] == 'httpReq', 'WAITING+'] = 1.0
+            if 'FINISHED+' not in metric_data_df.columns:
+                metric_data_df.loc[tx_data_df['name'] == 'httpReq', 'WAITING+'] = 1.0
 
-        if (tx_data_df['name'] == 'decodeReq').any():
-            metric_data_df.loc[tx_data_df['name'] == 'decodeReq', 'WAITING+'] = 1.0
+            if (tx_data_df['name'] == 'decodeReq').any():
+                metric_data_df.loc[tx_data_df['name'] == 'decodeReq', 'WAITING+'] = 1.0
 
-        increase_metric_cols = [col for col in metric_cols if col[-1] == "+"]
-        metric_data_df[increase_metric_cols] = cal_increase_value(metric_data_df[increase_metric_cols])
+            increase_metric_cols = [col for col in metric_cols if col[-1] == "+"]
+            metric_data_df[increase_metric_cols] = cal_increase_value(metric_data_df[increase_metric_cols])
 
-        metric_data_df = metric_data_df.rename(columns={col: col[:-1] for col in metric_cols})
+            metric_data_df = metric_data_df.rename(columns={col: col[:-1] for col in metric_cols})
 
-        data['metric_data_df'] = metric_data_df
+            data['metric_data_df'] = metric_data_df
         return data
 
 

@@ -526,9 +526,13 @@ def parallel_run_single_prof_data_tasks(data_source_tasks, single_data_tasks_ord
     with ProcessPoolExecutor() as executor:
         single_prof_index = 0
         future_map = dict()
+        multi_tasks = []
         for data_source_name in data_source_tasks:
             data_source = Task.get_retister_by_name(data_source_name)(args)
             prof_paths = data_source.get_prof_paths(input_path)
+            multi_tasks.append((data_source, prof_paths))
+
+        for data_source, prof_paths in multi_tasks:
             for prof_path in prof_paths:
                 single_prof_index += 1
 
