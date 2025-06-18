@@ -61,6 +61,9 @@ class ColumnMissingError(KeyMissingError):
     def __str__(self):
         return f"{self.message}: {self.key} not exists."
 
+    def __eq__(self, other):
+        return self.key == other.key and self.message == other.message
+
 
 class LoadDataError(ParseError):
     def __init__(self, path, message="Failed to load data"):
@@ -87,8 +90,10 @@ def key_except(*keys, ignore=False, msg=None):
                     logger.warning(error)
                 else:
                     raise error from key_err
+            return None
         return wrapper
     return decorator
+
 
 class KeyExcept:
     def __init__(self, *keys, ignore=False, msg=None):

@@ -7,7 +7,6 @@ from ms_service_profiler.constant import US_PER_MS
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.error import key_except
-from ms_service_profiler.exporters.utils import add_table_into_visual_db, save_dataframe_to_csv, check_domain_valid
 from ms_service_profiler.exporters.utils import (
     CURVE_VIEW_NAME_LIST, write_result_to_csv,
     write_result_to_db, check_domain_valid

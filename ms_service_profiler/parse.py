@@ -735,7 +735,7 @@ def main():
     parser.add_argument(
         '--input-path',
         required=True,
-        # type=check_input_path_valid,
+        type=check_input_path_valid,
         help='Path to the folder containing profile data.')
     parser.add_argument(
         '--output-path',
