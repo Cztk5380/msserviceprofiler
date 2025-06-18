@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 #ifndef SERVICEPROFILERDBWRITER_H
 #define SERVICEPROFILERDBWRITER_H
+
+#include <string>  // 包含std::string的定义
 
 namespace msServiceProfiler {
 
