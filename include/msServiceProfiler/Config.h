@@ -43,7 +43,7 @@ public:
     Json ReadConfigFile();
     void ParseConfig(const Json& configJson);
     void InitProfPathDateTail(bool forceReinit = false);
-    bool PrepareConfigAndPath(std::string& configPath);
+    bool PrepareConfigAndPath(std::string& configPath) const;
     void SaveConfigToJsonFile();
 
     bool GetMsptiEnable() const { return msptiEnable_; }
@@ -65,7 +65,7 @@ private:
     bool ParseHostConfig(const Json& config);
     bool ParseNpuConfig(const Json& config);
     void ParseMspti(const Json& config);
-    std::vector<std::string> SplitAndTrimString(const std::string& str, char delimiter);
+    std::vector<std::string> SplitAndTrimString(const std::string& str, char delimiter) const;
     void LogDomainInfo() const;
     void ParseDomain(const Json& config);
     nlohmann::ordered_json GetConfigData() const;

@@ -2,14 +2,16 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 #include <climits>
-#include <fstream>
 #include <unistd.h>
+#include <fstream>
 
 #include "securec.h"
-#include "msServiceProfiler/Log.h"
-#include "msServiceProfiler/Utils.h"
+
 #include "msServiceProfiler/Config.h"
+#include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/SecurityUtils.h"
+#include "msServiceProfiler/Utils.h"
+
 
 namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
@@ -223,7 +225,7 @@ void Config::ParseProfPath(const Json& config)
     profPath_.append(profPathDateTail_);
 }
 
-void Config::CheckMsptiAndEnableMspti(const Json &config)
+void Config::CheckMsptiAndEnableMspti()
 {
     char* ld_preload = getenv("LD_PRELOAD");
     std::string ld_preload_str = ld_preload ? ld_preload : "";
@@ -243,7 +245,7 @@ void Config::ParseAclTaskTime(const Json &config)
             enableAclTaskTime_ = config["acl_task_time"] == ACL_PROF_ENABLE_TASK_TIME;
             // 需要检测是否开启了mspti，如果开启了则会导致mstx和aclprof的数据丢失
             if (enableAclTaskTime_) {
-                CheckMsptiAndEnableMspti(config);
+                CheckMsptiAndEnableMspti();
             }
             msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
         } else {
@@ -318,7 +320,7 @@ void Config::ParseLevel(const Json &config)
     PROF_LOGD("profiler_level: %u", level_);
 }
 
-std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char delimiter)
+std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char delimiter) const
 {
     std::vector<std::string> tokens;
     size_t start = 0;
@@ -471,7 +473,7 @@ bool Config::ParseNpuConfig(const Json &config)
     return ret;
 }
 
-bool Config::PrepareConfigAndPath(std::string& configPath)
+bool Config::PrepareConfigAndPath(std::string& configPath) const
 {
     const int jsonSuffixSize = 5;
     if (configPath.empty()) {
