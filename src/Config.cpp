@@ -32,6 +32,10 @@ Config::Config()
 
 void Config::ReadAndSaveConfig()
 {
+    PROF_LOGD("isServiceProfConfigPathSet: %s", isServiceProfConfigPathSet ? "true" : "false");
+    if (!isServiceProfConfigPathSet) {
+        return;
+    }
     InitProfPathDateTail();
     auto configJson = ReadConfigFile();
     ParseConfig(configJson);
@@ -45,8 +49,10 @@ void Config::ReadConfigPath()
     // 检查msprof是否开启了动态或静态采集，如果开启则不读取配置文件以防采集冲突
     CheckProfEnvVars();
 
-    if (!configPath_.empty() && access(configPath_.c_str(), F_OK) != 0) {
+    isServiceProfConfigPathSet = !configPath_.empty();
+    if (isServiceProfConfigPathSet && access(configPath_.c_str(), F_OK) != 0) {
         configPath_ = "";
+        isServiceProfConfigPathSet = false;
     }
 }
 
@@ -173,9 +179,9 @@ void Config::ParseTimeLimit(const Json& config)
 
     if (config.contains("timelimit")) {
         if (config["timelimit"].is_number_integer()) {
+            PROF_LOGD("Got timelimit value: %d", (int)config["timelimit"]);
             if (config["timelimit"] <= 0) {
                 timeLimit_ = 0;
-                PROF_LOGW("timelimit value is not higher than 0, the profiling time is not assigned.");
             } else if (config["timelimit"] > 0 && config["timelimit"] <= MAX_TIME_LIMIT) {
                 timeLimit_ = config["timelimit"];
                 PROF_LOGI("profile timeLimit_: %u", timeLimit_);
@@ -360,7 +366,7 @@ void Config::ParseDomain(const Json& config)
 {
     enableDomainFilter_ = false;
     validDomain_.clear();
-    
+
     if (!config.contains("domain")) {
         LogDomainInfo();
         return;
@@ -475,7 +481,7 @@ bool Config::PrepareConfigAndPath(std::string& configPath)
 {
     const int jsonSuffixSize = 5;
     if (configPath.empty()) {
-        PROF_LOGW("Cannot save config to JSON file - no config path specified");
+        PROF_LOGD("Cannot save config to JSON file - no config path specified");
         return false;
     }
 

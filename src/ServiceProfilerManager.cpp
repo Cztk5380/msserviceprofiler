@@ -577,7 +577,7 @@ namespace msServiceProfiler {
         }
 
         PROF_LOGD("StartAclProf device_id: %d", (int)g_deviceID);
-        if (config_->GetEnableAclTaskTime() || config_->GetHostCpuUsage() || config_->GetHostMemoryUsage()) {
+        if (config_->IsAclProf()) {
             aclError ret = aclprofInit(profPath.c_str(), profPath.size());
             if (ret != ACL_ERROR_NONE) {
                 PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
@@ -629,26 +629,24 @@ namespace msServiceProfiler {
         if (msptiEnabled) {
             msptiEnabled = false;
             UninitMspti(msptiHandle_);
-        } else {
-            if (config_->GetEnableAclTaskTime() || config_->GetHostCpuUsage() || config_->GetHostMemoryUsage()) {
-                PROF_LOGD("StopAclTaskTime calling aclprofStop");
-                auto ret = aclprofStop(profConfig);
-                npuFlag_ = false;
-                if (ret != ACL_ERROR_NONE) {
-                    PROF_LOGE("acl prof stop failed, ret = %d", ret);  // LCOV_EXCL_LINE
-                    return;
-                }
-                ret = aclprofDestroyConfig(profConfig);
-                if (ret != ACL_ERROR_NONE) {
-                    PROF_LOGE("acl prof destroy config failed, ret = %d", ret);  // LCOV_EXCL_LINE
-                    return;
-                }
-                this->configHandle_ = nullptr;
-                ret = aclprofFinalize();
-                if (ret != ACL_ERROR_NONE) {
-                    PROF_LOGE("acl prof finalize failed, ret = %d", ret);  // LCOV_EXCL_LINE
-                    return;
-                }
+        } else if (config_->IsAclProf()) {
+            PROF_LOGD("StopAclTaskTime calling aclprofStop");
+            auto ret = aclprofStop(profConfig);
+            npuFlag_ = false;
+            if (ret != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof stop failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                return;
+            }
+            ret = aclprofDestroyConfig(profConfig);
+            if (ret != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof destroy config failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                return;
+            }
+            this->configHandle_ = nullptr;
+            ret = aclprofFinalize();
+            if (ret != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof finalize failed, ret = %d", ret);  // LCOV_EXCL_LINE
+                return;
             }
         }
     }
