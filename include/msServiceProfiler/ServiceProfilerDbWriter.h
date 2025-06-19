@@ -17,6 +17,8 @@
 #ifndef SERVICEPROFILERDBWRITER_H
 #define SERVICEPROFILERDBWRITER_H
 
+#include <cstdint>
+
 namespace msServiceProfiler {
 
 enum class ActivityFlag {

@@ -3,9 +3,16 @@
 #ifndef MS_SERVER_PROFILER_INTERFACE_H
 #define MS_SERVER_PROFILER_INTERFACE_H
 
+#include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <dlfcn.h>
 #include <set>
+#include <string>
+#include <stdlib.h>
+#include <unistd.h>
+#include <linux/limits.h>
+
 #include "SecurityUtils.h"
 
 using SpanHandle = uint64_t;
