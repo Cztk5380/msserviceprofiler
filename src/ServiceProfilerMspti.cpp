@@ -104,7 +104,7 @@ namespace msServiceProfiler {
         sqlite3_reset(stmtKernel);
     }
 
-    void ServiceProfilerMspti::InsertCommunicationData(msptiActivityCommunication* activity)
+    void ServiceProfilerMspti::InsertCommunicationData(msptiActivityCommunication* activity) const
     {
         if (!inited || !activity || !stmtCommunication) {
             return;
@@ -131,7 +131,7 @@ namespace msServiceProfiler {
         sqlite3_reset(stmtCommunication);
     }
 
-    void ServiceProfilerMspti::InsertMstxData(msptiActivityMarker* activity)
+    void ServiceProfilerMspti::InsertMstxData(msptiActivityMarker* activity) const
     {
         if (!inited || !activity || !stmtMstx) {
             return;
