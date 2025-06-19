@@ -138,7 +138,7 @@ private:
         }
         char *ascendHomeRealPath = realpath(ascendHomePath.c_str(), nullptr);
         if (ascendHomeRealPath == nullptr) {
-            PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));
+            printf("Failed to canonicalize path: %s", strerror(errno));
             return;
         }
         std::string soName = ascendHomePath + "/lib64/libms_service_profiler.so";
