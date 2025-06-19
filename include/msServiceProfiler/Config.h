@@ -27,6 +27,7 @@ public:
     bool GetHostFreq() const { return hostFreq_; }
     const std::set<std::string>& GetValidDomain() const { return validDomain_; }
     bool GetEnableDomainFilter() const { return enableDomainFilter_; }
+    bool IsAclProf() const {return enableAclTaskTime_ || hostCpuUsage_ || hostMemoryUsage_; }
 
     std::string GetAclTaskTimeLevel() const { return aclTaskTimeLevel_; }
     int GetAclTaskTimeDuration() const { return aclTaskTimeDuration_; }
@@ -51,6 +52,7 @@ public:
     const std::string GetKernelFilter() const { return kernelFilter_; }
 
 private:
+    std::string GetEnvAsString(const std::string& envName) const;
     void ReadConfigPath();
     void CheckProfEnvVars();
     void ParseEnable(const Json& config);
@@ -70,6 +72,7 @@ private:
     void ParseDomain(const Json& config);
     nlohmann::ordered_json GetConfigData() const;
 
+    bool isServiceProfConfigPathSet = false;
     bool enable_ = false;
     uint32_t level_ = Level::INFO;
     uint32_t timeLimit_ = 0;

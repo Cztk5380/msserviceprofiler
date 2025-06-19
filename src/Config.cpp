@@ -33,20 +33,31 @@ Config::Config()
 
 void Config::ReadAndSaveConfig()
 {
+    PROF_LOGD("isServiceProfConfigPathSet: %s", isServiceProfConfigPathSet ? "true" : "false");
+    if (!isServiceProfConfigPathSet) {
+        return;
+    }
     InitProfPathDateTail();
     auto configJson = ReadConfigFile();
     ParseConfig(configJson);
     SaveConfigToJsonFile();
 }
 
+std::string Config::GetEnvAsString(const std::string& envName) const
+{
+    const char* value = getenv(envName.c_str());
+    return std::string((value != nullptr) ? value : "");
+}
+
 void Config::ReadConfigPath()
 {
-    configPath_ = getenv("SERVICE_PROF_CONFIG_PATH") ? getenv("SERVICE_PROF_CONFIG_PATH") : "";
+    configPath_ = GetEnvAsString("SERVICE_PROF_CONFIG_PATH");
 
     // 检查msprof是否开启了动态或静态采集，如果开启则不读取配置文件以防采集冲突
     CheckProfEnvVars();
 
-    if (!configPath_.empty() && access(configPath_.c_str(), F_OK) != 0) {
+    isServiceProfConfigPathSet = !configPath_.empty();
+    if (isServiceProfConfigPathSet && access(configPath_.c_str(), F_OK) != 0) {
         configPath_ = "";
     }
 }
@@ -70,7 +81,6 @@ void Config::CheckProfEnvVars()
         return;
     }
 }
-
 
 Json Config::ReadConfigFile()
 {
@@ -174,9 +184,9 @@ void Config::ParseTimeLimit(const Json& config)
 
     if (config.contains("timelimit")) {
         if (config["timelimit"].is_number_integer()) {
+            PROF_LOGD("Got timelimit value: %d", (int)config["timelimit"]);
             if (config["timelimit"] <= 0) {
                 timeLimit_ = 0;
-                PROF_LOGW("timelimit value is not higher than 0, the profiling time is not assigned.");
             } else if (config["timelimit"] > 0 && config["timelimit"] <= MAX_TIME_LIMIT) {
                 timeLimit_ = config["timelimit"];
                 PROF_LOGI("profile timeLimit_: %u", timeLimit_);
@@ -193,7 +203,7 @@ void Config::ParseTimeLimit(const Json& config)
 std::string Config::GetDefaultProfPath() const
 {
     std::string profPath;
-    std::string homePath = getenv("HOME") ? getenv("HOME") : "";
+    std::string homePath = GetEnvAsString("HOME");
     profPath.append(homePath).append("/.ms_server_profiler/");
     return profPath;
 }
@@ -226,8 +236,7 @@ void Config::ParseProfPath(const Json& config)
 
 void Config::CheckMsptiAndEnableMspti()
 {
-    char* ld_preload = getenv("LD_PRELOAD");
-    std::string ld_preload_str = ld_preload ? ld_preload : "";
+    std::string ld_preload_str = GetEnvAsString("LD_PRELOAD");
     if (ld_preload_str.find("libmspti.so") != std::string::npos) {
         PROF_LOGW("Detected mspti is enabled, which conflicts with acl prof. "
                   "`acl_task_time` has been reset to the default value 0. If you need to enable it, "
@@ -361,7 +370,7 @@ void Config::ParseDomain(const Json& config)
 {
     enableDomainFilter_ = false;
     validDomain_.clear();
-    
+
     if (!config.contains("domain")) {
         LogDomainInfo();
         return;
@@ -476,7 +485,7 @@ bool Config::PrepareConfigAndPath(std::string& configPath) const
 {
     const int jsonSuffixSize = 5;
     if (configPath.empty()) {
-        PROF_LOGW("Cannot save config to JSON file - no config path specified");
+        PROF_LOGD("Cannot save config to JSON file - no config path specified");
         return false;
     }
 
@@ -516,7 +525,7 @@ nlohmann::ordered_json Config::GetConfigData() const
 void Config::SaveConfigToJsonFile() const
 {
     const int jsonIndentSize = 4;
-    std::string configPath = getenv("SERVICE_PROF_CONFIG_PATH") ? getenv("SERVICE_PROF_CONFIG_PATH") : "";
+    std::string configPath = GetEnvAsString("SERVICE_PROF_CONFIG_PATH");
     if (!PrepareConfigAndPath(configPath)) {
         return;
     }
