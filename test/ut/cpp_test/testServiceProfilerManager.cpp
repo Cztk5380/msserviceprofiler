@@ -278,7 +278,7 @@ TEST(ConfigTest, SaveConfigToJsonFile_Success) {
     setenv("SERVICE_PROF_CONFIG_PATH", configPath.c_str(), 1);
     remove(configPath.c_str());
     Config config;
-    config->ReadAndSaveConfig();
+    config.ReadAndSaveConfig();
     std::ifstream inputFile;
     inputFile.open(configPath);
     ASSERT_TRUE(inputFile.good());
