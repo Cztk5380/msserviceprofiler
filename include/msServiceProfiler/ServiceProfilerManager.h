@@ -88,7 +88,7 @@ namespace msServiceProfiler {
         AclprofConfig* ProfCreateConfig();
 
         void StartMsptiProf(std::string& profPath);
-        
+
         void StartAclProf(std::string& profPath);
 
     private:
@@ -99,7 +99,7 @@ namespace msServiceProfiler {
         void *configHandle_ = nullptr;
         int lastUpdate_ = 0;
         std::chrono::high_resolution_clock::time_point initiate = std::chrono::high_resolution_clock::now();
-        std::unique_ptr<Config> config_;
+        std::shared_ptr<Config> config_;
         std::map<std::string, std::string> metaDatas_;
 
         std::thread thread_;

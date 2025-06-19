@@ -7,7 +7,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <semaphore.h>
-#include <utime.h>
 #include <fcntl.h>
 #include <algorithm>
 #include <atomic>
@@ -267,7 +266,7 @@ namespace msServiceProfiler {
     }
 
     ServiceProfilerManager::ServiceProfilerManager()
-        : configHandle_(nullptr), config_(std::unique_ptr<Config>(new Config())), msptiHandle_(nullptr)
+        : configHandle_(nullptr), config_(std::make_shared<Config>()), msptiHandle_(nullptr)
     {
         ProfLogInit();
         MarkFirstProcessAsMain();
