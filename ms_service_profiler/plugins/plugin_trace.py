@@ -46,10 +46,10 @@ class PluginTrace(PluginBase):
             last_rows = decode_conflict.groupby(["hostname", "pid", "name", "rid_list"]).tail(1).index
             decode_conflict.loc[last_rows, "batchtype"] = BatchType.DECODE
             str_batch_type_map = {
-                BatchType.PREFILL : "Prefill",
-                BatchType.DECODE : "Decode",
-                BatchType.MIX : "Prefill, Decode",
-                BatchType.OTHER : "Other",
+                BatchType.PREFILL: "Prefill",
+                BatchType.DECODE: "Decode",
+                BatchType.MIX: "Prefill, Decode",
+                BatchType.OTHER: "Other",
             }
             decode_batch_type = decode_conflict.groupby("index")["batchtype"].min().map(str_batch_type_map)
             tx_data_df.loc[decode_batch_type.index, "batch_type"] = decode_batch_type
@@ -105,6 +105,7 @@ def extract_batch_type(token_list, batch_type):
         return 'Decode'
     else:
         return None
+
 
 def extract_batch_size(rid_list):
     if rid_list is None:
