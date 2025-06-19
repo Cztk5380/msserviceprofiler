@@ -4,11 +4,56 @@ from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import KeyExcept
+from enum import IntEnum, auto
+
+
+class HostRole(IntEnum):
+    PREFILL = auto()
+    DECODE = auto()
+    OTHER = auto()
+
+
+class BatchType(IntEnum):
+    PREFILL = auto()
+    DECODE = auto()
+    MIX = auto()
+    OTHER = auto()
 
 
 class PluginTrace(PluginBase):
     name = "plugin_trace"
     depends = ["plugin_common", "plugin_req_status"]
+
+    @staticmethod
+    def fix_batch_type(tx_data_df):
+        with KeyExcept('name', 'hostname', 'pid', "batch_type", "rid_list", ignore=True, msg=""):
+            # 判断每个进程的角色
+            role_df = tx_data_df[tx_data_df["name"].isin(["prefillRes", "decodeRes"])]
+            # role_map hostname+pid -> role
+            role_map = dict(zip(zip(role_df['hostname'], role_df['pid']), role_df['name'].map(dict(prefillRes=HostRole.PREFILL, decodeRes=HostRole.DECODE))))
+
+            # 筛选出角色和 batch_type 冲突的部分
+            tx_data_df['role'] = tx_data_df[tx_data_df['batch_type'].notna()].apply(lambda row: role_map.get((row['hostname'], row['pid']), None), axis=1)
+
+            # prefill 冲突的部分，错判部分全部置为other
+            prefill_conflict = tx_data_df[(tx_data_df['role'] == HostRole.PREFILL) & (tx_data_df['batch_type'] != "Prefill")]
+            prefill_conflict["batch_type"] = "Other"
+
+            # decode 按请求拆分，最后一个置为decode，其他置为other, 再汇总为 batch，有一个为decode 就置为decode，其他置为 other
+            decode_conflict = tx_data_df[(tx_data_df['role'] == HostRole.DECODE) & (tx_data_df['batch_type'] != "Decode")]
+            decode_conflict = decode_conflict[["hostname", "pid", "name", "rid_list"]].reset_index().explode("rid_list")
+            decode_conflict["batchtype"] = BatchType.OTHER
+            last_rows = decode_conflict.groupby(["hostname", "pid", "name", "rid_list"]).tail(1).index
+            decode_conflict.loc[last_rows, "batchtype"] = BatchType.DECODE
+            str_batch_type_map = {
+                BatchType.PREFILL : "Prefill",
+                BatchType.DECODE : "Decode",
+                BatchType.MIX : "Prefill, Decode",
+                BatchType.OTHER : "Other",
+            }
+            tx_data_df["batch_type"] = decode_conflict.groupby("index")["batchtype"].min().map(str_batch_type_map)
+
+        return tx_data_df
 
     @classmethod
     @timer(logger.info)
@@ -26,6 +71,8 @@ class PluginTrace(PluginBase):
                 extract_batch_type(token_list, batch_type)
                 for token_list, batch_type in zip(tx_data_df['token_id_list'], tx_data_df['batch_type'])
             ]
+
+            tx_data_df = PluginTrace.fix_batch_type(tx_data_df)
 
             tx_data_df['batch_size'] = [extract_batch_size(x) for x in tx_data_df['rid_list']]
 
@@ -46,12 +93,17 @@ def extract_batch_type(token_list, batch_type):
         return batch_type
     if token_list is None:
         return None
-    if all(token == 0 for token in token_list):
-        return 'Prefill'
-    if 0 in token_list and len(set(token_list)) > 1:
-        return 'Prefill, Decode'
-    return 'Decode'
+    has_prefill = 0 in token_list
+    has_decode = any(x > 0 for x in token_list if x is not None)
 
+    if has_prefill and has_decode:
+        return 'Prefill, Decode'
+    elif has_prefill and not has_decode:
+        return 'Prefill'
+    elif not has_prefill and has_decode:
+        return 'Decode'
+    else:
+        return None
 
 def extract_batch_size(rid_list):
     if rid_list is None:
