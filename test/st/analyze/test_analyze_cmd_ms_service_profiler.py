@@ -16,7 +16,7 @@ import pytest
 import pandas as pd
 from jsonschema import validate, ValidationError
 from ...st.utils import execute_cmd
-from ms_service_profiler.exporters.utils import VIEWS_LIST
+from ms_service_profiler.exporters.utils import CURVE_VIEW_NAME_LIST
 
 
 def check_kvcache_csv_content(output_path, csv_file_name):
@@ -206,7 +206,7 @@ def check_insight_table(output_path):
     check_table_with_no_empty_data(cursor, 'batch', ['name', 'res_list', 'batch_size', 'batch_type'])
     check_table_with_no_empty_data(cursor, 'batch_exec', ['batch_id', 'name', 'pid', 'start', 'end'])
     check_table_with_no_empty_data(cursor, 'batch_req', ['req_id', 'iter', 'rid', 'block', 'batch_id'])
-    check_has_vaild_table(cursor, 'request_data', ['http_rid', 'recv_token_size', 'reply_token_size'])
+    check_has_vaild_table(cursor, 'request', ['http_rid', 'recv_token_size', 'reply_token_size'])
     check_table_with_no_empty_data(cursor, 'data_table', ['id', 'name', 'view_name'])
 
     # 关闭连接
@@ -222,7 +222,7 @@ def check_insight_views(output_path):
     cursor = conn.cursor()
 
     # 校验table中是否包含下述views
-    for view in VIEWS_LIST:
+    for view in CURVE_VIEW_NAME_LIST.values():
         cursor.execute("SELECT name FROM sqlite_master WHERE type='view' AND name=?", (view,))
         assert cursor.fetchone() is not None, f"View {view} does not exist"
 
