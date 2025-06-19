@@ -1,26 +1,12 @@
-/*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
 
 #ifndef MS_SERVER_PROFILER_INTERFACE_H
 #define MS_SERVER_PROFILER_INTERFACE_H
 
 #include <cstdio>
-#include <cstdint>
 #include <dlfcn.h>
 #include <set>
+#include "SecurityUtils.h"
 
 using SpanHandle = uint64_t;
 
@@ -150,7 +136,16 @@ private:
             printf("ASCEND_HOME_PATH is empty.\n");
             return;
         }
-        std::string soName = ascendHomePath + "/lib64/libms_service_profiler.so";
+        char ascendHomeRealPath[PATH_MAX + 1] = {0};
+        if (realpath(ascendHomePath.c_str(), ascendHomeRealPath) == nullptr) {
+            printf("Failed to canonicalize path: %s", strerror(errno));
+            return;
+        }
+        std::string soName = std::string(ascendHomeRealPath) + "/lib64/libms_service_profiler.so";
+        if (!SecurityUtils::IsReadable(soName)) {
+            printf("Error: Shared library %s is not readable!\n", soName.c_str());
+            return;
+        }
         auto handle = dlopen(soName.c_str(), RTLD_LAZY);
         if (handle) {
             ptrIsEnable_ = (decltype(IsEnable) *)dlsym(handle, "IsEnable");

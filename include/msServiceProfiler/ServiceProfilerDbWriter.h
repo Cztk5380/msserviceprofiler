@@ -17,8 +17,6 @@
 #ifndef SERVICEPROFILERDBWRITER_H
 #define SERVICEPROFILERDBWRITER_H
 
-#include <string>  // 包含std::string的定义
-
 namespace msServiceProfiler {
 
 enum class ActivityFlag {
