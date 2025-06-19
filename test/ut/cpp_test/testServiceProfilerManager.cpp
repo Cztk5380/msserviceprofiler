@@ -147,7 +147,7 @@ TEST(ProfilerTest, TestRegisterSetDeviceCallbackDlopenNull)
 {
     MockStubFunc stubs;
     ServiceProfilerManager manager;
-    
+
     // set Profiling env name
     setenv("SERVICE_PROF_CONFIG_PATH", "/ut_test/prof.json", 1);
         // Clean up
@@ -277,8 +277,8 @@ TEST(ConfigTest, SaveConfigToJsonFile_Success) {
     std::string configPath = "config.json";
     setenv("SERVICE_PROF_CONFIG_PATH", configPath.c_str(), 1);
     remove(configPath.c_str());
-    ServiceProfilerManager manager;
-    manager.config_->ReadAndSaveConfig();
+    Config config;
+    config->ReadAndSaveConfig();
     std::ifstream inputFile;
     inputFile.open(configPath);
     ASSERT_TRUE(inputFile.good());
@@ -302,7 +302,7 @@ TEST(ProfilerTest, TestDynamicControlStart2Stop1)
 {
     nlohmann::json configTest = nlohmann::json::object();
     configTest["enable"] = 1;
-    
+
     ServiceProfilerManager manager;
     manager.config_->ParseConfig(configTest);
 
@@ -611,7 +611,7 @@ TEST(ProfilerTest, SetAclProfHostSysConfigCPU)
     ServiceProfilerManager manager;
     manager.config_->hostCpuUsage_ = true;
     manager.config_->hostMemoryUsage_ = false;
-   
+
     manager.SetAclProfHostSysConfig();
 }
 
@@ -620,7 +620,7 @@ TEST(ProfilerTest, SetAclProfHostSysConfigMEN)
     ServiceProfilerManager manager;
     manager.config_->hostCpuUsage_ = false;
     manager.config_->hostMemoryUsage_ = true;
-   
+
     manager.SetAclProfHostSysConfig();
 }
 
@@ -628,7 +628,7 @@ TEST(ProfilerTest, ProfCreateConfig)
 {
     ServiceProfilerManager manager;
     g_deviceID = static_cast<uint32_t>(-1);
-   
+
     manager.ProfCreateConfig();
 }
 
