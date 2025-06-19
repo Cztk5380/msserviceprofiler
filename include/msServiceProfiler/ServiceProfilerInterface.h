@@ -136,6 +136,11 @@ private:
             printf("ASCEND_HOME_PATH is empty.\n");
             return;
         }
+        char *ascendHomeRealPath = realpath(ascendHomePath.c_str(), nullptr);
+        if (ascendHomeRealPath == nullptr) {
+            PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));
+            return;
+        }
         std::string soName = ascendHomePath + "/lib64/libms_service_profiler.so";
         if (!SecurityUtils::IsReadable(soName)) {
             printf("Error: Shared library %s is not readable!\n", soName.c_str());

@@ -530,7 +530,13 @@ void Config::SaveConfigToJsonFile()
             return;
         }
         close(fd);
+
         std::string tempPath = dirPath+"/"+tempFile;
+        char *tempRealPath = realpath(tempPath.c_str(), nullptr);
+        if (tempRealPath == nullptr) {
+            PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));
+            return;
+        }
         if (!SecurityUtils::CheckFileBeforeWrite(tempPath)) {
             return;
         }
