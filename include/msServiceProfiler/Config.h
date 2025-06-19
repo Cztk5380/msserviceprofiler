@@ -56,7 +56,7 @@ private:
     void ParseEnable(const Json& config);
     void ParseTimeLimit(const Json& config);
     void ParseAclTaskTime(const Json& config);
-    void CheckMsptiAndEnableMspti(const Json &config);
+    void CheckMsptiAndEnableMspti();
     std::string GetDefaultProfPath() const;
     std::string GetDirPath(std::string configPath) const;
     void ParseProfPath(const Json& config);
