@@ -174,7 +174,7 @@ public:
         }
     }
 
-    void ApplyOptimizations()
+    void ApplyOptimizations() const
     {
         // 组合优化设置
         Execute("PRAGMA journal_mode = WAL;");        // 急速模式（非）
