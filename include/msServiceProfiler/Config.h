@@ -52,6 +52,7 @@ public:
     const std::string GetKernelFilter() const { return kernelFilter_; }
 
 private:
+    std::string GetEnvAsString(const std::string& envName) const;
     void ReadConfigPath();
     void CheckProfEnvVars();
     void ParseEnable(const Json& config);
