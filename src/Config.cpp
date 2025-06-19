@@ -533,25 +533,25 @@ void Config::SaveConfigToJsonFile()
         std::string tempPath = dirPath+"/"+tempFile;
         char realTempPath[PATH_MAX] = {0};
         if (realpath(tempPath.c_str(), realTempPath) == nullptr) {
-        PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));
-        return;
+            PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));
+            return;
         }
         if (!SecurityUtils::CheckFileBeforeWrite(realTempPath)) {
             return;
         }
-        PROF_LOGD("file generation in the path %s", realTempPath.c_str());
+        PROF_LOGD("file generation in the path %s", realTempPath);
         std::ofstream outputFile(realTempPath);
         if (!outputFile.is_open()) {
-            PROF_LOGW("Automatic config file generation failed %s", realTempPath.c_str());
+            PROF_LOGW("Automatic config file generation failed %s", realTempPath);
             return;
         }
         outputFile << GetConfigData().dump(jsonIndentSize);
         outputFile.close();
 
-        auto ret = rename(realTempPath.c_str(), configPath.c_str());
+        auto ret = rename(realTempPath, configPath.c_str());
         if (ret != 0 && errno != ENOENT) {
             PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));
-            remove(realTempPath.c_str());
+            remove(realTempPath);
             return;
         }
         PROF_LOGI("Successfully saved profiler configuration to: %s", configPath.c_str());
