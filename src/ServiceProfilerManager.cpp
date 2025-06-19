@@ -576,6 +576,7 @@ namespace msServiceProfiler {
             }
         }
 
+        PROF_LOGD("StartAclProf device_id: %d", (int)g_deviceID);
         if (config_->GetEnableAclTaskTime() || config_->GetHostCpuUsage() || config_->GetHostMemoryUsage()) {
             aclError ret = aclprofInit(profPath.c_str(), profPath.size());
             if (ret != ACL_ERROR_NONE) {
@@ -593,7 +594,7 @@ namespace msServiceProfiler {
                 return;
             }
 
-            PROF_LOGD("begin to start profiling, device_id: %u", g_deviceID);  // LCOV_EXCL_LINE
+            PROF_LOGD("begin to start profiling");  // LCOV_EXCL_LINE
             ret = aclprofStart(profConfig);
             if (ret != ACL_ERROR_NONE) {
                 PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
@@ -630,6 +631,7 @@ namespace msServiceProfiler {
             UninitMspti(msptiHandle_);
         } else {
             if (config_->GetEnableAclTaskTime() || config_->GetHostCpuUsage() || config_->GetHostMemoryUsage()) {
+                PROF_LOGD("StopAclTaskTime calling aclprofStop");
                 auto ret = aclprofStop(profConfig);
                 npuFlag_ = false;
                 if (ret != ACL_ERROR_NONE) {
@@ -653,14 +655,13 @@ namespace msServiceProfiler {
 
     void ServiceProfilerManager::StopProfiler()
     {
+        PROF_LOGD("StopProfiler started_=%d, npuFlag_=%d", started_, npuFlag_);
         if (!started_) {
             return;
         }
 
         config_->SetEnable(false);
-        if (npuFlag_ || msptiEnabled) {
-            StopAclTaskTime();
-        }
+		StopAclTaskTime();
 
         msServiceProfiler::FlashTxData2Writer();
         started_ = false;
