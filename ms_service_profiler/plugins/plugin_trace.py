@@ -51,7 +51,8 @@ class PluginTrace(PluginBase):
                 BatchType.MIX : "Prefill, Decode",
                 BatchType.OTHER : "Other",
             }
-            tx_data_df["batch_type"] = decode_conflict.groupby("index")["batchtype"].min().map(str_batch_type_map)
+            decode_batch_type = decode_conflict.groupby("index")["batchtype"].min().map(str_batch_type_map)
+            tx_data_df.loc[decode_batch_type.index, "batch_type"] = decode_batch_type
 
         return tx_data_df
 
