@@ -530,29 +530,28 @@ void Config::SaveConfigToJsonFile()
             return;
         }
         close(fd);
-
         std::string tempPath = dirPath+"/"+tempFile;
-        char *tempRealPath = realpath(tempPath.c_str(), nullptr);
-        if (tempRealPath == nullptr) {
-            PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));
+        char realTempPath[PATH_MAX] = {0};
+        if (realpath(tempPath, realTempPath) == nullptr) {
+        PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));
+        return;
+        }
+        if (!SecurityUtils::CheckFileBeforeWrite(realTempPath)) {
             return;
         }
-        if (!SecurityUtils::CheckFileBeforeWrite(tempPath)) {
-            return;
-        }
-        PROF_LOGD("file generation in the path %s", tempPath.c_str());
-        std::ofstream outputFile(tempPath);
+        PROF_LOGD("file generation in the path %s", realTempPath.c_str());
+        std::ofstream outputFile(realTempPath);
         if (!outputFile.is_open()) {
-            PROF_LOGW("Automatic config file generation failed %s", tempPath.c_str());
+            PROF_LOGW("Automatic config file generation failed %s", realTempPath.c_str());
             return;
         }
         outputFile << GetConfigData().dump(jsonIndentSize);
         outputFile.close();
 
-        auto ret = rename(tempPath.c_str(), configPath.c_str());
+        auto ret = rename(realTempPath.c_str(), configPath.c_str());
         if (ret != 0 && errno != ENOENT) {
             PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));
-            remove(tempPath.c_str());
+            remove(realTempPath.c_str());
             return;
         }
         PROF_LOGI("Successfully saved profiler configuration to: %s", configPath.c_str());
