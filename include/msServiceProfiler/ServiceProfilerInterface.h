@@ -9,8 +9,7 @@
 #include <dlfcn.h>
 #include <set>
 #include <string>
-#include <stdlib.h>
-#include <unistd.h>
+#include <cstdlib>
 #include <linux/limits.h>
 
 #include "SecurityUtils.h"
