@@ -44,7 +44,7 @@ public:
     void ParseConfig(const Json& configJson);
     void InitProfPathDateTail(bool forceReinit = false);
     bool PrepareConfigAndPath(std::string& configPath) const;
-    void SaveConfigToJsonFile();
+    void SaveConfigToJsonFile() const;
 
     bool GetMsptiEnable() const { return msptiEnable_; }
     const std::string GetApiFilter() const { return apiFilter_; }

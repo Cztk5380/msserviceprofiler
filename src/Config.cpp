@@ -7,11 +7,10 @@
 
 #include "securec.h"
 
-#include "msServiceProfiler/Config.h"
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/SecurityUtils.h"
 #include "msServiceProfiler/Utils.h"
-
+#include "msServiceProfiler/Config.h"
 
 namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
@@ -514,7 +513,7 @@ nlohmann::ordered_json Config::GetConfigData() const
     };
 }
 
-void Config::SaveConfigToJsonFile()
+void Config::SaveConfigToJsonFile() const
 {
     const int jsonIndentSize = 4;
     std::string configPath = getenv("SERVICE_PROF_CONFIG_PATH") ? getenv("SERVICE_PROF_CONFIG_PATH") : "";
