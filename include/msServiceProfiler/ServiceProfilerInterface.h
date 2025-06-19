@@ -137,7 +137,7 @@ private:
             return;
         }
         char ascendHomeRealPath[PATH_MAX] = {0};
-        if (realpath(ascendHomePath, ascendHomeRealPath) == nullptr) {
+        if (realpath(ascendHomePath.c_str(), ascendHomeRealPath) == nullptr) {
             printf("Failed to canonicalize path: %s", strerror(errno));
             return;
         }
