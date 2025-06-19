@@ -37,7 +37,7 @@ class PluginTrace(PluginBase):
 
             # prefill 冲突的部分，错判部分全部置为other
             prefill_conflict = tx_data_df[(tx_data_df['role'] == HostRole.PREFILL) & (tx_data_df['batch_type'] != "Prefill")]
-            prefill_conflict["batch_type"] = "Other"
+            tx_data_df.loc[prefill_conflict.index, "batch_type"] = "Other"
 
             # decode 按请求拆分，最后一个置为decode，其他置为other, 再汇总为 batch，有一个为decode 就置为decode，其他置为 other
             decode_conflict = tx_data_df[(tx_data_df['role'] == HostRole.DECODE) & (tx_data_df['batch_type'] != "Decode")]
