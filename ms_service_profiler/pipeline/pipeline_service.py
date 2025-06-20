@@ -5,6 +5,7 @@ from ms_service_profiler.task.task import Task
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.processor.processor_res import ProcessorRes
+from ms_service_profiler.processor.processor_req import ProcessorReq
 from ms_service_profiler.plugins.plugin_common import PluginCommon
 from ms_service_profiler.plugins.plugin_timestamp import PluginTimeStamp
 from ms_service_profiler.plugins.plugin_metric import PluginMetric
@@ -35,5 +36,7 @@ class PipelineService(PipelineBase):
         data = self.run_step(PluginTrace, PluginTrace.name, data, False)
         data = self.run_step(PluginProcessName, PluginProcessName.name, data, False)
         data = self.run_step(PluginBatch, PluginBatch.name, data, False)
-
+        req_dict = ProcessorReq().parse(data.get("tx_data_df"))
+ 
+        data.update(req_dict)
         return data

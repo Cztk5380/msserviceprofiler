@@ -195,7 +195,7 @@ def add_record_to_data_table(table_name, conn):
 
 
 def add_table_into_visual_db(df, table_name):
-    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty or len(df.columns) == 0:
         logger.warning("Writing table %r failed due to invalid dataframe:\n\t%s", table_name, df)
         return
 
