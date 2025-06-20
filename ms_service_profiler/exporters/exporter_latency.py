@@ -195,6 +195,67 @@ class ExporterLatency(ExporterBase):
     @classmethod
     def get_err_log_flag(cls, index):
         return cls.err_log[index]
+    
+    @staticmethod
+    def gen_exporter_percentile_of_df(df, order_col_name, value_col_name):
+        if df.empty or order_col_name not in df.columns or value_col_name not in df.columns:
+            return []
+        sorted_series = df.groupby(order_col_name)[value_col_name].agg(list).sort_index()
+
+        percentile_views = []
+        ordered_array = np.array([], dtype=float)
+        for end_time, ttft_list in sorted_series.items():
+            ordered_array = np.append(ordered_array, ttft_list)
+            ordered_array.sort()
+
+            p50, p90, p99 = np.round(np.percentile(ordered_array, [50, 90, 99]), 2)
+            avg = round(np.average(ordered_array), 2)
+
+            percentile_views.append({'timestamp': end_time, 
+                        'avg': avg, 'p99': p99, 'p90': p90, 'p50': p50})
+            
+        return percentile_views
+
+    @staticmethod
+    @timer(log_func=logger.info)
+    def gen_exporter_first_token_latency_views(req_ttft_df):
+        return ExporterLatency.gen_exporter_percentile_of_df(req_ttft_df, 'end_time', 'ttft')
+
+    @staticmethod
+    @timer(log_func=logger.info)
+    def gen_exporter_req_latency_views(req_event_df):
+        calc_df = req_event_df[req_event_df["event"].isin(["httpReq", "httpRes", "DecodeEnd"])]
+
+        # 取最开始的时间和最后时间差
+        group_by_df = calc_df.groupby("rid").agg({"start_time": "min", "end_time": "max", "event": ["first", 'count']})
+
+        # 过滤掉没有 httpReq 和 只有 httpReq 的
+        req_latency_df = group_by_df[(group_by_df["event"]["count"] > 1) & (group_by_df["event"]["first"] == 'httpReq')]
+        req_latency_df["req_latency"] = req_latency_df["end_time"]["max"] - req_latency_df["start_time"]["min"]
+        req_latency_df = req_latency_df.drop(columns=["event"])
+        req_latency_df.columns = req_latency_df.columns.map(lambda x: x[0])
+
+        return ExporterLatency.gen_exporter_percentile_of_df(req_latency_df, 'end_time', 'req_latency')
+
+    @staticmethod
+    @timer(log_func=logger.info)
+    def gen_exporter_decode_gen_speed_views(req_event_df):
+        calc_df = req_event_df[req_event_df["event"] == "modelExec"]
+
+        sorted_calc_df = calc_df.sort_values(['rid', 'start_time'])
+
+        # 计算当前 modelExec 到上一个 modelExec 的时间
+        sorted_calc_df['decode_gen_speed'] = sorted_calc_df['end_time'] - sorted_calc_df['end_time'].shift(1)
+        sorted_calc_df['iter_diff'] = sorted_calc_df['iter'] - sorted_calc_df['iter'].shift(1)
+
+        # 去除头一个
+        sorted_calc_df.loc[sorted_calc_df.groupby('rid').cumcount() == 0, 'decode_gen_speed'] = np.nan
+        # 去除iter不挨着的
+        sorted_calc_df.loc[~sorted_calc_df["iter_diff"].isin([0, 1]), 'decode_gen_speed'] = np.nan
+
+        # 去掉
+        decode_gen_speed_df = sorted_calc_df[sorted_calc_df['decode_gen_speed'].notna()]
+        return ExporterLatency.gen_exporter_percentile_of_df(decode_gen_speed_df, 'end_time', 'decode_gen_speed')
 
     @classmethod
     @timer(logger.info)
@@ -207,8 +268,13 @@ class ExporterLatency(ExporterBase):
         if check_domain_valid(all_data_df, ['ModelExecute', 'BatchSchedule', 'Request'], 'latency') is False:
             return
 
-        first_token_latency_views, req_latency_views, prefill_gen_speed_views, decode_gen_speed_views = \
-            gen_exporter_results(all_data_df)
+        first_token_latency_views = ExporterLatency.gen_exporter_first_token_latency_views(
+            data.get("req_ttft_df", pd.DataFrame()))
+        req_latency_views = ExporterLatency.gen_exporter_req_latency_views(
+            data.get("req_event_df", pd.DataFrame()))
+        prefill_gen_speed_views = first_token_latency_views
+        decode_gen_speed_views = ExporterLatency.gen_exporter_decode_gen_speed_views(
+            data.get("req_event_df", pd.DataFrame()))
 
         df_param_list = [
             [pd.DataFrame(first_token_latency_views), 'first_token_latency'],
