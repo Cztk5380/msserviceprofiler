@@ -66,7 +66,8 @@ class ProcessorReq(ProcessorBase):
 
         right_role_batch_type = role_batch_type.isna()  # 没有PD分离的数据
         right_iter_batch_type = iter_batch_type == role_batch_type  # 判断正确的数据
-        right_decode_batch_type = batch_data_df[(role_batch_type == 2) & (iter_batch_type == 1)].groupby(['name', batch_id_df]).cumcount(ascending=False) == 0  #  D节点最后一个判断为P 的数据
+        right_decode_batch_type = batch_data_df[(role_batch_type == 2) & (iter_batch_type == 1)] \
+            .groupby(['name', batch_id_df]).cumcount(ascending=False) == 0  #  D节点最后一个判断为P 的数据
 
         right_batch_type_mask = right_role_batch_type | right_iter_batch_type | right_decode_batch_type
         batch_data_df = batch_data_df[right_batch_type_mask]
