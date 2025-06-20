@@ -433,7 +433,7 @@ def get_task_run_order(head_tasks, next_tasks, prev_tasks):
             done_tasks.add(task_name)
             walking_queue.extend(next_tasks.get(task_name, []))
         else:
-            walking_queue.appendleft(task_name)
+            walking_queue.append(task_name)
 
     return ordered_tasks
 
