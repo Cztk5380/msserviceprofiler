@@ -22,7 +22,7 @@ from ms_service_profiler.plugins import (
 )
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
 from ms_service_profiler.utils.log import logger, set_log_level
-from ms_service_profiler.utils.timer import timer
+from ms_service_profiler.utils.timer import timer, Timer
 from ms_service_profiler.utils.error import ParseError, LoadDataError
 from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.file_open_check import ms_open
@@ -433,7 +433,7 @@ def get_task_run_order(head_tasks, next_tasks, prev_tasks):
             done_tasks.add(task_name)
             walking_queue.extend(next_tasks.get(task_name, []))
         else:
-            walking_queue.appendleft(task_name)
+            walking_queue.append(task_name)
 
     return ordered_tasks
 
@@ -453,7 +453,7 @@ def run_task(task, task_results):
         logger.error(f"task {task.name} in failed, message: {e}")
         task_results[task.name] = e
     else:
-        logger.info(f'task {task.name} in done.')
+        logger.info(f'task {task.name} is done.')
 
 
 def parse_run(input_path, exporters, args=None):
@@ -484,8 +484,9 @@ def parse_run(input_path, exporters, args=None):
             if prev_task_name in single_data_tasks_ordered or prev_task_name in data_source_tasks:
                 batch_data_tasks_depends.append(prev_task_name)
 
-    data = parallel_run_single_prof_data_tasks(data_source_tasks, single_data_tasks_ordered,
-        batch_data_tasks_depends, input_path, args)
+    with Timer("single_prof_data_tasks", logger.info):
+        data = parallel_run_single_prof_data_tasks(data_source_tasks, single_data_tasks_ordered,
+            batch_data_tasks_depends, input_path, args)
 
     err_msg = []
     batch_data = dict()

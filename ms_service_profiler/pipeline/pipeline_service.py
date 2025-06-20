@@ -19,19 +19,15 @@ from ms_service_profiler.plugins.plugin_batch import PluginBatch
 class PipelineService(PipelineBase):
     @classmethod
     def depends(cls):
-        return ["data_source:msprof", "data_source:db"]
+        return ["pipeline:service_single_data"]
     
     @timer(logger.info)
     def run(self):
-        data_list = self.get_depends_result("data_source:msprof", []) or []
-        data_db = self.get_depends_result("data_source:db", None)
-        if data_db is not None:
-            data_list.extend(data_db)
+        data_list = self.get_depends_result("pipeline:service_single_data", [])
         if not data_list:
             return None
 
-        data = self.run_step(PluginTimeStamp, PluginTimeStamp.name, data_list)
-        data = ProcessorRes().parse(data)
+        data = ProcessorRes().parse(data_list)
         data = self.run_step(PluginConcat, PluginConcat.name, data)
         data = self.run_step(PluginCommon, PluginCommon.name, data, False)
         data = self.run_step(PluginReqStatus, PluginReqStatus.name, data, False)
