@@ -4,6 +4,7 @@ from pathlib import Path
 
 from ms_service_profiler.data_source.base_data_source import BaseDataSource, Task
 from ms_service_profiler.utils.error import LoadDataError
+from ms_service_profiler.utils.log import logger
 
 
 @Task.register("data_source:msprof")
@@ -28,7 +29,7 @@ class MsprofDataSource(BaseDataSource):
             "host_start": "host_start.log",
             "info": "info.json",
             "start_info": "start_info",
-            "msprof": "msprof_*.json"
+            "msprof": ("msprof_*.json", True)
         }
         cur_path = str(prof_path)
         if is_need_msprof(cur_path):

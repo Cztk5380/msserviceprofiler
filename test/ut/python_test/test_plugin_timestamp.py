@@ -136,7 +136,7 @@ def test_plugin_timestamp_helper(sample_tx_data, sample_cpu_data, sample_time_in
     assert 'tx_data_df' in result
     assert 'cpu_data_df' in result
     assert 'memory_data_df' in result
-    assert 'msprof_data_df' in result
+    assert 'msprof_data' in result
 
 
 def test_plugin_timestamp_helper_missing_time_info(sample_tx_data):
