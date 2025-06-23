@@ -148,8 +148,8 @@ private:
         }
         std::string soName = std::string(ascendHomeRealPath) + "/lib64/libms_service_profiler.so";
         struct stat fileStat;
-        if ((stat(absPath.c_str(), &fileStat) != 0) || (fileStat.st_mode & S_IRUSR) == 0) {
-            printf("File not readable: %s", absPath.c_str());
+        if ((stat(soName.c_str(), &fileStat) != 0) || (fileStat.st_mode & S_IRUSR) == 0) {
+            printf("File not readable: %s", soName.c_str());
             return;
         }
         auto handle = dlopen(soName.c_str(), RTLD_LAZY);
