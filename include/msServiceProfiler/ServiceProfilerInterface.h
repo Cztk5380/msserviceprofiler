@@ -11,8 +11,7 @@
 #include <string>
 #include <cstdlib>
 #include <linux/limits.h>
-
-#include "SecurityUtils.h"
+#include <sys/stat.h>
 
 using SpanHandle = uint64_t;
 
@@ -148,8 +147,9 @@ private:
             return;
         }
         std::string soName = std::string(ascendHomeRealPath) + "/lib64/libms_service_profiler.so";
-        if (!SecurityUtils::IsReadable(soName)) {
-            printf("Error: Shared library %s is not readable!\n", soName.c_str());
+        struct stat fileStat;
+        if ((stat(soName.c_str(), &fileStat) != 0) || (fileStat.st_mode & S_IRUSR) == 0) {
+            printf("File not readable: %s", soName.c_str());
             return;
         }
         auto handle = dlopen(soName.c_str(), RTLD_LAZY);
