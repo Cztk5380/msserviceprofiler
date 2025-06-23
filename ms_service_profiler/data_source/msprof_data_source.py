@@ -28,7 +28,7 @@ class MsprofDataSource(BaseDataSource):
             "host_start": "host_start.log",
             "info": "info.json",
             "start_info": "start_info",
-            "msprof": "msprof_*.json"
+            "msprof": ("msprof_*.json", True)
         }
         cur_path = str(prof_path)
         if is_need_msprof(cur_path):

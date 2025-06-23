@@ -31,7 +31,7 @@ class PluginTimeStampHelper(PluginBase):
             'tx_data_df': tx_data_df,
             'cpu_data_df': cpu_data_df,
             'memory_data_df': memory_data_df,
-            'msprof_data_df': msprof_data_df
+            'msprof_data': msprof_data_df
         }
         return data
 
