@@ -4,7 +4,6 @@ from pathlib import Path
 
 from ms_service_profiler.data_source.base_data_source import BaseDataSource, Task
 from ms_service_profiler.utils.error import LoadDataError
-from ms_service_profiler.utils.log import logger
 
 
 @Task.register("data_source:msprof")
