@@ -1,7 +1,7 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
  */
-
+#include "securec.h"
 #include "msServiceProfiler/DbBuffer.h"
 
 namespace msServiceProfiler {
@@ -28,8 +28,12 @@ size_t DbBuffer::SizeSub()
 
 NodeDbActivityMarker *DbBuffer::NewBuffer(NodeDbActivityMarker *pThis, NodeDbActivityMarker *pNext)
 {
-    auto *pNodeArray = (NodeDbActivityMarker *)malloc(PTR_ARRAY_PRE_SIZE * sizeof(NodeDbActivityMarker));
-    memset(pNodeArray, 0, PTR_ARRAY_PRE_SIZE * sizeof(NodeDbActivityMarker));
+    auto bufferSize = PTR_ARRAY_PRE_SIZE * sizeof(NodeDbActivityMarker);
+    auto *pNodeArray = (NodeDbActivityMarker *)malloc(bufferSize);
+    if (pNodeArray == nullptr) {
+        return nullptr;
+    }
+    memset_s(pNodeArray, bufferSize, 0, bufferSize);
 
     if (pNext == nullptr) {
         pNodeArray[PTR_ARRAY_PRE_SIZE - 1].pNext = pNodeArray;
@@ -66,7 +70,12 @@ void DbBuffer::Push(DbActivityMarker *pMarker)
         if (bufferIndex_ + 1 >= PTR_ARRAY_SIZE) {
             return;
         }
-        pHead_ = NewBuffer(pHead_, pNext);
+        auto *pBuffer = NewBuffer(pHead_, pNext);
+        if (pBuffer != nullptr) {
+            pHead_ = pBuffer;
+        } else {
+            return;
+        }
     } else {
         pHead_ = pNext;
     }
@@ -124,62 +133,4 @@ DbBuffer::~DbBuffer()
         }
     }
 }
-
 }  // namespace msServiceProfiler
-
-// // 全局缓冲区实例
-// msServiceProfiler::DbBuffer dbBuffer;
-
-// // 写线程函数
-// void writerThread()
-// {
-//     int markerId = 0;
-//     while (true) {
-//         DbActivityMarker *pMarker = (DbActivityMarker *)malloc(sizeof(DbActivityMarker));
-//         pMarker->id = markerId++;
-//         dbBuffer.Push(pMarker);
-//         if (markerId < 1000 || (markerId > 3000 && markerId < 6000)) {
-//             std::this_thread::sleep_for(std::chrono::microseconds(3));  // 模拟写操作的延迟
-//         } else if (markerId < 2700) {
-//             std::this_thread::sleep_for(std::chrono::microseconds(13));  // 模拟写操作的延迟
-//         } else {
-//             std::this_thread::sleep_for(std::chrono::microseconds(1000));  // 模拟写操作的延迟
-//         }
-//     }
-// }
-
-// // 读线程函数
-// void readerThread()
-// {
-//     uint64_t ori = 0;
-//     while (true) {
-//         DbActivityMarker *pMarker = dbBuffer.Pop();
-//         auto size = dbBuffer.Size();
-//         if (pMarker != nullptr) {
-//             std::cout << "Read marker ID: " << pMarker->id << ' ' << size << std::endl;
-//             if (pMarker->id != ori + 1) {
-//                 std::cerr << "ERROR"
-//                           << " " << pMarker->id << ' ' << ori << ' ' << size << std::endl;
-//                 // dbBuffer.Print();
-//             }
-//             ori = pMarker->id;
-//             free(pMarker);
-//         }
-//         std::this_thread::sleep_for(std::chrono::microseconds(10));  // 模拟读操作的延迟
-//     }
-// }
-
-// int main()
-// {
-//     // 启动写线程
-//     std::thread writer(writerThread);
-
-//     // 启动读线程
-//     std::thread reader(readerThread);
-
-//     // 等待线程结束（实际上这两个线程是无限循环，这里仅作为示例）
-//     writer.join();
-//     reader.join();
-
-//     return 0;
-// }

@@ -262,15 +262,16 @@ public:
 
     void ThreadFunction()
     {
-        constexpr int MAX_POP_SIZE = 1000;
-        constexpr int MAX_WAIT_US = 50000;
-        constexpr int MIN_WAIT_US = 50;
+        constexpr int SUITABLE_DUMP_SIZE = 1000; 
+        constexpr int MAX_WAIT_US = 50000;  // 50ms
+        constexpr int MIN_WAIT_US = 50;     // 50us
         int waitUs = MAX_WAIT_US;
         std::set<DbBuffer *> disableDbBuffers;
         std::vector<DbBuffer *> workingDbBuffers;
         while (threadExitFlag_ == false) {
             std::this_thread::sleep_for(std::chrono::microseconds(waitUs));
             {
+                // 获取锁，并且看下列表是否有变化，有的话同步到函数变量中，处理的时候就可以释放锁
                 std::lock_guard<std::mutex> lock(mtx_);
                 if (workingDbBuffers.size() != workingDbBuffers_.size() ||
                     disableDbBuffers.size() != disableDbBuffers_.size()) {
@@ -278,42 +279,28 @@ public:
                     workingDbBuffers = workingDbBuffers_;
                 }
 
+                // 如果还开启，尝试Init 一下，已经 Init 过会有标记，不会重复Init
                 if (!closeFlag_) {
                     ServiceProfilerDbWriter::GetInstance().Init(profPath_);
                 }
             }
             std::vector<DbBuffer *> freeDbBuffers;
-            int popCount = 0;
+            auto popCount = PopAndInsert2DB(workingDbBuffers, disableDbBuffers, freeDbBuffers);
 
-            for (DbBuffer *pbuffer : workingDbBuffers) {
-                int leftPopSize = MAX_POP_SIZE;
-                do {
-                    DbActivityMarker *pMarker = pbuffer->Pop();
-                    if (pMarker == nullptr) {
-                        break;
-                    }
-                    ServiceProfilerDbWriter::GetInstance().InsertMstxData(pMarker);
-                    free(pMarker);
-                    popCount++;
-                } while (leftPopSize--);
-
-                if (leftPopSize == MAX_POP_SIZE && disableDbBuffers.find(pbuffer) != disableDbBuffers.end()) {
-                    freeDbBuffers.push_back(pbuffer);
-                }
-            }
-
-            waitUs = std::min(std::max(waitUs - (popCount - MAX_POP_SIZE) / 10, MIN_WAIT_US),
+            waitUs = std::min(std::max(waitUs - (popCount - SUITABLE_DUMP_SIZE) / 10, MIN_WAIT_US),
                 MAX_WAIT_US);  // 维持在写入1000条每次左右
             bool dbCloseFlag = false;
             {
                 std::lock_guard<std::mutex> lock(mtx_);
 
                 for (auto *pBuffer : freeDbBuffers) {
-                    free(pBuffer);
                     workingDbBuffers_.erase(std::remove(workingDbBuffers_.begin(), workingDbBuffers_.end(), pBuffer),
                         workingDbBuffers_.end());
                     disableDbBuffers_.erase(pBuffer);
+                    free(pBuffer);
                 }
+                workingDbBuffers = workingDbBuffers_;
+                disableDbBuffers = disableDbBuffers_;
 
                 if (popCount == 0 && closeFlag_) {
                     dbCloseFlag = true;
@@ -336,6 +323,30 @@ private:
             threadExitFlag_ = true;
             this->thread_.join();
         }
+    }
+
+    int PopAndInsert2DB(std::vector<DbBuffer *> &workingDbBuffers, std::set<DbBuffer *> &disableDbBuffers,
+        std::vector<DbBuffer *> &freeDbBuffers)
+    {
+        constexpr int MAX_POP_SIZE = 1000;
+        int popCount = 0;
+        for (DbBuffer *pbuffer : workingDbBuffers) {
+            int leftPopSize = MAX_POP_SIZE;
+            do {
+                DbActivityMarker *pMarker = pbuffer->Pop();
+                if (pMarker == nullptr) {
+                    break;
+                }
+                ServiceProfilerDbWriter::GetInstance().InsertMstxData(pMarker);
+                free(pMarker);
+                popCount++;
+            } while (leftPopSize--);
+
+            if (leftPopSize == MAX_POP_SIZE && disableDbBuffers.find(pbuffer) != disableDbBuffers.end()) {
+                freeDbBuffers.push_back(pbuffer);
+            }
+        }
+        return popCount;
     }
 
 private:

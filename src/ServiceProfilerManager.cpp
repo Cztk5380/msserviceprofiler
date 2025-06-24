@@ -93,7 +93,6 @@ SpanHandle StartSpanWithName(const char *name)
         return StartSpan();
     }
 
-    thread_local uint32_t tid = GetTid();  // 每个线程有自己的副本
     auto timestamp = GetCurrentTimeInNanoseconds();
     uint64_t *timeCache = GetSpanStartTimeCache();
     auto threadMarkId = timeCache[0];
