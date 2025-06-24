@@ -184,7 +184,7 @@ void Config::ParseTimeLimit(const Json& config)
 
     if (config.contains("timelimit")) {
         if (config["timelimit"].is_number_integer()) {
-            PROF_LOGD("Got timelimit value: %d", (int)config["timelimit"]);
+            PROF_LOGD("Got timelimit value: %d", static_cast<int>(config["timelimit"]));
             if (config["timelimit"] <= 0) {
                 timeLimit_ = 0;
             } else if (config["timelimit"] > 0 && config["timelimit"] <= MAX_TIME_LIMIT) {
