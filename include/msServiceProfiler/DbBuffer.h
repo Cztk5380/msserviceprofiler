@@ -44,7 +44,7 @@ private:
     size_t bufferIndex_ = 0;
     NodeDbActivityMarker *pHead_ = nullptr;
     NodeDbActivityMarker *pTail_ = nullptr;
-    std::atomic<size_t> Size_;
+    std::atomic<size_t> Size_{};
 };
 }  // namespace msServiceProfiler
 
