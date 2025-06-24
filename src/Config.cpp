@@ -515,7 +515,7 @@ nlohmann::ordered_json Config::GetConfigData() const
         {"host_system_usage_freq", -1},
         {"npu_memory_usage_freq", -1},
         {"acl_task_time", enableAclTaskTime_ ? 1 : 0},
-        {"acl_prof_task_time_level": ""},
+        {"acl_prof_task_time_level", ""},
         {"api_filter", ""},
         {"kernel_filter", ""},
         {"timelimit", 0},
