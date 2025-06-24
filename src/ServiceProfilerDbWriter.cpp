@@ -262,7 +262,7 @@ public:
 
     void ThreadFunction()
     {
-        constexpr int SUITABLE_DUMP_SIZE = 1000; 
+        constexpr int SUITABLE_DUMP_SIZE = 1000;
         constexpr int MAX_WAIT_US = 50000;  // 50ms
         constexpr int MIN_WAIT_US = 50;     // 50us
         int waitUs = MAX_WAIT_US;
