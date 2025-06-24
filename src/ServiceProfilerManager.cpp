@@ -122,17 +122,16 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
     auto location = spanHandle % SPAN_CACHE_LEN + 1;
     auto stratTimestamp = *(timeCache + location);
 
-    msServiceProfiler::DbActivityMarker marker;
-    marker.flag = msServiceProfiler::ActivityFlag::ACTIVITY_FLAG_MARKER_SPAN;
-    marker.timestamp = stratTimestamp;
-    marker.endTimestamp = GetCurrentTimeInNanoseconds();
-    marker.id = g_markIndex.fetch_add(1);
-    marker.processId = static_cast<uint32_t>(getpid());
-    marker.threadId = tid;
-    marker.message = msg;
-    marker.domain = "";
+    msServiceProfiler::DbActivityMarker* marker = new msServiceProfiler::DbActivityMarker();
+    marker->flag = msServiceProfiler::ActivityFlag::ACTIVITY_FLAG_MARKER_SPAN;
+    marker->timestamp = stratTimestamp;
+    marker->endTimestamp = GetCurrentTimeInNanoseconds();
+    marker->id = g_markIndex.fetch_add(1);
+    marker->processId = static_cast<uint32_t>(getpid());
+    marker->threadId = tid;
+    marker->message = msg;
 
-    msServiceProfiler::InsertTxData2Writer(&marker);
+    msServiceProfiler::InsertTxData2Writer(marker);
 }
 
 void EndSpan(SpanHandle spanHandle)
@@ -147,17 +146,16 @@ void MarkEvent(const char *msg)
     }
 
     thread_local uint32_t tid = GetTid();  // 每个线程有自己的副本
-    msServiceProfiler::DbActivityMarker marker;
-    marker.flag = msServiceProfiler::ActivityFlag::ACTIVITY_FLAG_MARKER_EVENT;
-    marker.timestamp = GetCurrentTimeInNanoseconds();
-    marker.endTimestamp = marker.timestamp;
-    marker.id = g_markIndex.fetch_add(1);
-    marker.processId = static_cast<uint32_t>(getpid());
-    marker.threadId = tid;
-    marker.message = msg;
-    marker.domain = "";
+    msServiceProfiler::DbActivityMarker* marker = new msServiceProfiler::DbActivityMarker();
+    marker->flag = msServiceProfiler::ActivityFlag::ACTIVITY_FLAG_MARKER_EVENT;
+    marker->timestamp = GetCurrentTimeInNanoseconds();
+    marker->endTimestamp = marker->timestamp;
+    marker->id = g_markIndex.fetch_add(1);
+    marker->processId = static_cast<uint32_t>(getpid());
+    marker->threadId = tid;
+    marker->message = msg;
 
-    msServiceProfiler::InsertTxData2Writer(&marker);
+    msServiceProfiler::InsertTxData2Writer(marker);
 }
 
 void StartServerProfiler()
@@ -535,7 +533,7 @@ namespace msServiceProfiler {
             return;
         }
         PROF_LOGI("prof path: %s", profPath.c_str());  // LCOV_EXCL_LINE
-
+        StartTxData2Writer(profPath);
         if (config_->GetMsptiEnable()) {
             StartMsptiProf(profPath);
         } else {
@@ -662,7 +660,7 @@ namespace msServiceProfiler {
             StopAclTaskTime();
         }
 
-        msServiceProfiler::FlashTxData2Writer();
+        msServiceProfiler::ColseTxData2Writer();
         started_ = false;
         g_startFlag = false;
     }
