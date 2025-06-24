@@ -575,7 +575,7 @@ namespace msServiceProfiler {
             }
         }
 
-        PROF_LOGD("StartAclProf device_id: %d", (int)g_deviceID);
+        PROF_LOGD("StartAclProf device_id: %d", static_cast<int>(g_deviceID));
         if (config_->IsAclProf()) {
             aclError ret = aclprofInit(profPath.c_str(), profPath.size());
             if (ret != ACL_ERROR_NONE) {
