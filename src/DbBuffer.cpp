@@ -85,28 +85,6 @@ void DbBuffer::Push(DbActivityMarker *pMarker)
     return;
 }
 
-void DbBuffer::Print()
-{
-    for (long long unsigned int i = 0; i < PTR_ARRAY_SIZE; ++i) {
-        if (markerArray_[i] == nullptr) {
-            continue;
-        }
-        for (long long unsigned int j = 0; j < PTR_ARRAY_PRE_SIZE; ++j) {
-            auto *pInfo = &markerArray_[i][j];
-
-            std::cout << std::hex << std::setw(10) << std::setfill('0') << pInfo << "(";
-            std::cout << std::hex << std::setw(10) << std::setfill('0') << GetNext(pInfo) << " ";
-            if (pInfo->pMarker == nullptr) {
-                std::cout << std::dec << -1 << ") ";
-            } else {
-                std::cout << std::dec << std::setw(2) << std::setfill('0') << pInfo->pMarker->id << ") ";
-            }
-        }
-        std::cout << std::dec << "\n";
-    }
-    std::cout << std::dec << "\n";
-}
-
 DbActivityMarker *DbBuffer::Pop()
 {
     auto size = Size();
