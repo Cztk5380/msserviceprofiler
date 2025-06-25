@@ -443,6 +443,15 @@ namespace msServiceProfiler {
                     StopProfiler();
                     PROF_LOGI("Profiler Timelimit %u Seconds Is Reached, Profiler Disabled Successfully!",
                               config_->GetTimeLimit());
+                    auto configJson = ReadConfigFile();
+                    configJson['enable'] = 0;
+                    std::ofstream outputFile(configPath_.c_str());
+                    if (!outputFile.is_open()) {
+                        PROF_LOGW("Automatic config file updation failed %s", configPath_.c_str());
+                        return;
+                    }
+                    outputFile << configJson.dump(jsonIndentSize);
+                    outputFile.close();
                 }
             }
             // 单独控制算子采集
