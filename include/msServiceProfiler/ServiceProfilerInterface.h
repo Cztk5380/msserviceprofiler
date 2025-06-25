@@ -25,6 +25,7 @@
 using SpanHandle = uint64_t;
 
 #define MS_SERVICE_PROFILER_API __attribute__((visibility("default")))
+#define MS_SERVICE_PROFILER_HIDDEN __attribute__((visibility("hidden")))
 
 extern "C" {
 MS_SERVICE_PROFILER_API SpanHandle StartSpan();
@@ -36,7 +37,7 @@ MS_SERVICE_PROFILER_API void StartServerProfiler();
 MS_SERVICE_PROFILER_API void StopServerProfiler();
 MS_SERVICE_PROFILER_API bool IsEnable(uint32_t level);
 MS_SERVICE_PROFILER_API bool GetEnableDomainFilter();
-MS_SERVICE_PROFILER_API const std::set<std::string>& GetValidDomain();
+MS_SERVICE_PROFILER_API const std::set<std::string> &GetValidDomain();
 MS_SERVICE_PROFILER_API void AddMetaInfo(const char *key, const char *value);
 }
 
@@ -52,7 +53,7 @@ public:
     ServiceProfilerInterface &operator=(ServiceProfilerInterface &&) = delete;
 
 public:
-    static ServiceProfilerInterface &GetInstance()
+    MS_SERVICE_PROFILER_HIDDEN static ServiceProfilerInterface &GetInstance()
     {
         static ServiceProfilerInterface logManager;
         return logManager;
@@ -60,38 +61,38 @@ public:
 
     ~ServiceProfilerInterface() = default;
 
-    inline SpanHandle CallStartSpanWithName(const char *name) const
+    MS_SERVICE_PROFILER_HIDDEN inline SpanHandle CallStartSpanWithName(const char *name) const
     {
         return ptrStartSpanWithName_ ? ptrStartSpanWithName_(name) : 0;
     }
 
-    inline void CallMarkSpanAttr(const char *msg, SpanHandle spanHandle) const
+    MS_SERVICE_PROFILER_HIDDEN inline void CallMarkSpanAttr(const char *msg, SpanHandle spanHandle) const
     {
         if (ptrMarkSpanAttr_) {
             ptrMarkSpanAttr_(msg, spanHandle);
         }
     }
 
-    inline void CallEndSpan(SpanHandle spanHandle) const
+    MS_SERVICE_PROFILER_HIDDEN inline void CallEndSpan(SpanHandle spanHandle) const
     {
         if (ptrEndSpan_) {
             ptrEndSpan_(spanHandle);
         }
     }
 
-    inline void CallMarkEvent(const char *msg) const
+    MS_SERVICE_PROFILER_HIDDEN inline void CallMarkEvent(const char *msg) const
     {
         if (ptrMarkEvent_) {
             ptrMarkEvent_(msg);
         }
     }
 
-    inline bool CallIsEnable(uint32_t level) const
+    MS_SERVICE_PROFILER_HIDDEN inline bool CallIsEnable(uint32_t level) const
     {
         return ptrIsEnable_ && ptrIsEnable_(level);
     }
 
-    inline bool CallIsDomainEnable(const char *currentDomain) const
+    MS_SERVICE_PROFILER_HIDDEN inline bool CallIsDomainEnable(const char *currentDomain) const
     {
         bool domainAllow = true;
 
@@ -106,14 +107,14 @@ public:
         return domainAllow;
     }
 
-    inline void CallStartServerProfiler() const
+    MS_SERVICE_PROFILER_HIDDEN inline void CallStartServerProfiler() const
     {
         if (ptrStartServerProfiler_) {
             ptrStartServerProfiler_();
         }
     }
 
-    inline void CallStopServerProfiler() const
+    MS_SERVICE_PROFILER_HIDDEN inline void CallStopServerProfiler() const
     {
         if (ptrStopServerProfiler_) {
             ptrStopServerProfiler_();
@@ -126,7 +127,7 @@ private:
         OpenLib();
     };
 
-    void OpenLib()
+    MS_SERVICE_PROFILER_HIDDEN void OpenLib()
     {
 #ifdef ENABLE_SERVICE_PROF_UNIT_TEST
         ptrIsEnable_ = IsEnable;
@@ -139,10 +140,10 @@ private:
         ptrEnableDomainFilter_ = GetEnableDomainFilter;
         ptrValidDomain_ = GetValidDomain;
 #else
-        char* ascendHomePathPtr = getenv("ASCEND_HOME_PATH");
+        char *ascendHomePathPtr = getenv("ASCEND_HOME_PATH");
         if (ascendHomePathPtr == nullptr) {
             printf("Get ASCEND_HOME_PATH failed. Please check that the CANN package is installed.\n"
-                "Run 'source set_env.sh' in the CANN installation path.\n");
+                   "Run 'source set_env.sh' in the CANN installation path.\n");
             return;
         }
         std::string ascendHomePath(ascendHomePathPtr);

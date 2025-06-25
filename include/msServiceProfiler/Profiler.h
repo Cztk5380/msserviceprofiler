@@ -25,7 +25,6 @@
 
 #include "ServiceProfilerInterface.h"
 
-
 namespace msServiceProfiler {
     constexpr int MAX_RES_STR_IZE = 128;
 
@@ -65,7 +64,8 @@ namespace msServiceProfiler {
             }
         }
 
-        ResID(const std::string &strRid) noexcept : ResID(strRid.c_str()) {}
+        ResID(const std::string &strRid) noexcept : ResID(strRid.c_str())
+        {}
 
         bool IsIllegal() const
         {
@@ -79,9 +79,7 @@ namespace msServiceProfiler {
         }
     };
 
-    enum class MarkType : uint8_t {
-        TYPE_EVENT = 0, TYPE_METRIC = 1, TYPE_SPAN = 2, TYPE_LINK = 3
-    };
+    enum class MarkType : uint8_t { TYPE_EVENT = 0, TYPE_METRIC = 1, TYPE_SPAN = 2, TYPE_LINK = 3 };
 
     template <typename TProfiler, typename T>
     class ArrayCollectorHelper {
@@ -92,7 +90,7 @@ namespace msServiceProfiler {
     template <Level level = Level::INFO>
     class Profiler {
     public:
-        inline bool IsEnable(Level msgLevel = level) const
+        MS_SERVICE_PROFILER_HIDDEN inline bool IsEnable(Level msgLevel = level) const
         {
             if (!domainAllow_) {
                 return false;
@@ -101,7 +99,7 @@ namespace msServiceProfiler {
         };
 
         template <Level levelAttr = level, typename T>
-        inline Profiler &NumArrayAttr(const char *attrName, const T &startIter, const T &endIter)
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &NumArrayAttr(const char *attrName, const T &startIter, const T &endIter)
         {
             if (!IsEnable(levelAttr)) {
                 return *this;
@@ -120,8 +118,8 @@ namespace msServiceProfiler {
         }
 
         template <Level levelAttr = level, typename T>
-        Profiler &ArrayAttr(const char *attrName, const T &startIter, const T &endIter,
-                            typename ArrayCollectorHelper<Profiler<level>, T>::AttrCollectCallback callback)
+        MS_SERVICE_PROFILER_HIDDEN Profiler &ArrayAttr(const char *attrName, const T &startIter, const T &endIter,
+            typename ArrayCollectorHelper<Profiler<level>, T>::AttrCollectCallback callback)
         {
             if (!IsEnable(levelAttr)) {
                 return *this;
@@ -148,7 +146,7 @@ namespace msServiceProfiler {
         }
 
         template <Level levelAttr = level>
-        inline Profiler &Attr(const char *attrName, const char *value)
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const char *value)
         {
             if (IsEnable(levelAttr)) {
                 msg_.append("^").append(attrName).append("^:^").append(value).append("^,");
@@ -157,7 +155,7 @@ namespace msServiceProfiler {
         }
 
         template <Level levelAttr = level>
-        inline Profiler &Attr(const char *attrName, const std::string &value)
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const std::string &value)
         {
             if (IsEnable(levelAttr)) {
                 msg_.append("^").append(attrName).append("^:^").append(value).append("^,");
@@ -166,7 +164,7 @@ namespace msServiceProfiler {
         }
 
         template <Level levelAttr = level>
-        inline Profiler &Attr(const char *attrName, const ResID &value)
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const ResID &value)
         {
             if (IsEnable(levelAttr)) {
                 if (value.type == ResType::UINT64) {
@@ -179,7 +177,7 @@ namespace msServiceProfiler {
         }
 
         template <Level levelAttr = level, typename T>
-        inline Profiler &Attr(const char *attrName, const T value)
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const T value)
         {
             if (IsEnable(levelAttr)) {
                 msg_.append("^").append(attrName).append("^:").append(std::to_string(value)).append(",");
@@ -187,7 +185,7 @@ namespace msServiceProfiler {
             return *this;
         }
 
-        inline Profiler &Resource(const ResID &rid)
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Resource(const ResID &rid)
         {
             if (IsEnable(level)) {
                 if (!rid.IsIllegal()) {
@@ -198,13 +196,13 @@ namespace msServiceProfiler {
         }
 
         template <typename T>
-        inline Profiler &ArrayResource(const T &startIter, const T &endIter,
-                                       typename ArrayCollectorHelper<Profiler<level>, T>::AttrCollectCallback callback)
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &ArrayResource(const T &startIter, const T &endIter,
+            typename ArrayCollectorHelper<Profiler<level>, T>::AttrCollectCallback callback)
         {
             return this->ArrayAttr("rid", startIter, endIter, callback);
         }
 
-        inline Profiler &Domain(const char *domainName)
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Domain(const char *domainName)
         {
             if (!domainName) {
                 return *this;
@@ -224,8 +222,8 @@ namespace msServiceProfiler {
             return msg_;
         }
 
-    public:
-        Profiler &SpanStart(const char *spanName, bool autoEnd = true)
+public:
+        MS_SERVICE_PROFILER_HIDDEN Profiler &SpanStart(const char *spanName, bool autoEnd = true)
         {
             if (IsEnable(level)) {
                 this->Attr("name", spanName);
@@ -237,7 +235,7 @@ namespace msServiceProfiler {
             return *this;
         }
 
-        void SpanEnd()
+        MS_SERVICE_PROFILER_HIDDEN void SpanEnd()
         {
             if (this->IsEnable(level)) {
                 msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallMarkSpanAttr(
@@ -248,19 +246,21 @@ namespace msServiceProfiler {
         }
 
         Profiler()
-        {
-        }
+        {}
 
-        Profiler& operator =(Profiler &obj)
+        Profiler &operator=(Profiler &obj)
         {
             autoEnd_ = obj.autoEnd_;
             spanHandle_ = obj.spanHandle_;
+            domainAllow_ = obj.domainAllow_;
             msg_ = std::move(obj.msg_);
             obj.autoEnd_ = false;
             return *this;
         }
 
-        Profiler(Profiler &obj) : autoEnd_(obj.autoEnd_), spanHandle_(obj.spanHandle_), msg_(std::move(obj.msg_))
+        Profiler(Profiler &obj)
+            : autoEnd_(obj.autoEnd_), spanHandle_(obj.spanHandle_), domainAllow_(obj.domainAllow_),
+              msg_(std::move(obj.msg_))
         {
             obj.autoEnd_ = false;
         }
@@ -274,7 +274,7 @@ namespace msServiceProfiler {
 
     public:
         template <typename T>
-        inline Profiler &Metric(const char *metricName, T value)
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Metric(const char *metricName, T value)
         {
             if (this->IsEnable(level)) {
                 msg_.append("^").append(metricName).append("=^:").append(std::to_string(value)).append(",");
@@ -283,7 +283,7 @@ namespace msServiceProfiler {
         }
 
         template <typename T>
-        inline Profiler &MetricInc(const char *metricName, T value)
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &MetricInc(const char *metricName, T value)
         {
             if (this->IsEnable(level)) {
                 msg_.append("^").append(metricName).append("+^:").append(std::to_string(value)).append(",");
@@ -292,7 +292,7 @@ namespace msServiceProfiler {
         }
 
         template <typename T>
-        inline Profiler &MetricScope(const char *scopeName, T value)
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &MetricScope(const char *scopeName, T value)
         {
             if (this->IsEnable(level)) {
                 msg_.append("^scope#").append(scopeName).append("^:").append(std::to_string(value)).append(",");
@@ -301,7 +301,7 @@ namespace msServiceProfiler {
         }
 
         template <typename T>
-        inline Profiler &MetricScopeAsReqID()
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &MetricScopeAsReqID()
         {
             if (this->IsEnable(level)) {
                 msg_.append("^scope#^:^req^,");
@@ -310,13 +310,13 @@ namespace msServiceProfiler {
         }
 
         template <typename T>
-        inline Profiler &MetricScopeAsGlobal() const
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &MetricScopeAsGlobal() const
         {
             // default, do nothing
             return *this;
         }
 
-        void Launch() const
+        MS_SERVICE_PROFILER_HIDDEN void Launch() const
         {
             if (this->IsEnable(level)) {
                 msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
@@ -325,7 +325,7 @@ namespace msServiceProfiler {
         }
 
     public:
-        void Event(const char *eventName)
+        MS_SERVICE_PROFILER_HIDDEN void Event(const char *eventName)
         {
             if (this->IsEnable(level)) {
                 this->Attr("name", eventName);
@@ -336,7 +336,7 @@ namespace msServiceProfiler {
         }
 
     public:
-        void Link(const ResID &fromRid, const ResID &toRid)
+        MS_SERVICE_PROFILER_HIDDEN void Link(const ResID &fromRid, const ResID &toRid)
         {
             if (this->IsEnable(level)) {
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_LINK));
