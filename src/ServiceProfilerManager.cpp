@@ -422,8 +422,7 @@ namespace msServiceProfiler {
                 int ret = npuMemoryUsage.InitDcmiCardAndDevices();
                 if (ret != EXITCODE_SUCCESS) {
                     PROF_LOGE(
-                        "InitDcmiCardAndDevices failed. Check whether a NPU server "
-                        "or if NPU driver installed.");  // LCOV_EXCL_LINE
+                        "InitDcmiCardAndDevices failed. Check whether a NPU server or if NPU driver installed.");
                     return;
                 }
                 if (npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza) == EXITCODE_SUCCESS) {
@@ -443,15 +442,7 @@ namespace msServiceProfiler {
                     StopProfiler();
                     PROF_LOGI("Profiler Timelimit %u Seconds Is Reached, Profiler Disabled Successfully!",
                               config_->GetTimeLimit());
-                    auto configJson = ReadConfigFile();
-                    configJson['enable'] = 0;
-                    std::ofstream outputFile(configPath_.c_str());
-                    if (!outputFile.is_open()) {
-                        PROF_LOGW("Automatic config file updation failed %s", configPath_.c_str());
-                        return;
-                    }
-                    outputFile << configJson.dump(jsonIndentSize);
-                    outputFile.close();
+                    config_->SetFileEnable(0);
                 }
             }
             // 单独控制算子采集
@@ -464,7 +455,7 @@ namespace msServiceProfiler {
                     StopAclTaskTime();
                     PROF_LOGI("Profiler AclTaskTimeDuration %d Seconds Is Reached, AclTaskTime Disabled Successfully!",
                               config_->GetAclTaskTimeDuration());
-                    config_->SetAclTaskTimeDuration(0);
+                    config_->SetFileEnable(0);
                 }
             }
 

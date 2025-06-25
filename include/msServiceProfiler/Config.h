@@ -37,6 +37,7 @@ public:
     uint32_t GetNpuMemorySleepMilliseconds() const { return npuMemorySleepMilliseconds_; }
 
     void SetEnable(bool enable) { enable_ = enable; }
+    void SetFileEnable(bool enable);
     void SetTimeLimit(uint32_t timelimit) { timeLimit_ = timelimit; }
     void SetProfPathDateTail(std::string profPathDateTail) { profPathDateTail_ = profPathDateTail; }
     void SetConfigPath(std::string configPath) { configPath_ = configPath; }
