@@ -1,6 +1,6 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 import json
 import os
 import re
@@ -29,7 +29,10 @@ from ms_service_profiler.parse import (
     process,
     build_task_dag,
     main,
-    preprocess_prof_folders
+    preprocess_prof_folders,
+    load_cpu_data,
+    load_memory_data,
+    load_ops_db
 )
 
 # 配置日志
@@ -182,21 +185,24 @@ def test_handle_other_wildcard_patterns(setup_test_directory):
 
 
 def test_load_start_cnt(setup_test_directory):
-    config_path = setup_test_directory / "PROF_test" / "host_start.log"
+    mock_file_content = "cntvct: 123\nclock_monotonic_raw: 456"
+    mock_path = setup_test_directory / "PROF_test" / "host_start.log"
 
-    # 测试函数并获取结果
-    cntvct, clock_monotonic_raw = load_start_cnt(config_path)
+    with patch("ms_service_profiler.parse.ms_open", mock_open(read_data=mock_file_content)):
+        cntvct, clock_monotonic_raw = load_start_cnt(str(mock_path))
 
-    # 验证返回值
-    assert cntvct == 123
-    assert clock_monotonic_raw == 456
+        assert cntvct == 123
+        assert clock_monotonic_raw == 456
 
 
 def test_load_start_time(setup_test_directory):
-    start_info_path = setup_test_directory / "PROF_test" / "start_info"
+    mock_file_content = '{"collectionTimeBegin": 123456.789, "clockMonotonicRaw": 0}'
 
-    result = load_start_time(start_info_path)
-    assert result == (123456.789, 0)
+    mock_path = setup_test_directory / "PROF_test" / "start_info"
+
+    with patch("ms_service_profiler.parse.ms_open", mock_open(read_data=mock_file_content)):
+        result = load_start_time(str(mock_path))
+        assert result == (123456.789, 0)
 
 
 def test_load_tx_data(setup_test_directory):
@@ -744,4 +750,161 @@ def test_main():
             shutil.rmtree(input_path)  # 删除非空目录
         if os.path.exists(output_path):
             shutil.rmtree(output_path)  # 删除非空目录
+
+
+def test_load_cpu_data_with_valid_db_path(setup_test_directory):
+    """
+    测试当 db_path 有效时，load_cpu_data 函数是否正确加载数据。
+    """
+    tmp_path = setup_test_directory
+    db_path = tmp_path / "PROF_test" / "msproftx.db"
+
+    # 确保数据库文件存在
+    assert os.path.exists(db_path)
+
+    # 连接到数据库
+    conn = sqlite3.connect(str(db_path))
+    cursor = conn.cursor()
+
+    # 创建 CpuUsage 表
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS CpuUsage (
+            id INTEGER PRIMARY KEY,
+            cpu_no TEXT,
+            usage REAL,
+            other_column REAL
+        );
+    """)
+
+    # 插入数据到 CpuUsage 表
+    cursor.execute("""
+        INSERT INTO CpuUsage (cpu_no, usage, other_column) VALUES ('Avg', 50.0, 25.0)
+    """)
+
+    conn.commit()
+    conn.close()
+    # 调用 load_cpu_data 函数
+    result = load_cpu_data(str(db_path))
+
+    # 验证返回的 DataFrame 是否正确
+    expected_columns = ["id", "cpu_no", "usage", "other_column"]
+    expected_data = [(1, 'Avg', 50.0, 25.0)]
+    expected_df = pd.DataFrame(expected_data, columns=expected_columns)
+    pd.testing.assert_frame_equal(result, expected_df)
+
+
+def test_load_ops_db_with_valid_db_path(setup_test_directory):
+    tmp_path = setup_test_directory
+    db_path = tmp_path / "PROF_test" / "msproftx.db"
+
+    # 确保数据库文件存在
+    assert os.path.exists(db_path)
+
+    # 连接到数据库
+    conn = sqlite3.connect(str(db_path))
+    cursor = conn.cursor()
+
+    # 创建 Api 表
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Api (
+            name TEXT,
+            start INTEGER,
+            end INTEGER,
+            processId INTEGER,
+            threadId INTEGER,
+            correlationId INTEGER
+        );
+    """)
+
+    # 创建 Kernel 表
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Kernel (
+            name TEXT,
+            type TEXT,
+            start INTEGER,
+            end INTEGER,
+            deviceId INTEGER,
+            streamId INTEGER,
+            correlationId INTEGER
+        );
+    """)
+
+    # 创建 Communication 表
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Communication (
+            name TEXT,
+            start INTEGER,
+            end INTEGER,
+            deviceId INTEGER,
+            streamId INTEGER,
+            dataCount INTEGER,
+            dataType TEXT,
+            commGroupName TEXT,
+            correlationId INTEGER
+        );
+    """)
+
+    # 插入数据到 Api 表
+    cursor.execute("""
+        INSERT INTO Api (name, start, end, processId, threadId, correlationId) 
+        VALUES ('api1', 1, 2, 1, 1, 1)
+    """)
+
+    conn.commit()
+    conn.close()
+
+    api_df, kernel_df, communication_df = load_ops_db(str(db_path), 1)
+
+    assert api_df.shape[0] == 1
+    assert api_df["db_id"].iloc[0] == 1
+
+
+def test_load_memory_data_with_valid_db_path(setup_test_directory):
+    """
+    测试当 db_path 有效时，load_memory_data 函数是否正确加载数据。
+    """
+    tmp_path = setup_test_directory
+    db_path = tmp_path / "PROF_test" / "msproftx.db"
+
+    # 确保数据库文件存在
+    assert os.path.exists(db_path)
+
+    # 连接到数据库
+    conn = sqlite3.connect(str(db_path))
+    cursor = conn.cursor()
+
+    # 创建 MemUsage 表
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS MemUsage (
+            id INTEGER PRIMARY KEY,
+            mem_no TEXT,
+            usage REAL,
+            other_column REAL
+        );
+    """)
+
+    # 插入数据到 MemUsage 表
+    cursor.execute("""
+        INSERT INTO MemUsage (mem_no, usage, other_column) VALUES ('Avg', 75.0, 30.0)
+    """)
+
+    conn.commit()
+    conn.close()
+
+    # 调用 load_memory_data 函数
+    result = load_memory_data(str(db_path))
+
+    # 验证返回的 DataFrame 是否正确
+    expected_columns = ["id", "mem_no", "usage", "other_column"]
+    expected_data = [(1, 'Avg', 75.0, 30.0)]
+    expected_df = pd.DataFrame(expected_data, columns=expected_columns)
+    pd.testing.assert_frame_equal(result, expected_df)
+
+
+def test_load_memory_data_with_none_db_path():
+    """
+    测试当 db_path 为 None 时，load_memory_data 函数是否返回 None。
+    """
+    result = load_memory_data(None)
+    assert result is None
 

@@ -51,7 +51,7 @@ class Profiler:
         return self.attr(f"scope#{scope_name}", scope_value)
 
     def metric_scope_as_req_id(self):
-        return self.attr(f"scope#", "req")
+        return self.attr("scope#", "req")
 
     def launch(self):
         if self._enable:

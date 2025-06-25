@@ -19,6 +19,9 @@ class ProcessorRes(ProcessorBase):
         if data_df is None or data_df.empty:
             return dict()
 
+        if "hostname" not in data_df or "pid" not in data_df or "name" not in data_df:
+            return dict()
+
         hostname = data_df.iloc[-1]["hostname"]
         pid = data_df.iloc[-1]["pid"]
         is_forward = any(data_df["name"] == "forward")
@@ -42,12 +45,13 @@ class ProcessorRes(ProcessorBase):
     def mapping_rid(self, rid, rid_map):
         if isinstance(rid, list):
             return [self.mapping_rid(i, rid_map) for i in rid]
-        elif isinstance(rid, dict):
+
+        if isinstance(rid, dict):
             if 'rid' in rid:
                 rid['rid'] = rid_map.get(rid['rid'], rid['rid'])
             return rid
-        else:
-            return rid_map.get(rid, rid)
+        
+        return rid_map.get(rid, rid)
 
     def parse(self, data):
         process_list = list()
@@ -70,7 +74,6 @@ class ProcessorRes(ProcessorBase):
 
                 rid_map = data_df[data_df['from'].notna()].set_index("to").to_dict(orient='dict')["from"]
                 rid_map.update({"{:g}".format(k): v for k, v in rid_map.items()})
-                data[index]["tx_data_df"] = data_df[data_df['from'].isna()]
 
                 hostname = process_info.get("hostname")
                 pid = process_info.get("pid")
@@ -78,6 +81,7 @@ class ProcessorRes(ProcessorBase):
                 rid_map_of_process[(hostname, pid)].update(rid_map)
 
                 data_df['rid'] = data_df['rid'].map(lambda x: self.mapping_rid(x, rid_map))
+                data[index]["tx_data_df"] = data_df[data_df['from'].isna()]
         
         # 处理 forward 进程
         for process_info in process_list:

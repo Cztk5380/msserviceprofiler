@@ -2,11 +2,13 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 #include <climits>
-#include <fstream>
 #include <unistd.h>
+#include <fstream>
 
 #include "securec.h"
+
 #include "msServiceProfiler/Log.h"
+#include "msServiceProfiler/SecurityUtils.h"
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Config.h"
 
@@ -15,6 +17,15 @@ constexpr int MILLISECONDS_IN_SECOND = 1000;
 constexpr int ACL_PROF_ENABLE_TASK_TIME = 1;
 constexpr int MSPTI_ENABLE_TASK_TIME = 2;
 constexpr int MAX_TIME_LIMIT = 7200;
+
+static std::string TrimWhitespace(const std::string& str)
+{
+    std::string result = str;
+    result.erase(0, result.find_first_not_of(" \t\n\r\f\v"));
+    result.erase(result.find_last_not_of(" \t\n\r\f\v") + 1);
+    return result;
+}
+
 Config::Config()
 {
     ReadConfigPath();
@@ -22,20 +33,31 @@ Config::Config()
 
 void Config::ReadAndSaveConfig()
 {
+    PROF_LOGD("isServiceProfConfigPathSet: %s", isServiceProfConfigPathSet ? "true" : "false");
+    if (!isServiceProfConfigPathSet) {
+        return;
+    }
     InitProfPathDateTail();
     auto configJson = ReadConfigFile();
     ParseConfig(configJson);
     SaveConfigToJsonFile();
 }
 
+std::string Config::GetEnvAsString(const std::string& envName) const
+{
+    const char* value = getenv(envName.c_str());
+    return std::string((value != nullptr) ? value : "");
+}
+
 void Config::ReadConfigPath()
 {
-    configPath_ = getenv("SERVICE_PROF_CONFIG_PATH") ? getenv("SERVICE_PROF_CONFIG_PATH") : "";
+    configPath_ = GetEnvAsString("SERVICE_PROF_CONFIG_PATH");
 
     // 检查msprof是否开启了动态或静态采集，如果开启则不读取配置文件以防采集冲突
     CheckProfEnvVars();
 
-    if (!configPath_.empty() && access(configPath_.c_str(), F_OK) != 0) {
+    isServiceProfConfigPathSet = !configPath_.empty();
+    if (isServiceProfConfigPathSet && access(configPath_.c_str(), F_OK) != 0) {
         configPath_ = "";
     }
 }
@@ -59,7 +81,6 @@ void Config::CheckProfEnvVars()
         return;
     }
 }
-
 
 Json Config::ReadConfigFile()
 {
@@ -163,12 +184,12 @@ void Config::ParseTimeLimit(const Json& config)
 
     if (config.contains("timelimit")) {
         if (config["timelimit"].is_number_integer()) {
+            PROF_LOGD("Got timelimit value: %d", static_cast<int>(config["timelimit"]));
             if (config["timelimit"] <= 0) {
                 timeLimit_ = 0;
-                PROF_LOGW("timelimit value is not higher than 0, the profiling time is not assigned.");
             } else if (config["timelimit"] > 0 && config["timelimit"] <= MAX_TIME_LIMIT) {
                 timeLimit_ = config["timelimit"];
-                PROF_LOGI("profile timeLimit_: %d", timeLimit_);
+                PROF_LOGI("profile timeLimit_: %u", timeLimit_);
             } else {
                 timeLimit_ = MAX_TIME_LIMIT;
                 PROF_LOGW("timelimit value is higher than %d, will set %d", MAX_TIME_LIMIT, MAX_TIME_LIMIT);
@@ -179,15 +200,15 @@ void Config::ParseTimeLimit(const Json& config)
     }
 }
 
-std::string Config::getDefaultProfPath()
+std::string Config::GetDefaultProfPath() const
 {
     std::string profPath;
-    std::string homePath = getenv("HOME") ? getenv("HOME") : "";
+    std::string homePath = GetEnvAsString("HOME");
     profPath.append(homePath).append("/.ms_server_profiler/");
     return profPath;
 }
 
-std::string Config::getDirPath(std::string configPath)
+std::string Config::GetDirPath(std::string configPath) const
 {
     std::string dirPath;
     size_t lastSlash = configPath.find_last_of("/\\");
@@ -207,23 +228,21 @@ void Config::ParseProfPath(const Json& config)
             profPath_.append("/");
         }
     } else {
-        profPath_ = getDefaultProfPath();
+        profPath_ = GetDefaultProfPath();
     }
 
     profPath_.append(profPathDateTail_);
 }
 
-void Config::CheckMsptiAndEnableMspti(const Json &config)
+void Config::CheckMsptiAndEnableMspti()
 {
-    char* ld_preload = getenv("LD_PRELOAD");
-    std::string ld_preload_str = ld_preload ? ld_preload : "";
+    std::string ld_preload_str = GetEnvAsString("LD_PRELOAD");
     if (ld_preload_str.find("libmspti.so") != std::string::npos) {
         PROF_LOGW("Detected mspti is enabled, which conflicts with acl prof. "
                   "`acl_task_time` has been reset to the default value 0. If you need to enable it, "
                   "check the loading of libmspti.so in LD_PRELOAD.");
         enableAclTaskTime_ = false;
     }
-    msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
 }
 
 void Config::ParseAclTaskTime(const Json &config)
@@ -234,8 +253,9 @@ void Config::ParseAclTaskTime(const Json &config)
             enableAclTaskTime_ = config["acl_task_time"] == ACL_PROF_ENABLE_TASK_TIME;
             // 需要检测是否开启了mspti，如果开启了则会导致mstx和aclprof的数据丢失
             if (enableAclTaskTime_) {
-                CheckMsptiAndEnableMspti(config);
+                CheckMsptiAndEnableMspti();
             }
+            msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
         } else {
             PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");  // LCOV_EXCL_LINE
         }
@@ -308,15 +328,7 @@ void Config::ParseLevel(const Json &config)
     PROF_LOGD("profiler_level: %u", level_);
 }
 
-std::string Config::TrimWhitespace(const std::string& str)
-{
-    std::string result = str;
-    result.erase(0, result.find_first_not_of(" \t\n\r\f\v"));
-    result.erase(result.find_last_not_of(" \t\n\r\f\v") + 1);
-    return result;
-}
-
-std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char delimiter)
+std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char delimiter) const
 {
     std::vector<std::string> tokens;
     size_t start = 0;
@@ -358,7 +370,7 @@ void Config::ParseDomain(const Json& config)
 {
     enableDomainFilter_ = false;
     validDomain_.clear();
-    
+
     if (!config.contains("domain")) {
         LogDomainInfo();
         return;
@@ -469,11 +481,11 @@ bool Config::ParseNpuConfig(const Json &config)
     return ret;
 }
 
-bool Config::PrepareConfigAndPath(std::string& configPath)
+bool Config::PrepareConfigAndPath(std::string& configPath) const
 {
     const int jsonSuffixSize = 5;
     if (configPath.empty()) {
-        PROF_LOGW("Cannot save config to JSON file - no config path specified");
+        PROF_LOGD("Cannot save config to JSON file - no config path specified");
         return false;
     }
 
@@ -486,7 +498,7 @@ bool Config::PrepareConfigAndPath(std::string& configPath)
     if (access(configPath.c_str(), F_OK) == 0) {
         return false;
     }
-    std::string dirPath = getDirPath(configPath);
+    std::string dirPath = GetDirPath(configPath);
     if (access(dirPath.c_str(), W_OK) != 0) {
         return false;
     }
@@ -494,28 +506,32 @@ bool Config::PrepareConfigAndPath(std::string& configPath)
     return true;
 }
 
-void Config::SaveConfigToJsonFile()
+nlohmann::ordered_json Config::GetConfigData() const
 {
-    const int jsonIndentSize = 4;
-    std::string configPath = getenv("SERVICE_PROF_CONFIG_PATH") ? getenv("SERVICE_PROF_CONFIG_PATH") : "";
-    if (!PrepareConfigAndPath(configPath)) {
-        return;
-    }
-    std::string profPath = getDefaultProfPath();
-    nlohmann::ordered_json configData = {
+    return {
         {"enable", enable_ ? 1 : 0},
-        {"prof_dir", profPath},
+        {"prof_dir", GetDefaultProfPath()},
         {"profiler_level", "INFO"},
         {"host_system_usage_freq", -1},
         {"npu_memory_usage_freq", -1},
         {"acl_task_time", enableAclTaskTime_ ? 1 : 0},
+        {"acl_prof_task_time_level", ""},
         {"api_filter", ""},
         {"kernel_filter", ""},
-        {"domain", ""},
         {"timelimit", 0},
+        {"domain", ""},
     };
+}
+
+void Config::SaveConfigToJsonFile() const
+{
+    const int jsonIndentSize = 4;
+    std::string configPath = GetEnvAsString("SERVICE_PROF_CONFIG_PATH");
+    if (!PrepareConfigAndPath(configPath)) {
+        return;
+    }
     try {
-        std::string dirPath = getDirPath(configPath);
+        std::string dirPath = GetDirPath(configPath);
         char tempFile[] = "temp_XXXXXX";
         const int fd = mkstemp(tempFile);
         if (fd == -1) {
@@ -524,19 +540,27 @@ void Config::SaveConfigToJsonFile()
         }
         close(fd);
         std::string tempPath = dirPath+"/"+tempFile;
-        PROF_LOGD("file generation in the path %s", tempPath.c_str());
-        std::ofstream outputFile(tempPath);
-        if (!outputFile.is_open()) {
-            PROF_LOGW("Automatic config file generation failed %s", tempPath.c_str());
+        char realTempPath[PATH_MAX + 1] = {0};
+        if (realpath(tempPath.c_str(), realTempPath) == nullptr) {
+            PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));
             return;
         }
-        outputFile << configData.dump(jsonIndentSize);
+        if (!SecurityUtils::CheckFileBeforeWrite(realTempPath)) {
+            return;
+        }
+        PROF_LOGD("file generation in the path %s", realTempPath);
+        std::ofstream outputFile(realTempPath);
+        if (!outputFile.is_open()) {
+            PROF_LOGW("Automatic config file generation failed %s", realTempPath);
+            return;
+        }
+        outputFile << GetConfigData().dump(jsonIndentSize);
         outputFile.close();
 
-        auto ret = rename(tempPath.c_str(), configPath.c_str());
+        auto ret = rename(realTempPath, configPath.c_str());
         if (ret != 0 && errno != ENOENT) {
             PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));
-            remove(tempPath.c_str());
+            remove(realTempPath);
             return;
         }
         PROF_LOGI("Successfully saved profiler configuration to: %s", configPath.c_str());

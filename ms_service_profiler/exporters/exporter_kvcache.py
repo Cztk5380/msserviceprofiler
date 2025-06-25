@@ -1,22 +1,17 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-from enum import Enum
-from pathlib import Path
-import argparse
-import os
-import sqlite3
-import json
 from concurrent.futures import ThreadPoolExecutor
+
 import pandas as pd
 import numpy as np
 
 from ms_service_profiler.exporters.base import ExporterBase
-from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.constant import US_PER_MS
 from ms_service_profiler.exporters.utils import (
-    create_sqlite_views, add_table_into_visual_db, truncate_timestamp_np, check_domain_valid
+    write_result_to_csv, truncate_timestamp_np,
+    check_domain_valid, write_result_to_db, CURVE_VIEW_NAME_LIST
 )
 
 
@@ -24,7 +19,7 @@ def get_max_free_value(kvcache_df):
     """
     获取所有rid中name为Free的device_kvcache_left的最大值
     """
-    all_free_values = kvcache_df[kvcache_df['name'] == 'Free']['device_kvcache_left'].values
+    all_free_values = kvcache_df[kvcache_df['name'] == 'Free']['deviceBlock='].values
     return all_free_values.max() if len(all_free_values) > 0 else 0
 
 
@@ -49,10 +44,10 @@ def build_rid_to_action_usage_rates(kvcache_df, max_free_value):
         action_usage_rates_list = []
         for index, row in group.iterrows():
             action = row['name']
-            timestamp = row['real_start_time(ms)']
+            timestamp = row['start_datetime']
             action_usage_rate_dict = {}
             action_usage_rate_dict['original_index'] = index
-            value = row['device_kvcache_left']
+            value = row['deviceBlock=']
             usage_rate = calculate_action_usage_rate(action, value, max_free_value)
             if usage_rate is not None:
                 action_usage_rate_dict['usage'] = usage_rate
@@ -66,7 +61,7 @@ def build_result_df(kvcache_df, rid_to_action_usage_rates, num_threads=4):
     """
     创建新的DataFrame并填充数据
     """
-    new_columns = ['rid', 'name', 'real_start_time(ms)', 'device_kvcache_left', 'kvcache_usage_rate']
+    new_columns = ['rid', 'name', 'start_datetime', 'device_kvcache_left', 'kvcache_usage_rate']
 
     # 将 DataFrame 转换为 NumPy 数组，并添加原始索引作为最后一列
     data_with_index = np.column_stack((kvcache_df.to_numpy(), kvcache_df.index))
@@ -142,19 +137,15 @@ def export_pull_kvcache(df, output, args_format):
     pull_kvcache_df['start_datetime'] = pull_kvcache_df['start_datetime'].str[:-3]
     pull_kvcache_df['end_datetime'] = pull_kvcache_df['end_datetime'].str[:-3]
 
-    pull_kvcache_df = pull_kvcache_df.rename(columns={
-        'start_time': 'start_time(ms)',
-        'end_time': 'end_time(ms)',
-        'during_time': 'during_time(ms)',
-        'start_datetime': 'start_datetime(ms)',
-        'end_datetime': 'end_datetime(ms)'
-    })
+    if 'db' in args_format:
+        write_result_to_db(
+            df_param_list=[[pull_kvcache_df, 'pd_split_kvcache']],
+            table_name='pd_split_kvcache',
+            rename_cols=PULL_KV_RENAME_COLS
+        )
 
     if 'csv' in args_format:
-        save_dataframe_to_csv(pull_kvcache_df, output, "pd_split_kvcache.csv")
-
-    if 'db' in args_format:
-        add_table_into_visual_db(pull_kvcache_df, 'pull_kvcache')
+        write_result_to_csv(pull_kvcache_df, output, 'pd_split_kvcache', PULL_KV_RENAME_COLS)
 
 
 class ExporterKVCacheData(ExporterBase):
@@ -184,44 +175,39 @@ class ExporterKVCacheData(ExporterBase):
                 )
                 return
 
-            start_datetime_data = df['start_datetime'].copy()
             try:
                 # KVCache事件
                 kvcache_df = df[df['domain'] == 'KVCache']
                 kvcache_df = kvcache_df[['domain', 'rid', 'start_time', 'name', \
-                                        'deviceBlock=']]
+                                        'deviceBlock=', 'start_datetime']]
                 kvcache_df['start_time'] = kvcache_df['start_time'] // US_PER_MS
-                kvcache_df = kvcache_df.rename(columns={
-                    'deviceBlock=': 'device_kvcache_left',
-                    'start_time': 'timestamp(ms)'
-                })
             except KeyError as e:
                 logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
 
-        if 'csv' in cls.args.format:
-            save_dataframe_to_csv(kvcache_df, output, "kvcache.csv")
-
         if 'db' in cls.args.format:
-            kvcache_df['start_datetime'] = start_datetime_data
-            kvcache_df = kvcache_df.rename(columns={
-                'start_datetime': 'real_start_time(ms)'
-            })
-            kvcache_df = kvcache_usage_rate_calculator(kvcache_df)
-            kvcache_df['real_start_time(ms)'] = truncate_timestamp_np(kvcache_df['real_start_time(ms)'])
+            kvcache_usuage_df = kvcache_usage_rate_calculator(kvcache_df)
+            kvcache_usuage_df['start_datetime'] = truncate_timestamp_np(kvcache_usuage_df['start_datetime'])
+            write_result_to_db(
+                df_param_list=[[kvcache_usuage_df, 'kvcache']],
+                table_name='kvcache',
+                create_view_sql=[CREATE_KVCACHE_VIEW_SQL],
+                rename_cols=KVCACHE_RENAME_COLS
+            )
 
-            add_table_into_visual_db(kvcache_df, 'kvcache')
-            create_sqlite_views('Kvcache_Usage_Percent', CREATE_KVCACHE_VIEW_SQL)
+        if 'csv' in cls.args.format:
+            kvcache_df = kvcache_df.drop(['start_datetime'], axis=1)
+            write_result_to_csv(kvcache_df, output, "kvcache", KVCACHE_RENAME_COLS)
 
         # PullKVCache
         export_pull_kvcache(df, cls.args.output_path, cls.args.format)
 
 
-CREATE_KVCACHE_VIEW_SQL = """
-    CREATE VIEW Kvcache_Usage_Percent_curve AS
+CREATE_KVCACHE_VIEW_SQL = f"""
+    CREATE VIEW {CURVE_VIEW_NAME_LIST['kvcache']} AS
     WITH converted AS (
         SELECT
             kvcache_usage_rate * 100 AS kvcache_usage_percent,
-            substr("real_start_time(ms)", 1, 10) || ' ' || substr("real_start_time(ms)", 12, 8) AS datetime
+            substr("start_datetime", 1, 10) || ' ' || substr("start_datetime", 12, 8) AS datetime
         FROM
             kvcache
     )
@@ -233,3 +219,13 @@ CREATE_KVCACHE_VIEW_SQL = """
     ORDER BY
         datetime ASC
 """
+
+KVCACHE_RENAME_COLS = {
+    'deviceBlock=': 'device_kvcache_left', 'start_time': 'timestamp(ms)',
+    'start_datetime': 'start_datetime(ms)'
+}
+
+PULL_KV_RENAME_COLS = {
+    'start_time': 'start_time(ms)', 'end_time': 'end_time(ms)', 'during_time': 'during_time(ms)',
+    'start_datetime': 'start_datetime(ms)', 'end_datetime': 'end_datetime(ms)'
+}

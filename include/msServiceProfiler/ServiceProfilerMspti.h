@@ -23,16 +23,13 @@
 
 #include "mspti/mspti.h"
 
-namespace {
-    constexpr int ALIGN_SIZE = 8;
-    constexpr int ONE_K = 1024;
-    const char SPLIT_SYMBOL = ';';
-} // end of anonymous namespace
-
 namespace msServiceProfiler {
+constexpr int ALIGN_SIZE = 8;
+constexpr int ONE_K = 1024;
+const char SPLIT_SYMBOL = ';';
 int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber);
-void InitMsptiActivity(bool msptiEnable_);
-void InitMsptiFilter(std::string& apiFilter, std::string& kernelFilter);
+void InitMsptiActivity(bool msptiEnable);
+void InitMsptiFilter(const std::string& apiFilter, const std::string& kernelFilter);
 void UninitMspti(msptiSubscriberHandle& subscriber);
 void FlushBufferByTime();
 
@@ -48,15 +45,15 @@ public:
 
     void InsertKernelData(msptiActivityKernel* activity);
 
-    void InsertCommunicationData(msptiActivityCommunication* activity);
+    void InsertCommunicationData(msptiActivityCommunication* activity) const;
 
-    void InsertMstxData(msptiActivityMarker* activity);
+    void InsertMstxData(msptiActivityMarker* activity) const;
 
     void Init();
 
-    void InitFilter(std::string& apiFilter, std::string& kernelFilter);
+    void InitFilter(const std::string& apiFilter, const std::string& kernelFilter);
 
-    void InitOutputPath(std::string& outputPath);
+    void InitOutputPath(const std::string& outputPath);
 
     void Close();
 
@@ -66,7 +63,7 @@ public:
 
     void ResetWorkingThreadNum();
 
-    bool GetWorkingStatus();
+    bool GetWorkingStatus() const;
 
 private:
 

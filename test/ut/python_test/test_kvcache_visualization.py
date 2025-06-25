@@ -20,12 +20,12 @@ class TestKvcacheFunctions(unittest.TestCase):
         data = {
             'domain': ['KVCache', 'KVCache', 'KVCache', 'KVCache'],
             'rid': [0, 1, 2, 3],
-            'start_time(microsecond)': ['1735124796367194', '1735124796367220', '1735124796367233', '1735124796367242'],
-            'end_time(microsecond)': ['1735124796367194', '1735124796367220', '1735124796367233', '1735124796367242'],
+            'start_time': ['1735124796367194', '1735124796367220', '1735124796367233', '1735124796367242'],
+            'end_time': ['1735124796367194', '1735124796367220', '1735124796367233', '1735124796367242'],
             'name': ['Allocate', 'Free', 'AppendSlot', 'AppendSlot'],
-            'device_kvcache_left': [1978, 1977, 1976, 1975],
-            'during_time(microsecond)': ['0', '0', '0', '0'],
-            'real_start_time(ms)': ['2024-12-25', '2024-12-25', '2024-12-25', '2024-12-25']
+            'deviceBlock=': [1978, 1977, 1976, 1975],
+            'during_time': ['0', '0', '0', '0'],
+            'start_datetime': ['2024-12-25', '2024-12-25', '2024-12-25', '2024-12-25']
         }
         self.kvcache_df = pd.DataFrame(data)
 
@@ -34,7 +34,7 @@ class TestKvcacheFunctions(unittest.TestCase):
         测试get_max_free_value函数
         """
         result = get_max_free_value(self.kvcache_df)
-        expected_max_value = self.kvcache_df[self.kvcache_df['name'] == 'Free']['device_kvcache_left'].max()
+        expected_max_value = self.kvcache_df[self.kvcache_df['name'] == 'Free']['deviceBlock='].max()
         self.assertEqual(result, expected_max_value)
 
     def test_calculate_action_usage_rate(self):
@@ -72,13 +72,7 @@ class TestKvcacheFunctions(unittest.TestCase):
         rid_to_action_usage_rates = build_rid_to_action_usage_rates(self.kvcache_df, max_free_value)
         result = build_result_df(self.kvcache_df, rid_to_action_usage_rates)
         self.assertIsInstance(result, pd.DataFrame)
-        expected_columns = [
-            'rid',
-            'name',
-            'real_start_time(ms)',
-            'device_kvcache_left',
-            'kvcache_usage_rate'
-        ]
+        expected_columns = ['rid', 'name', 'start_datetime', 'device_kvcache_left', 'kvcache_usage_rate']
         self.assertEqual(list(result.columns), expected_columns)
 
     def test_kvcache_usage_rate_calculator(self):

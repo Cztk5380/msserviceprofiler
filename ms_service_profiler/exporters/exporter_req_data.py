@@ -1,15 +1,16 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-from enum import Enum
-from pathlib import Path
-import json
 import pandas as pd
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.constant import US_PER_MS
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
-from ms_service_profiler.exporters.utils import add_table_into_visual_db, save_dataframe_to_csv, check_domain_valid
+from ms_service_profiler.utils.error import key_except
+from ms_service_profiler.exporters.utils import (
+    CURVE_VIEW_NAME_LIST, write_result_to_csv,
+    write_result_to_db, check_domain_valid
+)
 
 
 def update_name(row):
@@ -116,6 +117,9 @@ def get_req_base_info(df):
         current_rids = [r.strip() for r in rid.split(',')]
         total_latency = latency_df[latency_df['rid'].isin(current_rids)]['first_token_latency'].sum()
 
+        if total_latency <= 0:
+            continue
+
         # 构造请求信息
         new_req = {
             'rid': rid,
@@ -175,7 +179,7 @@ def calculate_first_token_latency(df):
                 continue
             try:
                 valid_ids.append(int(tid))
-            except ValueError as e:
+            except ValueError:
                 continue
         return valid_ids
 
@@ -208,6 +212,7 @@ class ExporterReqData(ExporterBase):
 
     @classmethod
     @timer(logger.info)
+    @key_except('domain', 'name', ignore=True, msg="ignoring current exporter by default.")
     def export(cls, data) -> None:
         if 'csv' in cls.args.format or 'db' in cls.args.format:
             df = data.get('tx_data_df')
@@ -244,15 +249,21 @@ class ExporterReqData(ExporterBase):
             filtered_df = filtered_df.rename(columns={
                 'rid': 'http_rid',
                 'recvTokenSize=': 'recv_token_size',
-                'replyTokenSize=': 'reply_token_size',
-                'start_time': 'start_time(ms)',
-                'execution_time': 'execution_time(ms)',
-                'queue_wait_time': 'queue_wait_time(ms)',
-                'first_token_latency': 'first_token_latency(ms)'
+                'replyTokenSize=': 'reply_token_size'
             })
 
-        if 'csv' in cls.args.format:
-            save_dataframe_to_csv(filtered_df, output, "request.csv")
-
         if 'db' in cls.args.format:
-            add_table_into_visual_db(filtered_df, 'request_data')
+            write_result_to_db(
+                df_param_list=[[filtered_df, 'request']],
+                table_name='request',
+                rename_cols=REQUEST_DATA_RENAME_COLS
+            )
+
+        if 'csv' in cls.args.format:
+            write_result_to_csv(filtered_df, output, "request", REQUEST_DATA_RENAME_COLS)
+
+
+REQUEST_DATA_RENAME_COLS = {
+    'start_time': 'start_time(ms)', 'execution_time': 'execution_time(ms)',
+    'queue_wait_time': 'queue_wait_time(ms)', 'first_token_latency': 'first_token_latency(ms)'
+}

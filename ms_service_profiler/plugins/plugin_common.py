@@ -1,12 +1,11 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-import json
 import pandas as pd
 import numpy as np
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.plugins.plugin_vllm_helper import VllmHelper
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.utils.error import ParseError, DataFrameMissingError, KeyMissingError, ValidationError
+from ms_service_profiler.utils.error import DataFrameMissingError
 from ms_service_profiler.utils.timer import timer
 
 
@@ -95,7 +94,7 @@ def parse_rid_map(all_data_df):
 
 def parse_rid(tx_data_df):
     if "type" not in tx_data_df.columns or "rid" not in tx_data_df.columns:
-        logger.error(f'Missing columns "type" or "rid". Skip parsing')
+        logger.warning('Missing columns "type" or "rid". Skip parsing')
         return tx_data_df, None
     tx_data_df['res_list'] = tx_data_df['rid']
     rid_link_map = parse_rid_map(tx_data_df)

@@ -6,7 +6,6 @@ from pathlib import Path
 import json
 import re
 import sqlite3
-from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from json import JSONDecodeError
 from collections import deque
@@ -23,7 +22,7 @@ from ms_service_profiler.plugins import (
 )
 from ms_service_profiler.plugins.sort_plugins import sort_plugins
 from ms_service_profiler.utils.log import logger, set_log_level
-from ms_service_profiler.utils.timer import timer
+from ms_service_profiler.utils.timer import timer, Timer
 from ms_service_profiler.utils.error import ParseError, LoadDataError
 from ms_service_profiler.utils.file_open_check import FileStat
 from ms_service_profiler.utils.file_open_check import ms_open
@@ -36,7 +35,7 @@ from ms_service_profiler.exporters.utils import (
 def load_start_cnt(config_path):
     cntvct = 0
     clock_monotonic_raw = 0
-    with open(config_path, 'r') as f:
+    with ms_open(config_path, 'r') as f:
         for line in f:
             if "cntvct:" in line:
                 cntvct = int(line.strip().split(": ")[1])
@@ -48,8 +47,7 @@ def load_start_cnt(config_path):
 
 
 def load_start_time(start_info_path):
-    file_description = os.open(start_info_path, os.O_RDONLY)
-    with os.fdopen(file_description, 'r') as info:
+    with ms_open(start_info_path, 'r') as info:
         data = json.load(info)
         if 'collectionTimeBegin' not in data or 'clockMonotonicRaw' not in data:
             raise ValueError(f"Invalid or missing 'CPU' data in {start_info_path}.")
@@ -159,7 +157,7 @@ def load_cpu_freq(info_path):
     with ms_open(info_path, 'r') as info:
         try:
             data = json.load(info)
-        except JSONDecodeError as ex:
+        except JSONDecodeError:
             logger.error(f"file {info_path} is not a json file. ")
             return 0
         if 'CPU' not in data or not isinstance(data['CPU'], list) or len(data['CPU']) == 0:
@@ -169,7 +167,7 @@ def load_cpu_freq(info_path):
         if cpu_frequency != "":
             return float(cpu_frequency) * US_PER_SECOND
 
-    logger.warning(f"Missing 'Frequency' value in 'CPU' data.")
+    logger.warning("Missing 'Frequency' value in 'CPU' data.")
     return 0
 
 
@@ -237,13 +235,6 @@ def handle_msprof_pattern(folder_path, alias, filepaths):
     return filepaths
 
 
-def handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths):
-    for fp in Path(folder_path).rglob(pattern):
-        filepaths[alias] = str(fp)
-        break
-    return filepaths
-
-
 def load_time_info(filepaths):
     cntvct, host_clock_monotonic_raw = load_start_cnt(filepaths.get("host_start"))
     cpu_frequency = load_cpu_freq(filepaths.get("info"))
@@ -258,11 +249,10 @@ def load_time_info(filepaths):
 
 
 def load_host_name(tx_data_df, info_path):
-    cpu_frequency = None
     with ms_open(info_path, 'r') as info:
         try:
             data = json.load(info)
-        except JSONDecodeError as ex:
+        except JSONDecodeError:
             logger.error(f"file {info_path} is not a json file. ")
             data = {
                 "hostname": "",
@@ -443,7 +433,7 @@ def get_task_run_order(head_tasks, next_tasks, prev_tasks):
             done_tasks.add(task_name)
             walking_queue.extend(next_tasks.get(task_name, []))
         else:
-            walking_queue.appendleft(task_name)
+            walking_queue.append(task_name)
 
     return ordered_tasks
 
@@ -463,7 +453,7 @@ def run_task(task, task_results):
         logger.error(f"task {task.name} in failed, message: {e}")
         task_results[task.name] = e
     else:
-        logger.info(f'task {task.name} in done.')
+        logger.info(f'task {task.name} is done.')
 
 
 def parse_run(input_path, exporters, args=None):
@@ -494,8 +484,9 @@ def parse_run(input_path, exporters, args=None):
             if prev_task_name in single_data_tasks_ordered or prev_task_name in data_source_tasks:
                 batch_data_tasks_depends.append(prev_task_name)
 
-    data = parallel_run_single_prof_data_tasks(data_source_tasks, single_data_tasks_ordered,
-        batch_data_tasks_depends, input_path, args)
+    with Timer("single_prof_data_tasks", logger.info):
+        data = parallel_run_single_prof_data_tasks(data_source_tasks, single_data_tasks_ordered,
+            batch_data_tasks_depends, input_path, args)
 
     err_msg = []
     batch_data = dict()
@@ -536,9 +527,13 @@ def parallel_run_single_prof_data_tasks(data_source_tasks, single_data_tasks_ord
     with ProcessPoolExecutor() as executor:
         single_prof_index = 0
         future_map = dict()
+        multi_tasks = []
         for data_source_name in data_source_tasks:
             data_source = Task.get_retister_by_name(data_source_name)(args)
             prof_paths = data_source.get_prof_paths(input_path)
+            multi_tasks.append((data_source, prof_paths))
+
+        for data_source, prof_paths in multi_tasks:
             for prof_path in prof_paths:
                 single_prof_index += 1
 
@@ -645,7 +640,7 @@ def preprocess_prof_folders(input_path, max_parallel=8):
 
     if not find_file_in_dir(input_path, 'msproftx.db'):
         input_path = Path(input_path)
-        for fp in input_path.glob('*'):
+        for fp in input_path.rglob('*'):
             if "ms_service" in fp.name:
                 return True
         raise ValueError("msprof failed! No msproftx.db file is generated.")
@@ -674,7 +669,7 @@ def process(files):
     :param files: 要处理的文件列表
     :return: 一个字典，包含处理后的数据
     """
-    from ms_service_profiler.parse_helper.utils import convert_db_to_df, convert_timestamp
+    from ms_service_profiler.parse_helper.utils import convert_db_to_df
 
     # 将文件内容转换为DataFrame
     df = convert_db_to_df(files)
@@ -684,7 +679,7 @@ def process(files):
             cpu_data_df=None,  # CPU数据（暂无）
             memory_data_df=None,  # 内存数据（暂无）
             time_info=None,  # 时间信息（暂无）
-            msprof_data=[],  # msprof数据（暂无）
+            msprof_data=[],  # msprof算子数据，是个包含路径的列表，msprof_xxxx.json
             msprof_data_df=[]  # msprof数据（DataFrame格式，暂无）
         )
 
@@ -731,7 +726,7 @@ def process(files):
         cpu_data_df=None,  # CPU数据（暂无）
         memory_data_df=None,  # 内存数据（暂无）
         time_info=None,  # 时间信息（暂无）
-        msprof_data=[],  # msprof数据（暂无）
+        msprof_data=[],  # msprof算子数据，是个包含路径的列表，msprof_xxxx.json
         msprof_data_df=[]  # msprof数据（DataFrame格式，暂无）
     )
 

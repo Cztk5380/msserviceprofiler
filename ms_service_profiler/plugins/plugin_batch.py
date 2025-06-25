@@ -4,6 +4,7 @@ import pandas as pd
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger
+from ms_service_profiler.utils.error import KeyExcept
 
 
 class PluginBatch(PluginBase):
@@ -74,9 +75,9 @@ class PluginBatch(PluginBase):
         last_preprocess[(row.pid, row.tid, row.hostname)] = dict(rid_list=row.rid_list)
         cls.add_exec_info(batch_id, row.pid, row.name, row.start_time, row.end_time)
         try:
-            if row.blocks and len(row.blocks) != len(row.rid_list):
+            if row.blocks is None or len(row.blocks) != len(row.rid_list):
                 return
-        except AttributeError as ex:
+        except AttributeError:
             return
         for index, rid in enumerate(row.rid_list):
             cls.add_req_info(batch_id, rid, block=row.blocks[index])
@@ -113,18 +114,21 @@ class PluginBatch(PluginBase):
     @classmethod
     @timer(logger.info)
     def parse(cls, data):
-        tx_data_df = data.get('tx_data_df')
-        if tx_data_df is None:
-            raise ValueError("tx_data_df is None")
+        with KeyExcept('name', 'hostname', 'pid', 'tid', 'start_time', ignore=True,
+            msg="ignoring current process by default."):
 
-        batch_df = tx_data_df[tx_data_df['name'].isin(['BatchSchedule', 'batchFrameworkProcessing', \
-            'modelExec', 'preprocess', 'forward'])]
+            tx_data_df = data.get('tx_data_df')
+            if tx_data_df is None:
+                raise ValueError("tx_data_df is None")
 
-        # 从 preprocess 中读取 res_list 和 rid_list 信息到它后面的 forward
-        batch_df = batch_df.sort_values(by=['hostname', 'start_time', 'pid', 'tid'])
-        cls.extract_batch_info(batch_df)
+            batch_df = tx_data_df[tx_data_df['name'].isin(['BatchSchedule', 'batchFrameworkProcessing', \
+                'modelExec', 'preprocess', 'forward'])]
 
-        data['batch_req_df'] = pd.DataFrame(cls.batch_req.values())
-        data['batch_exec_df'] = pd.DataFrame(cls.batch_exec.values(),
-            columns=["batch_id", "name", "pid", "start", "end"])
+            # 从 preprocess 中读取 res_list 和 rid_list 信息到它后面的 forward
+            batch_df = batch_df.sort_values(by=['hostname', 'start_time', 'pid', 'tid'])
+            cls.extract_batch_info(batch_df)
+
+            data['batch_req_df'] = pd.DataFrame(cls.batch_req.values())
+            data['batch_exec_df'] = pd.DataFrame(cls.batch_exec.values(),
+                columns=["batch_id", "name", "pid", "start", "end"])
         return data

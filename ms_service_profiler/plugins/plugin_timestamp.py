@@ -1,7 +1,6 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
 import datetime
-import psutil
 
 from ms_service_profiler.constant import US_PER_SECOND, NS_PER_US, NS_PER_SECOND
 from ms_service_profiler.plugins.base import PluginBase
@@ -32,7 +31,7 @@ class PluginTimeStampHelper(PluginBase):
             'tx_data_df': tx_data_df,
             'cpu_data_df': cpu_data_df,
             'memory_data_df': memory_data_df,
-            'msprof_data_df': msprof_data_df
+            'msprof_data': msprof_data_df
         }
         return data
 
@@ -69,15 +68,14 @@ def convert_syscnt_to_ts(cnt, time_info):
         if cpu_frequency != 0:
             return collection_time_begin + ((cnt - collection_cnt_begin) / cpu_frequency * NS_PER_SECOND + \
                 host_clock_monotonic_raw - start_clock_monotonic_raw) / NS_PER_US
-        else:
-            return collection_time_begin + (cnt - start_clock_monotonic_raw) / NS_PER_US
+
+        return collection_time_begin + (cnt - start_clock_monotonic_raw) / NS_PER_US
     except Exception as ex:
         raise AttributeError("Timestamp format error.") from ex
 
 
 # system_timestamp, 用于cpu_data_df, memory_data_df中时间戳装换计算
 def convert_systs_to_ts(systs, time_info):
-    cpu_frequency = time_info.get('cpu_frequency')
     collection_time_begin = time_info.get('collection_time_begin')
     collection_systs_begin = time_info.get('start_clock_monotonic_raw')
     try:

@@ -18,7 +18,7 @@ public:
     bool GetEnable() const { return enable_; }
     uint32_t GetTimeLimit() const { return timeLimit_; }
     uint32_t GetLevel() const { return level_; }
-    uint32_t GetEnableAclTaskTime() const { return enableAclTaskTime_; }
+    bool GetEnableAclTaskTime() const { return enableAclTaskTime_; }
     const std::string& GetProfPath() const { return profPath_; }
     const std::string& GetConfigPath() const { return configPath_; }
     const std::string& GetProfPathDateTail() const { return profPathDateTail_; }
@@ -27,6 +27,7 @@ public:
     bool GetHostFreq() const { return hostFreq_; }
     const std::set<std::string>& GetValidDomain() const { return validDomain_; }
     bool GetEnableDomainFilter() const { return enableDomainFilter_; }
+    bool IsAclProf() const {return enableAclTaskTime_ || hostCpuUsage_ || hostMemoryUsage_; }
 
     std::string GetAclTaskTimeLevel() const { return aclTaskTimeLevel_; }
     int GetAclTaskTimeDuration() const { return aclTaskTimeDuration_; }
@@ -43,33 +44,35 @@ public:
     Json ReadConfigFile();
     void ParseConfig(const Json& configJson);
     void InitProfPathDateTail(bool forceReinit = false);
-    bool PrepareConfigAndPath(std::string& configPath);
-    void SaveConfigToJsonFile();
+    bool PrepareConfigAndPath(std::string& configPath) const;
+    void SaveConfigToJsonFile() const;
 
     bool GetMsptiEnable() const { return msptiEnable_; }
     const std::string GetApiFilter() const { return apiFilter_; }
     const std::string GetKernelFilter() const { return kernelFilter_; }
 
 private:
+    std::string GetEnvAsString(const std::string& envName) const;
     void ReadConfigPath();
     void CheckProfEnvVars();
     void ParseEnable(const Json& config);
     void ParseTimeLimit(const Json& config);
     void ParseAclTaskTime(const Json& config);
-    void CheckMsptiAndEnableMspti(const Json &config);
-    std::string getDefaultProfPath();
-    std::string getDirPath(std::string configPath);
+    void CheckMsptiAndEnableMspti();
+    std::string GetDefaultProfPath() const;
+    std::string GetDirPath(std::string configPath) const;
     void ParseProfPath(const Json& config);
     void ParseLevel(const Json& config);
     bool ParseCollectConfig(const Json& config);
     bool ParseHostConfig(const Json& config);
     bool ParseNpuConfig(const Json& config);
     void ParseMspti(const Json& config);
-    std::string TrimWhitespace(const std::string& str);
-    std::vector<std::string> SplitAndTrimString(const std::string& str, char delimiter);
+    std::vector<std::string> SplitAndTrimString(const std::string& str, char delimiter) const;
     void LogDomainInfo() const;
     void ParseDomain(const Json& config);
+    nlohmann::ordered_json GetConfigData() const;
 
+    bool isServiceProfConfigPathSet = false;
     bool enable_ = false;
     uint32_t level_ = Level::INFO;
     uint32_t timeLimit_ = 0;

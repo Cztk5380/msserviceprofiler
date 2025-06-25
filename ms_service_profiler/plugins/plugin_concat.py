@@ -15,10 +15,10 @@ class PluginConcat(PluginBase):
 
     @staticmethod
     def _merge_msprof_data(data):
-        """合并 msprof_data_df 数据"""
+        """合并 msprof_data 数据"""
         msprof_merged = []
         for data_single in data:
-            value = data_single.get("msprof_data_df")
+            value = data_single.get("msprof_data")
             if isinstance(value, list):
                 msprof_merged.extend(value)
             elif value is not None:
@@ -29,10 +29,15 @@ class PluginConcat(PluginBase):
     @timer(logger.info)
     def parse(cls, data):
         merged_data = defaultdict(pd.DataFrame)
+        merge_list = defaultdict(list)
+
         for data_single in data:
             for key, value in data_single.items():
                 if isinstance(value, pd.DataFrame):
-                    merged_data[key] = pd.concat([merged_data[key], value], ignore_index=True)
+                    merge_list[key].append(value)
+
+        for key, df_list in merge_list.items():
+            merged_data[key] = pd.concat(df_list, ignore_index=True)
 
         msprof_merged = cls._merge_msprof_data(data)
 

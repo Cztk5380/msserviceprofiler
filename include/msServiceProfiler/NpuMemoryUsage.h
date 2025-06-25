@@ -41,7 +41,10 @@ struct dsmi_hbm_info_stru {
 
 const int EXITCODE_SUCCESS = 0;
 const int EXITCODE_EMPTY_DCMI_HANDLER = 1;
+constexpr int EXITCODE_EMPTY_DLSYM_ADDR = 2;
 const int PERCENTAGE_SCALE = 100;
+constexpr long long unsigned int HBM_MEMORY_SIZE_FALL_BACK = 1;
+constexpr int MAX_CHIP_NUM = 64;
 
 struct CardDevice {
     int cardId;
@@ -58,6 +61,7 @@ public:
 private:
     void *handleDcmi = nullptr;
     bool isHbmDevice = false;
+    bool isDcmiInited = false;
     std::vector<CardDevice> cardDevices;
 
     int DcmiInit() const;
