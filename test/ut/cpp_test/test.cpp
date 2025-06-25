@@ -129,6 +129,13 @@ void TestSpan100ObjAttr()
     }));
 }
 
+void Times(void (*func)(), int times = 1000)
+{
+    for (int i = 0; i < times; ++i) {
+        func();
+    }
+}
+
 void SmokeTest()
 {
     TestSmoke("TestSpan", TestSpan);
@@ -146,6 +153,8 @@ void SpeedTest()
     TestSpeed("TestLinker", TestLinker, TEST_SPEED_5_US);
     TestSpeed("TestSpan100NumAttr", TestSpan100NumAttr, TEST_SPEED_5_US);
     TestSpeed("TestSpan100ObjAttr", TestSpan100ObjAttr, TEST_SPEED_5_US);
+    TestSpeed(
+        "TestEvent1000Times", []() -> void { Times(TestEvent, 1000); }, TEST_SPEED_5_US * 1000);
 }
 
 int main()
