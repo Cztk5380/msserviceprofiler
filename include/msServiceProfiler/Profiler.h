@@ -222,7 +222,7 @@ namespace msServiceProfiler {
             return msg_;
         }
 
-public:
+    public:
         MS_SERVICE_PROFILER_HIDDEN Profiler &SpanStart(const char *spanName, bool autoEnd = true)
         {
             if (IsEnable(level)) {
