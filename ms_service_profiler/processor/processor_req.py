@@ -84,7 +84,7 @@ class ProcessorReq(ProcessorBase):
         batch_attr_df["req_list"] = schedule_data_df["res_list"]
         batch_attr_df["req_id_list"] = schedule_data_df["rid_list"]
         batch_attr_df["batch_size"] = schedule_data_df["rid_list"].map(len)
-        batch_attr_df["batch_type"] = role_batch_type.combine_first(iter_batch_type) # PD分离的话，已节点角色为准
+        batch_attr_df["batch_type"] = role_batch_type.combine_first(iter_batch_type)
 
         return batch_event_df, batch_attr_df
 
