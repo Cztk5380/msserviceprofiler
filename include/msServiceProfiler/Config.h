@@ -54,11 +54,11 @@ public:
 private:
     std::string GetEnvAsString(const std::string& envName) const;
     void ReadConfigPath();
-    void CheckProfEnvVars();
     void ParseEnable(const Json& config);
     void ParseTimeLimit(const Json& config);
     void ParseAclTaskTime(const Json& config);
-    void CheckMsptiAndEnableMspti();
+    void CheckMsptiConflict();
+    void CheckAclKernelConflict();
     std::string GetDefaultProfPath() const;
     std::string GetDirPath(std::string configPath) const;
     void ParseProfPath(const Json& config);

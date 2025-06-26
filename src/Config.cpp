@@ -53,32 +53,9 @@ void Config::ReadConfigPath()
 {
     configPath_ = GetEnvAsString("SERVICE_PROF_CONFIG_PATH");
 
-    // 检查msprof是否开启了动态或静态采集，如果开启则不读取配置文件以防采集冲突
-    CheckProfEnvVars();
-
     isServiceProfConfigPathSet = !configPath_.empty();
     if (isServiceProfConfigPathSet && access(configPath_.c_str(), F_OK) != 0) {
         configPath_ = "";
-    }
-}
-
-void Config::CheckProfEnvVars()
-{
-    // 检查环境变量 PROFILER_SAMPLECONFIG 是否被设置
-    if (getenv("PROFILER_SAMPLECONFIG")) {
-        configPath_ = "";
-        PROF_LOGE("Failed to initialize profiling config, env variable `PROFILER_SAMPLECONFIG` is set. "
-                  "This causes conflicts with dynamic profiling. ");
-        return;
-    }
-
-    // 检查环境变量 PROFILING_MODE 是否等于 dynamic
-    char* profilingMode = getenv("PROFILING_MODE");
-    if (profilingMode && std::string(profilingMode) == "dynamic") {
-        configPath_ = "";
-        PROF_LOGE("Failed to initialize profiling config, env variable `PROFILING_MODE` is set to dynamic. "
-                  "This causes conflicts with dynamic profiling. ");
-        return;
     }
 }
 
@@ -234,7 +211,7 @@ void Config::ParseProfPath(const Json& config)
     profPath_.append(profPathDateTail_);
 }
 
-void Config::CheckMsptiAndEnableMspti()
+void Config::CheckMsptiConflict()
 {
     std::string ld_preload_str = GetEnvAsString("LD_PRELOAD");
     if (ld_preload_str.find("libmspti.so") != std::string::npos) {
@@ -245,17 +222,43 @@ void Config::CheckMsptiAndEnableMspti()
     }
 }
 
+/**
+ * @brief 检查msprof是否开启了动态或静态采集，如果开启则不读取配置文件以防采集冲突
+ */
+void Config::CheckAclKernelConflict()
+{
+    // 检查环境变量 PROFILER_SAMPLECONFIG 是否被设置
+    const char* profilerSampleConfig = getenv("PROFILER_SAMPLECONFIG");
+    if (profilerSampleConfig != nullptr) {
+        enableAclTaskTime_ = false;
+        msptiEnable_ = false;
+        PROF_LOGE("Failed to initialize acl_task_time, env variable `PROFILER_SAMPLECONFIG` is set. "
+                  "This causes conflicts with kernels profiling. ");
+        return;
+    }
+
+    // 检查环境变量 PROFILING_MODE 是否等于 dynamic
+    const char* profilingMode = getenv("PROFILING_MODE");
+    if (profilingMode != nullptr && std::string(profilingMode) == "dynamic") {
+        enableAclTaskTime_ = false;
+        msptiEnable_ = false;
+        PROF_LOGE("Failed to initialize acl_task_time, env variable `PROFILING_MODE` is set to dynamic. "
+                  "This causes conflicts with kernels profiling. ");
+        return;
+    }
+}
+
 void Config::ParseAclTaskTime(const Json &config)
 {
     enableAclTaskTime_ = false;  // Default to false
     if (config.contains("acl_task_time")) {
         if (config["acl_task_time"].is_number_integer()) {
             enableAclTaskTime_ = config["acl_task_time"] == ACL_PROF_ENABLE_TASK_TIME;
-            // 需要检测是否开启了mspti，如果开启了则会导致mstx和aclprof的数据丢失
             if (enableAclTaskTime_) {
-                CheckMsptiAndEnableMspti();
+                CheckMsptiConflict();
             }
             msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
+            CheckAclKernelConflict();
         } else {
             PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");  // LCOV_EXCL_LINE
         }
