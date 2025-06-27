@@ -526,6 +526,22 @@ nlohmann::ordered_json Config::GetConfigData() const
     };
 }
 
+void Config::SetFileEnable(bool enable)
+{
+    SetEnable(enable);
+    const int jsonIndentSize = 4;
+    std::string configPath = GetEnvAsString("SERVICE_PROF_CONFIG_PATH");
+    auto configJson = ReadConfigFile();
+    configJson["enable"] = 0;
+    std::ofstream outputFile(configPath.c_str());
+    if (!outputFile.is_open()) {
+        PROF_LOGW("Automatic config file update failed %s", configPath.c_str());
+        return;
+    }
+    outputFile << configJson.dump(jsonIndentSize);
+    outputFile.close();
+}
+
 void Config::SaveConfigToJsonFile() const
 {
     const int jsonIndentSize = 4;

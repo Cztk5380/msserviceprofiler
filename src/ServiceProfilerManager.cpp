@@ -422,8 +422,7 @@ namespace msServiceProfiler {
                 int ret = npuMemoryUsage.InitDcmiCardAndDevices();
                 if (ret != EXITCODE_SUCCESS) {
                     PROF_LOGE(
-                        "InitDcmiCardAndDevices failed. Check whether a NPU server "
-                        "or if NPU driver installed.");  // LCOV_EXCL_LINE
+                        "InitDcmiCardAndDevices failed. Check whether a NPU server or if NPU driver installed.");
                     return;
                 }
                 if (npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza) == EXITCODE_SUCCESS) {
@@ -443,6 +442,7 @@ namespace msServiceProfiler {
                     StopProfiler();
                     PROF_LOGI("Profiler Timelimit %u Seconds Is Reached, Profiler Disabled Successfully!",
                               config_->GetTimeLimit());
+                    config_->SetFileEnable(0);
                 }
             }
             // 单独控制算子采集
@@ -455,7 +455,7 @@ namespace msServiceProfiler {
                     StopAclTaskTime();
                     PROF_LOGI("Profiler AclTaskTimeDuration %d Seconds Is Reached, AclTaskTime Disabled Successfully!",
                               config_->GetAclTaskTimeDuration());
-                    config_->SetAclTaskTimeDuration(0);
+                    config_->SetFileEnable(0);
                 }
             }
 
