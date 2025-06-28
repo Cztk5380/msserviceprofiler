@@ -232,6 +232,10 @@ def trans_trace_flow_event(event, ph_type, cursor):
 
 def trans_trace_event(event, cursor):
     ph_type = event.get('ph')
+    if event.get('ts') is None:
+        return
+    if event.get('dur') is None:
+        return
     if ph_type == 'M':
         trans_trace_meta_event(event, cursor)
     if ph_type == 'X' or ph_type == 'I':

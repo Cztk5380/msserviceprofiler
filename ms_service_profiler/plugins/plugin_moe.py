@@ -40,6 +40,8 @@ class PluginMoeSlowRankProcess(PluginBase):
             std = duration_arr.std()
             n = duration_arr.size
 
+            if n <= 0:
+                raise ZeroDivisionError(f"Cannot calculate standard error: sample size n must be positive (got n={n})")
             se = std / np.sqrt(n)
 
             # 95置信区间

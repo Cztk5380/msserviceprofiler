@@ -32,15 +32,27 @@ from ms_service_profiler.exporters.utils import (
 )
 
 
+
 def load_start_cnt(config_path):
     cntvct = 0
     clock_monotonic_raw = 0
     with ms_open(config_path, 'r') as f:
         for line in f:
             if "cntvct:" in line:
-                cntvct = int(line.strip().split(": ")[1])
+                parts = line.strip().split(": ")
+                if len(parts) >= 2:
+                    try:
+                        cntvct = int(parts[1])
+                    except (ValueError, IndexError):
+                        cntvct = 0
             elif "clock_monotonic_raw:" in line:
-                clock_monotonic_raw = int(line.strip().split(": ")[1])
+                parts = line.strip().split(": ")
+                if len(parts) >= 2:
+                    try:
+                        clock_monotonic_raw = int(parts[1])
+                    except (ValueError, IndexError):
+                        clock_monotonic_raw = 0
+
     if cntvct == 0 or clock_monotonic_raw == 0:
         raise ValueError(f"Failed to find 'cntvct' or 'clock_monotonic_raw' in {config_path}, please check.")
     return cntvct, clock_monotonic_raw
