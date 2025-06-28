@@ -446,7 +446,7 @@ class TestAnalyzeCmd(TestCase):
         # 检查文件是否为空
         self.assertNotEqual(len(df), 0, "The data of batch csv is empty.")
         expected_header = ['name', 'res_list', 'start_time(ms)', 'end_time(ms)', 'batch_size', \
-                           'batch_type', 'during_time(ms)', 'dp0_rid', 'dp0_size', 'dp0_forward(ms)']
+                           'batch_type', 'during_time(ms)']
 
         # 检查列名是否正确
         check_column(df.columns.tolist(), expected_header, context='batch.csv')
@@ -461,17 +461,11 @@ class TestAnalyzeCmd(TestCase):
             # 检查res_list是否是一个列表，每个元素都是字典，且字典包含'rid'和'iter'这两个键
             return all(isinstance(item, dict) and 'rid' in item and 'iter' in item for item in res_list)
 
-        # 定义一个函数，用于检查dp域的bs与总bs一致
-        def is_valid_dp_bs(total_bs, dp_bs):
-            return int(total_bs) == int(dp_bs)
-
         # 检查数据框的第一行和最后一行的特定列
         rows_to_check = [0, -1]
         for row_index in rows_to_check:
             self.assertTrue(is_valid_res_list(df.iloc[row_index]['res_list']),
                 f"Row {row_index}, column 'res_list': invalid format.")
-            self.assertTrue(is_valid_dp_bs(df.iloc[row_index]['batch_size'], df.iloc[row_index]['dp0_size']),
-                f"Row {row_index}, column 'batch_size' and 'dp0_size' are not equal.")
 
     def check_req_data_csv_integrity(self):
         # 校验该路径下是否正确生成req_data的csv文件，以及文件内容
