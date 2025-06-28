@@ -195,6 +195,10 @@ def write_to_process_thread_table(event_data, thread_sort_index, cursor):
 
 
 def trans_trace_slice_event(event, cursor):
+    if event.get('ts') is None:
+        return
+    if event.get('dur') is None:
+        return
     event_data = trans_trace_slice_data(event)
     end_ts = event_data['ts'] + event_data['dur']
 
@@ -207,6 +211,8 @@ def trans_trace_slice_event(event, cursor):
 
 
 def trans_trace_counter_event(event, cursor):
+    if event.get('ts') is None:
+        return
     event_data = trans_trace_counter_data(event)
     if event_data.get('ts') == 0:
         return
@@ -220,6 +226,8 @@ def trans_trace_counter_event(event, cursor):
 
 
 def trans_trace_flow_event(event, ph_type, cursor):
+    if event.get('ts') is None:
+        return
     event_data = trans_trace_flow_data(event)
 
     track_id = write_to_process_thread_table(event_data, event.get('thread_sort_index'), cursor)
@@ -232,10 +240,6 @@ def trans_trace_flow_event(event, ph_type, cursor):
 
 def trans_trace_event(event, cursor):
     ph_type = event.get('ph')
-    if event.get('ts') is None:
-        return
-    if event.get('dur') is None:
-        return
     if ph_type == 'M':
         trans_trace_meta_event(event, cursor)
     if ph_type == 'X' or ph_type == 'I':
