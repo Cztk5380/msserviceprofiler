@@ -113,7 +113,7 @@ def create_sqlite_db(output):
     if not os.path.exists(output):
         os.makedirs(output, mode=0o750, exist_ok=True)
     visual_db_fp = os.path.join(output, 'profiler.db')
-    with open(visual_db_fp, 'a'):
+    with ms_open(visual_db_fp, 'a'):
         pass
     os.chmod(visual_db_fp, 0o640)
     conn = None
