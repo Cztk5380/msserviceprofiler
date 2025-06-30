@@ -111,8 +111,13 @@ def create_sqlite_db(output):
         return
 
     if not os.path.exists(output):
-        os.makedirs(output)
+        os.makedirs(output, mode=0o750, exist_ok=True)
     visual_db_fp = os.path.join(output, 'profiler.db')
+    with ms_open(visual_db_fp, 'a'):
+        pass
+    os.chmod(visual_db_fp, 0o640)
+    conn = None
+    cursor = None
     try:
         conn = sqlite3.connect(visual_db_fp)
         conn.isolation_level = None
@@ -132,6 +137,8 @@ def create_sqlite_db(output):
         conn.rollback()  # 失败时回滚
         raise DatabaseError("Cannot create sqlite database.") from ex
     finally:
+        if cursor:
+            cursor.close()
         if conn:
             conn.close()
 

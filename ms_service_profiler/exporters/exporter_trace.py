@@ -422,7 +422,11 @@ def add_pull_kvcache_events(df):
     all_events = []
 
     for rank in df_all_device['rank'].unique():
-        rank = int(rank)
+        try:
+            rank = int(rank)
+        except Exception as e:
+            logger.warning(f"Unexpected error processing rank {rank}: {str(e)}, skipping this rank")
+            continue
         df = df_all_device[df_all_device['rank'] == rank].copy().reset_index(drop=True)
         df['pid'] = "PullKVCache"
         df['name'] = df['domain']
