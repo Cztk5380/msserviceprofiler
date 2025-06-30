@@ -35,13 +35,13 @@ class PluginMoeSlowRankProcess(PluginBase):
             start_time_arr = grouped_df["start"].values
             end_time_arr = grouped_df["end"].values
             duration_arr = end_time_arr - start_time_arr
+            n = duration_arr.size
+
+            if n == 0:
+                raise ZeroDivisionError(f"Cannot calculate standard error: sample size n must be positive (got n={n})")
 
             mean = duration_arr.mean().mean()
             std = duration_arr.std()
-            n = duration_arr.size
-
-            if n <= 0:
-                raise ZeroDivisionError(f"Cannot calculate standard error: sample size n must be positive (got n={n})")
             se = std / np.sqrt(n)
 
             # 95置信区间

@@ -425,9 +425,11 @@ def add_pull_kvcache_events(df):
         try:
             rank = int(rank)
         except (ValueError, TypeError) as e:
-            raise ValueError(f"Invalid rank value: {rank} (must be an integer)") from e
+            logger.warning(f"Invalid rank value: {rank} (must be an integer), skipping this rank")
+            continue
         except Exception as e:
-            raise ValueError(f"Unexpected error: {str(e)}") from e
+            logger.warning(f"Unexpected error processing rank {rank}: {str(e)}, skipping this rank")
+            continue
         df = df_all_device[df_all_device['rank'] == rank].copy().reset_index(drop=True)
         df['pid'] = "PullKVCache"
         df['name'] = df['domain']
