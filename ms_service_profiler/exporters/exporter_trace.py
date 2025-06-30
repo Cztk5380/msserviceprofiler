@@ -424,9 +424,6 @@ def add_pull_kvcache_events(df):
     for rank in df_all_device['rank'].unique():
         try:
             rank = int(rank)
-        except (ValueError, TypeError) as e:
-            logger.warning(f"Invalid rank value: {rank} (must be an integer), skipping this rank")
-            continue
         except Exception as e:
             logger.warning(f"Unexpected error processing rank {rank}: {str(e)}, skipping this rank")
             continue
