@@ -27,8 +27,9 @@ MS_SERVICE_PROFILER_API void MarkEvent(const char *msg);
 MS_SERVICE_PROFILER_API void StartServerProfiler();
 MS_SERVICE_PROFILER_API void StopServerProfiler();
 MS_SERVICE_PROFILER_API bool IsEnable(uint32_t level);
-MS_SERVICE_PROFILER_API bool GetEnableDomainFilter();
-MS_SERVICE_PROFILER_API const std::set<std::string> &GetValidDomain();
+MS_SERVICE_PROFILER_API bool IsValidDomain(const char *domainName);
+MS_SERVICE_PROFILER_API bool GetEnableDomainFilter();                  // 20260630 日落
+MS_SERVICE_PROFILER_API const std::set<std::string> &GetValidDomain(); // 20260630 日落
 MS_SERVICE_PROFILER_API void AddMetaInfo(const char *key, const char *value);
 }
 
@@ -85,6 +86,10 @@ public:
 
     MS_SERVICE_PROFILER_HIDDEN inline bool CallIsDomainEnable(const char *currentDomain) const
     {
+        if (ptrIsValidDomain_) {
+            return ptrIsValidDomain_(currentDomain);
+        }
+
         bool domainAllow = true;
 
         if (!ptrEnableDomainFilter_ || !ptrValidDomain_) {
@@ -130,6 +135,7 @@ private:
         ptrStopServerProfiler_ = StopServerProfiler;
         ptrEnableDomainFilter_ = GetEnableDomainFilter;
         ptrValidDomain_ = GetValidDomain;
+        ptrIsValidDomain_ = IsValidDomain;
 #else
         char *ascendHomePathPtr = getenv("ASCEND_HOME_PATH");
         if (ascendHomePathPtr == nullptr) {
@@ -164,6 +170,7 @@ private:
             ptrStopServerProfiler_ = (decltype(StopServerProfiler) *)dlsym(handle, "StopServerProfiler");
             ptrEnableDomainFilter_ = (decltype(GetEnableDomainFilter) *)dlsym(handle, "GetEnableDomainFilter");
             ptrValidDomain_ = (decltype(GetValidDomain) *)dlsym(handle, "GetValidDomain");
+            ptrIsValidDomain_ = (decltype(IsValidDomain) *)dlsym(handle, "IsValidDomain");
         }
 #endif
     }
@@ -178,6 +185,7 @@ private:
     decltype(StopServerProfiler) *ptrStopServerProfiler_ = nullptr;
     decltype(GetEnableDomainFilter) *ptrEnableDomainFilter_ = nullptr;
     decltype(GetValidDomain) *ptrValidDomain_ = nullptr;
+    decltype(IsValidDomain) *ptrIsValidDomain_ = nullptr;
 };
 }  // namespace msServiceProfilerCompatible
 

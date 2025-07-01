@@ -171,6 +171,12 @@ bool IsEnable(uint32_t level)
     return msServiceProfiler::ServiceProfilerManager::GetInstance().IsEnable(level);
 }
 
+bool IsValidDomain(const char *domainName)
+{
+    const std::set<std::string>& allowNames = msServiceProfiler::ServiceProfilerManager::GetInstance().GetValidDomain();
+    return allowNames.size() == 0 || allowNames.find(std::string(domainName)) != allowNames.end();
+}
+
 bool GetEnableDomainFilter()
 {
     return msServiceProfiler::ServiceProfilerManager::GetInstance().GetEnableDomainFilter();
