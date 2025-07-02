@@ -22,7 +22,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # 构建项目
-make
+make -j4
 
 # 检查构建是否成功
 if [ $? -ne 0 ]; then
@@ -31,7 +31,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # 运行测试
-./msserviceprofiler
+./fuzz_msserviceprofiler
 
 # 检查测试是否成功
 if [ $? -ne 0 ]; then

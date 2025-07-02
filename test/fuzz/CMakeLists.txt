@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(msserviceprofiler)
+project(fuzz_msserviceprofiler)
 
 # 设置 C++ 标准为 C++14
 set(CMAKE_CXX_STANDARD 14)
@@ -12,9 +12,6 @@ set(TOOLKIT_BASE_PATH $ENV{ASCEND_TOOLKIT_HOME})
 set(CMAKE_CXX_FLAGS "-fprofile-arcs -ftest-coverage -lgcov")
 set(CMAKE_C_FLAGS "-fprofile-arcs -ftest-coverage -lgcov")
 
-add_compile_definitions(
-        ENABLE_PROF
-)
 
 message("fuzz start")
 message(STATUS "[fuzz dir is] ${FUZZ_HOME_DIR}")
@@ -36,12 +33,6 @@ add_compile_options(
         -Og
         -Wall
 )
-
-# 添加新的测试文件
-
-
-# 添加测试文件列表
-
 
 include_directories(
         ${FUZZ_HOME_DIR}
@@ -67,26 +58,26 @@ add_link_options(
 add_subdirectory(${PROJECT_TOP_DIR}/platform platform)
 
 # 构建可执行文件
-add_executable(msserviceprofiler
+add_executable(fuzz_msserviceprofiler
         FuzzMain.cpp
         ${DIC_FUZZ_TEST_LIST}
         ${PROFILER_SRC}
 )
 
 # 链接选项
-target_link_options(msserviceprofiler PRIVATE
+target_link_options(fuzz_msserviceprofiler PRIVATE
         -fsanitize=address
         -fsanitize=undefined
         -fsanitize-coverage=trace-cmp,trace-pc
 )
 
-target_link_libraries(msserviceprofiler
+target_link_libraries(fuzz_msserviceprofiler
 	gtest
         gtest_main
         gmock_main
+        pthread
         sqlite3
         securec
-        pthread
         rt
         dl
         z
@@ -99,15 +90,15 @@ target_link_libraries(msserviceprofiler
         mspti
 )
 
-target_link_directories(msserviceprofiler PUBLIC
+target_link_directories(fuzz_msserviceprofiler PUBLIC
         ${FUZZ_HOME_DIR}/secodefuzz/release/lib/Secodefuzz
 )
 
-target_include_directories(msserviceprofiler PUBLIC
+target_include_directories(fuzz_msserviceprofiler PUBLIC
         ${FUZZ_HOME_DIR}/secodefuzz/Secodefuzz
 )
 
 # 安装配置
-install(TARGETS msserviceprofiler
+install(TARGETS fuzz_msserviceprofiler
        RUNTIME DESTINATION "${FUZZ_HOME_DIR}/../build"
 )
