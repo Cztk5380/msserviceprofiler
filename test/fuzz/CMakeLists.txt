@@ -73,21 +73,17 @@ target_link_options(fuzz_msserviceprofiler PRIVATE
 
 target_link_libraries(fuzz_msserviceprofiler
 	gtest
-        gtest_main
-        gmock_main
-        pthread
-        sqlite3
-        securec
-        rt
-        dl
-        z
-        Secodefuzz
-        stdc++fs
-        gcov
-        ascendcl
-        msprofiler
-        ms_tools_ext
-        mspti
+    gtest_main
+    gmock_main
+    pthread
+    sqlite3
+    dl
+    Secodefuzz
+    stdc++fs
+    gcov
+    ascendcl
+    msprofiler
+    mspti
 )
 
 target_link_directories(fuzz_msserviceprofiler PUBLIC
