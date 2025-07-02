@@ -3,8 +3,6 @@ import os
 from abc import abstractmethod
 from typing import Dict
 
-import matplotlib.pyplot as plt
-
 from ms_service_profiler.exporters.base import TaskExporterBase
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv, add_table_into_visual_db
 from ms_service_profiler.utils.file_open_check import UmaskWrapper
@@ -48,6 +46,8 @@ class ExporterEpBalance(TaskExporterBase):
 
         x_pixel = max(min(len(ep_balance_df.columns) // 10, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
         y_pixel = max(min(len(ep_balance_df) // 10, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
+
+        import matplotlib.pyplot as plt
 
         plt.figure(figsize=(x_pixel, y_pixel))
         plt.imshow(heat_map)
