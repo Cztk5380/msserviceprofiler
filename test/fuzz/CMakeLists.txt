@@ -35,14 +35,13 @@ add_compile_options(
         -g
         -Og
         -Wall
-        -fpermissive
 )
 
 # 添加新的测试文件
-aux_source_directory(${FUZZ_HOME_DIR}/simple FUZZ_SIMPLE_TEST)
+
 
 # 添加测试文件列表
-list(APPEND DIC_FUZZ_TEST_LIST ${FUZZ_SIMPLE_TEST})
+
 
 include_directories(
         ${FUZZ_HOME_DIR}
