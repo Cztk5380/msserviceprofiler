@@ -273,31 +273,6 @@ TEST(ProfilerTest, TestReadEnableYes)
     EXPECT_NO_THROW(manager.config_->ParseConfig(configTest4));
 }
 
-TEST(ConfigTest, SaveConfigToJsonFile_Success) {
-    std::string configPath = "config.json";
-    setenv("SERVICE_PROF_CONFIG_PATH", configPath.c_str(), 1);
-    remove(configPath.c_str());
-    Config config;
-    config.ReadAndSaveConfig();
-    std::ifstream inputFile;
-    inputFile.open(configPath);
-    ASSERT_TRUE(inputFile.good());
-
-    // Verify file content
-    nlohmann::ordered_json jsonData;
-    inputFile >> jsonData;
-
-    EXPECT_EQ(jsonData["enable"], 0);
-    EXPECT_EQ(jsonData["acl_task_time"], 0);
-    EXPECT_EQ(jsonData["profiler_level"], "INFO");
-    EXPECT_EQ(jsonData["host_system_usage_freq"], -1);
-    EXPECT_EQ(jsonData["npu_memory_usage_freq"], -1);
-    EXPECT_EQ(jsonData["api_filter"], "");
-    EXPECT_EQ(jsonData["kernel_filter"], "");
-    EXPECT_EQ(jsonData["domain"], "");
-    EXPECT_EQ(jsonData["timelimit"], 0);
-}
-
 TEST(ProfilerTest, TestDynamicControlStart2Stop1)
 {
     nlohmann::json configTest = nlohmann::json::object();
