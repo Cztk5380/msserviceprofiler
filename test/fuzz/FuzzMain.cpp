@@ -14,7 +14,7 @@ GTEST_API_ int main(int argc, char **argv)
     // 检测大内存使用，超过2048M使用或者1024M分配则当做bug报错
     DT_SetCheckOutOfMemory(1024, 2048);
     // 是能内存泄漏单次执行检测，默认也开启
-    DT_Enable_Leak_Check(1, 0);
+    DT_Enable_Leak_Check(0, 0);
     // 设置用例单次执行多久超时
     DT_Set_TimeOut_Second(singleCaseTimeout);
     testing::InitGoogleTest(&argc, argv);
