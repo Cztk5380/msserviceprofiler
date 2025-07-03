@@ -85,7 +85,9 @@ target_link_libraries(fuzz_msserviceprofiler
     gmock_main
     pthread
     sqlite3
+    securec
     dl
+    rt
     Secodefuzz
     stdc++fs
     gcov
