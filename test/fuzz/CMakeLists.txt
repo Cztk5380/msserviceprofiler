@@ -38,7 +38,7 @@ add_compile_options(
 aux_source_directory(${FUZZ_HOME_DIR}/manager FUZZ_MANAGER_TEST)
 
 # 添加测试文件列表
-list(APPEND DIC_FUZZ_TEST_LIST 
+list(APPEND DIC_FUZZ_TEST_LIST
         ${FUZZ_MANAGER_TEST}
 )
 
@@ -88,9 +88,9 @@ target_link_libraries(fuzz_msserviceprofiler
     securec
     dl
     rt
-    Secodefuzz 
-    stdc++fs 
-    gcov 
+    Secodefuzz
+    stdc++fs
+    gcov
     ascendcl
     msprofiler
     mspti
