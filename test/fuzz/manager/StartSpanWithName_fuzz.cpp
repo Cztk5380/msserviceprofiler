@@ -9,7 +9,7 @@
 
 TEST(TestServiceProfilerManager, StartSpanWithName)
 {
-    printf("\r%d" ,fuzzSeed + fuzzi);
+    printf("\r%d", fuzzSeed + fuzzi);
     char testApi[] = "test_service_profiler_manager_start_span_with_name";
     DT_FUZZ_START(0, FUZZ_RUN_TIMES, testApi, 0)
     {
