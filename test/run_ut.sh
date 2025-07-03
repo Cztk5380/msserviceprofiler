@@ -87,7 +87,7 @@ run_test_cpp() {
     exit 1
   fi
   cd ${TEST_DIR}
-  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${TEST_DIR}/test_build/3rdparty
+  export LD_LIBRARY_PATH=${TEST_DIR}/test_build/3rdparty:$LD_LIBRARY_PATH
   ./test_build/st_server_profiler & ./test_build/st_server_profiler
   ./test_build/ut_server_profiler
 
