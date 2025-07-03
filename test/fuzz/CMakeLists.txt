@@ -34,6 +34,14 @@ add_compile_options(
         -Wall
 )
 
+# 添加新的测试文件
+aux_source_directory(${FUZZ_HOME_DIR}/manager FUZZ_MANAGER_TEST)
+
+# 添加测试文件列表
+list(APPEND DIC_FUZZ_TEST_LIST
+        ${FUZZ_MANAGER_TEST}
+)
+
 include_directories(
         ${FUZZ_HOME_DIR}
         ${PROJECT_TOP_DIR}/include
