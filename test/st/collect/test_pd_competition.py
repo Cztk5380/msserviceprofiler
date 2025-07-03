@@ -130,7 +130,9 @@ def check_table_header(db_file, table_name, required_columns):
         conn.close()
 
 
-def get_ip_address_for_request(data):
+def get_ip_address_for_request(file_path):
+    with open(file_path, 'r') as file:
+        data = json.load(file)
     ip = str(data['ServerConfig']['ipAddress'])
     port = str(data['ServerConfig']['port'])
     ip_address = f"{ip}:{port}/infer"
@@ -158,7 +160,7 @@ class TestPdCompetition(unittest.TestCase):
 
         test_dir = create_directory_with_timestamp("/home")
 
-        execute_cmd(['bash', os.path.join(script_dir, "utils", "start_mindie_service.sh"), service_config, test_dir])
+        execute_cmd(['bash', os.path.join(script_dir, "utils", "start_mindie_service.sh"), service_config, test_dir, profiler_so])
 
         update_json(os.path.join(test_dir, "profiler.json"), ["enable"], 1)
 
