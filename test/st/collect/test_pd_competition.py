@@ -1,5 +1,4 @@
 import unittest
-import subprocess
 import os
 import shutil
 from datetime import datetime, timezone
@@ -7,7 +6,7 @@ import json
 import sqlite3
 import logging
 import yaml
-from urllib.parse import urljoin
+from ...st.utils import execute_cmd
 
 # 获取当前脚本所在的目录
 script_path = os.path.abspath(__file__)
@@ -60,14 +59,6 @@ def update_json(file_path, keys, value):
     # 将更新后的 JSON 写回文件
     with open(file_path, 'w') as file:
         json.dump(data, file, indent=4)
-
-
-def execute_cmd(cmd):
-    logging.info('Execute command:%s' % " ".join(cmd))
-    completed_process = subprocess.run(cmd, shell=False, stderr=subprocess.PIPE)
-    if completed_process.returncode != 0:
-        logging.error(completed_process.stderr.decode())
-        raise Exception
 
 
 def check_table_header_in_directory(directory, table_name, required_columns):
