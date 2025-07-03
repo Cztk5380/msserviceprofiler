@@ -29,7 +29,7 @@ TEST(TestServiceProfiler, AddMetaInfoFuzzTest)
         try{
             AddMetaInfo(fuzzKey, fuzzValue);
             fileout << message1 << "\t" << message1.length() << message2 << "\t" << message2.length() << "\n";
-        }catch(const std::exception& e){
+        } catch (const std::exception& e) {
             // 处理异常
             std::cout << "Exception caught: " << e.what() << std::endl;
         }
