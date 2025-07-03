@@ -66,9 +66,9 @@ add_link_options(
 add_subdirectory(${PROJECT_TOP_DIR}/platform platform)
 
 # 构建可执行文件
-add_executable(fuzz_msserviceprofiler 
-        FuzzMain.cpp 
-        ${DIC_FUZZ_TEST_LIST} 
+add_executable(fuzz_msserviceprofiler
+        FuzzMain.cpp
+        ${DIC_FUZZ_TEST_LIST}
         ${PROFILER_SRC}
 )
 
@@ -80,9 +80,9 @@ target_link_options(fuzz_msserviceprofiler PRIVATE
 )
 
 target_link_libraries(fuzz_msserviceprofiler
-	gtest 
-    gtest_main 
-    gmock_main 
+	gtest
+    gtest_main
+    gmock_main
     pthread
     sqlite3
     securec
