@@ -9,10 +9,10 @@
 
 TEST(TestServiceProfilerManager, StartSpanWithName)
 {
-    printf("\r%d", fuzzSeed + fuzzi);
     char testApi[] = "test_service_profiler_manager_start_span_with_name";
     DT_FUZZ_START(0, FUZZ_RUN_TIMES, testApi, 0)
     {
+        printf("\r%d", fuzzSeed + fuzzi);
         // 生成随机字符串作为输入
         char* spanName = DT_SetGetString(&g_Element[0], 5, UINT32_MAX, "span_name");
 
