@@ -2,21 +2,21 @@ import unittest
 import subprocess
 import os
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import sqlite3
-import argparse
-import sys
 import logging
 import yaml
+from urllib.parse import urljoin
 
 # 获取当前脚本所在的目录
 script_path = os.path.abspath(__file__)
 script_dir = os.path.dirname(script_path)
 
+
 def create_directory_with_timestamp(home_dir):
     # 获取当前时间戳
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    timestamp = datetime.now(tz=timezone.utc).strftime('%Y%m%d_%H%M%S')
 
     # 构建目录路径
     directory_path = os.path.join(home_dir, f'test_dir_{timestamp}')
@@ -31,6 +31,7 @@ def create_directory_with_timestamp(home_dir):
     print(f"目录 {directory_path} 创建成功")
     return directory_path
 
+
 def update_json(file_path, keys, value):
     """
     更新 JSON 文件中指定键的值，并将更新后的 JSON 写回原文件。
@@ -42,10 +43,6 @@ def update_json(file_path, keys, value):
     # 读取 JSON 文件
     with open(file_path, 'r') as file:
         data = json.load(file)
-
-    # 更新 JSON 对象
-    if not keys:
-        return data
 
     current = data
     for key in keys[:-1]:
@@ -64,12 +61,14 @@ def update_json(file_path, keys, value):
     with open(file_path, 'w') as file:
         json.dump(data, file, indent=4)
 
+
 def execute_cmd(cmd):
     logging.info('Execute command:%s' % " ".join(cmd))
     completed_process = subprocess.run(cmd, shell=False, stderr=subprocess.PIPE)
     if completed_process.returncode != 0:
         logging.error(completed_process.stderr.decode())
         raise Exception
+
 
 def check_table_header_in_directory(directory, table_name, required_columns):
     """
@@ -90,6 +89,7 @@ def check_table_header_in_directory(directory, table_name, required_columns):
             return False
 
     return True
+
 
 def check_table_header(db_file, table_name, required_columns):
     """
@@ -115,7 +115,6 @@ def check_table_header(db_file, table_name, required_columns):
 
         # 检查所有必需的列是否与表中的列完全一致
         if set(required_columns) == set(existing_columns):
-            # print(f"All required columns are present and match the table '{table_name}'")
             return True
         else:
             missing_columns = set(required_columns) - set(existing_columns)
@@ -131,15 +130,12 @@ def check_table_header(db_file, table_name, required_columns):
         conn.close()
 
 
-
-def get_ip_address_for_request(service_config_json):
-    with open(service_config_json, 'r') as file:
-        data = json.load(file)
-
+def get_ip_address_for_request(data):
     ip = str(data['ServerConfig']['ipAddress'])
     port = str(data['ServerConfig']['port'])
-    ip_address = ip + ':' + port + '/infer'
+    ip_address = f"{ip}:{port}/infer"
     return ip_address
+
 
 def get_args_from_yaml(yaml_path):
     # 打开并读取YAML文件
