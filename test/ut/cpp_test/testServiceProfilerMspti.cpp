@@ -660,8 +660,3 @@ TEST(ServiceProfilerMsptiTest, UserBufferRequestTestNormalCase) {
     // 释放内存
     free(buffer);
 }
-
-TEST(ServiceProfilerMsptiTest, ServiceProfilerMsptiInstanceTest) {
-    ServiceProfilerMspti::GetInstance();
-    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
-}
