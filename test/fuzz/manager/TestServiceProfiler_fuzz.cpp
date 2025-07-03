@@ -44,6 +44,7 @@ TEST(TestServiceProfiler, IsEnableWithValidation)
     char testApi[] = "test_service_profiler_is_enable_with_validation";
     DT_FUZZ_START(0, FUZZ_RUN_TIMES, testApi, 0)
     {
+        printf("\r%d", fuzzSeed + fuzzi);
         // 生成随机的level值进行测试
         auto charLevel = DT_SetGetBlob(&g_Element[0], 0, UINT32_MAX, "0");
         int level = DT_GET_MutatedValueLen(&g_Element[0]);
