@@ -141,6 +141,31 @@ TEST(ServiceProfilerMsptiTest, InsertApiData_NameNotMatch)
     EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
 }
 
+TEST(ServiceProfilerMsptiTest, InsertKernelData_NameNotMatch)
+{
+    ServiceProfilerMspti profiler;
+    msptiActivityKernel activity = {.kind = msptiActivityKind::MSPTI_ACTIVITY_KIND_MARKER,
+        .start = 123456789,
+        .end = 987654321,
+        .ds = {123, 456},
+        .correlationId = 789,
+        .name = "test_kernel",
+        .type = "AIC",
+        .name = "test_kernel"};
+
+    // 设置 filterApi 不匹配 activity->name
+    auto apiFilter = std::string("");
+    auto kernelFilter = std::string("unmatched_filter");
+    profiler.InitFilter(apiFilter, kernelFilter);
+    profiler.InitOutputPath("/tmp");
+    profiler.Init();
+
+    // 调用函数
+    profiler.InsertKernelData(&activity);
+
+    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
+}
+
 // 测试用例
 TEST(ServiceProfilerMsptiTest, InsertMstxData_ValidActivity_HostSource)
 {
