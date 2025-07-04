@@ -7,7 +7,7 @@
 #include "ServiceProfilerManager.h"
 
 
-TEST(TestServiceProfiler, AddMetaInfoFuzzTest)
+TEST(TestServiceProfilerManager, AddMetaInfoFuzzTest)
 {
     char testApi[] = "test_service_profiler_add_meta_info_fuzz";
     std::string fileName = "../build/addmetainfo.dump";
@@ -39,7 +39,7 @@ TEST(TestServiceProfiler, AddMetaInfoFuzzTest)
 }
 
 
-TEST(TestServiceProfiler, IsEnableWithValidation)
+TEST(TestServiceProfilerManager, IsEnableWithValidation)
 {
     char testApi[] = "test_service_profiler_is_enable_with_validation";
     DT_FUZZ_START(0, FUZZ_RUN_TIMES, testApi, 0)
