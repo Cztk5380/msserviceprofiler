@@ -22,6 +22,7 @@
 #include <sys/syscall.h>
 #include <vector>
 #include <set>
+#include <cmath>
 #include <forward_list>
 
 #include "securec.h"
@@ -65,14 +66,16 @@ public:
         return manager;
     };
 
-    void InsertMstxData(msServiceProfiler::DbActivityMarker *activity) const
+    void InsertMstxData(msServiceProfiler::DbActivityMarker *activity, bool enableTransAction = true) const
     {
         if (!inited || !activity || !stmtMstx_) {
             return;
         }
 
-        // 开始事务
-        sqlite3_exec(db_, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
+        if (enableTransAction) {
+            // 开始事务
+            StartTransAction();
+        }
 
         // 绑定参数
         int bindIndex = 1;
@@ -90,14 +93,29 @@ public:
         }
         sqlite3_reset(stmtMstx_);
 
-        // 提交最终事务
-        sqlite3_exec(db_, "COMMIT", nullptr, nullptr, nullptr);
+        if (enableTransAction) {
+            // 提交最终事务
+            Flash();
+        }
+    }
+    void StartTransAction() const
+    {
+        // 开始事务
+        char *errMsg = nullptr;
+        if (sqlite3_exec(db_, "BEGIN TRANSACTION", nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            PROF_LOGE(" begin transaction error: %s", errMsg);
+            sqlite3_free(errMsg);
+        }
     }
 
     void Flash() const
     {
         // 提交最终事务
-        sqlite3_exec(db_, "COMMIT", nullptr, nullptr, nullptr);
+        char *errMsg = nullptr;
+        if (sqlite3_exec(db_, "COMMIT", nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            PROF_LOGE(" commit error: %s", errMsg);
+            sqlite3_free(errMsg);
+        }
     }
 
     void InsertMetaData(const std::string &name, const std::string &value) const
@@ -131,7 +149,7 @@ public:
         // 打开数据库连接
         int rc = sqlite3_open(dbPath.c_str(), &db_);
         if (rc != SQLITE_OK) {
-            std::cerr << "Can't open database: " << sqlite3_errmsg(db_) << std::endl;
+            std::cerr << "Can't open database: " << sqlite3_errmsg(db_) << dbPath << std::endl;
             return;
         }
         CreateTable();
@@ -180,12 +198,26 @@ public:
     void ApplyOptimizations() const
     {
         // 组合优化设置
-        Execute("PRAGMA journal_mode = WAL;");     // 急速模式（非）
+        // 测试时长 10s, 每 1ms 写入 [speed] 数据，每个数据50+ bit 数据
+        // 200+ 单线程的prof生产的速度已经跟不上dump速度，单线程已经没有意义
+
+        // journal_mode     locking_mode   batch         speed          tread*speed         note
+        // ------------     ------------   -----------   ------------   ------------        ------------
+        // TRUNCATE         EXCLUSIVE      Disable       40
+        // WAL              EXCLUSIVE      Disable       70+
+        // OFF              EXCLUSIVE      Disable       110+                               OFF容易损坏db
+        // MEMORY           EXCLUSIVE      Disable       100
+        // MEMORY           EXCLUSIVE      Enable        200+           2*180/3*130/4*100   EXCLUSIVE会阻塞读取
+        // MEMORY           NORMAL         Disable       50
+        // WAL              NORMAL         Disable       60
+        // WAL              NORMAL         Enable        200+           2*160/3*100/4*80    选择这个
+
+        Execute("PRAGMA journal_mode = WAL;");     // 读写同步模式
         Execute("PRAGMA synchronous = OFF;");      // 急速模式
         Execute("PRAGMA cache_size = -1000;");     // 1MB缓存
         Execute("PRAGMA temp_store = MEMORY;");    // 内存临时存储
         Execute("PRAGMA page_size = 4096;");       // 页面大小
-        Execute("PRAGMA locking_mode = NORMAL;");  // 独占锁定模式(非)
+        Execute("PRAGMA locking_mode = NORMAL;");  // 非独占锁定模式
     }
 
     void Execute(const char *sql) const
@@ -202,7 +234,10 @@ public:
         if (inited) {
             // 释放资源
             sqlite3_finalize(stmtMstx_);
-            Execute("PRAGMA wal_checkpoint(FULL);");  // 执行检查点
+            sqlite3_finalize(stmtMeta_);
+            Execute("PRAGMA locking_mode = NORMAL;");  // 解除独占锁定模式（如果是独占）
+            Execute("PRAGMA journal_mode = WAL;");     // 读写同步模式
+            Execute("PRAGMA wal_checkpoint(FULL);");   // 执行检查点
             sqlite3_close(db_);
             inited = false;
         }
@@ -216,8 +251,8 @@ public:
 private:
     bool inited = false;
     sqlite3 *db_;
-    sqlite3_stmt *stmtMstx_;
-    sqlite3_stmt *stmtMeta_;
+    sqlite3_stmt *stmtMstx_ = nullptr;
+    sqlite3_stmt *stmtMeta_ = nullptr;
 };
 class ServiceProfilerThreadWriter;
 class ServiceProfilerWriterManager {
@@ -265,7 +300,7 @@ public:
         constexpr int SUITABLE_DUMP_SIZE = 1000;
         constexpr int MAX_WAIT_US = 50000;  // 50ms
         constexpr int MIN_WAIT_US = 50;     // 50us
-        int waitUs = MAX_WAIT_US;
+        int waitUs = MIN_WAIT_US;
         std::set<DbBuffer *> disableDbBuffers;
         std::vector<DbBuffer *> workingDbBuffers;
         while (threadExitFlag_ == false) {
@@ -287,8 +322,10 @@ public:
             std::vector<DbBuffer *> freeDbBuffers;
             auto popCount = PopAndInsert2DB(workingDbBuffers, disableDbBuffers, freeDbBuffers);
 
-            waitUs = std::min(std::max(waitUs - (popCount - SUITABLE_DUMP_SIZE) / 10, MIN_WAIT_US),
-                MAX_WAIT_US);  // 维持在写入1000条每次左右
+            // 更科学的从min和max之间转换
+            double diff = std::max(std::min((SUITABLE_DUMP_SIZE - popCount) / 400.0, 2.5), -2.5);
+            int diff_exp = static_cast<int>(exp(diff));  // 因为 diff 限制了范围，所以 exp diff 也不会超过 int 的范围
+            waitUs = std::min(std::max(waitUs * diff_exp, MIN_WAIT_US), MAX_WAIT_US);  // 维持在写入1000条每次左右
             bool dbCloseFlag = false;
             {
                 std::lock_guard<std::mutex> lock(mtx_);
@@ -297,7 +334,7 @@ public:
                     workingDbBuffers_.erase(std::remove(workingDbBuffers_.begin(), workingDbBuffers_.end(), pBuffer),
                         workingDbBuffers_.end());
                     disableDbBuffers_.erase(pBuffer);
-                    free(pBuffer);
+                    delete pBuffer;
                 }
                 workingDbBuffers = workingDbBuffers_;
                 disableDbBuffers = disableDbBuffers_;
@@ -323,29 +360,40 @@ private:
             threadExitFlag_ = true;
             this->thread_.join();
         }
+        std::lock_guard<std::mutex> lock(mtx_);
+
+        for (auto *pBuffer : workingDbBuffers_) {
+            delete pBuffer;
+        }
+        workingDbBuffers_.clear();
+        disableDbBuffers_.clear();
     }
 
     int PopAndInsert2DB(std::vector<DbBuffer *> &workingDbBuffers, std::set<DbBuffer *> &disableDbBuffers,
         std::vector<DbBuffer *> &freeDbBuffers)
     {
-        constexpr int MAX_POP_SIZE = 1000;
+        constexpr size_t MAX_POP_SIZE = 2000;
         int popCount = 0;
+        ServiceProfilerDbWriter::GetInstance().StartTransAction();
         for (DbBuffer *pbuffer : workingDbBuffers) {
-            int leftPopSize = MAX_POP_SIZE;
-            do {
-                DbActivityMarker *pMarker = pbuffer->Pop();
-                if (pMarker == nullptr) {
-                    break;
-                }
-                ServiceProfilerDbWriter::GetInstance().InsertMstxData(pMarker);
-                free(pMarker);
-                popCount++;
-            } while (leftPopSize--);
+            DbActivityMarkerPtr pMarkers[MAX_POP_SIZE] = {nullptr};
 
-            if (leftPopSize == MAX_POP_SIZE && disableDbBuffers.find(pbuffer) != disableDbBuffers.end()) {
+            size_t popSize = pbuffer->Pop(MAX_POP_SIZE, pMarkers);
+            for (size_t i = 0; i < popSize; ++i) {
+                if (pMarkers[i] == nullptr) {
+                    continue;
+                }
+                ServiceProfilerDbWriter::GetInstance().InsertMstxData(pMarkers[i], false);
+                delete pMarkers[i];
+                pMarkers[i] = nullptr;
+            }
+            popCount += popSize;
+
+            if (popSize == 0 && disableDbBuffers.find(pbuffer) != disableDbBuffers.end()) {
                 freeDbBuffers.push_back(pbuffer);
             }
         }
+        ServiceProfilerDbWriter::GetInstance().Flash();
         return popCount;
     }
 
@@ -374,18 +422,52 @@ public:
     {
         if (pBuffer) {
             pBuffer->Push(activity);
+
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+            thisThreadPushCnt_++;
+#endif
         }
     }
 
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+    void WaitForAllDump()
+    {
+        while (pBuffer->Size() > 0) {
+            std::this_thread::sleep_for(std::chrono::nanoseconds(100));
+        }
+        PROF_LOGI("buffer i push: %lu, pop cnt: %lu, push cnt: %lu, max cnt: %lu, diff: %lu",
+            thisThreadPushCnt_,
+            pBuffer->PopCnt(),
+            pBuffer->PushCnt(),
+            pBuffer->MaxCntInBuffer(),
+            pBuffer->PushCnt() - pBuffer->PopCnt());
+    }
+#endif
+
 private:
     DbBuffer *pBuffer = nullptr;
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+    size_t thisThreadPushCnt_ = 0;
+#endif
 };
+
+ServiceProfilerThreadWriter &GetWriter()
+{
+    thread_local ServiceProfilerThreadWriter writer;
+    return writer;
+}
 
 void InsertTxData2Writer(msServiceProfiler::DbActivityMarker *activity)
 {
-    thread_local ServiceProfilerThreadWriter writer;
-    writer.Insert(activity);
+    GetWriter().Insert(activity);
 }
+
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+void WaitForAllDump()
+{
+    GetWriter().WaitForAllDump();
+}
+#endif
 
 void ColseTxData2Writer()
 {

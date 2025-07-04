@@ -35,6 +35,8 @@ void Config::ReadAndSaveConfig()
 {
     PROF_LOGD("isServiceProfConfigPathSet: %s", isServiceProfConfigPathSet ? "true" : "false");
     if (!isServiceProfConfigPathSet) {
+        InitProfPathDateTail();
+        ParseProfPath(Json());
         return;
     }
     InitProfPathDateTail();

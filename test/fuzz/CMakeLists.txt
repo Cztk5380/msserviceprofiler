@@ -20,8 +20,8 @@ aux_source_directory(${PROJECT_TOP_DIR}/src PROFILER_SRC)
 
 
 # 启用 AddressSanitizer
-add_compile_options(-fsanitize=address)
-add_link_options(-fsanitize=address)
+add_compile_options(-fsanitize=address -g)
+add_link_options(-fsanitize=address -g)
 
 # 启用代码覆盖
 # add_compile_options(-fprofile-generate )
