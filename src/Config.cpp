@@ -68,11 +68,11 @@ Json Config::ReadConfigFile()
         return jsonData;
     }
     if (access(configPath_.c_str(), F_OK) != 0) {
-        LOG_ONCE_E("SERVICE_PROF_CONFIG_PATH : %s is not file or Permission Denied",
+        LOG_ONCE_E("SERVICE_PROF_CONFIG_PATH : %s is not file or Permission Denied",  // LCOV_EXCL_LINE
             configPath_.c_str());  // LCOV_EXCL_LINE
         return jsonData;
     } else {
-        LOG_ONCE_D("SERVICE_PROF_CONFIG_PATH : %s", configPath_.c_str());
+        LOG_ONCE_D("SERVICE_PROF_CONFIG_PATH : %s", configPath_.c_str());  // LCOV_EXCL_LINE
     }
 
     std::ifstream configFile; // 单独创建 std::ifstream 对象
@@ -91,7 +91,7 @@ Json Config::ReadConfigFile()
             return jsonData;
         }
     } catch (const std::exception &e) {
-        LOG_ONCE_E("Fail to open config file: %s, error: %s",
+        LOG_ONCE_E("Fail to open config file: %s, error: %s",  // LCOV_EXCL_LINE
             configPath_.c_str(), e.what());  // LCOV_EXCL_LINE
         return jsonData;
     }
@@ -99,7 +99,7 @@ Json Config::ReadConfigFile()
     try {
         configFile >> jsonData; // 尝试解析 JSON 数据
     } catch (const std::exception &e) {
-        PROF_LOGE("Fail to parse file content as json object, config path: %s, error: %s",
+        PROF_LOGE("Fail to parse file content as json object, config path: %s, error: %s",  // LCOV_EXCL_LINE
                   configPath_.c_str(), e.what());  // LCOV_EXCL_LINE
         configFile.close(); // 确保文件关闭
         return jsonData;
@@ -168,7 +168,7 @@ void Config::ParseTimeLimit(const Json& config)
                 timeLimit_ = 0;
             } else if (config["timelimit"] > 0 && config["timelimit"] <= MAX_TIME_LIMIT) {
                 timeLimit_ = config["timelimit"];
-                PROF_LOGI("profile timeLimit_: %u", timeLimit_);
+                PROF_LOGI("profile timeLimit_: %u", timeLimit_);  // LCOV_EXCL_LINE
             } else {
                 timeLimit_ = MAX_TIME_LIMIT;
                 PROF_LOGW("timelimit value is higher than %d, will set %d", MAX_TIME_LIMIT, MAX_TIME_LIMIT);

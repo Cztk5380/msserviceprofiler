@@ -253,18 +253,22 @@ TEST(ProfilerTest, TestReadEnableYes)
     configTest["enable"] = 1;
     configTest["prof_dir"] = "/aaa";
     configTest["acl_task_time"] = 1;
+    configTest["acl_prof_task_time_level"] = "L1;10";
     configTest["profiler_level"] = 1;
     configTest["host_system_usage_freq"] = 2;
     configTest["npu_memory_usage_freq"] = 2;
     configTest["timelimit"] = -1;
     configTest2["profiler_level"] = "Level";
+    configTest2["acl_prof_task_time_level"] = "L3;";
     configTest2["host_system_usage_freq"] = "aaa";
     configTest2["npu_memory_usage_freq"] = "aaa";
     configTest2["timelimit"] = 2;
     configTest3["host_system_usage_freq"] = 99999;
     configTest3["npu_memory_usage_freq"] = 99999;
+    configTest3["acl_prof_task_time_level"] = "L3;L1";
     configTest3["timelimit"] = 8000;
     configTest4["timelimit"] = "aaa";
+    configTest4["acl_prof_task_time_level"] = "L1;0";
 
     ServiceProfilerManager manager;
     EXPECT_NO_THROW(manager.config_->ParseConfig(configTest));
