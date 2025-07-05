@@ -41,3 +41,24 @@ TEST(ProfilerTest, TestParseMspti)
     EXPECT_NO_THROW(manager.config_->ParseMspti(configTest1));
     EXPECT_NO_THROW(manager.config_->ParseMspti(configTest2));
 }
+
+TEST(ProfilerTest, TestGetConfigData)
+{
+    ServiceProfilerManager manager;
+
+    EXPECT_NO_THROW(manager.config_->GetConfigData());
+}
+
+TEST(ProfilerTest, TestSetFileEnable)
+{
+    ServiceProfilerManager manager;
+
+    EXPECT_NO_THROW(manager.config_->SetFileEnable(0));
+}
+
+TEST(ProfilerTest, TestSaveConfigToJsonFile)
+{
+    ServiceProfilerManager manager;
+
+    EXPECT_NO_THROW(manager.config_->SaveConfigToJsonFile());
+}

@@ -258,11 +258,13 @@ TEST(ProfilerTest, TestReadEnableYes)
     configTest["host_system_usage_freq"] = 2;
     configTest["npu_memory_usage_freq"] = 2;
     configTest["timelimit"] = -1;
+    configTest["domain"] = "Request; KVCache";
     configTest2["profiler_level"] = "Level";
     configTest2["acl_prof_task_time_level"] = "L3;";
     configTest2["host_system_usage_freq"] = "aaa";
     configTest2["npu_memory_usage_freq"] = "aaa";
     configTest2["timelimit"] = 2;
+    configTest["domain"] = "";
     configTest3["host_system_usage_freq"] = 99999;
     configTest3["npu_memory_usage_freq"] = 99999;
     configTest3["acl_prof_task_time_level"] = "L3;L1";
