@@ -36,6 +36,8 @@ TEST(ProfilerTest, TestParseMspti)
     configTest2["api_filter"] = 1;
     configTest2["kernel_filter"] = 1;
 
-    EXPECT_NO_THROW(ParseMspti(configTest1));
-    EXPECT_NO_THROW(ParseMspti(configTest2));
+    ServiceProfilerManager manager;
+
+    EXPECT_NO_THROW(manager.config_->ParseMspti(configTest1));
+    EXPECT_NO_THROW(manager.config_->ParseMspti(configTest2));
 }
