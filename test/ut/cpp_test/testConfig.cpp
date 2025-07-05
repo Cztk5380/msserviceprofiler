@@ -25,6 +25,8 @@ using namespace ::testing;
 void MarkEventLongAttr(const char *msg);
 namespace msServiceProfiler { void Write2Tx(const std::vector<int> &memoryInfo, const std::string metricName); }
 
+using namespace msServiceProfiler;
+
 TEST(ProfilerTest, TestParseMspti)
 {
     nlohmann::json configTest1 = nlohmann::json::object();
