@@ -27,17 +27,19 @@ struct MockControl {
 static MockControl mock_control;
 
 // Mock 实现
-// extern "C" int stat(const char* path, struct stat* buf)
-// {
-//     mock_control.call_count++;
-//     if (mock_control.real_func) {
-//         real_stat = reinterpret_cast<decltype(real_stat)>(
-//             dlsym(RTLD_NEXT, "stat")
-//         );
-//         return real_stat(path, buf);
-//     }
-//     return mock_control.int_return;
-// }
+namespace {
+extern "C" int stat(const char* path, struct stat* buf)
+{
+    mock_control.call_count++;
+    if (mock_control.real_func) {
+        real_stat = reinterpret_cast<decltype(real_stat)>(
+            dlsym(RTLD_NEXT, "stat")
+        );
+        return real_stat(path, buf);
+    }
+    return mock_control.int_return;
+}
+}
 
 class SecurityUtilsTest : public Test {
 protected:
@@ -398,16 +400,18 @@ struct TimeMockControl {
 static TimeMockControl time_mock_control;
 
 // Mock 实现
-// extern "C" struct tm* localtime_r(const time_t *timep, struct tm *result)
-// {
-//     if (time_mock_control.real_func) {
-//         real_localtime = reinterpret_cast<decltype(real_stat)>(
-//             dlsym(RTLD_NEXT, "localtime_r")
-//         );
-//         return localtime_r(timep, result);
-//     }
-//     return nullptr;
-// }
+namespace {
+extern "C" struct tm* localtime_r(const time_t *timep, struct tm *result)
+{
+    if (time_mock_control.real_func) {
+        real_localtime = reinterpret_cast<decltype(real_stat)>(
+            dlsym(RTLD_NEXT, "localtime_r")
+        );
+        return localtime_r(timep, result);
+    }
+    return nullptr;
+}
+}
 
 TEST_F(SecurityUtilsTest, TestAddPrefixInfo)
 {
