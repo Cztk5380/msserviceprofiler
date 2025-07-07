@@ -13,14 +13,18 @@ namespace msServiceProfiler {
 
 NpuMemoryUsage::NpuMemoryUsage()
 {
-    const std::string soName = "/usr/local/Ascend/driver/lib64/driver/libdcmi.so";
+    const std::string soName = "/usr/local/Ascend/driver/lib64/driver/libdcmi.so";  // LCOV_EXCL_LINE
     if (!SecurityUtils::CheckFileBeforeRead(soName)) {
+        // LCOV_EXCL_START
         PROF_LOGW("libdcmi.so security check faild.");
+        // LCOV_EXCL_STOP
     }
     handleDcmi = dlopen(soName.c_str(), RTLD_LAZY | RTLD_LOCAL);
     if (handleDcmi == nullptr) {
+        // LCOV_EXCL_START
         PROF_LOGW("Failed to dlopen libdcmi.so. Will be not able to get NPU usage data. "
             "Check whether a NPU server or if NPU driver installed.");
+        // LCOV_EXCL_STOP
     }
 }
 
@@ -100,20 +104,12 @@ int NpuMemoryUsage::DcmiGetDeviceHbmInfo(int cardId, int deviceId, struct dsmi_h
     return ret;
 }
 
-int NpuMemoryUsage::InitDcmiCardAndDevices()
+int NpuMemoryUsage::InitDcmiCard()
 {
-    if (isDcmiInited) {
-        return EXITCODE_SUCCESS;
-    }
-    isDcmiInited = true;
     int ret = DcmiInit();
     if (ret != EXITCODE_SUCCESS) {
         return ret;
     }
-
-    int cardNum = 0;
-    int cardList[MAX_CHIP_NUM] = {0};
-    int listLen = MAX_CHIP_NUM;
 
     ret = DcmiGetCardList(&cardNum, cardList, listLen);
     if (ret != EXITCODE_SUCCESS) {
@@ -121,7 +117,19 @@ int NpuMemoryUsage::InitDcmiCardAndDevices()
     }
 
     cardNum = std::min(MAX_CHIP_NUM, cardNum);
+    return EXITCODE_SUCCESS;
+}
 
+int NpuMemoryUsage::InitDcmiCardAndDevices()
+{
+    if (isDcmiInited) {
+        return EXITCODE_SUCCESS;
+    }
+    isDcmiInited = true;
+    int ret = InitDcmiCard();
+    if (cardNum == 0) {
+        return ret;
+    }
     for (int cardId = 0; cardId < cardNum; cardId++) {
         int deviceIdMax = 0;
         int curRet = DcmiGetDeviceIdInCard(cardList[cardId], &deviceIdMax);

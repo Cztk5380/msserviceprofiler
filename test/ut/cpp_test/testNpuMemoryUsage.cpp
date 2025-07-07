@@ -20,11 +20,57 @@ int DcmiStub()
     return retSuccess;
 }
 
-TEST(NPUTest, TestDlopenFailed) {
-    MockStubFunc stubs;
-    EXPECT_CALL(stubs, dlopen(::testing::_, ::testing::_))
-        .WillRepeatedly(::testing::Return(nullptr));
+// 原始函数指针
+static void * (*real_dlopen)(const char *, int) = nullptr;
+static int (*real_stat)(const char*, struct stat*) = nullptr;
 
+// Mock 控制
+struct MockControl {
+    bool real_func = true;
+    bool bool_return = false;
+    int int_return = 0;
+    void * null_return = nullptr;
+    int call_count = 0;
+};
+static MockControl mock_control;
+static MockControl mock_control_stat;
+
+// Mock 实现
+extern "C" void * dlopen(const char *filename, int flags)
+{
+    mock_control.call_count++;
+    if (mock_control.real_func) {
+        real_dlopen = reinterpret_cast<decltype(real_dlopen)>(dlsym(RTLD_NEXT, "dlopen"));
+        return real_dlopen(filename, flags);
+    }
+    return mock_control.null_return;
+}
+
+extern "C" int stat(const char* path, struct stat* buf)
+{
+    mock_control_stat.call_count++;
+    if (mock_control_stat.real_func) {
+        real_stat = reinterpret_cast<decltype(real_stat)>(
+            dlsym(RTLD_NEXT, "stat")
+        );
+        return real_stat(path, buf);
+    }
+    return mock_control_stat.int_return;
+}
+
+TEST(NPUTest, TestWalkThrough) {
+
+    std::vector<int> memoryUsed;
+    std::vector<int> memoryUtiliza;
+
+    NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
+    npuMemoryUsage.InitDcmiCardAndDevices();
+    npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza);
+}
+
+TEST(NPUTest, TestDlopenFailed) {
+
+    mock_control.real_func = false;
     int cardNum[] = {1};
     int cardList[] = {0};
     int listLen = 1;
@@ -37,8 +83,14 @@ TEST(NPUTest, TestDlopenFailed) {
     npuMemoryUsage.DcmiGetDeviceIdInCard(0, cardList);
     npuMemoryUsage.DcmiGetDeviceMemoryInfoV3(0, 0, &dsmi_stru);
     npuMemoryUsage.DcmiGetDeviceHbmInfo(0, 0, &dsmi_stru2);
+    mock_control.real_func = true;
+}
 
-    GlobalMockObject::reset();
+TEST(NPUTest, TestNpuMemoryUsageNotExists)
+{
+    mock_control_stat.real_func = false;
+    NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
+    mock_control_stat.real_func = true;
 }
 
 TEST(NPUTest, TestDcmiGetDeviceHbmInfo)
@@ -50,31 +102,83 @@ TEST(NPUTest, TestDcmiGetDeviceHbmInfo)
     npuMemoryUsage.DcmiGetDeviceHbmInfo(0, 0, &dsmi_stru2);
 }
 
-TEST(NPUTest, TestInitDcmiCardAndDevicesDcmiInitFailed)
+TEST(NPUTest, TestInitDcmiCard)
 {
-    MockStubFunc stubs;
-    EXPECT_CALL(stubs, dlopen(::testing::_, ::testing::_))
-        .WillRepeatedly(::testing::Return(nullptr));
-
     NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
     npuMemoryUsage.DcmiInit();
-    npuMemoryUsage.InitDcmiCardAndDevices();
-
-    GlobalMockObject::reset();
+    npuMemoryUsage.InitDcmiCard();
 }
 
-TEST(NPUTest, TestInitDcmiCardAndDevicesDcmiGetCardListFailed)
+TEST(NPUTest, TestInitDcmiCardDcmiInitFailed)
+{
+    mock_control.real_func = false;
+
+    NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
+    npuMemoryUsage.DcmiInit();
+    npuMemoryUsage.InitDcmiCard();
+
+    mock_control.real_func = true;
+}
+
+TEST(NPUTest, TestInitDcmiCardEmptyListLen)
+{
+    NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
+    npuMemoryUsage.DcmiInit();
+    npuMemoryUsage.listLen = 0;
+    npuMemoryUsage.InitDcmiCard();
+}
+
+TEST(NPUTest, TestInitDcmiCardAndDevices)
 {
     NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
     npuMemoryUsage.DcmiInit();
     npuMemoryUsage.InitDcmiCardAndDevices();
+    npuMemoryUsage.InitDcmiCardAndDevices();  // call again
+}
+
+TEST(NPUTest, TestInitDcmiCardAndDevicesDcmiInitFailed)
+{
+    mock_control.real_func = false;
+
+    NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
+    npuMemoryUsage.DcmiInit();
+    npuMemoryUsage.InitDcmiCardAndDevices();
+
+    mock_control.real_func = true;
+}
+
+TEST(NPUTest, TestInitDcmiCardAndDevicesDcmiGetDeviceIdInCardFailed)
+{
+    mock_control.real_func = false;
+
+    NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
+    npuMemoryUsage.DcmiInit();
+    npuMemoryUsage.cardNum = 1;
+    npuMemoryUsage.InitDcmiCardAndDevices();
+
+    mock_control.real_func = true;
 }
 
 TEST(NPUTest, TestGetByDcmi)
 {
-    MockStubFunc stubs;
-    EXPECT_CALL(stubs, dlopen(::testing::_, ::testing::_))
-        .WillRepeatedly(::testing::Return(nullptr));
+    std::vector<int> memUsed = {1};
+    std::vector<int> memUtiliza = {1};
+    std::vector<CardDevice> cardDevices = {};
+    struct CardDevice cd1 = {0, 0};
+    struct CardDevice cd2 = {1, 0};
+    cardDevices.push_back(cd1);
+    cardDevices.push_back(cd2);
+
+    NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
+    npuMemoryUsage.DcmiInit();
+    npuMemoryUsage.isHbmDevice = true;
+    npuMemoryUsage.cardDevices = cardDevices;
+    npuMemoryUsage.GetByDcmi(memUsed, memUtiliza);
+}
+
+TEST(NPUTest, TestGetByDcmiWithoutDcmiForHbm)
+{
+    mock_control.real_func = false;
 
     std::vector<int> memUsed = {1};
     std::vector<int> memUtiliza = {1};
@@ -90,17 +194,32 @@ TEST(NPUTest, TestGetByDcmi)
     npuMemoryUsage.cardDevices = cardDevices;
     npuMemoryUsage.GetByDcmi(memUsed, memUtiliza);
 
-    GlobalMockObject::reset();
+    mock_control.real_func = true;
+}
+
+TEST(NPUTest, TestGetByDcmiWithoutDcmiForNotHbm)
+{
+    mock_control.real_func = false;
+
+    std::vector<int> memUsed = {1};
+    std::vector<int> memUtiliza = {1};
+    std::vector<CardDevice> cardDevices = {};
+    struct CardDevice cd1 = {0, 0};
+    struct CardDevice cd2 = {1, 0};
+    cardDevices.push_back(cd1);
+    cardDevices.push_back(cd2);
+
+    NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
+    npuMemoryUsage.DcmiInit();
+    npuMemoryUsage.isHbmDevice = false;
+    npuMemoryUsage.cardDevices = cardDevices;
+    npuMemoryUsage.GetByDcmi(memUsed, memUtiliza);
+
+    mock_control.real_func = true;
 }
 
 TEST(NPUTest, TestDcmiInitSuccess)
 {
-    MockStubFunc stubs;
-    EXPECT_CALL(stubs, dlopen(::testing::_, ::testing::_))
-        .WillRepeatedly(::testing::Return((void*)(1)));
-    EXPECT_CALL(stubs, dlsym(::testing::_, ::testing::_))
-        .WillRepeatedly(::testing::Return((void*)DcmiStub));
-
     int cardNum[] = {1};
     int cardList[] = {0};
     int listLen = 1;
@@ -127,5 +246,4 @@ TEST(NPUTest, TestDcmiInitSuccess)
     npuMemoryUsage.GetByDcmi(memUsed, memUtiliza);
     
     npuMemoryUsage.handleDcmi = nullptr;
-    GlobalMockObject::reset();
 }
