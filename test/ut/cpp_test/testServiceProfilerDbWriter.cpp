@@ -18,7 +18,6 @@ int mock_gethostname_return_value = 0;
 static int (*real_gethostname)(char*, size_t) = nullptr;
 
 extern "C" {
-
 // 替换的 gethostname 函数
 int gethostname(char* name, size_t len)
 {
@@ -65,7 +64,8 @@ TEST(GetHostNameTest, GetHostName_Success_ReturnsValidHostname)
     EXPECT_FALSE(result.empty());
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

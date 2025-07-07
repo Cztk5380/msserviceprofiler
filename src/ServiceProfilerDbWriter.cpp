@@ -443,11 +443,11 @@ public:
             std::this_thread::sleep_for(std::chrono::nanoseconds(100));
         }
         PROF_LOGI("buffer i push: %lu, pop cnt: %lu, push cnt: %lu, max cnt: %lu, diff: %lu", // LCOV_EXCL_LINE
-            thisThreadPushCnt_, // LCOV_EXCL_LINE
-            pBuffer->PopCnt(), // LCOV_EXCL_LINE
-            pBuffer->PushCnt(), // LCOV_EXCL_LINE
-            pBuffer->MaxCntInBuffer(), // LCOV_EXCL_LINE
-            pBuffer->PushCnt() - pBuffer->PopCnt()); // LCOV_EXCL_LINE
+            thisThreadPushCnt_,
+            pBuffer->PopCnt(),
+            pBuffer->PushCnt(),
+            pBuffer->MaxCntInBuffer(),
+            pBuffer->PushCnt() - pBuffer->PopCnt());
     }
 #endif
 
