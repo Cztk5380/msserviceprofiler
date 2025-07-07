@@ -35,6 +35,14 @@ void FlushBufferByTime();
 
 class ServiceProfilerMspti {
 public:
+    ServiceProfilerMspti(const ServiceProfilerMspti &) = delete;
+
+    ServiceProfilerMspti &operator=(const ServiceProfilerMspti &) = delete;
+
+    ServiceProfilerMspti(ServiceProfilerMspti &&) = delete;
+
+    ServiceProfilerMspti &operator=(ServiceProfilerMspti &&) = delete;
+
     static ServiceProfilerMspti &GetInstance()
     {
         static ServiceProfilerMspti manager;
@@ -66,6 +74,7 @@ public:
     bool GetWorkingStatus() const;
 
 private:
+    ServiceProfilerMspti() = default;
 
     void CreateTable();
 

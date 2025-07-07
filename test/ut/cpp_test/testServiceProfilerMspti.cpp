@@ -15,6 +15,7 @@
 #include "acl/acl.h"
 #include "mspti/mspti.h"
 
+#include "msptiHelper.h"
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "stubs.h"
@@ -29,16 +30,11 @@ void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords);
 }  // namespace msServiceProfiler
 
 using namespace msServiceProfiler;
+using namespace UTHelper;
 
 namespace msServiceProfiler {
 bool IsNameMatch(std::set<std::string> &filterSet, const char *name);
 }
-
-msptiResult g_utStatusMsptiActivityRegisterCallbacks;
-msptiResult g_utStatusMsptiActivityEnable;
-msptiResult g_utStatusMsptiActivityFlushAll;
-msptiResult g_utStatusMsptiSubscribe;
-msptiResult g_utStatusMsptiUnsubscribe;
 
 // Test suite for IsNameMatchTest function
 TEST(ServiceProfilerMsptiTest, IsNameMatchEmptyFilterSet)
@@ -531,6 +527,46 @@ TEST(ServiceProfilerMsptiTest, InitMsptiTestSuccessCase) {
 
     // 验证返回值
     EXPECT_EQ(ret, 0);
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, InitMsptiTestNotSupport) {
+    msptiSubscriberHandle subscriber;
+    std::string profPath = "/path/to/profiling";
+    g_utStatusMsptiSubscribe = MSPTI_ERROR_MULTIPLE_SUBSCRIBERS_NOT_SUPPORTED;
+    g_utStatusMsptiActivityRegisterCallbacks = MSPTI_ERROR_INVALID_PARAMETER;
+    // 调用函数
+    int ret = InitMspti(profPath, subscriber);
+
+    // 验证返回值
+    EXPECT_EQ(ret, MSPTI_ERROR_INVALID_PARAMETER);
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, InitMsptiTestError) {
+    msptiSubscriberHandle subscriber;
+    std::string profPath = "/path/to/profiling";
+    g_utStatusMsptiSubscribe = MSPTI_ERROR_INNER;
+    // 验证返回值
+    EXPECT_EQ(InitMspti(profPath, subscriber), MSPTI_ERROR_INNER);
+
+    g_utStatusMsptiSubscribe = MSPTI_ERROR_INVALID_PARAMETER;
+    // 验证返回值
+    EXPECT_EQ(InitMspti(profPath, subscriber), MSPTI_ERROR_INVALID_PARAMETER);
+
+    g_utStatusMsptiSubscribe = MSPTI_ERROR_FOECE_INT;
+    // 验证返回值
+    EXPECT_EQ(InitMspti(profPath, subscriber), MSPTI_ERROR_FOECE_INT);
+}
+
+// 测试用例
+TEST(ServiceProfilerMsptiTest, InitMsptiTestInnerError) {
+    msptiSubscriberHandle subscriber;
+    std::string profPath = "/path/to/profiling";
+    g_utStatusMsptiSubscribe = MSPTI_SUCCESS;
+    g_utStatusMsptiActivityRegisterCallbacks = MSPTI_ERROR_INNER;
+    // 验证返回值
+    EXPECT_EQ(InitMspti(profPath, subscriber), MSPTI_ERROR_INNER);
 }
 
 // 测试用例
