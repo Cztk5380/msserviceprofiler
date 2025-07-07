@@ -86,7 +86,8 @@ static MockControl mock_control_ftruncate;
 // static MockControl mock_control_aclprofStart;
 
 // Mock 实现
-extern "C" int shm_open(const char* name, int oflag, mode_t mode) {
+extern "C" int shm_open(const char* name, int oflag, mode_t mode)
+{
     mock_control_shm_open.call_count++;
     if (mock_control_shm_open.real_func) {
         real_shm_open = reinterpret_cast<decltype(real_shm_open)>(
@@ -97,7 +98,8 @@ extern "C" int shm_open(const char* name, int oflag, mode_t mode) {
     return mock_control_shm_open.int_return;
 }
 
-extern "C" void* mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
+extern "C" void* mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset)
+{
     mock_control_mmap.call_count++;
     if (mock_control_mmap.real_func) {
         real_mmap = reinterpret_cast<decltype(real_mmap)>(
@@ -108,7 +110,8 @@ extern "C" void* mmap(void* addr, size_t length, int prot, int flags, int fd, of
     return mock_control_mmap.void_return;
 }
 
-extern "C" int ftruncate(int fd, off_t length) {
+extern "C" int ftruncate(int fd, off_t length)
+{
     mock_control_ftruncate.call_count++;
     if (mock_control_ftruncate.real_func) {
         real_ftruncate = reinterpret_cast<decltype(real_ftruncate)>(
