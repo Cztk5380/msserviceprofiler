@@ -13,18 +13,54 @@
 using namespace ::testing;
 using namespace MsUtils;
 
-namespace MsUtils {
-bool IsNameMatch(std::set<std::string> &filterSet, const char *name);
-}
-
 TEST(ServiceProfilerUtilsTest, SplitStrSuccess)
 {
+    std::string input = "Hello World";
+    char splitChar = ' ';
+    auto result = MsUtils::SplitStr(input, splitChar);
+    EXPECT_EQ(result.first, "Hello");
+    EXPECT_EQ(result.second, "World");
+}
+
+TEST_F(CopyrightTest, SplitStrWithNoSplitChar) {
+    std::string input = "HelloWorld";
+    char splitChar = ' ';
+    auto result = MsUtils::SplitStr(input, splitChar);
+    EXPECT_EQ(result.first, "HelloWorld");
+    EXPECT_EQ(result.second, "");
+}
+
+TEST(ServiceProfilerUtilsTest, SplitStrToSetSuccess)
+{
     std::set<std::string> filterSet;
-    const char *name = "example1;example2;;example3";
+    const char *name = "example1;example2;example3";
     char splitSymbol = ';';
     auto result = SplitStringToSet(name, splitSymbol);
     EXPECT_EQ(result.size(), 3);
-    EXPECT_NE(result.find("apple"), result.end());
-    EXPECT_NE(result.find("banana"), result.end());
-    EXPECT_NE(result.find("cherry"), result.end());
+    EXPECT_NE(result.find("example1"), result.end());
+    EXPECT_NE(result.find("example2"), result.end());
+    EXPECT_NE(result.find("example3"), result.end());
 }
+
+TEST(ServiceProfilerUtilsTest, SplitStrToSetSuccessWithEmptySubstrings)
+{
+    std::set<std::string> filterSet;
+    const char *name = "example1;example2;;example3;";
+    char splitSymbol = ';';
+    auto result = SplitStringToSet(name, splitSymbol);
+    EXPECT_EQ(result.size(), 3);
+    EXPECT_NE(result.find("example1"), result.end());
+    EXPECT_NE(result.find("example2"), result.end());
+    EXPECT_NE(result.find("example3"), result.end());
+}
+
+TEST(ServiceProfilerUtilsTest, SplitStrToSetSuccessWithOneSubstring)
+{
+    std::set<std::string> filterSet;
+    const char *name = "example";
+    char splitSymbol = ';';
+    auto result = SplitStringToSet(name, splitSymbol);
+    EXPECT_EQ(result.size(), 1);
+    EXPECT_NE(result.find("example"), result.end());
+}
+
