@@ -230,7 +230,7 @@ public:
     {
         char *errMsg = nullptr;
         if (sqlite3_exec(db_, sql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            PROF_LOGE(" Execution SQL error: %s", errMsg);  // LCOV_EXCL_LINE
+            PROF_LOGE(" Execution SQL error: %s", errMsg); // LCOV_EXCL_LINE
             sqlite3_free(errMsg);
         }
     }
@@ -442,12 +442,12 @@ public:
         while (pBuffer->Size() > 0) {
             std::this_thread::sleep_for(std::chrono::nanoseconds(100));
         }
-        PROF_LOGI("buffer i push: %lu, pop cnt: %lu, push cnt: %lu, max cnt: %lu, diff: %lu",
-            thisThreadPushCnt_,
-            pBuffer->PopCnt(),
-            pBuffer->PushCnt(),
-            pBuffer->MaxCntInBuffer(),
-            pBuffer->PushCnt() - pBuffer->PopCnt());
+        PROF_LOGI("buffer i push: %lu, pop cnt: %lu, push cnt: %lu, max cnt: %lu, diff: %lu", // LCOV_EXCL_LINE
+            thisThreadPushCnt_, // LCOV_EXCL_LINE
+            pBuffer->PopCnt(), // LCOV_EXCL_LINE
+            pBuffer->PushCnt(), // LCOV_EXCL_LINE
+            pBuffer->MaxCntInBuffer(), // LCOV_EXCL_LINE
+            pBuffer->PushCnt() - pBuffer->PopCnt()); // LCOV_EXCL_LINE
     }
 #endif
 
