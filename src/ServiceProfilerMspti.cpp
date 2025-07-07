@@ -47,6 +47,12 @@ namespace msServiceProfiler {
         return true;
     }
 
+    ServiceProfilerMspti::ServiceProfilerMspti::GetInstance()
+    {
+        static ServiceProfilerMspti manager;
+        return manager;
+    };
+
     void ServiceProfilerMspti::InsertApiData(msptiActivityApi* activity)
     {
         if (!inited || !activity || !stmtApi) {
