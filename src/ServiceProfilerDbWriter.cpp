@@ -101,6 +101,9 @@ public:
     void StartTransAction() const
     {
         // 开始事务
+        if (db_ == nullptr || inited == false) {
+            return;
+        }
         char *errMsg = nullptr;
         if (sqlite3_exec(db_, "BEGIN TRANSACTION", nullptr, nullptr, &errMsg) != SQLITE_OK) {
             PROF_LOGE(" begin transaction error: %s", errMsg);
@@ -112,6 +115,9 @@ public:
     {
         // 提交最终事务
         char *errMsg = nullptr;
+        if (db_ == nullptr || inited == false) {
+            return;
+        }
         if (sqlite3_exec(db_, "COMMIT", nullptr, nullptr, &errMsg) != SQLITE_OK) {
             PROF_LOGE(" commit error: %s", errMsg);
             sqlite3_free(errMsg);
@@ -239,6 +245,7 @@ public:
             Execute("PRAGMA journal_mode = WAL;");     // 读写同步模式
             Execute("PRAGMA wal_checkpoint(FULL);");   // 执行检查点
             sqlite3_close(db_);
+            db_ = nullptr;
             inited = false;
         }
     }

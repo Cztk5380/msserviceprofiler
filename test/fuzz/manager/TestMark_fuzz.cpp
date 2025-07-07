@@ -31,7 +31,6 @@ TEST(TestServiceProfilerManager, MarkEventTest)
             std::cout << "Exception caught: " << e.what() << std::endl;
         }
         fileout.close();
-        msServiceProfiler::ColseTxData2Writer();
     }
     DT_FUZZ_END()
 }
