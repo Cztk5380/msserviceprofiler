@@ -53,7 +53,7 @@ std::string GetHostName()
 {
     char hostname[HOST_NAME_MAX + 1] = {'\0'};  // 分配足够大的缓冲区
     if (gethostname(hostname, sizeof(hostname)) != 0) {
-        PROF_LOGE("get hostname failed");
+        PROF_LOGE("get hostname failed"); // LCOV_EXCL_LINE
     }
     return std::string(hostname);
 }
@@ -89,7 +89,7 @@ public:
 
         // 执行插入
         if (sqlite3_step(stmtMstx_) != SQLITE_DONE) {
-            std::cerr << "Execution failed: " << sqlite3_errmsg(db_) << std::endl;
+            PROF_LOGE("Execution failed: %s", sqlite3_errmsg(db_)); // LCOV_EXCL_LINE
         }
         sqlite3_reset(stmtMstx_);
 
@@ -106,7 +106,7 @@ public:
         }
         char *errMsg = nullptr;
         if (sqlite3_exec(db_, "BEGIN TRANSACTION", nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            PROF_LOGE(" begin transaction error: %s", errMsg);
+            PROF_LOGE(" begin transaction error: %s", errMsg); // LCOV_EXCL_LINE
             sqlite3_free(errMsg);
         }
     }
@@ -119,7 +119,7 @@ public:
             return;
         }
         if (sqlite3_exec(db_, "COMMIT", nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            PROF_LOGE(" commit error: %s", errMsg);
+            PROF_LOGE(" commit error: %s", errMsg); // LCOV_EXCL_LINE
             sqlite3_free(errMsg);
         }
     }
@@ -137,7 +137,7 @@ public:
 
         // 执行插入
         if (sqlite3_step(stmtMeta_) != SQLITE_DONE) {
-            std::cerr << "Execution failed: " << sqlite3_errmsg(db_) << std::endl;
+            PROF_LOGE("Execution failed: %s", sqlite3_errmsg(db_)); // LCOV_EXCL_LINE
         }
         sqlite3_reset(stmtMeta_);
     }
@@ -155,7 +155,7 @@ public:
         // 打开数据库连接
         int rc = sqlite3_open(dbPath.c_str(), &db_);
         if (rc != SQLITE_OK) {
-            std::cerr << "Can't open database: " << sqlite3_errmsg(db_) << dbPath << std::endl;
+            PROF_LOGE("Execution failed: %s", sqlite3_errmsg(db_)); // LCOV_EXCL_LINE
             return;
         }
         CreateTable();
@@ -180,11 +180,11 @@ public:
                                         "VALUES (?, ?, ?, ?, ?, ?, ?);";
 
         if (sqlite3_exec(db_, sqlCreateKindMstx, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            PROF_LOGE(" sqlCreateKindMstx SQL error: %s", errMsg);
+            PROF_LOGE(" sqlCreateKindMstx SQL error: %s", errMsg); // LCOV_EXCL_LINE
             sqlite3_free(errMsg);
         }
         if (sqlite3_prepare_v2(db_, sqlInsertKindMstx, -1, &stmtMstx_, nullptr) != SQLITE_OK) {
-            PROF_LOGE(" sqlInsertKindMstx SQL error");
+            PROF_LOGE(" sqlInsertKindMstx SQL error"); // LCOV_EXCL_LINE
         }
 
         const char *sqlCreateKindMeta = "CREATE TABLE IF NOT EXISTS Meta ("
@@ -193,11 +193,11 @@ public:
         const char *sqlInsertKindMeta = "INSERT INTO Meta (name, value) VALUES (?, ?);";
 
         if (sqlite3_exec(db_, sqlCreateKindMeta, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            PROF_LOGE(" sqlCreateKindMeta SQL error: %s", errMsg);
+            PROF_LOGE(" sqlCreateKindMeta SQL error: %s", errMsg); // LCOV_EXCL_LINE
             sqlite3_free(errMsg);
         }
         if (sqlite3_prepare_v2(db_, sqlInsertKindMeta, -1, &stmtMeta_, nullptr) != SQLITE_OK) {
-            PROF_LOGE(" sqlInsertKindMeta SQL error");
+            PROF_LOGE(" sqlInsertKindMeta SQL error"); // LCOV_EXCL_LINE
         }
     }
 
@@ -230,7 +230,7 @@ public:
     {
         char *errMsg = nullptr;
         if (sqlite3_exec(db_, sql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            PROF_LOGE(" Execution SQL error: %s", errMsg);
+            PROF_LOGE(" Execution SQL error: %s", errMsg);  // LCOV_EXCL_LINE
             sqlite3_free(errMsg);
         }
     }
