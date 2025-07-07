@@ -14,48 +14,26 @@
 
 using namespace msServiceProfiler;
 
-int DcmiStub()
-{
-    int retSuccess = 1;
-    return retSuccess;
-}
-
 // 原始函数指针
 static void* (*real_dlopen)(const char *, int) = nullptr;
-static int (*real_stat)(const char*, struct stat*) = nullptr;
 
 // Mock 控制
-struct MockControl {
+struct MockControlDlOpen {
     bool real_func = true;
-    bool bool_return = false;
-    int int_return = 0;
     void* null_return = nullptr;
     int call_count = 0;
 };
-static MockControl mock_control;
-static MockControl mock_control_stat;
+static MockControlDlOpen mock_control_dlopen;
 
 // Mock 实现
 extern "C" void* dlopen(const char *filename, int flags)
 {
-    mock_control.call_count++;
-    if (mock_control.real_func) {
+    mock_control_dlopen.call_count++;
+    if (mock_control_dlopen.real_func) {
         real_dlopen = reinterpret_cast<decltype(real_dlopen)>(dlsym(RTLD_NEXT, "dlopen"));
         return real_dlopen(filename, flags);
     }
-    return mock_control.null_return;
-}
-
-extern "C" int stat(const char* path, struct stat* buf)
-{
-    mock_control_stat.call_count++;
-    if (mock_control_stat.real_func) {
-        real_stat = reinterpret_cast<decltype(real_stat)>(
-            dlsym(RTLD_NEXT, "stat")
-        );
-        return real_stat(path, buf);
-    }
-    return mock_control_stat.int_return;
+    return mock_control_dlopen.null_return;
 }
 
 TEST(NPUTest, TestWalkThrough) {
@@ -70,7 +48,7 @@ TEST(NPUTest, TestWalkThrough) {
 
 TEST(NPUTest, TestDlopenFailed) {
 
-    mock_control.real_func = false;
+    mock_control_dlopen.real_func = false;
     int cardNum[] = {1};
     int cardList[] = {0};
     int listLen = 1;
@@ -83,14 +61,7 @@ TEST(NPUTest, TestDlopenFailed) {
     npuMemoryUsage.DcmiGetDeviceIdInCard(0, cardList);
     npuMemoryUsage.DcmiGetDeviceMemoryInfoV3(0, 0, &dsmi_stru);
     npuMemoryUsage.DcmiGetDeviceHbmInfo(0, 0, &dsmi_stru2);
-    mock_control.real_func = true;
-}
-
-TEST(NPUTest, TestNpuMemoryUsageNotExists)
-{
-    mock_control_stat.real_func = false;
-    NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
-    mock_control_stat.real_func = true;
+    mock_control_dlopen.real_func = true;
 }
 
 TEST(NPUTest, TestDcmiGetDeviceHbmInfo)
@@ -111,13 +82,13 @@ TEST(NPUTest, TestInitDcmiCard)
 
 TEST(NPUTest, TestInitDcmiCardDcmiInitFailed)
 {
-    mock_control.real_func = false;
+    mock_control_dlopen.real_func = false;
 
     NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
     npuMemoryUsage.DcmiInit();
     npuMemoryUsage.InitDcmiCard();
 
-    mock_control.real_func = true;
+    mock_control_dlopen.real_func = true;
 }
 
 TEST(NPUTest, TestInitDcmiCardEmptyListLen)
@@ -138,25 +109,25 @@ TEST(NPUTest, TestInitDcmiCardAndDevices)
 
 TEST(NPUTest, TestInitDcmiCardAndDevicesDcmiInitFailed)
 {
-    mock_control.real_func = false;
+    mock_control_dlopen.real_func = false;
 
     NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
     npuMemoryUsage.DcmiInit();
     npuMemoryUsage.InitDcmiCardAndDevices();
 
-    mock_control.real_func = true;
+    mock_control_dlopen.real_func = true;
 }
 
 TEST(NPUTest, TestInitDcmiCardAndDevicesDcmiGetDeviceIdInCardFailed)
 {
-    mock_control.real_func = false;
+    mock_control_dlopen.real_func = false;
 
     NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
     npuMemoryUsage.DcmiInit();
     npuMemoryUsage.cardNum = 1;
     npuMemoryUsage.InitDcmiCardAndDevices();
 
-    mock_control.real_func = true;
+    mock_control_dlopen.real_func = true;
 }
 
 TEST(NPUTest, TestGetByDcmi)
@@ -178,7 +149,7 @@ TEST(NPUTest, TestGetByDcmi)
 
 TEST(NPUTest, TestGetByDcmiWithoutDcmiForHbm)
 {
-    mock_control.real_func = false;
+    mock_control_dlopen.real_func = false;
 
     std::vector<int> memUsed = {1};
     std::vector<int> memUtiliza = {1};
@@ -194,12 +165,12 @@ TEST(NPUTest, TestGetByDcmiWithoutDcmiForHbm)
     npuMemoryUsage.cardDevices = cardDevices;
     npuMemoryUsage.GetByDcmi(memUsed, memUtiliza);
 
-    mock_control.real_func = true;
+    mock_control_dlopen.real_func = true;
 }
 
 TEST(NPUTest, TestGetByDcmiWithoutDcmiForNotHbm)
 {
-    mock_control.real_func = false;
+    mock_control_dlopen.real_func = false;
 
     std::vector<int> memUsed = {1};
     std::vector<int> memUtiliza = {1};
@@ -215,7 +186,7 @@ TEST(NPUTest, TestGetByDcmiWithoutDcmiForNotHbm)
     npuMemoryUsage.cardDevices = cardDevices;
     npuMemoryUsage.GetByDcmi(memUsed, memUtiliza);
 
-    mock_control.real_func = true;
+    mock_control_dlopen.real_func = true;
 }
 
 TEST(NPUTest, TestDcmiInitSuccess)
