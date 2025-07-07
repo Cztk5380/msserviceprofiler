@@ -21,7 +21,7 @@ int DcmiStub()
 }
 
 // 原始函数指针
-static void * (*real_dlopen)(const char *, int) = nullptr;
+static void* (*real_dlopen)(const char *, int) = nullptr;
 static int (*real_stat)(const char*, struct stat*) = nullptr;
 
 // Mock 控制
@@ -29,14 +29,14 @@ struct MockControl {
     bool real_func = true;
     bool bool_return = false;
     int int_return = 0;
-    void * null_return = nullptr;
+    void* null_return = nullptr;
     int call_count = 0;
 };
 static MockControl mock_control;
 static MockControl mock_control_stat;
 
 // Mock 实现
-extern "C" void * dlopen(const char *filename, int flags)
+extern "C" void* dlopen(const char *filename, int flags)
 {
     mock_control.call_count++;
     if (mock_control.real_func) {
