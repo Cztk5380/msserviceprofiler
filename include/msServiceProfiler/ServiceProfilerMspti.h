@@ -41,6 +41,9 @@ public:
         return manager;
     };
 
+    ServiceProfilerMspti(const ServiceProfilerMspti &) = delete;
+    ServiceProfilerMspti& operator=(const ServiceProfilerMspti &) = delete;
+
     void InsertApiData(msptiActivityApi* activity);
 
     void InsertKernelData(msptiActivityKernel* activity);
