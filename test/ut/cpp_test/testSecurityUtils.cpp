@@ -7,10 +7,37 @@
 #include <string>
 #include <vector>
 #include <cstdlib>
-#include "stubs.h"
+#include <iostream>
+#include <dlfcn.h>
+#include "msServiceProfiler/SecurityUtilsLog.h"
 
 using namespace SecurityUtils;
 using namespace testing;
+
+// 原始函数指针
+static int (*real_stat)(const char*, struct stat*) = nullptr;
+
+// Mock 控制
+struct MockControl {
+    bool real_func = true;
+    bool bool_return = false;
+    int int_return = 0;
+    int call_count = 0;
+};
+static MockControl mock_control;
+
+// Mock 实现
+extern "C" int stat(const char* path, struct stat* buf)
+{
+    mock_control.call_count++;
+    if (mock_control.real_func) {
+        real_stat = reinterpret_cast<decltype(real_stat)>(
+            dlsym(RTLD_NEXT, "stat")
+        );
+        return real_stat(path, buf);
+    }
+    return mock_control.int_return;
+}
 
 class SecurityUtilsTest : public Test {
 protected:
@@ -30,6 +57,7 @@ protected:
         mkdir(tempDir, 0755);
         // 创建符号链接
         symlink(tempFile, tempLink);
+        mock_control = MockControl{}; // 重置stat状态
     }
 
     void TearDown() override
@@ -45,6 +73,10 @@ protected:
         rmdir(tempDir);
         // 删除符号链接
         unlink(tempLink);
+        mock_control.real_func = true;
+        mock_control.bool_return = false;
+        mock_control.int_return = 0;
+        mock_control.call_count = 0;
     }
 };
 
@@ -73,6 +105,15 @@ TEST_F(SecurityUtilsTest, TestIsReadable)
     chmod(unreadableFile.c_str(), 0644);
 }
 
+TEST_F(SecurityUtilsTest, TestIsReadable_001)
+{
+    mock_control.real_func = false;
+    mock_control.int_return = 1;
+    // 测试可读文件
+    const std::string readableFile = "testfile.txt";
+    EXPECT_FALSE(IsReadable(readableFile));
+}
+
 TEST_F(SecurityUtilsTest, TestIsWritable)
 {
     // 测试可写文件
@@ -85,6 +126,16 @@ TEST_F(SecurityUtilsTest, TestIsWritable)
     EXPECT_FALSE(IsWritable(unwritableFile));
     // 恢复权限
     chmod(unwritableFile.c_str(), 0644);
+}
+
+TEST_F(SecurityUtilsTest, TestIsWritable_002)
+{
+    mock_control.real_func = false;
+    mock_control.int_return = 1;
+
+    // 测试可写文件
+    const std::string writableFile = "testfile.txt";
+    EXPECT_FALSE(IsWritable(writableFile));
 }
 
 TEST_F(SecurityUtilsTest, TestIsExecutable)
@@ -105,6 +156,26 @@ TEST_F(SecurityUtilsTest, TestIsExecutable)
     }
 }
 
+TEST_F(SecurityUtilsTest, TestIsExecutable_002)
+{
+    mock_control.real_func = false;
+    mock_control.int_return = 1;
+
+    // 测试可执行文件（假设testfile.txt不可执行）
+    const std::string nonExecutableFile = "testfile.txt";
+    EXPECT_FALSE(IsExecutable(nonExecutableFile));
+}
+
+TEST_F(SecurityUtilsTest, TestIsOwner_001)
+{
+    mock_control.real_func = false;
+    mock_control.int_return = 1;
+
+    // 测试可执行文件（假设testfile.txt不可执行）
+    const std::string normalFile = "testfile.txt";
+    EXPECT_FALSE(IsOwner(normalFile));
+}
+
 TEST_F(SecurityUtilsTest, TestIsSoftLink)
 {
     // 测试符号链接
@@ -114,6 +185,15 @@ TEST_F(SecurityUtilsTest, TestIsSoftLink)
     // 测试非符号链接
     const std::string nonSoftLink = "testfile.txt";
     EXPECT_FALSE(IsSoftLink(nonSoftLink));
+}
+
+TEST_F(SecurityUtilsTest, TestIsSoftLink_001)
+{
+    mock_control.real_func = false;
+    mock_control.int_return = 1;
+    // 测试符号链接
+    const std::string softLink = "testlink";
+    EXPECT_TRUE(IsSoftLink(softLink));
 }
 
 TEST_F(SecurityUtilsTest, TestIsFile)
@@ -127,6 +207,15 @@ TEST_F(SecurityUtilsTest, TestIsFile)
     EXPECT_FALSE(IsFile(directory));
 }
 
+TEST_F(SecurityUtilsTest, TestIsFile_001)
+{
+    mock_control.real_func = false;
+    mock_control.int_return = 1;
+    // 测试普通文件
+    const std::string regularFile = "testfile.txt";
+    EXPECT_FALSE(IsFile(regularFile));
+}
+
 TEST_F(SecurityUtilsTest, TestIsDir)
 {
     // 测试目录
@@ -136,6 +225,15 @@ TEST_F(SecurityUtilsTest, TestIsDir)
     // 测试普通文件
     const std::string regularFile = "testfile.txt";
     EXPECT_FALSE(IsDir(regularFile));
+}
+
+TEST_F(SecurityUtilsTest, TestIsDir_001)
+{
+    mock_control.real_func = false;
+    mock_control.int_return = 1;
+    // 测试目录
+    const std::string directory = "testdir";
+    EXPECT_FALSE(IsDir(directory));
 }
 
 TEST_F(SecurityUtilsTest, TestIsPathLenLegal)
@@ -163,6 +261,13 @@ TEST_F(SecurityUtilsTest, TestIsPathDepthLegal)
     EXPECT_FALSE(IsPathDepthLegal(deepPath));
 }
 
+TEST_F(SecurityUtilsTest, TestIsPathLenLegal_001)
+{
+    // 测试路径长度合法
+    const std::string shortPath = "";
+    EXPECT_FALSE(IsPathLenLegal(shortPath));
+}
+
 TEST_F(SecurityUtilsTest, TestIsFileSizeLegal)
 {
     // 测试文件大小合法
@@ -187,6 +292,16 @@ TEST_F(SecurityUtilsTest, TestIsFileSizeLegal)
     }
 }
 
+TEST_F(SecurityUtilsTest, TestIsFileSizeLegal_001)
+{
+    mock_control.real_func = false;
+    mock_control.int_return = 1;
+    // 测试文件大小合法
+    const std::string smallFile = "testfile.txt";
+    const long long maxSize = 1024; // 1KB
+    EXPECT_FALSE(IsFileSizeLegal(smallFile, maxSize));
+}
+
 TEST_F(SecurityUtilsTest, TestIsPathCharactersValid)
 {
     // 测试有效路径
@@ -196,6 +311,13 @@ TEST_F(SecurityUtilsTest, TestIsPathCharactersValid)
     // 测试无效路径（包含非法字符）
     const std::string invalidPath = "test?file.txt";
     EXPECT_FALSE(IsPathCharactersValid(invalidPath));
+}
+
+TEST_F(SecurityUtilsTest, TestIsPathCharactersValid_001)
+{
+    // 测试有效路径
+    const std::string validPath = "testfile";
+    EXPECT_TRUE(IsPathCharactersValid(validPath));
 }
 
 TEST_F(SecurityUtilsTest, TestCheckPathContainSoftLink)
@@ -220,6 +342,16 @@ TEST_F(SecurityUtilsTest, TestCheckFileBeforeWrite)
     EXPECT_FALSE(CheckFileBeforeWrite(link));
 }
 
+TEST_F(SecurityUtilsTest, TestCheckFileBeforeWrite_001)
+{
+    // 测试文件写入检查
+    const std::string fileName = "";
+    EXPECT_FALSE(CheckFileBeforeWrite(fileName));
+
+    fileName = "test;file";
+    EXPECT_FALSE(CheckFileBeforeWrite(fileName));
+}
+
 TEST_F(SecurityUtilsTest, TestCheckFileBeforeRead)
 {
     // 测试文件读取检查
@@ -230,4 +362,56 @@ TEST_F(SecurityUtilsTest, TestCheckFileBeforeRead)
     // 测试符号链接
     const std::string link = "testlink";
     EXPECT_FALSE(CheckFileBeforeRead(link, maxSize));
+}
+
+TEST_F(SecurityUtilsTest, TestSetLogLevelByEnvVar)
+{
+    SecurityUtilsLog::GetLog().SetLogLevelByEnvVar();
+    setenv("SECURITY_UTILS_LOG_LEVEL", "1", 1);
+    SecurityUtilsLog::GetLog().SetLogLevelByEnvVar();
+    setenv("SECURITY_UTILS_LOG_LEVEL", "9", 1);
+    SecurityUtilsLog::GetLog().SetLogLevelByEnvVar();
+
+    ToSafeString("\n");
+
+    const auto& map = GetInvalidChar();
+    EXPECT_EQ(map.at("\n"), "\\n");
+    EXPECT_EQ(map.at("\f"), "\\f");
+    EXPECT_EQ(map.at("\r"), "\\r");
+    EXPECT_EQ(map.at("\b"), "\\b");
+    EXPECT_EQ(map.at("\t"), "\\t");
+    EXPECT_EQ(map.at("\v"), "\\v");
+    EXPECT_EQ(map.at("\u007F"), "\\u007F");
+    
+    // 测试不存在的键
+    EXPECT_THROW(map.at("not_exist"), std::out_of_range);
+}
+
+// 原始函数指针
+static struct tm* (*real_localtime)(const time_t*, struct tm*) = nullptr;
+
+// Mock 控制
+struct TimeMockControl {
+    bool real_func = true;
+    struct tm mock_return;
+};
+static TimeMockControl time_mock_control;
+
+// Mock 实现
+extern "C" struct tm* localtime_r(const time_t *timep, struct tm *result)
+{
+    if (time_mock_control.real_func) {
+        real_localtime = reinterpret_cast<decltype(real_stat)>(
+            dlsym(RTLD_NEXT, "localtime_r")
+        );
+        return localtime_r(timep, result);
+    }
+    return nullptr;
+}
+
+TEST_F(SecurityUtilsTest, TestAddPrefixInfo)
+{
+    time_mock_control.real_func = false;
+    std::string lengthLimit = "Log length reach limit,only show part message";
+    SecurityUtilsLog::GetLog().AddPrefixInfo(lengthLimit, LogLv::INFO);
 }
