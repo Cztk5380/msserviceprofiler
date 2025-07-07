@@ -10,6 +10,9 @@
 #include <mockcpp/mockcpp.hpp>
 #include <nlohmann/json.hpp>
 #include <fstream>
+#include <dlfcn.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
@@ -59,6 +62,66 @@ struct ProfSetDevParaDevice {
     uint32_t deviceId;
     bool isOpen;
 };
+
+// sys call mock
+// 原始函数指针
+static int (*real_shm_open)(const char*, int, mode_t) = nullptr;
+static void* (*real_mmap)(void*, size_t, int, int, int, off_t) = nullptr;
+static int (*real_ftruncate)(int, off_t) = nullptr;
+
+// Mock 控制
+struct MockControl {
+    bool real_func = true;
+    bool bool_return = false;
+    int int_return = 0;
+    void* void_return = nullptr;
+    int call_count = 0;
+};
+
+static MockControl mock_control_shm_open;
+static MockControl mock_control_mmap;
+static MockControl mock_control_ftruncate;
+// static MockControl mock_control_aclInit;
+// static MockControl mock_control_aclprofInit;
+// static MockControl mock_control_aclprofStart;
+
+// Mock 实现
+extern "C" int shm_open(const char* name, int oflag, mode_t mode)
+{
+    mock_control_shm_open.call_count++;
+    if (mock_control_shm_open.real_func) {
+        real_shm_open = reinterpret_cast<decltype(real_shm_open)>(
+            dlsym(RTLD_NEXT, "shm_open")
+        );
+        return real_shm_open(name, oflag, mode);
+    }
+    return mock_control_shm_open.int_return;
+}
+
+extern "C" void* mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset)
+{
+    mock_control_mmap.call_count++;
+    if (mock_control_mmap.real_func) {
+        real_mmap = reinterpret_cast<decltype(real_mmap)>(
+            dlsym(RTLD_NEXT, "mmap")
+        );
+        return real_mmap(addr, length, prot, flags, fd, offset);
+    }
+    return mock_control_mmap.void_return;
+}
+
+extern "C" int ftruncate(int fd, off_t length)
+{
+    mock_control_ftruncate.call_count++;
+    if (mock_control_ftruncate.real_func) {
+        real_ftruncate = reinterpret_cast<decltype(real_ftruncate)>(
+            dlsym(RTLD_NEXT, "ftruncate")
+        );
+        return real_ftruncate(fd, length);
+    }
+    return mock_control_ftruncate.int_return;
+}
+
 
 // Test suite for StartSpan function
 TEST(ProfilerTest, StartSpan)
@@ -638,4 +701,66 @@ TEST(ProfilerTest, StopAclTaskTime)
     manager.config_->hostCpuUsage_ = true;
     manager.config_->hostMemoryUsage_ = true;
     manager.StopAclTaskTime();
+}
+
+TEST(ProfilerTest, TestMarkFirstProcessAsMainShmOpenFailedUseSysMock)
+{
+    mock_control_shm_open.real_func = false;
+    mock_control_shm_open.int_return = -1;
+
+    ServiceProfilerManager manager;
+    manager.config_->SetConfigPath("/home");
+    manager.MarkFirstProcessAsMain();
+
+    GlobalMockObject::reset();
+}
+
+TEST(ProfilerTest, TestMarkFirstProcessAsMainFtruncateFailedUseSysMock)
+{
+    mock_control_shm_open.real_func = false;
+    mock_control_shm_open.int_return = 0;
+
+    mock_control_ftruncate.real_func = false;
+    mock_control_ftruncate.int_return = -1;
+
+    ServiceProfilerManager manager;
+    manager.config_->SetConfigPath("/home");
+    manager.MarkFirstProcessAsMain();
+
+    GlobalMockObject::reset();
+}
+
+TEST(ProfilerTest, TestMarkFirstProcessAsMainMmapFailedUseSysMock)
+{
+    mock_control_shm_open.real_func = false;
+    mock_control_shm_open.int_return = 0;
+
+    mock_control_ftruncate.real_func = false;
+    mock_control_ftruncate.int_return = 0;
+
+    mock_control_mmap.real_func = false;
+    mock_control_mmap.void_return = MAP_FAILED;
+
+    ServiceProfilerManager manager;
+    manager.config_->SetConfigPath("/home");
+    manager.MarkFirstProcessAsMain();
+
+    GlobalMockObject::reset();
+}
+
+TEST(ProfilerTest, TestMarkFirstProcessAsMainSuccessUseSysMock)
+{
+    mock_control_shm_open.real_func = false;
+    mock_control_shm_open.int_return = 0;
+
+    mock_control_ftruncate.real_func = false;
+    mock_control_ftruncate.int_return = 0;
+
+    mock_control_mmap.real_func = true;
+
+    ServiceProfilerManager manager;
+    manager.config_->SetConfigPath("/home");
+    manager.MarkFirstProcessAsMain();
+
+    GlobalMockObject::reset();
 }
