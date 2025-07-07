@@ -35,11 +35,11 @@ void FlushBufferByTime();
 
 class ServiceProfilerMspti {
 public:
-
-    ServiceProfilerMspti(const ServiceProfilerMspti &) = delete;
-    ServiceProfilerMspti& operator=(const ServiceProfilerMspti &) = delete;
-
-    static ServiceProfilerMspti &GetInstance();
+    static ServiceProfilerMspti &GetInstance()
+    {
+        static ServiceProfilerMspti manager;
+        return manager;
+    };
 
     void InsertApiData(msptiActivityApi* activity);
 
