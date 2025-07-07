@@ -218,8 +218,8 @@ void Config::CheckMsptiConflict()
 {
     std::string ld_preload_str = GetEnvAsString("LD_PRELOAD");
     if (ld_preload_str.find("libmspti.so") != std::string::npos) {
-        PROF_LOGW("Detected mspti is enabled, which conflicts with acl prof. "
-                  "`acl_task_time` has been reset to the default value 0. If you need to enable it, "
+        PROF_LOGW("Detected mspti is enabled, which conflicts with acl prof. "  // LCOV_EXCL_LINE
+                  "`acl_task_time` has been reset to the default value 0. If you need to enable it, "  // LCOV_EXCL_LINE
                   "check the loading of libmspti.so in LD_PRELOAD.");  // LCOV_EXCL_LINE
         enableAclTaskTime_ = false;
     }
@@ -235,7 +235,7 @@ void Config::CheckAclKernelConflict()
     if (profilerSampleConfig != nullptr) {
         enableAclTaskTime_ = false;
         msptiEnable_ = false;
-        PROF_LOGE("Failed to initialize acl_task_time, env variable `PROFILER_SAMPLECONFIG` is set. "
+        PROF_LOGE("Failed to initialize acl_task_time, env variable `PROFILER_SAMPLECONFIG` is set. "  // LCOV_EXCL_LINE
                   "This causes conflicts with kernels profiling. ");  // LCOV_EXCL_LINE
         return;
     }
@@ -245,7 +245,7 @@ void Config::CheckAclKernelConflict()
     if (profilingMode != nullptr && std::string(profilingMode) == "dynamic") {
         enableAclTaskTime_ = false;
         msptiEnable_ = false;
-        PROF_LOGE("Failed to initialize acl_task_time, env variable `PROFILING_MODE` is set to dynamic. "
+        PROF_LOGE("Failed to initialize acl_task_time, env variable `PROFILING_MODE` is set to dynamic."//LCOV_EXCL_LINE
                   "This causes conflicts with kernels profiling. ");  // LCOV_EXCL_LINE
         return;
     }
@@ -291,14 +291,14 @@ void Config::ParseAclTaskTime(const Json &config)
                 aclProfTaskTimeLevel.second.c_str());  // LCOV_EXCL_LINE
             return;
         } catch (const std::out_of_range& e) {
-            PROF_LOGW("aclTaskTimeDuration value is Out of range, now it is %s", aclProfTaskTimeLevel.second.c_str());
-            // LCOV_EXCL_LINE
+            PROF_LOGW("aclTaskTimeDuration value is Out of range, now it is %s",  // LCOV_EXCL_LINE
+            aclProfTaskTimeLevel.second.c_str());  // LCOV_EXCL_LINE
             return;
         }
         constexpr int maxAclTaskTimeDuration = 999; // 采集时长上线为999s
         if (aclTaskTimeDuration_ > maxAclTaskTimeDuration || aclTaskTimeDuration_ < 1) {
-            PROF_LOGW("aclTaskTimeDuration value should between 1 ~ 999, now it is %d", aclTaskTimeDuration_);
-            // LCOV_EXCL_LINE
+            PROF_LOGW("aclTaskTimeDuration value should between 1 ~ 999, now it is %d",  // LCOV_EXCL_LINE
+            aclTaskTimeDuration_);  // LCOV_EXCL_LINE
         }
         PROF_LOGI("profile aclTaskTimeDuration: %d", aclTaskTimeDuration_);  // LCOV_EXCL_LINE
     }

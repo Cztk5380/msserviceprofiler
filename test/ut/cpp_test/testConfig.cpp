@@ -62,3 +62,10 @@ TEST(ProfilerTest, TestSaveConfigToJsonFile)
 
     EXPECT_NO_THROW(manager.config_->SaveConfigToJsonFile());
 }
+
+TEST(ProfilerTest, TestSplitAndTrimString)
+{
+    ServiceProfilerManager manager;
+
+    EXPECT_NO_THROW(manager.config_->SplitAndTrimString("Request; KVCache", ";"));
+}
