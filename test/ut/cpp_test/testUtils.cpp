@@ -22,7 +22,7 @@ TEST(ServiceProfilerUtilsTest, SplitStrSuccess)
     EXPECT_EQ(result.second, "World");
 }
 
-TEST_F(CopyrightTest, SplitStrWithNoSplitChar) {
+TEST_F(ServiceProfilerUtilsTest, SplitStrWithNoSplitChar) {
     std::string input = "HelloWorld";
     char splitChar = ' ';
     auto result = MsUtils::SplitStr(input, splitChar);
