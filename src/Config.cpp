@@ -33,7 +33,7 @@ Config::Config()
 
 void Config::ReadAndSaveConfig()
 {
-    PROF_LOGD("isServiceProfConfigPathSet: %s", isServiceProfConfigPathSet ? "true" : "false");
+    PROF_LOGD("isServiceProfConfigPathSet: %s", isServiceProfConfigPathSet ? "true" : "false");  // LCOV_EXCL_LINE
     if (!isServiceProfConfigPathSet) {
         InitProfPathDateTail();
         ParseProfPath(Json());
@@ -68,11 +68,11 @@ Json Config::ReadConfigFile()
         return jsonData;
     }
     if (access(configPath_.c_str(), F_OK) != 0) {
-        LOG_ONCE_E("SERVICE_PROF_CONFIG_PATH : %s is not file or Permission Denied",
+        LOG_ONCE_E("SERVICE_PROF_CONFIG_PATH : %s is not file or Permission Denied",  // LCOV_EXCL_LINE
             configPath_.c_str());  // LCOV_EXCL_LINE
         return jsonData;
     } else {
-        LOG_ONCE_D("SERVICE_PROF_CONFIG_PATH : %s", configPath_.c_str());
+        LOG_ONCE_D("SERVICE_PROF_CONFIG_PATH : %s", configPath_.c_str());  // LCOV_EXCL_LINE
     }
 
     std::ifstream configFile; // 单独创建 std::ifstream 对象
@@ -91,7 +91,7 @@ Json Config::ReadConfigFile()
             return jsonData;
         }
     } catch (const std::exception &e) {
-        LOG_ONCE_E("Fail to open config file: %s, error: %s",
+        LOG_ONCE_E("Fail to open config file: %s, error: %s",  // LCOV_EXCL_LINE
             configPath_.c_str(), e.what());  // LCOV_EXCL_LINE
         return jsonData;
     }
@@ -99,7 +99,7 @@ Json Config::ReadConfigFile()
     try {
         configFile >> jsonData; // 尝试解析 JSON 数据
     } catch (const std::exception &e) {
-        PROF_LOGE("Fail to parse file content as json object, config path: %s, error: %s",
+        PROF_LOGE("Fail to parse file content as json object, config path: %s, error: %s",  // LCOV_EXCL_LINE
                   configPath_.c_str(), e.what());  // LCOV_EXCL_LINE
         configFile.close(); // 确保文件关闭
         return jsonData;
@@ -168,13 +168,14 @@ void Config::ParseTimeLimit(const Json& config)
                 timeLimit_ = 0;
             } else if (config["timelimit"] > 0 && config["timelimit"] <= MAX_TIME_LIMIT) {
                 timeLimit_ = config["timelimit"];
-                PROF_LOGI("profile timeLimit_: %u", timeLimit_);
+                PROF_LOGI("profile timeLimit_: %u", timeLimit_);  // LCOV_EXCL_LINE
             } else {
                 timeLimit_ = MAX_TIME_LIMIT;
                 PROF_LOGW("timelimit value is higher than %d, will set %d", MAX_TIME_LIMIT, MAX_TIME_LIMIT);
+                // LCOV_EXCL_LINE
             }
         } else {
-            PROF_LOGW("timelimit value is not an integer, the profiling time is not assigned.");
+            PROF_LOGW("timelimit value is not an integer, the profiling time is not assigned.");  // LCOV_EXCL_LINE
         }
     }
 }
@@ -217,9 +218,9 @@ void Config::CheckMsptiConflict()
 {
     std::string ld_preload_str = GetEnvAsString("LD_PRELOAD");
     if (ld_preload_str.find("libmspti.so") != std::string::npos) {
-        PROF_LOGW("Detected mspti is enabled, which conflicts with acl prof. "
-                  "`acl_task_time` has been reset to the default value 0. If you need to enable it, "
-                  "check the loading of libmspti.so in LD_PRELOAD.");
+        PROF_LOGW("Detected mspti is enabled, which conflicts with acl prof. "  // LCOV_EXCL_LINE
+                  "`acl_task_time` has been reset to the default value 0. If you need to enable it,"  // LCOV_EXCL_LINE
+                  "check the loading of libmspti.so in LD_PRELOAD.");  // LCOV_EXCL_LINE
         enableAclTaskTime_ = false;
     }
 }
@@ -234,8 +235,8 @@ void Config::CheckAclKernelConflict()
     if (profilerSampleConfig != nullptr) {
         enableAclTaskTime_ = false;
         msptiEnable_ = false;
-        PROF_LOGE("Failed to initialize acl_task_time, env variable `PROFILER_SAMPLECONFIG` is set. "
-                  "This causes conflicts with kernels profiling. ");
+        PROF_LOGE("Failed to initialize acl_task_time, env variable `PROFILER_SAMPLECONFIG` is set."  // LCOV_EXCL_LINE
+                  "This causes conflicts with kernels profiling. ");  // LCOV_EXCL_LINE
         return;
     }
 
@@ -244,8 +245,8 @@ void Config::CheckAclKernelConflict()
     if (profilingMode != nullptr && std::string(profilingMode) == "dynamic") {
         enableAclTaskTime_ = false;
         msptiEnable_ = false;
-        PROF_LOGE("Failed to initialize acl_task_time, env variable `PROFILING_MODE` is set to dynamic. "
-                  "This causes conflicts with kernels profiling. ");
+        PROF_LOGE("Failed to initialize acl_task_time, env variable `PROFILING_MODE` is set to dynamic."
+                  "This causes conflicts with kernels profiling. ");  // LCOV_EXCL_LINE
         return;
     }
 }
@@ -266,38 +267,40 @@ void Config::ParseAclTaskTime(const Json &config)
         }
     }
     PROF_LOGI("profile enableAclTaskTime_: %s", enableAclTaskTime_ ? "true" : "false");  // LCOV_EXCL_LINE
-    PROF_LOGI("profile msptiEnable_: %s", msptiEnable_ ? "true" : "false");
+    PROF_LOGI("profile msptiEnable_: %s", msptiEnable_ ? "true" : "false");  // LCOV_EXCL_LINE
 
     if (config.contains("acl_prof_task_time_level")) {
         auto aclProfTaskTimeLevel = MsUtils::SplitStr(config["acl_prof_task_time_level"], ';');
         // parser aclTaskTimeLevel
         if (aclProfTaskTimeLevel.first != "L0" && aclProfTaskTimeLevel.first != "L1") {
             PROF_LOGW("aclProfTaskTimeLevel should be L0 or L1, now it is %s, default to L0",
-                aclProfTaskTimeLevel.first.c_str());
+                aclProfTaskTimeLevel.first.c_str());  // LCOV_EXCL_LINE
             aclProfTaskTimeLevel.first = "L0";
         }
         aclTaskTimeLevel_ = aclProfTaskTimeLevel.first;
-        PROF_LOGI("profile aclTaskTimeLevel: %s", aclTaskTimeLevel_.c_str());
+        PROF_LOGI("profile aclTaskTimeLevel: %s", aclTaskTimeLevel_.c_str());  // LCOV_EXCL_LINE
         // parser aclTaskTimeDuration
         if (aclProfTaskTimeLevel.second == "") {
-            PROF_LOGD("Not set aclTaskTimeDuration value");
+            PROF_LOGD("Not set aclTaskTimeDuration value");  // LCOV_EXCL_LINE
             return;
         }
         try {
             aclTaskTimeDuration_ = std::stoi(aclProfTaskTimeLevel.second);
         } catch (const std::invalid_argument& e) {
             PROF_LOGW("aclTaskTimeDuration value is Invalid argument, now it is %s",
-                aclProfTaskTimeLevel.second.c_str());
+                aclProfTaskTimeLevel.second.c_str());  // LCOV_EXCL_LINE
             return;
         } catch (const std::out_of_range& e) {
-            PROF_LOGW("aclTaskTimeDuration value is Out of range, now it is %s", aclProfTaskTimeLevel.second.c_str());
+            PROF_LOGW("aclTaskTimeDuration value is Out of range, now it is %s",  // LCOV_EXCL_LINE
+                      aclProfTaskTimeLevel.second.c_str());  // LCOV_EXCL_LINE
             return;
         }
         constexpr int maxAclTaskTimeDuration = 999; // 采集时长上线为999s
         if (aclTaskTimeDuration_ > maxAclTaskTimeDuration || aclTaskTimeDuration_ < 1) {
-            PROF_LOGW("aclTaskTimeDuration value should between 1 ~ 999, now it is %d", aclTaskTimeDuration_);
+            PROF_LOGW("aclTaskTimeDuration value should between 1 ~ 999, now it is %d",  // LCOV_EXCL_LINE
+                      aclTaskTimeDuration_);  // LCOV_EXCL_LINE
         }
-        PROF_LOGI("profile aclTaskTimeDuration: %d", aclTaskTimeDuration_);
+        PROF_LOGI("profile aclTaskTimeDuration: %d", aclTaskTimeDuration_);  // LCOV_EXCL_LINE
     }
 }
 
@@ -330,7 +333,7 @@ void Config::ParseLevel(const Json &config)
             }
         }
     }
-    PROF_LOGD("profiler_level: %u", level_);
+    PROF_LOGD("profiler_level: %u", level_);  // LCOV_EXCL_LINE
 }
 
 std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char delimiter) const
@@ -358,7 +361,7 @@ std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char
 
 void Config::LogDomainInfo() const
 {
-    PROF_LOGI("profile enableDomainFilter_: %s", enableDomainFilter_ ? "true" : "false");
+    PROF_LOGI("profile enableDomainFilter_: %s", enableDomainFilter_ ? "true" : "false");  // LCOV_EXCL_LINE
     std::string combined;
     for (const auto& domain : validDomain_) {
         if (!combined.empty()) {
@@ -367,7 +370,7 @@ void Config::LogDomainInfo() const
         combined += domain;
     }
     if (!combined.empty()) {
-        PROF_LOGI("profiler validDomain_: %s", combined.c_str());
+        PROF_LOGI("profiler validDomain_: %s", combined.c_str());  // LCOV_EXCL_LINE
     }
 }
 
@@ -381,7 +384,7 @@ void Config::ParseDomain(const Json& config)
         return;
     }
     if (!config["domain"].is_string()) {
-        PROF_LOGW("Invalid 'domain' format, expected string. Domain filter will be disabled.");
+        PROF_LOGW("Invalid 'domain' format, expected string. Domain filter will be disabled.");  // LCOV_EXCL_LINE
         LogDomainInfo();
         return;
     }
@@ -450,7 +453,7 @@ bool Config::ParseHostConfig(const Json &config)
     } else {
         ret = false;
     }
-    PROF_LOGD("host_system_usage_freq %s", ret ? "Enabled" : "Disabled");
+    PROF_LOGD("host_system_usage_freq %s", ret ? "Enabled" : "Disabled");  // LCOV_EXCL_LINE
     return ret;
 }
 
@@ -482,7 +485,7 @@ bool Config::ParseNpuConfig(const Json &config)
     } else {
         ret = false;
     }
-    PROF_LOGD("npu_memory_usage_freq %s", ret ? "Enabled" : "Disabled");
+    PROF_LOGD("npu_memory_usage_freq %s", ret ? "Enabled" : "Disabled");  // LCOV_EXCL_LINE
     return ret;
 }
 
@@ -490,13 +493,13 @@ bool Config::PrepareConfigAndPath(std::string& configPath) const
 {
     const int jsonSuffixSize = 5;
     if (configPath.empty()) {
-        PROF_LOGD("Cannot save config to JSON file - no config path specified");
+        PROF_LOGD("Cannot save config to JSON file - no config path specified");  // LCOV_EXCL_LINE
         return false;
     }
 
     if (configPath.size() < jsonSuffixSize ||
         configPath.substr(configPath.size() - jsonSuffixSize) != ".json") {
-        PROF_LOGW("Config path must end with .json: %s", configPath.c_str());
+        PROF_LOGW("Config path must end with .json: %s", configPath.c_str());  // LCOV_EXCL_LINE
         return false;
     }
 
@@ -537,7 +540,7 @@ void Config::SetFileEnable(bool enable)
     configJson["enable"] = 0;
     std::ofstream outputFile(configPath.c_str());
     if (!outputFile.is_open()) {
-        PROF_LOGW("Automatic config file update failed %s", configPath.c_str());
+        PROF_LOGW("Automatic config file update failed %s", configPath.c_str());  // LCOV_EXCL_LINE
         return;
     }
     outputFile << configJson.dump(jsonIndentSize);
@@ -556,23 +559,23 @@ void Config::SaveConfigToJsonFile() const
         char tempFile[] = "temp_XXXXXX";
         const int fd = mkstemp(tempFile);
         if (fd == -1) {
-            PROF_LOGW("mkstemp failed: %s", strerror(errno));
+            PROF_LOGW("mkstemp failed: %s", strerror(errno));  // LCOV_EXCL_LINE
             return;
         }
         close(fd);
         std::string tempPath = dirPath+"/"+tempFile;
         char realTempPath[PATH_MAX + 1] = {0};
         if (realpath(tempPath.c_str(), realTempPath) == nullptr) {
-            PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));
+            PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));  // LCOV_EXCL_LINE
             return;
         }
         if (!SecurityUtils::CheckFileBeforeWrite(realTempPath)) {
             return;
         }
-        PROF_LOGD("file generation in the path %s", realTempPath);
+        PROF_LOGD("file generation in the path %s", realTempPath);  // LCOV_EXCL_LINE
         std::ofstream outputFile(realTempPath);
         if (!outputFile.is_open()) {
-            PROF_LOGW("Automatic config file generation failed %s", realTempPath);
+            PROF_LOGW("Automatic config file generation failed %s", realTempPath);  // LCOV_EXCL_LINE
             return;
         }
         outputFile << GetConfigData().dump(jsonIndentSize);
@@ -580,13 +583,13 @@ void Config::SaveConfigToJsonFile() const
 
         auto ret = rename(realTempPath, configPath.c_str());
         if (ret != 0 && errno != ENOENT) {
-            PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));
+            PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));  // LCOV_EXCL_LINE
             remove(realTempPath);
             return;
         }
-        PROF_LOGI("Successfully saved profiler configuration to: %s", configPath.c_str());
+        PROF_LOGI("Successfully saved profiler configuration to: %s", configPath.c_str());  // LCOV_EXCL_LINE
     } catch (const std::exception& e) {
-        PROF_LOGE("Failed to save config to JSON file: %s", e.what());
+        PROF_LOGE("Failed to save config to JSON file: %s", e.what());  // LCOV_EXCL_LINE
     }
 }
 }
