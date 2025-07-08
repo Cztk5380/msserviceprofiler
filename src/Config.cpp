@@ -292,13 +292,13 @@ void Config::ParseAclTaskTime(const Json &config)
             return;
         } catch (const std::out_of_range& e) {
             PROF_LOGW("aclTaskTimeDuration value is Out of range, now it is %s",  // LCOV_EXCL_LINE
-            aclProfTaskTimeLevel.second.c_str());  // LCOV_EXCL_LINE
+                      aclProfTaskTimeLevel.second.c_str());  // LCOV_EXCL_LINE
             return;
         }
         constexpr int maxAclTaskTimeDuration = 999; // 采集时长上线为999s
         if (aclTaskTimeDuration_ > maxAclTaskTimeDuration || aclTaskTimeDuration_ < 1) {
             PROF_LOGW("aclTaskTimeDuration value should between 1 ~ 999, now it is %d",  // LCOV_EXCL_LINE
-            aclTaskTimeDuration_);  // LCOV_EXCL_LINE
+                      aclTaskTimeDuration_);  // LCOV_EXCL_LINE
         }
         PROF_LOGI("profile aclTaskTimeDuration: %d", aclTaskTimeDuration_);  // LCOV_EXCL_LINE
     }
