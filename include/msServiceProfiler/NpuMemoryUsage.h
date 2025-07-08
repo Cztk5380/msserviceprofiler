@@ -55,6 +55,7 @@ class NpuMemoryUsage {
 public:
     NpuMemoryUsage();
     ~NpuMemoryUsage();
+    int InitDcmiCard();
     int InitDcmiCardAndDevices();
     int GetByDcmi(std::vector<int> &memoryUsed, std::vector<int> &memoryUtiliza);
 
@@ -62,6 +63,9 @@ private:
     void *handleDcmi = nullptr;
     bool isHbmDevice = false;
     bool isDcmiInited = false;
+    int cardNum = 0;
+    int cardList[MAX_CHIP_NUM] = {0};
+    int listLen = MAX_CHIP_NUM;
     std::vector<CardDevice> cardDevices;
 
     int DcmiInit() const;
