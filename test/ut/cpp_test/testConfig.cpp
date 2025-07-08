@@ -56,8 +56,19 @@ TEST(ProfilerTest, TestSetFileEnable)
     EXPECT_NO_THROW(manager.config_->SetFileEnable(0));
 }
 
-TEST(ProfilerTest, TestSaveConfigToJsonFile)
+TEST(ProfilerTest, TestSaveConfigToJsonFileInvalidPath)
 {
+    std::string path = "";
+    int result = std::setenv("SERVICE_PROF_CONFIG_PATH", path.c_str(), 1);
+    ServiceProfilerManager manager;
+
+    EXPECT_NO_THROW(manager.config_->SaveConfigToJsonFile());
+}
+
+TEST(ProfilerTest, TestSaveConfigToJsonFileValidPath)
+{
+    std::string path = "enable.json";
+    int result = std::setenv("SERVICE_PROF_CONFIG_PATH", path.c_str(), 1);
     ServiceProfilerManager manager;
 
     EXPECT_NO_THROW(manager.config_->SaveConfigToJsonFile());
