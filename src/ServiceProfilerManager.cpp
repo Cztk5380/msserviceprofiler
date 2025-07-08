@@ -664,7 +664,7 @@ namespace msServiceProfiler {
         config_->SetEnable(false);
         StopAclTaskTime();
 
-        msServiceProfiler::ColseTxData2Writer();
+        msServiceProfiler::CloseTxData2Writer();
         started_ = false;
         g_startFlag = false;
     }
