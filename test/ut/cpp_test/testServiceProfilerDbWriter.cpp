@@ -88,6 +88,7 @@ TEST(WaitForAllDumpTest, WaitForAllDump_Success)
     catch (...) {
         FAIL() << "Unknown exception during WaitForAllDump().";
     }
+}
 
 int main(int argc, char **argv)
 {
