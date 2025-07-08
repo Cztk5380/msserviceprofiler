@@ -198,8 +198,6 @@ def test_exporter_export(mock_save, mock_create, mock_data, mock_mspti):
 
     # 手动验证参数中的 DataFrame 内容
     pd.testing.assert_frame_equal(called_args[0], mock_data['tx_data_df'])
-    pd.testing.assert_frame_equal(called_args[1], mock_data['cpu_data_df'])
-    pd.testing.assert_frame_equal(called_args[2], mock_data['memory_data_df'])
 
 
 def test_write_trace_data_to_file():
@@ -214,7 +212,7 @@ def test_write_trace_data_to_file():
 
 def test_create_trace_events(mock_data):
     result = create_trace_events(
-        mock_data['tx_data_df'], mock_data['cpu_data_df'], mock_data['memory_data_df']
+        mock_data['tx_data_df']
     )
 
     assert 'traceEvents' in result
