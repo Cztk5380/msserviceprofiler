@@ -10,6 +10,8 @@
 #include <mockcpp/mockcpp.hpp>
 #include <nlohmann/json.hpp>
 #include <fstream>
+#include <cstdlib>
+#include <iostream>
 
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
