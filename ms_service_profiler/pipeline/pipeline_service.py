@@ -7,7 +7,6 @@ from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.processor.processor_res import ProcessorRes
 from ms_service_profiler.processor.processor_req import ProcessorReq
 from ms_service_profiler.plugins.plugin_common import PluginCommon
-from ms_service_profiler.plugins.plugin_timestamp import PluginTimeStamp
 from ms_service_profiler.plugins.plugin_metric import PluginMetric
 from ms_service_profiler.plugins.plugin_req_status import PluginReqStatus
 from ms_service_profiler.plugins.plugin_concat import PluginConcat
