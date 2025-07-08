@@ -264,7 +264,7 @@ TEST(ProfilerTest, TestReadEnableYes)
     configTest2["host_system_usage_freq"] = "aaa";
     configTest2["npu_memory_usage_freq"] = "aaa";
     configTest2["timelimit"] = 2;
-    configTest["domain"] = "";
+    configTest2["domain"] = "";
     configTest3["host_system_usage_freq"] = 99999;
     configTest3["npu_memory_usage_freq"] = 99999;
     configTest3["acl_prof_task_time_level"] = "L3;L1";
