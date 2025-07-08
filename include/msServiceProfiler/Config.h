@@ -15,32 +15,32 @@ class Config {
 public:
     Config();
     void ReadAndSaveConfig();
-    bool GetEnable() const { return enable_; }
-    uint32_t GetTimeLimit() const { return timeLimit_; }
-    uint32_t GetLevel() const { return level_; }
-    bool GetEnableAclTaskTime() const { return enableAclTaskTime_; }
-    const std::string& GetProfPath() const { return profPath_; }
-    const std::string& GetConfigPath() const { return configPath_; }
-    const std::string& GetProfPathDateTail() const { return profPathDateTail_; }
-    bool GetHostCpuUsage() const { return hostCpuUsage_; }
-    bool GetHostMemoryUsage() const { return hostMemoryUsage_; }
-    bool GetHostFreq() const { return hostFreq_; }
-    const std::set<std::string>& GetValidDomain() const { return validDomain_; }
-    bool GetEnableDomainFilter() const { return enableDomainFilter_; }
-    bool IsAclProf() const {return enableAclTaskTime_ || hostCpuUsage_ || hostMemoryUsage_; }
+    MS_SERVICE_INLINE_FLAG bool GetEnable() const { return enable_; }
+    MS_SERVICE_INLINE_FLAG uint32_t GetTimeLimit() const { return timeLimit_; }
+    MS_SERVICE_INLINE_FLAG uint32_t GetLevel() const { return level_; }
+    MS_SERVICE_INLINE_FLAG bool GetEnableAclTaskTime() const { return enableAclTaskTime_; }
+    MS_SERVICE_INLINE_FLAG const std::string& GetProfPath() const { return profPath_; }
+    MS_SERVICE_INLINE_FLAG const std::string& GetConfigPath() const { return configPath_; }
+    MS_SERVICE_INLINE_FLAG const std::string& GetProfPathDateTail() const { return profPathDateTail_; }
+    MS_SERVICE_INLINE_FLAG bool GetHostCpuUsage() const { return hostCpuUsage_; }
+    MS_SERVICE_INLINE_FLAG bool GetHostMemoryUsage() const { return hostMemoryUsage_; }
+    MS_SERVICE_INLINE_FLAG bool GetHostFreq() const { return hostFreq_; }
+    MS_SERVICE_INLINE_FLAG const std::set<std::string>& GetValidDomain() const { return validDomain_; }
+    MS_SERVICE_INLINE_FLAG bool GetEnableDomainFilter() const { return enableDomainFilter_; }
+    MS_SERVICE_INLINE_FLAG bool IsAclProf() const {return enableAclTaskTime_ || hostCpuUsage_ || hostMemoryUsage_; }
 
-    std::string GetAclTaskTimeLevel() const { return aclTaskTimeLevel_; }
-    int GetAclTaskTimeDuration() const { return aclTaskTimeDuration_; }
-    void SetAclTaskTimeDuration(int aclTaskTimeDuration) {aclTaskTimeDuration_ = aclTaskTimeDuration;}
-    bool GetNpuMemoryUsage() const { return npuMemoryUsage_; }
-    bool GetNpuMemoryFreq() const { return npuMemoryFreq_; }
-    uint32_t GetNpuMemorySleepMilliseconds() const { return npuMemorySleepMilliseconds_; }
+    MS_SERVICE_INLINE_FLAG std::string GetAclTaskTimeLevel() const { return aclTaskTimeLevel_; }
+    MS_SERVICE_INLINE_FLAG int GetAclTaskTimeDuration() const { return aclTaskTimeDuration_; }
+    void SetAclTaskTimeDuration(int aclTaskTimeDuration){aclTaskTimeDuration_ = aclTaskTimeDuration;}
+    MS_SERVICE_INLINE_FLAG bool GetNpuMemoryUsage() const { return npuMemoryUsage_; }
+    MS_SERVICE_INLINE_FLAG bool GetNpuMemoryFreq() const { return npuMemoryFreq_; }
+    MS_SERVICE_INLINE_FLAG uint32_t GetNpuMemorySleepMilliseconds() const { return npuMemorySleepMilliseconds_; }
 
-    void SetEnable(bool enable) { enable_ = enable; }
+    MS_SERVICE_INLINE_FLAG void SetEnable(bool enable) { enable_ = enable; }
     void SetFileEnable(bool enable);
-    void SetTimeLimit(uint32_t timelimit) { timeLimit_ = timelimit; }
+    MS_SERVICE_INLINE_FLAG void SetTimeLimit(uint32_t timelimit) { timeLimit_ = timelimit; }
     void SetProfPathDateTail(std::string profPathDateTail) { profPathDateTail_ = profPathDateTail; }
-    void SetConfigPath(std::string configPath) { configPath_ = configPath; }
+    MS_SERVICE_INLINE_FLAG void SetConfigPath(std::string configPath) { configPath_ = configPath; }
 
     Json ReadConfigFile();
     void ParseConfig(const Json& configJson);
@@ -48,9 +48,9 @@ public:
     bool PrepareConfigAndPath(std::string& configPath) const;
     void SaveConfigToJsonFile() const;
 
-    bool GetMsptiEnable() const { return msptiEnable_; }
-    const std::string GetApiFilter() const { return apiFilter_; }
-    const std::string GetKernelFilter() const { return kernelFilter_; }
+    MS_SERVICE_INLINE_FLAG bool GetMsptiEnable() const { return msptiEnable_; }
+    MS_SERVICE_INLINE_FLAG const std::string GetApiFilter() const { return apiFilter_; }
+    MS_SERVICE_INLINE_FLAG const std::string GetKernelFilter() const { return kernelFilter_; }
 
 private:
     std::string GetEnvAsString(const std::string& envName) const;
