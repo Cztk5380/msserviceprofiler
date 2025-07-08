@@ -517,8 +517,6 @@ nlohmann::ordered_json Config::GetConfigData() const
         {"enable", enable_ ? 1 : 0},
         {"prof_dir", GetDefaultProfPath()},
         {"profiler_level", "INFO"},
-        {"host_system_usage_freq", -1},
-        {"npu_memory_usage_freq", -1},
         {"acl_task_time", enableAclTaskTime_ ? 1 : 0},
         {"acl_prof_task_time_level", ""},
         {"api_filter", ""},
