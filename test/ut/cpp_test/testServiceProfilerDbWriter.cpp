@@ -2,6 +2,8 @@
 * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 
+#define ENABLE_SERVICE_PROF_UNIT_TEST
+
 #include <gtest/gtest.h>
 #include <string>
 #include <dlfcn.h>
@@ -63,6 +65,29 @@ TEST(GetHostNameTest, GetHostName_Success_ReturnsValidHostname)
     // 验证返回值不为空字符串
     EXPECT_FALSE(result.empty());
 }
+
+TEST(WaitForAllDumpTest, WaitForAllDump_Success)
+{
+    try {
+        auto start = std::chrono::steady_clock::now();
+
+        // 直接调用目标函数
+        msServiceProfiler::WaitForAllDump();
+
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start);
+
+        // 判断函数在合理时间内完成（例如不超过 2s）
+        EXPECT_LT(duration.count(), 2)
+            << "WaitForAllDump() took too long, possibly stuck or not configured properly.";
+
+        std::cout << "Test passed, execution time: " << duration.count() << "s" << std::endl;
+    }
+    catch (const std::exception& e) {
+        FAIL() << "Exception during WaitForAllDump(): " << e.what();
+    }
+    catch (...) {
+        FAIL() << "Unknown exception during WaitForAllDump().";
+    }
 
 int main(int argc, char **argv)
 {
