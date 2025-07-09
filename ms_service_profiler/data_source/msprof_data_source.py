@@ -13,7 +13,8 @@ class MsprofDataSource(BaseDataSource):
     def get_prof_paths(cls, input_path: str):
         filepaths = []
         for dp in Path(input_path).glob("**/PROF_*"):
-            filepaths.append(dp)
+            if dp.is_dir():
+                filepaths.append(dp)
 
         return filepaths
 
