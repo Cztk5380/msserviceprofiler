@@ -17,6 +17,11 @@ using SpanHandle = uint64_t;
 
 #define MS_SERVICE_PROFILER_API __attribute__((visibility("default")))
 #define MS_SERVICE_PROFILER_HIDDEN __attribute__((visibility("hidden")))
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+#define MS_SERVICE_INLINE_FLAG [[gnu::noinline]]
+#else
+#define MS_SERVICE_INLINE_FLAG inline
+#endif
 
 extern "C" {
 MS_SERVICE_PROFILER_API SpanHandle StartSpan();
@@ -53,38 +58,38 @@ public:
 
     ~ServiceProfilerInterface() = default;
 
-    MS_SERVICE_PROFILER_HIDDEN inline SpanHandle CallStartSpanWithName(const char *name) const
+    MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG SpanHandle CallStartSpanWithName(const char *name) const
     {
         return ptrStartSpanWithName_ ? ptrStartSpanWithName_(name) : 0;
     }
 
-    MS_SERVICE_PROFILER_HIDDEN inline void CallMarkSpanAttr(const char *msg, SpanHandle spanHandle) const
+    MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG void CallMarkSpanAttr(const char *msg, SpanHandle spanHandle) const
     {
         if (ptrMarkSpanAttr_) {
             ptrMarkSpanAttr_(msg, spanHandle);
         }
     }
 
-    MS_SERVICE_PROFILER_HIDDEN inline void CallEndSpan(SpanHandle spanHandle) const
+    MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG void CallEndSpan(SpanHandle spanHandle) const
     {
         if (ptrEndSpan_) {
             ptrEndSpan_(spanHandle);
         }
     }
 
-    MS_SERVICE_PROFILER_HIDDEN inline void CallMarkEvent(const char *msg) const
+    MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG void CallMarkEvent(const char *msg) const
     {
         if (ptrMarkEvent_) {
             ptrMarkEvent_(msg);
         }
     }
 
-    MS_SERVICE_PROFILER_HIDDEN inline bool CallIsEnable(uint32_t level) const
+    MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG bool CallIsEnable(uint32_t level) const
     {
         return ptrIsEnable_ && ptrIsEnable_(level);
     }
 
-    MS_SERVICE_PROFILER_HIDDEN inline bool CallIsDomainEnable(const char *currentDomain) const
+    MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG bool CallIsDomainEnable(const char *currentDomain) const
     {
         if (ptrIsValidDomain_) {
             return ptrIsValidDomain_(currentDomain);
@@ -103,14 +108,14 @@ public:
         return domainAllow;
     }
 
-    MS_SERVICE_PROFILER_HIDDEN inline void CallStartServerProfiler() const
+    MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG void CallStartServerProfiler() const
     {
         if (ptrStartServerProfiler_) {
             ptrStartServerProfiler_();
         }
     }
 
-    MS_SERVICE_PROFILER_HIDDEN inline void CallStopServerProfiler() const
+    MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG void CallStopServerProfiler() const
     {
         if (ptrStopServerProfiler_) {
             ptrStopServerProfiler_();

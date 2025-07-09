@@ -12,6 +12,12 @@
 
 #include "ServiceProfilerDbWriter.h"
 
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+#define MS_SERVICE_INLINE_FLAG [[gnu::noinline]]
+#else
+#define MS_SERVICE_INLINE_FLAG inline
+#endif
+
 namespace msServiceProfiler {
 
 using NodeDbActivityMarker = struct NODE_MARKER_DB {
@@ -24,22 +30,22 @@ constexpr long long unsigned int PTR_ARRAY_PRE_SIZE = 128;
 
 class DbBuffer {
 public:
-    DbBuffer(){};
+    MS_SERVICE_INLINE_FLAG DbBuffer(){};
     ~DbBuffer();
-    void Push(DbActivityMarker *pMarker);
+    bool Push(DbActivityMarker *pMarker);
     size_t Pop(size_t maxPopSize, DbActivityMarkerPtr *popBuffer);
     size_t Size();
 
 #ifdef ENABLE_SERVICE_PROF_UNIT_TEST
-    size_t PopCnt() const
+    [[gnu::noinline]] size_t PopCnt() const
     {
         return popCount_;
     };
-    size_t PushCnt() const
+    [[gnu::noinline]] size_t PushCnt() const
     {
         return pushCount_;
     };
-    size_t MaxCntInBuffer() const
+    [[gnu::noinline]] size_t MaxCntInBuffer() const
     {
         return maxCountInBuffer_;
     };

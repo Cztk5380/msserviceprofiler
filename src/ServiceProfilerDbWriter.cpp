@@ -428,7 +428,9 @@ public:
     void Insert(msServiceProfiler::DbActivityMarker *activity)
     {
         if (pBuffer) {
-            pBuffer->Push(activity);
+            if (!pBuffer->Push(activity) && activity) {
+                delete activity;
+            }
 
 #ifdef ENABLE_SERVICE_PROF_UNIT_TEST
             thisThreadPushCnt_++;

@@ -36,7 +36,7 @@ protected:
     {}
 };
 
-TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameNotFoundLib)
+TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameFoundLib)
 {
     EXPECT_CALL(GlobalStub::GetInstance().stubs, StartSpanWithName(::testing::_)).Times(0);
     EXPECT_CALL(GlobalStub::GetInstance().stubs, dlopen(::testing::_, ::testing::_))
@@ -46,6 +46,23 @@ TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameNotFoundLib)
     EXPECT_GE(spi.CallStartSpanWithName("TestSpan"), 0);
     GlobalMockObject::verify();
     GlobalMockObject::reset();
+}
+
+TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameNotFoundLib)
+{
+    ServiceProfilerInterface &spi = ServiceProfilerInterface::GetInstance();
+    spi.OpenLib();
+    spi.ptrStartSpanWithName_ = nullptr;
+    EXPECT_EQ(spi.CallStartSpanWithName("TestSpan"), 0);
+    GlobalMockObject::verify();
+}
+
+TEST_F(TestServiceProfilerInterface, CallStartSpanWithNameInputNull)
+{
+    ServiceProfilerInterface &spi = ServiceProfilerInterface::GetInstance();
+    spi.OpenLib();
+    EXPECT_GE(spi.CallStartSpanWithName(nullptr), 0);
+    GlobalMockObject::verify();
 }
 
 TEST_F(TestServiceProfilerInterface, CallMarkSpanAttrNotFoundLib)
@@ -137,3 +154,65 @@ TEST_F(TestServiceProfilerInterface, CallIsEnableFoundLib)
     spi.CallIsEnable(Level::DETAILED);
     GlobalMockObject::verify();
 }
+
+
+void MockedIsValidDomain(const char* domain)
+{
+    GlobalStub::GetInstance().stubs.IsValidDomain(domain);
+}
+TEST_F(TestServiceProfilerInterface, CallIsDomainEnableIsValidDomainNonNull)
+{
+    GlobalMockObject::reset();
+    EXPECT_CALL(GlobalStub::GetInstance().stubs, IsValidDomain(::testing::_)).Times(AtLeast(1));
+    ServiceProfilerInterface &spi = ServiceProfilerInterface::GetInstance();
+    spi.ptrIsValidDomain_ = MockedIsValidDomain;
+    spi.CallIsDomainEnable("domain");
+    GlobalMockObject::verify();
+}
+
+extern "C" {
+bool MockedGetEnableDomainFilter()
+{
+    return true;
+}
+const std::set<std::string> &MockedGetValidDomain()
+{
+    // 返回正确的domain
+    static const std::set<std::string> enableDomain = {"domain", "otherDomain"};
+    return enableDomain;
+}
+const std::set<std::string> &MockedGetValidDomain2()
+{
+    // 返回不是正确的domain
+    static const std::set<std::string> enableDomain = {"domain2"};
+    return enableDomain;
+}
+}
+TEST_F(TestServiceProfilerInterface, CallIsDomainEnableIsValidDomainIsNull)
+{
+    GlobalMockObject::reset();
+    ServiceProfilerInterface &spi = ServiceProfilerInterface::GetInstance();
+    spi.OpenLib();
+    // ptrIsValidDomain_ 为null ，其他接口为正常值
+    spi.ptrIsValidDomain_ = nullptr;
+    spi.ptrEnableDomainFilter_ = MockedGetEnableDomainFilter;
+    spi.ptrValidDomain_ = MockedGetValidDomain;
+    EXPECT_TRUE(spi.CallIsDomainEnable("domain"));
+
+    // ptrIsValidDomain_ 为null ，其他接口有为空的
+    spi.ptrEnableDomainFilter_ = MockedGetEnableDomainFilter;
+    spi.ptrValidDomain_ = nullptr;
+    EXPECT_TRUE(spi.CallIsDomainEnable("domain"));
+
+    spi.ptrEnableDomainFilter_ = nullptr;
+    spi.ptrValidDomain_ = MockedGetValidDomain;
+    EXPECT_TRUE(spi.CallIsDomainEnable("domain"));
+
+    // ptrIsValidDomain_ 为null ，其他接口返回不是正确的domain
+    spi.ptrEnableDomainFilter_ = MockedGetEnableDomainFilter;
+    spi.ptrValidDomain_ = MockedGetValidDomain2;
+    EXPECT_FALSE(spi.CallIsDomainEnable("domain"));
+
+    GlobalMockObject::verify();
+}
+

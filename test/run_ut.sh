@@ -78,9 +78,9 @@ run_test_cpp() {
   cd ${TEST_DIR}
 
   if [ "$ENABLE_CACHE" != "1" ]; then
-    mkdir -p test_build && cd test_build && rm * -rf && cmake ../ut/cpp_test && make -j 4
+    mkdir -p test_build && cd test_build && rm * -rf && cmake ../ut/cpp_test && make -j 50
   else
-    mkdir -p test_build && cd test_build && cmake ../ut/cpp_test && make -j 4
+    mkdir -p test_build && cd test_build && cmake ../ut/cpp_test && make -j 50
   fi
   if [ $? -ne 0 ]; then
     echo "Build test failed"

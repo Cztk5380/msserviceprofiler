@@ -61,31 +61,29 @@ NodeDbActivityMarker *DbBuffer::GetNext(NodeDbActivityMarker *pNode)
     return pNext;
 }
 
-void DbBuffer::Push(DbActivityMarker *pMarker)
+bool DbBuffer::Push(DbActivityMarker *pMarker)
 {
 #ifdef ENABLE_SERVICE_PROF_UNIT_TEST
     pushCount_++;
 #endif
     if (pMarker == nullptr) {
-        return;
+        return false;
     }
     auto size = Size();
 
     auto *pNext = GetNext(pHead_);
 
     if (size + 1 >= BufferSize()) {  // +1 是因为不要影响到 pTail_， 离开一点距离
-        if (bufferIndex_ + 1 >= PTR_ARRAY_SIZE) {
-            delete pMarker;
-            LOG_ONCE_E("no more new buffer. max size is: %lu", size);
-            return;
+        if (bufferIndex_ > PTR_ARRAY_SIZE - 1) {
+            LOG_ONCE_E("no more new buffer. max size is: %lu", size);  // LCOV_EXCL_LINE
+            return false;
         }
         auto *pBuffer = NewBuffer(pHead_, pNext);
         if (pBuffer != nullptr) {
             pHead_ = pBuffer;
         } else {
-            delete pMarker;
-            LOG_ONCE_E("no more new buffer. now size is: %lu", size);
-            return;
+            LOG_ONCE_E("no more new buffer. now size is: %lu", size);  // LCOV_EXCL_LINE
+            return false;
         }
     } else {
         pHead_ = pNext;
@@ -93,7 +91,7 @@ void DbBuffer::Push(DbActivityMarker *pMarker)
 
     pHead_->pMarker = pMarker;
     SizeAdd();
-    return;
+    return true;
 }
 
 size_t DbBuffer::Pop(size_t maxPopSize, DbActivityMarkerPtr *popBuffer)

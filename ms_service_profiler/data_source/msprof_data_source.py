@@ -24,8 +24,6 @@ class MsprofDataSource(BaseDataSource):
 
         file_filter = {
             "tx": "msproftx.db",
-            "cpu": "host_cpu_usage.db",
-            "memory": "host_mem_usage.db",
             "host_start": "host_start.log",
             "info": "info.json",
             "start_info": "start_info",
