@@ -419,27 +419,6 @@ namespace msServiceProfiler {
 
             DynamicControl();
 
-            std::vector<int> memoryUsed;
-            std::vector<int> memoryUtiliza;
-            try {
-                if (!(config_->GetEnable() && config_->GetNpuMemoryUsage() && isMaster_)) {
-                    continue;
-                }
-
-                int ret = npuMemoryUsage.InitDcmiCardAndDevices();
-                if (ret != EXITCODE_SUCCESS) {
-                    PROF_LOGE("InitDcmiCardAndDevices failed." // LCOV_EXCL_LINE
-                        " Check whether a NPU server or if NPU driver installed."); // LCOV_EXCL_LINE
-                    return;
-                }
-                if (npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza) == EXITCODE_SUCCESS) {
-                    Write2Tx(memoryUsed, "usage");
-                    Write2Tx(memoryUtiliza, "utiliza");
-                }
-            } catch (std::exception &e) {
-                PROF_LOGD("get npu memory usage failed");  // LCOV_EXCL_LINE
-            }
-
             if (config_->GetTimeLimit() > 0 && started_) {
                 auto terminate = std::chrono::high_resolution_clock::now(); // 记录结束时间
 
@@ -468,6 +447,27 @@ namespace msServiceProfiler {
 
             if (msptiEnabled) {
                 FlushBufferByTime();
+            }
+
+            std::vector<int> memoryUsed;
+            std::vector<int> memoryUtiliza;
+            try {
+                if (!(config_->GetEnable() && config_->GetNpuMemoryUsage() && isMaster_)) {
+                    continue;
+                }
+
+                int ret = npuMemoryUsage.InitDcmiCardAndDevices();
+                if (ret != EXITCODE_SUCCESS) {
+                    PROF_LOGE("InitDcmiCardAndDevices failed." // LCOV_EXCL_LINE
+                        " Check whether a NPU server or if NPU driver installed."); // LCOV_EXCL_LINE
+                    return;
+                }
+                if (npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza) == EXITCODE_SUCCESS) {
+                    Write2Tx(memoryUsed, "usage");
+                    Write2Tx(memoryUtiliza, "utiliza");
+                }
+            } catch (std::exception &e) {
+                PROF_LOGD("get npu memory usage failed");  // LCOV_EXCL_LINE
             }
         }
     }
