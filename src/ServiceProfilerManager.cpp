@@ -462,7 +462,7 @@ namespace msServiceProfiler {
                     StopAclTaskTime();
                     PROF_LOGI("Profiler AclTaskTimeDuration %d Seconds Is Reached, " // LCOV_EXCL_LINE
                         "AclTaskTime Disabled Successfully!", config_->GetAclTaskTimeDuration()); // LCOV_EXCL_LINE
-                    config_->SetFileEnable(0);
+                    config_->SetAclTaskTimeDuration(0);
                 }
             }
 
