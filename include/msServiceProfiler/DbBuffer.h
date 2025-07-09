@@ -12,6 +12,12 @@
 
 #include "ServiceProfilerDbWriter.h"
 
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+#define MS_SERVICE_INLINE_FLAG [[gnu::noinline]]
+#else
+#define MS_SERVICE_INLINE_FLAG inline
+#endif
+
 namespace msServiceProfiler {
 
 using NodeDbActivityMarker = struct NODE_MARKER_DB {
@@ -24,15 +30,29 @@ constexpr long long unsigned int PTR_ARRAY_PRE_SIZE = 128;
 
 class DbBuffer {
 public:
-    DbBuffer(){};
-    void Push(DbActivityMarker *pMarker);
-    DbActivityMarker *Pop();
-    void Print();
+    MS_SERVICE_INLINE_FLAG DbBuffer(){};
     ~DbBuffer();
+    bool Push(DbActivityMarker *pMarker);
+    size_t Pop(size_t maxPopSize, DbActivityMarkerPtr *popBuffer);
+    size_t Size();
+
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+    [[gnu::noinline]] size_t PopCnt() const
+    {
+        return popCount_;
+    };
+    [[gnu::noinline]] size_t PushCnt() const
+    {
+        return pushCount_;
+    };
+    [[gnu::noinline]] size_t MaxCntInBuffer() const
+    {
+        return maxCountInBuffer_;
+    };
+#endif
 
 private:
     size_t BufferSize();
-    size_t Size();
     size_t SizeAdd();
     size_t SizeSub();
     NodeDbActivityMarker *NewBuffer(NodeDbActivityMarker *pThis, NodeDbActivityMarker *pNext);
@@ -45,6 +65,11 @@ private:
     NodeDbActivityMarker *pHead_ = nullptr;
     NodeDbActivityMarker *pTail_ = nullptr;
     std::atomic<size_t> Size_{};
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+    size_t pushCount_ = 0;
+    size_t popCount_ = 0;
+    size_t maxCountInBuffer_ = 0;
+#endif
 };
 }  // namespace msServiceProfiler
 

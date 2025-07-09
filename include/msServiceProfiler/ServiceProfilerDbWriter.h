@@ -36,9 +36,16 @@ using DbActivityMarker = struct PACKED_ALIGNMENT_DB {
     std::string message;
 };
 
+using DbActivityMarkerPtr = DbActivityMarker*;
+
 void InsertTxData2Writer(DbActivityMarker *activity);
-void ColseTxData2Writer();
+void CloseTxData2Writer();
 void StartTxData2Writer(const std::string &outputPath);
+std::string GetHostName();
+
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+void WaitForAllDump();
+#endif
 }  // namespace msServiceProfiler
 
 #endif  // SERVICEPROFILERMANAGERMSPTI_H

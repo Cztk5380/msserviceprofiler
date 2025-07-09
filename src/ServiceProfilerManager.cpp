@@ -171,6 +171,12 @@ bool IsEnable(uint32_t level)
     return msServiceProfiler::ServiceProfilerManager::GetInstance().IsEnable(level);
 }
 
+bool IsValidDomain(const char *domainName)
+{
+    const std::set<std::string>& allowNames = msServiceProfiler::ServiceProfilerManager::GetInstance().GetValidDomain();
+    return allowNames.size() == 0 || allowNames.find(std::string(domainName)) != allowNames.end();
+}
+
 bool GetEnableDomainFilter()
 {
     return msServiceProfiler::ServiceProfilerManager::GetInstance().GetEnableDomainFilter();
@@ -210,8 +216,8 @@ static void RegisterSetDeviceCallback()
 {
     void *handle = dlopen("libprofapi.so", RTLD_LAZY | RTLD_LOCAL);
     if (handle == nullptr) {
-        PROF_LOGW("Failed to dlopen libprofapi.so. Will be not able to get device profiling data. "
-            "Check whether a NPU server or if cann toolkit installed.");
+        PROF_LOGW("Failed to dlopen libprofapi.so. Will be not able to get device profiling data. " // LCOV_EXCL_LINE
+            "Check whether a NPU server or if cann toolkit installed."); // LCOV_EXCL_LINE
         return;
     }
 
@@ -220,8 +226,9 @@ static void RegisterSetDeviceCallback()
     ProfRegDeviceStateCallbackFunc profRegDeviceStateCallback =
         (ProfRegDeviceStateCallbackFunc)(dlsym(handle, "profRegDeviceStateCallback"));
     if (profRegDeviceStateCallback == nullptr) {
-        PROF_LOGW("Failed to get profRegDeviceStateCallback from libprofapi.so."
-            "Will be not able to get device profiling data.  Check whether a NPU server or if cann toolkit installed.");
+        PROF_LOGW("Failed to get profRegDeviceStateCallback from libprofapi.so." // LCOV_EXCL_LINE
+            "Will be not able to get device profiling data." // LCOV_EXCL_LINE
+            " Check whether a NPU server or if cann toolkit installed."); // LCOV_EXCL_LINE
         return;
     }
     profRegDeviceStateCallback(MsprofSetDeviceCallbackImpl);
@@ -412,28 +419,6 @@ namespace msServiceProfiler {
 
             DynamicControl();
 
-            std::vector<int> memoryUsed;
-            std::vector<int> memoryUtiliza;
-            try {
-                if (!(config_->GetEnable() && config_->GetNpuMemoryUsage() && isMaster_)) {
-                    continue;
-                }
-
-                int ret = npuMemoryUsage.InitDcmiCardAndDevices();
-                if (ret != EXITCODE_SUCCESS) {
-                    PROF_LOGE(
-                        "InitDcmiCardAndDevices failed. Check whether a NPU server "
-                        "or if NPU driver installed.");  // LCOV_EXCL_LINE
-                    return;
-                }
-                if (npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza) == EXITCODE_SUCCESS) {
-                    Write2Tx(memoryUsed, "usage");
-                    Write2Tx(memoryUtiliza, "utiliza");
-                }
-            } catch (std::exception &e) {
-                PROF_LOGD("get npu memory usage failed");  // LCOV_EXCL_LINE
-            }
-
             if (config_->GetTimeLimit() > 0 && started_) {
                 auto terminate = std::chrono::high_resolution_clock::now(); // 记录结束时间
 
@@ -441,8 +426,9 @@ namespace msServiceProfiler {
 
                 if (duration.count() >= config_->GetTimeLimit()) {
                     StopProfiler();
-                    PROF_LOGI("Profiler Timelimit %u Seconds Is Reached, Profiler Disabled Successfully!",
-                              config_->GetTimeLimit());
+                    PROF_LOGI("Profiler Timelimit %u Seconds Is Reached," // LCOV_EXCL_LINE
+                        " Profiler Disabled Successfully!", config_->GetTimeLimit()); // LCOV_EXCL_LINE
+                    config_->SetFileEnable(0);
                 }
             }
             // 单独控制算子采集
@@ -453,14 +439,35 @@ namespace msServiceProfiler {
 
                 if (duration.count() >= config_->GetAclTaskTimeDuration()) {
                     StopAclTaskTime();
-                    PROF_LOGI("Profiler AclTaskTimeDuration %d Seconds Is Reached, AclTaskTime Disabled Successfully!",
-                              config_->GetAclTaskTimeDuration());
+                    PROF_LOGI("Profiler AclTaskTimeDuration %d Seconds Is Reached, " // LCOV_EXCL_LINE
+                        "AclTaskTime Disabled Successfully!", config_->GetAclTaskTimeDuration()); // LCOV_EXCL_LINE
                     config_->SetAclTaskTimeDuration(0);
                 }
             }
 
             if (msptiEnabled) {
                 FlushBufferByTime();
+            }
+
+            std::vector<int> memoryUsed;
+            std::vector<int> memoryUtiliza;
+            try {
+                if (!(config_->GetEnable() && config_->GetNpuMemoryUsage() && isMaster_)) {
+                    continue;
+                }
+
+                int ret = npuMemoryUsage.InitDcmiCardAndDevices();
+                if (ret != EXITCODE_SUCCESS) {
+                    PROF_LOGE("InitDcmiCardAndDevices failed." // LCOV_EXCL_LINE
+                        " Check whether a NPU server or if NPU driver installed."); // LCOV_EXCL_LINE
+                    return;
+                }
+                if (npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza) == EXITCODE_SUCCESS) {
+                    Write2Tx(memoryUsed, "usage");
+                    Write2Tx(memoryUtiliza, "utiliza");
+                }
+            } catch (std::exception &e) {
+                PROF_LOGD("get npu memory usage failed");  // LCOV_EXCL_LINE
             }
         }
     }
@@ -543,7 +550,7 @@ namespace msServiceProfiler {
     {
         auto ret = InitMspti(profPath, msptiHandle_);
         if (ret != 0) {
-            PROF_LOGE("Mspti init failed.");
+            PROF_LOGE("Mspti init failed."); // LCOV_EXCL_LINE
             msptiEnabled = false;
         } else {
             InitMsptiActivity(config_->GetMsptiEnable());
@@ -572,7 +579,7 @@ namespace msServiceProfiler {
             }
         }
 
-        PROF_LOGD("StartAclProf device_id: %d", static_cast<int>(g_deviceID));
+        PROF_LOGD("StartAclProf device_id: %d", static_cast<int>(g_deviceID));  // LCOV_EXCL_LINE
         if (config_->IsAclProf()) {
             aclError ret = aclprofInit(profPath.c_str(), profPath.size());
             if (ret != ACL_ERROR_NONE) {
@@ -626,7 +633,7 @@ namespace msServiceProfiler {
             msptiEnabled = false;
             UninitMspti(msptiHandle_);
         } else if (config_->IsAclProf()) {
-            PROF_LOGD("StopAclTaskTime calling aclprofStop");
+            PROF_LOGD("StopAclTaskTime calling aclprofStop"); // LCOV_EXCL_LINE
             auto ret = aclprofStop(profConfig);
             npuFlag_ = false;
             if (ret != ACL_ERROR_NONE) {
@@ -649,7 +656,7 @@ namespace msServiceProfiler {
 
     void ServiceProfilerManager::StopProfiler()
     {
-        PROF_LOGD("StopProfiler started_=%d, npuFlag_=%d", started_, npuFlag_);
+        PROF_LOGD("StopProfiler started_=%d, npuFlag_=%d", started_, npuFlag_);  // LCOV_EXCL_LINE
         if (!started_) {
             return;
         }
@@ -657,7 +664,7 @@ namespace msServiceProfiler {
         config_->SetEnable(false);
         StopAclTaskTime();
 
-        msServiceProfiler::ColseTxData2Writer();
+        msServiceProfiler::CloseTxData2Writer();
         started_ = false;
         g_startFlag = false;
     }

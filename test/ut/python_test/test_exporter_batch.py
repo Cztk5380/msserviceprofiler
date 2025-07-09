@@ -70,20 +70,6 @@ class TestExporterBatchData(unittest.TestCase):
         }
         return pd.DataFrame(data)
 
-    def check_dp_info(self, csv_file_path):
-        df = pd.read_csv(csv_file_path)
-        dp_columns = ['during_time(ms)', 'dp0_rid', 'dp0_size', 'dp0_forward(ms)',
-            'dp1_rid', 'dp1_size', 'dp1_forward(ms)']
-
-        # 校验是否存在上述列
-        col_index = []
-        for col_name in dp_columns:
-            col_index.append(df.columns.get_loc(col_name))
-            self.assertIn(col_name, df.columns)
-
-        # 校验上述列是否按顺序排列
-        self.assertEqual(col_index, sorted(col_index))
-
     def test_export(self):
         try:
             # 设置模拟方法返回安全父目录
@@ -105,9 +91,6 @@ class TestExporterBatchData(unittest.TestCase):
             ExporterBatchData.export(self.data)
             # 验证CSV文件是否生成
             self.assertTrue(file_path.is_file())
-
-            # 验证dp域信息是否正确
-            self.check_dp_info(file_path)
         finally:
             # 清理
             shutil.rmtree(test_path)

@@ -3,8 +3,6 @@ import os
 from abc import abstractmethod
 from typing import Dict
 
-import matplotlib.pyplot as plt
-
 from ms_service_profiler.exporters.base import TaskExporterBase
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv, add_table_into_visual_db
 from ms_service_profiler.utils.file_open_check import UmaskWrapper
@@ -54,6 +52,7 @@ class ExporterMoe(TaskExporterBase):
 
 
 def plot_confidence_interval(ci_df, output_path):
+    import matplotlib.pyplot as plt
     plt.figure(figsize=(10, 6))
 
     # 绘制置信区间

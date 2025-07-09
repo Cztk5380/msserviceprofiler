@@ -22,6 +22,7 @@
 #include <cmath>
 #include <csignal>
 #include <mutex>
+#include <memory>
 
 #include "securec.h"
 #include "msServiceProfiler/Utils.h"

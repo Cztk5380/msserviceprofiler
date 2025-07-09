@@ -36,6 +36,7 @@ class Profiler:
         return self
 
     def domain(self, domain):
+        self._enable = self._enable and service_profiler.is_domain_enable(domain)
         return self.attr("domain", domain)
 
     def res(self, res):

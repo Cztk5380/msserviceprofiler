@@ -21,6 +21,7 @@ public:
     virtual void EndSpan(SpanHandle spanHandle) = 0;
     virtual void MarkEvent(const char* msg) = 0;
     virtual bool IsEnable(uint32_t level) = 0;
+    virtual bool IsValidDomain(const char* domain) = 0;
 };
 
 class MockStubFunc : public StubFunc {
@@ -38,4 +39,5 @@ public:
     MOCK_METHOD1(EndSpan, void(SpanHandle));
     MOCK_METHOD1(MarkEvent, void(const char*));
     MOCK_METHOD1(IsEnable, bool(uint32_t));
+    MOCK_METHOD1(IsValidDomain, bool(const char*));
 };

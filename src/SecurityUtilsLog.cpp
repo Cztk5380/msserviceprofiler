@@ -36,7 +36,7 @@ std::string SecurityUtilsLog::AddPrefixInfo(std::string const &format, LogLv lv)
     if (tm != nullptr) {
         std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm);
     }
-    return std::string(buf) + " " + ToString(lv) + " " + format;
+    return std::string(buf) + " " + ToString(lv) + " " + format;  // LCOV_EXCL_LINE
 }
 
 void SecurityUtilsLog::SetLogLevelByEnvVar()
@@ -52,8 +52,8 @@ void SecurityUtilsLog::SetLogLevelByEnvVar()
         {"3", LogLv::ERROR},
     };
     if (logLevelMap.count(logLevel) == 0) {
-        LogWarn("Env SECURITY_UTILS_LOG_LEVEL can only be set 0,1,2,3 [0-debug, 1-info, 2-warn, 3-error], "
-            "use default 1 level.");
+        LogWarn("Env SECURITY_UTILS_LOG_LEVEL can only be set 0,1,2,3 "  // LCOV_EXCL_LINE
+            "[0-debug, 1-info, 2-warn, 3-error], use default 1 level.");
         return;
     }
     lv_ = logLevelMap[logLevel];

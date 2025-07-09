@@ -40,8 +40,6 @@ class ExporterTrace(TaskExporterBase):
         output = cls.args.output_path
 
         if data is not None:
-            cpu_data_df = data.get('cpu_data_df', pd.DataFrame())
-            memory_data_df = data.get('memory_data_df', pd.DataFrame())
             all_data_df = data.get('tx_data_df', pd.DataFrame(columns=["name", "domain"])).copy()
             if 'pid_label_map' in data:
                 pid_label_map = data['pid_label_map']
@@ -51,7 +49,7 @@ class ExporterTrace(TaskExporterBase):
             msprof_data_df = data.get('msprof_data', pd.DataFrame())
 
             cann_data = [load_single_prof(pf, index) for index, pf in enumerate(msprof_data_df)]
-            trace_data = create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map)
+            trace_data = create_trace_events(all_data_df, pid_label_map)
             merged_data = merge_json_data(trace_data, cann_data)
         else:
             merged_data = {"traceEvents": []}
@@ -221,19 +219,12 @@ def add_flow_event(flow_event_df):
     return flow_trace_events
 
 
-def create_trace_events(all_data_df, cpu_data_df, memory_data_df, pid_label_map=None):
+def create_trace_events(all_data_df, pid_label_map=None):
     metric_event = ['npu', 'KVCache', 'PullKVCache']
 
     # 普通事件
     valid_name_df = all_data_df[all_data_df['name'].notna() & (~all_data_df['domain'].isin(metric_event))]
     trace_events = add_trace_events(valid_name_df)
-
-    # metric事件
-    cpu_trace_events = add_cpu_events(cpu_data_df)
-    trace_events.extend(cpu_trace_events)
-
-    mem_trace_events = add_mem_events(memory_data_df)
-    trace_events.extend(mem_trace_events)
 
     if not all_data_df.empty and "name" in all_data_df:
         npu_trace_events = add_npu_events(all_data_df[all_data_df['name'] == 'npu'])
@@ -422,7 +413,11 @@ def add_pull_kvcache_events(df):
     all_events = []
 
     for rank in df_all_device['rank'].unique():
-        rank = int(rank)
+        try:
+            rank = int(rank)
+        except Exception as e:
+            logger.warning(f"Unexpected error processing rank {rank}: {str(e)}, skipping this rank")
+            continue
         df = df_all_device[df_all_device['rank'] == rank].copy().reset_index(drop=True)
         df['pid'] = "PullKVCache"
         df['name'] = df['domain']

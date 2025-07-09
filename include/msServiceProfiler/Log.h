@@ -32,7 +32,7 @@ namespace msServiceProfiler {
 // 日志宏定义
 #define PROF_LOGD(...) \
     do { \
-        if (ProfLogGetLevel() >= ProfLogLevel::PROF_LOG_DEBUG) { \
+        if (msServiceProfiler::ProfLogGetLevel() >= msServiceProfiler::ProfLogLevel::PROF_LOG_DEBUG) { \
             printf("[msservice_profiler] [PID:%d] [DEBUG] [%s:%d] ", getpid(), __func__, __LINE__); \
             printf(__VA_ARGS__); \
             printf("\n"); \
@@ -41,7 +41,7 @@ namespace msServiceProfiler {
 
 #define PROF_LOGI(...) \
     do { \
-        if (ProfLogGetLevel() >= ProfLogLevel::PROF_LOG_INFO) { \
+        if (msServiceProfiler::ProfLogGetLevel() >= msServiceProfiler::ProfLogLevel::PROF_LOG_INFO) { \
             printf("[msservice_profiler] [PID:%d] [INFO] [%s:%d] ", getpid(), __func__, __LINE__); \
             printf(__VA_ARGS__); \
             printf("\n"); \

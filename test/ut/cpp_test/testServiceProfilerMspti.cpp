@@ -15,10 +15,10 @@
 #include "acl/acl.h"
 #include "mspti/mspti.h"
 
+#include "msptiHelper.h"
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "stubs.h"
-#include "msptiHelper.h"
 
 using namespace ::testing;
 

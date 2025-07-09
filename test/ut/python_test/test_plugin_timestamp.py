@@ -127,15 +127,11 @@ def test_plugin_timestamp_helper(sample_tx_data, sample_cpu_data, sample_time_in
     """测试PluginTimeStampHelper的parse方法"""
     data = {
         'tx_data_df': sample_tx_data,
-        'cpu_data_df': sample_cpu_data,
-        'memory_data_df': None,
         'msprof_data': None,
         'time_info': sample_time_info,
     }
     result = PluginTimeStampHelper.parse(data)
     assert 'tx_data_df' in result
-    assert 'cpu_data_df' in result
-    assert 'memory_data_df' in result
     assert 'msprof_data' in result
 
 
@@ -143,8 +139,6 @@ def test_plugin_timestamp_helper_missing_time_info(sample_tx_data):
     """测试缺少time_info的情况"""
     data = {
         'tx_data_df': sample_tx_data,
-        'cpu_data_df': None,
-        'memory_data_df': None,
         'msprof_data': None,
         'time_info': None,
     }
@@ -159,12 +153,9 @@ def test_plugin_timestamp(sample_tx_data, sample_cpu_data, sample_time_info):
     """测试PluginTimeStamp的parse方法"""
     data = [{
         'tx_data_df': sample_tx_data,
-        'cpu_data_df': sample_cpu_data,
-        'memory_data_df': None,
         'msprof_data': None,
         'time_info': sample_time_info,
     }]
     result = PluginTimeStamp.parse(data)
     assert len(result) == 1
     assert 'tx_data_df' in result[0]
-    assert 'cpu_data_df' in result[0]

@@ -32,17 +32,40 @@ from ms_service_profiler.exporters.utils import (
 )
 
 
+def _parse_value(line, key):
+    if f"{key}:" not in line:
+        return None
+        
+    parts = line.strip().split(": ")
+    if len(parts) < 2:
+        return None
+        
+    try:
+        return int(parts[1])
+    except (ValueError, IndexError):
+        return None
+
+
 def load_start_cnt(config_path):
     cntvct = 0
     clock_monotonic_raw = 0
+    
     with ms_open(config_path, 'r') as f:
         for line in f:
-            if "cntvct:" in line:
-                cntvct = int(line.strip().split(": ")[1])
-            elif "clock_monotonic_raw:" in line:
-                clock_monotonic_raw = int(line.strip().split(": ")[1])
+            cntvct_val = _parse_value(line, "cntvct")
+            if cntvct_val is not None:
+                cntvct = cntvct_val
+                continue
+                
+            clock_val = _parse_value(line, "clock_monotonic_raw")
+            if clock_val is not None:
+                clock_monotonic_raw = clock_val
+
     if cntvct == 0 or clock_monotonic_raw == 0:
-        raise ValueError(f"Failed to find 'cntvct' or 'clock_monotonic_raw' in {config_path}, please check.")
+        raise ValueError(
+            f"Failed to find 'cntvct' or 'clock_monotonic_raw' in {config_path}, please check."
+        )
+    
     return cntvct, clock_monotonic_raw
 
 

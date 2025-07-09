@@ -78,16 +78,16 @@ run_test_cpp() {
   cd ${TEST_DIR}
 
   if [ "$ENABLE_CACHE" != "1" ]; then
-    mkdir -p test_build && cd test_build && rm * -rf && cmake ../ut/cpp_test && make -j 4
+    mkdir -p test_build && cd test_build && rm * -rf && cmake ../ut/cpp_test && make -j 50
   else
-    mkdir -p test_build && cd test_build && cmake ../ut/cpp_test && make -j 4
+    mkdir -p test_build && cd test_build && cmake ../ut/cpp_test && make -j 50
   fi
   if [ $? -ne 0 ]; then
     echo "Build test failed"
     exit 1
   fi
   cd ${TEST_DIR}
-  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${TEST_DIR}/test_build/3rdparty
+  export LD_LIBRARY_PATH=${TEST_DIR}/test_build/3rdparty:$LD_LIBRARY_PATH
   ./test_build/st_server_profiler & ./test_build/st_server_profiler
   ./test_build/ut_server_profiler
 
