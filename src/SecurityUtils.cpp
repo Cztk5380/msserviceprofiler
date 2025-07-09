@@ -45,7 +45,7 @@ bool IsExecutable(const std::string &absPath)
 {
     struct stat fileStat;
     if ((stat(absPath.c_str(), &fileStat) != 0) || (fileStat.st_mode & S_IXUSR) == 0) {
-        LogWarn("File not excutable: %s", absPath.c_str());  // LCOV_EXCL_LINE
+        LogWarn("File not executable: %s", absPath.c_str());  // LCOV_EXCL_LINE
         return false;
     }
     return true;
@@ -55,7 +55,7 @@ bool IsOwner(const std::string &absPath)
 {
     struct stat fileStat;
     if ((stat(absPath.c_str(), &fileStat) != 0) || (fileStat.st_uid != getuid())) {
-        LogWarn("File not excutable: %s", absPath.c_str());  // LCOV_EXCL_LINE
+        LogWarn("File not owned by current user: %s", absPath.c_str());  // LCOV_EXCL_LINE
         return false;
     }
     return true;
@@ -260,7 +260,7 @@ bool CheckFileBeforeRead(const std::string &path, long long maxSize)
         LogWarn("Group or others user can write, path: %s", path.c_str());  // LCOV_EXCL_LINE
         return false;
     }
-    if (fileStat.st_uid != getuid() || fileStat.st_uid != 0) {
+    if (fileStat.st_uid != getuid() && fileStat.st_uid != 0) {
         LogWarn("file owner is not self or root: %s", path.c_str());  // LCOV_EXCL_LINE
         return false;
     }
