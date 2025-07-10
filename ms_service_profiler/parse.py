@@ -436,8 +436,8 @@ def build_task_dag(exporters):
         tasks.extend(depend_names)
         prev_tasks[walking_task_name] = depend_names
         for depend_name in depend_names:
-            next_tasks.setdefault(depend_name, [])
-            next_tasks[depend_name].append(walking_task_name)
+            next_tasks.setdefault(depend_name, set())
+            next_tasks[depend_name].add(walking_task_name)
 
     return next_tasks, prev_tasks, head_tasks
 
@@ -464,9 +464,11 @@ def get_task_run_order(head_tasks, next_tasks, prev_tasks):
 def get_task_by_name(name, task_results, args):
     task = Task.get_retister_by_name(name)(args)
     depends = task.depends()
+    has_depends_data = False
     for depend_name in depends:
+        has_depends_data = has_depends_data or depend_name in task_results
         task.set_depends_result(depend_name, task_results.get(depend_name))
-    return task
+    return task, has_depends_data
 
 
 def run_task(task, task_results):
@@ -523,7 +525,7 @@ def parse_run(input_path, exporters, args=None):
             batch_data[key].append(value)
 
     for task_name in batch_data_tasks_ordered:
-        task_ins = get_task_by_name(task_name, batch_data, args)
+        task_ins, _ = get_task_by_name(task_name, batch_data, args)
         run_task(task_ins, batch_data)
 
     logger.info('Starting exporter processes.')
@@ -583,8 +585,9 @@ def run_single_prof_data_tasks(data_source_task, tasks, batch_data_tasks_depends
 
     run_task(data_source_task, task_results)
     for task_name in tasks:
-        task_ins = get_task_by_name(task_name, task_results, args)
-        run_task(task_ins, task_results)
+        task_ins, has_depends_data = get_task_by_name(task_name, task_results, args)
+        if has_depends_data:
+            run_task(task_ins, task_results)
 
     return {k: v for k, v in task_results.items() if k in batch_data_tasks_depends}
 

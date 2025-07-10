@@ -255,8 +255,8 @@ def test_build_task_dag(mock_get_retister_by_name):
     # 断言next_tasks是一个字典
     assert isinstance(next_tasks, dict)
     assert len(next_tasks) == 2
-    assert next_tasks["depend_task1"] == ["mock_task"]
-    assert next_tasks["depend_task2"] == ["mock_task"]
+    assert next_tasks["depend_task1"] == set(["mock_task"])
+    assert next_tasks["depend_task2"] == set(["mock_task"])
 
     # 断言prev_tasks是一个字典
     assert isinstance(prev_tasks, dict)

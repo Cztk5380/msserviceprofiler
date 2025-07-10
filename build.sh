@@ -31,6 +31,19 @@ function fn_build_securec()
   fi
 }
 
+function add_version()
+{
+  version_str=`git rev-parse --is-inside-work-tree >/dev/null 2>&1 && echo "$(git rev-parse --abbrev-ref HEAD) $(git log -1 --format='%H %cd' --date=iso)" || echo ""`
+  version_file=${CUR_DIR}/build/output/python/ms_service_profiler/analyze.py
+  echo $version_file
+  if [ -f "$version_file" ]; then
+    echo "" >> $version_file
+    echo "" >> $version_file
+    echo "version='$version_str'" >> $version_file
+    echo "" >> $version_file
+  fi
+}
+
 make_msserviceprofiler() {
     cd $CUR_DIR
     fn_build_nlohmann_json
@@ -39,6 +52,7 @@ make_msserviceprofiler() {
     cd $CUR_DIR
     rm -rf build
     mkdir -p build && cd build && cmake .. && make -j 4 && cmake --install . --prefix output
+    add_version
     cd -
 }
 
