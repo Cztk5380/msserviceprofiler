@@ -33,7 +33,8 @@ def sample_data():
             'STOP_PRE': [0, 0, 1],
             'WAITING_PULL': [0, 0, 1],
             'PULLING': [0, 0, 1],
-            'PULLED': [0, 0, 1]
+            'PULLED': [0, 0, 1],
+            'D2D_PULLING': [0, 0, 1]
         })
     }
     return data

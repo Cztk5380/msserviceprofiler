@@ -41,10 +41,19 @@ class ExporterTrace(TaskExporterBase):
 
         if data is not None:
             all_data_df = data.get('tx_data_df', pd.DataFrame(columns=["name", "domain"])).copy()
+
+            # 过滤显示数据, Meta不显示
+            all_data_df = all_data_df[~all_data_df['domain'].isin(['Meta'])]
+
             if 'pid_label_map' in data:
                 pid_label_map = data['pid_label_map']
             else:
                 pid_label_map = None
+
+            # 如果只采集到了python数据而没有采集到cpp数据，则直接认为name为domain
+            if 'domain' not in all_data_df.columns:
+                all_data_df['domain'] = all_data_df['name']
+
             all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
             msprof_data_df = data.get('msprof_data', pd.DataFrame())
 

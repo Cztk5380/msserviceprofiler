@@ -784,11 +784,8 @@ def main():
     # 初始化日志等级
     set_log_level(args.log_level)
 
-    # msprof预处理
     exporters = ExporterFactory.create_exporters(args)
 
-    # 创建output目录
-    Path(args.output_path).mkdir(parents=True, exist_ok=True)
     if 'db' in args.format:
         create_sqlite_db(args.output_path)
 
