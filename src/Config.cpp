@@ -61,7 +61,8 @@ void Config::ReadConfigPath()
     }
 }
 
-nlohmann::ordered_json Config::ReadConfigFile()
+using nlohmann::ordered_json;
+ordered_json Config::ReadConfigFile()
 {
     nlohmann::ordered_json jsonData;
     if (configPath_.empty()) {
