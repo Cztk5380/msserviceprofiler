@@ -41,7 +41,7 @@ void Config::ReadAndSaveConfig()
         return;
     }
     InitProfPathDateTail();
-    auto configJson = ReadConfigFile();
+    ordered_json configJson = ReadConfigFile();
     ParseConfig(configJson);
     SaveConfigToJsonFile();
 }
