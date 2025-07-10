@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 #include "ServiceProfilerInterface.h"
 
+using Json = nlohmann::json;
 using ordered_json = nlohmann::ordered_json;
 
 namespace msServiceProfiler {
