@@ -541,7 +541,7 @@ void Config::SetFileEnable(bool enable)
         PROF_LOGW("Automatic config file update failed %s", configPath.c_str());  // LCOV_EXCL_LINE
         return;
     }
-    outputFile << configJson.dump(jsonIndentSize);
+    outputFile << configJson.dump(jsonIndentSize, ' ', false);
     outputFile.close();
 }
 
