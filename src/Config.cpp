@@ -4,7 +4,6 @@
 #include <climits>
 #include <unistd.h>
 #include <fstream>
-#include <nlohmann/json.hpp>
 
 #include "securec.h"
 
@@ -18,8 +17,6 @@ constexpr int MILLISECONDS_IN_SECOND = 1000;
 constexpr int ACL_PROF_ENABLE_TASK_TIME = 1;
 constexpr int MSPTI_ENABLE_TASK_TIME = 2;
 constexpr int MAX_TIME_LIMIT = 7200;
-
-using ordered_json = nlohmann::ordered_json;
 
 static std::string TrimWhitespace(const std::string& str)
 {
@@ -43,7 +40,7 @@ void Config::ReadAndSaveConfig()
         return;
     }
     InitProfPathDateTail();
-    ordered_json configJson = ReadConfigFile();
+    auto configJson = ReadConfigFile();
     ParseConfig(configJson);
     SaveConfigToJsonFile();
 }
@@ -64,9 +61,9 @@ void Config::ReadConfigPath()
     }
 }
 
-ordered_json Config::ReadConfigFile()
+nlohmann::ordered_json Config::ReadConfigFile() const
 {
-    ordered_json jsonData;
+    nlohmann::ordered_json jsonData;
     if (configPath_.empty()) {
         return jsonData;
     }
@@ -537,7 +534,7 @@ void Config::SetFileEnable(bool enable)
     SetEnable(enable);
     const int jsonIndentSize = 4;
     std::string configPath = GetEnvAsString("SERVICE_PROF_CONFIG_PATH");
-    nlohmann::ordered_json configJson = ReadConfigFile();
+    auto configJson = ReadConfigFile();
     configJson["enable"] = 0;
     std::ofstream outputFile(configPath.c_str());
     if (!outputFile.is_open()) {
