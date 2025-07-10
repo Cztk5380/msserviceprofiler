@@ -63,7 +63,7 @@ void Config::ReadConfigPath()
 
 Json Config::ReadConfigFile()
 {
-    Json jsonData;
+    ordered_json jsonData;
     if (configPath_.empty()) {
         return jsonData;
     }
