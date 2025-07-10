@@ -42,7 +42,7 @@ public:
     void SetProfPathDateTail(std::string profPathDateTail) { profPathDateTail_ = profPathDateTail; }
     MS_SERVICE_INLINE_FLAG void SetConfigPath(std::string configPath) { configPath_ = configPath; }
 
-    Json ReadConfigFile();
+    nlohmann::ordered_json ReadConfigFile();
     void ParseConfig(const Json& configJson);
     void InitProfPathDateTail(bool forceReinit = false);
     bool PrepareConfigAndPath(std::string& configPath) const;
