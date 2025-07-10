@@ -4,6 +4,8 @@
 #include <climits>
 #include <unistd.h>
 #include <fstream>
+#include <string>
+#include <nlohmann/json.hpp>
 
 #include "securec.h"
 
@@ -529,6 +531,8 @@ nlohmann::ordered_json Config::GetConfigData() const
     };
 }
 
+using json = nlohmann::json;
+
 void Config::SetFileEnable(bool enable)
 {
     SetEnable(enable);
@@ -541,7 +545,7 @@ void Config::SetFileEnable(bool enable)
         PROF_LOGW("Automatic config file update failed %s", configPath.c_str());  // LCOV_EXCL_LINE
         return;
     }
-    outputFile << configJson.dump(jsonIndentSize, ' ', false);
+    outputFile << configJson.dump(jsonIndentSize, ' ', true);
     outputFile.close();
 }
 
