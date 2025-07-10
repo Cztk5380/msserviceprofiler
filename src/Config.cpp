@@ -19,6 +19,8 @@ constexpr int ACL_PROF_ENABLE_TASK_TIME = 1;
 constexpr int MSPTI_ENABLE_TASK_TIME = 2;
 constexpr int MAX_TIME_LIMIT = 7200;
 
+using ordered_json = nlohmann::ordered_json;
+
 static std::string TrimWhitespace(const std::string& str)
 {
     std::string result = str;
@@ -62,7 +64,6 @@ void Config::ReadConfigPath()
     }
 }
 
-using ordered_json = nlohmann::ordered_json;
 ordered_json Config::ReadConfigFile()
 {
     ordered_json jsonData;
