@@ -4,6 +4,7 @@
 #include <climits>
 #include <unistd.h>
 #include <fstream>
+#include <nlohmann/json.hpp>
 
 #include "securec.h"
 
@@ -61,7 +62,8 @@ void Config::ReadConfigPath()
     }
 }
 
-Json Config::ReadConfigFile()
+using ordered_json = nlohmann::ordered_json;
+ordered_json Config::ReadConfigFile()
 {
     ordered_json jsonData;
     if (configPath_.empty()) {
