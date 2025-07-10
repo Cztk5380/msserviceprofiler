@@ -4,8 +4,6 @@
 #include <climits>
 #include <unistd.h>
 #include <fstream>
-#include <iostream>
-#include <nlohmann/json.hpp>
 
 #include "securec.h"
 
@@ -531,14 +529,12 @@ nlohmann::ordered_json Config::GetConfigData() const
     };
 }
 
-using json = nlohmann::ordered_json;
-
 void Config::SetFileEnable(bool enable)
 {
     SetEnable(enable);
     const int jsonIndentSize = 4;
     std::string configPath = GetEnvAsString("SERVICE_PROF_CONFIG_PATH");
-    auto configJson = ReadConfigFile();
+    nlohmann::ordered_json configJson = ReadConfigFile();
     configJson["enable"] = 0;
     std::ofstream outputFile(configPath.c_str());
     if (!outputFile.is_open()) {
