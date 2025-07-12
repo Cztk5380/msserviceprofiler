@@ -102,7 +102,7 @@ class TestLibServiceProfiler(unittest.TestCase):
         # 测试add_meta_info方法
         self.service_profiler.func_add_meta_info = MagicMock()
         self.service_profiler.add_meta_info("key", "value")
-        self.service_profiler.func_add_meta_info.assert_called_once_with("key", "value")
+        self.service_profiler.func_add_meta_info.assert_called_once_with(b"key", b"value")
 
 
 if __name__ == '__main__':

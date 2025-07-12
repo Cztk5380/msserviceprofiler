@@ -25,6 +25,16 @@ add_compile_options(
         -Wall
         -fpermissive
 )
+
+# 内存泄露排查
+# add_compile_options(
+#         -fsanitize=address
+#         -static-libasan
+# )
+# add_link_options(
+#         -fsanitize=address
+# )
+
 if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
     message(AUTHOR_WARNING "no env $ASCEND_TOOLKIT_HOME")
     set(BUILD_INCLUDE_LIST )

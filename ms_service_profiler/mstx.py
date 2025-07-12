@@ -95,7 +95,7 @@ class LibServiceProfiler:
     
     def add_meta_info(self, key, value):
         if self.func_add_meta_info is not None:
-            self.func_add_meta_info(key, value)
+            self.func_add_meta_info(bytes(key, encoding="utf-8"), bytes(value, encoding="utf-8"))
 
 
 service_profiler = LibServiceProfiler()

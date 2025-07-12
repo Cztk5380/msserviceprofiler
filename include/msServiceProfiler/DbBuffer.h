@@ -9,6 +9,7 @@
 #include <iostream>
 #include <cstring>
 #include <iomanip>
+#include <type_traits>
 
 #include "ServiceProfilerDbWriter.h"
 
@@ -20,9 +21,50 @@
 
 namespace msServiceProfiler {
 
-using NodeDbActivityMarker = struct NODE_MARKER_DB {
-    DbActivityMarker *pMarker;
-    NODE_MARKER_DB *pNext;
+template <typename T>
+constexpr int GetTypeIndex()
+{
+    if (std::is_same<T, DbActivityMarker>::value) {
+        return 1;
+    } else if (std::is_same<T, DbActivityMeta>::value) {
+        return 2;
+    } else {
+        return 0;
+    }
+}
+class NodeMarkerData {
+public:
+    virtual int GetType() = 0;
+    virtual bool IsNull() = 0;
+    virtual ~NodeMarkerData() = default;
+};
+
+template <typename T>
+class NodeMarkerDataPtr : public NodeMarkerData {
+public:
+    NodeMarkerDataPtr(std::unique_ptr<T> dataPtr) : ptr_(std::move(dataPtr))
+    {}
+    int constexpr GetType() override
+    {
+        constexpr auto index = GetTypeIndex<T>();
+        return index;
+    }
+    std::unique_ptr<T> MovePtr()
+    {
+        return std::move(ptr_);
+    }
+    bool IsNull() override
+    {
+        return ptr_ == nullptr;
+    }
+
+private:
+    std::unique_ptr<T> ptr_;
+};
+
+using NodeDbActivityMarker = struct NODE_MARKER {
+    std::unique_ptr<NodeMarkerData> pMarkerData = nullptr;
+    NODE_MARKER *pNext = nullptr;
 };
 
 constexpr long long unsigned int PTR_ARRAY_SIZE = 128;
@@ -32,8 +74,8 @@ class DbBuffer {
 public:
     MS_SERVICE_INLINE_FLAG DbBuffer(){};
     ~DbBuffer();
-    bool Push(DbActivityMarker *pMarker);
-    size_t Pop(size_t maxPopSize, DbActivityMarkerPtr *popBuffer);
+    std::unique_ptr<NodeMarkerData> Push(std::unique_ptr<NodeMarkerData> pMarker);
+    size_t Pop(size_t maxPopSize, std::unique_ptr<NodeMarkerData> *popDataArray);
     size_t Size();
 
 #ifdef ENABLE_SERVICE_PROF_UNIT_TEST

@@ -347,6 +347,28 @@ namespace msServiceProfiler {
             }
         }
 
+    public:
+        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const char *value)
+        {
+            if (IsEnable(level)) {
+                msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallAddMetaInfo(key, value);
+            }
+        }
+
+        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const std::string &value)
+        {
+            AddMetaInfo(key, value.c_str());
+        }
+
+        template <typename T>
+        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const T value)
+        {
+            if (IsEnable(level)) {
+                msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallAddMetaInfo(
+                    key, std::to_string(value).c_str());
+            }
+        }
+
     private:
         bool autoEnd_ = false;
         SpanHandle spanHandle_ = 0U;

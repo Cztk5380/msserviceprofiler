@@ -122,15 +122,22 @@ public:
         }
     }
 
+    MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG void CallAddMetaInfo(const char *key, const char *value) const
+    {
+        if (ptrAddMetaInfo_) {
+            ptrAddMetaInfo_(key, value);
+        }
+    }
+
 private:
     ServiceProfilerInterface()
     {
         OpenLib();
     };
 
-    MS_SERVICE_PROFILER_HIDDEN void OpenLib()
-    {
 #ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+    MS_SERVICE_PROFILER_HIDDEN void OpenLibOfTest()
+    {
         ptrIsEnable_ = IsEnable;
         ptrStartSpanWithName_ = StartSpanWithName;
         ptrMarkSpanAttr_ = MarkSpanAttr;
@@ -141,6 +148,14 @@ private:
         ptrEnableDomainFilter_ = GetEnableDomainFilter;
         ptrValidDomain_ = GetValidDomain;
         ptrIsValidDomain_ = IsValidDomain;
+        ptrAddMetaInfo_ = AddMetaInfo;
+    }
+#endif
+
+    MS_SERVICE_PROFILER_HIDDEN void OpenLib()
+    {
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+        OpenLibOfTest();
 #else
         char *ascendHomePathPtr = getenv("ASCEND_HOME_PATH");
         if (ascendHomePathPtr == nullptr) {
@@ -176,6 +191,7 @@ private:
             ptrEnableDomainFilter_ = (decltype(GetEnableDomainFilter) *)dlsym(handle, "GetEnableDomainFilter");
             ptrValidDomain_ = (decltype(GetValidDomain) *)dlsym(handle, "GetValidDomain");
             ptrIsValidDomain_ = (decltype(IsValidDomain) *)dlsym(handle, "IsValidDomain");
+            ptrAddMetaInfo_ = (decltype(AddMetaInfo) *)dlsym(handle, "AddMetaInfo");
         }
 #endif
     }
@@ -191,15 +207,23 @@ private:
     decltype(GetEnableDomainFilter) *ptrEnableDomainFilter_ = nullptr;
     decltype(GetValidDomain) *ptrValidDomain_ = nullptr;
     decltype(IsValidDomain) *ptrIsValidDomain_ = nullptr;
+    decltype(AddMetaInfo) *ptrAddMetaInfo_ = nullptr;
 };
 }  // namespace msServiceProfilerCompatible
 
 namespace msServiceProfiler {
 enum Level : uint32_t {
-    ERROR = 10,
-    INFO = 20,
-    DETAILED = 30,
-    VERBOSE = 40,
+    ERROR = 10,                 // 20260630 日落
+    INFO = 20,                  // 20260630 日落
+    DETAILED = 30,              // 20260630 日落
+    VERBOSE = 40,               // 20260630 日落
+    LEVEL_CORE_TRACE = 10,      // 最核心的数据，请求关键事件，比如请求到达，请求返回，batch 大小，forward 时长
+    LEVEL_OUTLIER_ENENT = 10,   // 异常、关键事件。比如发生了Swap，或者发生了重计算
+    LEVEL_NORMAL_TRACE = 20,    // 普通 Trace 数据
+    LEVEL_DETAILED_TRACE = 30,  // 包含更多，更大量的详细信息
+    L0 = 10,
+    L1 = 20,
+    L2 = 30
 };
 }  // namespace msServiceProfiler
 
