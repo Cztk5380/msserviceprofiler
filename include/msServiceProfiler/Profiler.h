@@ -259,8 +259,8 @@ namespace msServiceProfiler {
         }
 
         Profiler(Profiler &obj)
-            : autoEnd_(obj.autoEnd_), spanHandle_(obj.spanHandle_), domainAllow_(obj.domainAllow_),
-              msg_(std::move(obj.msg_))
+            : autoEnd_(obj.autoEnd_), spanHandle_(obj.spanHandle_), msg_(std::move(obj.msg_)),
+              domainAllow_(obj.domainAllow_)
         {
             obj.autoEnd_ = false;
         }
@@ -350,9 +350,7 @@ namespace msServiceProfiler {
     public:
         MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const char *value)
         {
-            if (IsEnable(level)) {
-                msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallAddMetaInfo(key, value);
-            }
+            msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallAddMetaInfo(key, value);
         }
 
         MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const std::string &value)
@@ -363,10 +361,7 @@ namespace msServiceProfiler {
         template <typename T>
         MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const T value)
         {
-            if (IsEnable(level)) {
-                msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallAddMetaInfo(
-                    key, std::to_string(value).c_str());
-            }
+            AddMetaInfo(key, std::to_string(value).c_str());
         }
 
     private:

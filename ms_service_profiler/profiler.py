@@ -32,6 +32,10 @@ class Profiler:
         self._attr = dict()
         self._span_handle = None
 
+    @property
+    def enable(self):
+        return self._enable
+
     def __enter__(self):
         return self
 

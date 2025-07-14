@@ -309,10 +309,17 @@ void Config::ParseLevel(const Json &config)
 {
     level_ = Level::INFO;
     static const std::map<std::string, Level> ENUM_MAP = {
-        {"ERROR",    Level::ERROR},
-        {"INFO",     Level::INFO},
+        {"ERROR", Level::ERROR},
+        {"INFO", Level::INFO},
         {"DETAILED", Level::DETAILED},
-        {"VERBOSE",  Level::VERBOSE},
+        {"VERBOSE", Level::VERBOSE},
+        {"LEVEL_CORE_TRACE", Level::LEVEL_CORE_TRACE},
+        {"LEVEL_OUTLIER_ENENT", Level::LEVEL_OUTLIER_ENENT},
+        {"LEVEL_NORMAL_TRACE", Level::LEVEL_NORMAL_TRACE},
+        {"LEVEL_DETAILED_TRACE", Level::LEVEL_DETAILED_TRACE},
+        {"L0", Level::L0},
+        {"L1", Level::L1},
+        {"L2", Level::L2},
     };
 
     if (config.contains("profiler_level")) {
