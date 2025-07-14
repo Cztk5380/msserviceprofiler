@@ -11,13 +11,13 @@
 
 #define SERVER_PROFILER
 
-using ProfLevel0= msServiceProfiler::L0
-using ProfLevel1= msServiceProfiler::L1
-using ProfLevel2= msServiceProfiler::L2
+#define ProfLevel0 msServiceProfiler::L0
+#define ProfLevel1 msServiceProfiler::L1
+#define ProfLevel2 msServiceProfiler::L2
 
-using ProfilerL0=msServiceProfiler::Profiler<msServiceProfiler::L0>
-using ProfilerL1=msServiceProfiler::Profiler<msServiceProfiler::L1>
-using ProfilerL2=msServiceProfiler::Profiler<msServiceProfiler::L2>
+#define ProfilerL0 msServiceProfiler::Profiler<msServiceProfiler::L0>
+#define ProfilerL1 msServiceProfiler::Profiler<msServiceProfiler::L1>
+#define ProfilerL2 msServiceProfiler::Profiler<msServiceProfiler::L2>
 
 #define ITER_TYPE(_VECTOR_) decltype((_VECTOR_).begin())
 
