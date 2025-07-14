@@ -284,7 +284,9 @@ public:
 
     ServiceProfilerDbWriter() : inited(false), db_(nullptr), stmtMstx_(nullptr), stmtMeta_(nullptr)
     {
-        Init(msServiceProfiler::ServiceProfilerManager::GetInstance().GetProfPath());
+        if (ServiceProfilerManager::GetInstance().IsEnable(Level::L2)) {
+            Init(ServiceProfilerManager::GetInstance().GetProfPath());
+        }
     }
     ~ServiceProfilerDbWriter()
     {
@@ -458,7 +460,7 @@ private:
     std::thread thread_;
     std::set<std::shared_ptr<DbBuffer>> disableDbBuffers_;
     std::vector<std::shared_ptr<DbBuffer>> workingDbBuffers_;
-    bool closeFlag_ = false;
+    bool closeFlag_ = true;
     bool threadExitFlag_ = false;
     std::string profPath_;
     static ServiceProfilerWriterManager &ins;
