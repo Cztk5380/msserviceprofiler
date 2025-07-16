@@ -7,13 +7,12 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 import pytest
 
-from test.ut.python_test.test_parse import build_msproftx_db, setup_test_directory
 from ms_service_profiler.data_source.db_data_source import DBDataSource
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 
-def test_process_normal(setup_test_directory):
+def test_process_normal():
     # 模拟convert_db_to_df的返回值
     mock_df = pd.DataFrame({
         'timestamp': [1623456789000, 1623456889000],

@@ -123,7 +123,7 @@ class MsprofDataSource(BaseDataSource):
         return 0
 
     @classmethod
-    def load_time_info(cls,filepaths):
+    def load_time_info(cls, filepaths):
         cntvct, host_clock_monotonic_raw = cls.load_start_cnt(filepaths.get("host_start"))
         cpu_frequency = cls.load_cpu_freq(filepaths.get("info"))
         collection_time_begin, start_clock_monotonic_raw = cls.load_start_time(filepaths.get("start_info"))
@@ -225,7 +225,7 @@ class MsprofDataSource(BaseDataSource):
         )
 
     @classmethod
-    def load(cls, prof_path):
+    def load(self, prof_path):
 
         file_filter = {
             "tx": "msproftx.db",
@@ -239,9 +239,9 @@ class MsprofDataSource(BaseDataSource):
             command = gen_msprof_command(cur_path)
             clear_last_msprof_output(cur_path)
             run_msprof_command(command)
-        filepaths = cls.get_filepaths(prof_path, file_filter)
+        filepaths = self.get_filepaths(prof_path, file_filter)
         try:
-            data = cls.load_prof(filepaths)
+            data = self.load_prof(filepaths)
         except Exception as ex:
             raise LoadDataError(str(prof_path)) from ex
 

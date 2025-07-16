@@ -65,9 +65,9 @@ def test_load(mock_load_prof, mock_get_filepaths):
         msprof_data_source.load('dummy_path')
 
 
-def test_load_start_cnt(setup_test_directory):
+def test_load_start_cnt(setup_dir):
     mock_file_content = "cntvct: 123\nclock_monotonic_raw: 456"
-    mock_path = setup_test_directory / "PROF_test" / "host_start.log"
+    mock_path = setup_dir / "PROF_test" / "host_start.log"
 
     with patch("ms_service_profiler.parse.ms_open", mock_open(read_data=mock_file_content)):
         cntvct, clock_monotonic_raw = MsprofDataSource.load_start_cnt(str(mock_path))
@@ -76,18 +76,18 @@ def test_load_start_cnt(setup_test_directory):
         assert clock_monotonic_raw == 456
 
 
-def test_load_start_time(setup_test_directory):
+def test_load_start_time(setup_dir):
     mock_file_content = '{"collectionTimeBegin": 123456.789, "clockMonotonicRaw": 0}'
 
-    mock_path = setup_test_directory / "PROF_test" / "start_info"
+    mock_path = setup_dir / "PROF_test" / "start_info"
 
     with patch("ms_service_profiler.parse.ms_open", mock_open(read_data=mock_file_content)):
         result = MsprofDataSource.load_start_time(str(mock_path))
         assert result == (123456.789, 0)
 
 
-def test_load_tx_data(setup_test_directory):
-    db_path = setup_test_directory / "PROF_test" / "msproftx.db"
+def test_load_tx_data(setup_dir):
+    db_path = setup_dir / "PROF_test" / "msproftx.db"
     result = MsprofDataSource.load_tx_data(db_path)
 
     # 验证结果
@@ -97,11 +97,11 @@ def test_load_tx_data(setup_test_directory):
     assert result.shape[0] == 1
 
 
-def test_load_cpu_data_with_valid_db_path(setup_test_directory):
+def test_load_cpu_data_with_valid_db_path(setup_dir):
     """
     测试当 db_path 有效时，load_cpu_data 函数是否正确加载数据。
     """
-    tmp_path = setup_test_directory
+    tmp_path = setup_dir
     db_path = tmp_path / "PROF_test" / "msproftx.db"
 
     # 确保数据库文件存在
@@ -138,11 +138,11 @@ def test_load_cpu_data_with_valid_db_path(setup_test_directory):
     pd.testing.assert_frame_equal(result, expected_df)
 
 
-def test_load_memory_data_with_valid_db_path(setup_test_directory):
+def test_load_memory_data_with_valid_db_path(setup_dir):
     """
     测试当 db_path 有效时，load_memory_data 函数是否正确加载数据。
     """
-    tmp_path = setup_test_directory
+    tmp_path = setup_dir
     db_path = tmp_path / "PROF_test" / "msproftx.db"
 
     # 确保数据库文件存在

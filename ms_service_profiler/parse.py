@@ -388,6 +388,7 @@ def clear_last_msprof_output(full_path):
  
     delete_dir_safely(msprof_output_path)
 
+
 def is_need_msprof(full_path):
     if not find_all_file_complete(full_path, 'all_file.complete'):
         return True
