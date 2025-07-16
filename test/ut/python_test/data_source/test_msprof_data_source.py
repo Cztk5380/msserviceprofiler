@@ -130,11 +130,21 @@ def test_load(mock_load_prof, mock_get_filepaths):
         msprof_data_source.load('dummy_path')
 
 
-def test_load_start_cnt(setup_test_msprof_directory):
+def test_load_start_cnt(self, setup_test_msprof_directory):
     mock_file_content = "cntvct: 123\nclock_monotonic_raw: 456"
     mock_path = setup_test_msprof_directory / "PROF_test" / "host_start.log"
 
-    with patch("ms_service_profiler.utils.file_open_check.ms_open", mock_open(read_data=mock_file_content)):
+    # 模拟 FileStat 和 Rule.path().is_safe_parent_dir().check 的行为
+    file_stat_mock = MagicMock()
+    file_stat_mock.is_exists = True
+    file_stat_mock.is_softlink = False
+    file_stat_mock.permission = 0o644  # 假设文件权限为 644
+    file_stat_mock.is_safe_parent_dir.return_value = True
+
+    with patch("ms_service_profiler.utils.file_open_check.FileStat", return_value=file_stat_mock), \
+            patch("ms_service_profiler.utils.file_open_check.Rule.path().is_safe_parent_dir().check",
+                  return_value=True), \
+            patch("ms_service_profiler.utils.file_open_check.ms_open", mock_open(read_data=mock_file_content)):
         cntvct, clock_monotonic_raw = MsprofDataSource.load_start_cnt(str(mock_path))
 
         assert cntvct == 123
@@ -146,7 +156,17 @@ def test_load_start_time(setup_test_msprof_directory):
 
     mock_path = setup_test_msprof_directory / "PROF_test" / "start_info"
 
-    with patch("ms_service_profiler.utils.file_open_check.ms_open", mock_open(read_data=mock_file_content)):
+    # 模拟 FileStat 和 Rule.path().is_safe_parent_dir().check 的行为
+    file_stat_mock = MagicMock()
+    file_stat_mock.is_exists = True
+    file_stat_mock.is_softlink = False
+    file_stat_mock.permission = 0o644  # 假设文件权限为 644
+    file_stat_mock.is_safe_parent_dir.return_value = True
+
+    with patch("ms_service_profiler.utils.file_open_check.FileStat", return_value=file_stat_mock), \
+            patch("ms_service_profiler.utils.file_open_check.Rule.path().is_safe_parent_dir().check",
+                  return_value=True), \
+            patch("ms_service_profiler.utils.file_open_check.ms_open", mock_open(read_data=mock_file_content)):
         result = MsprofDataSource.load_start_time(str(mock_path))
         assert result == (123456.789, 0)
 
