@@ -12,6 +12,7 @@ from unittest.mock import patch, MagicMock, mock_open
 from ms_service_profiler.data_source.msprof_data_source import MsprofDataSource
 from ms_service_profiler.utils.error import LoadDataError
 
+
 def build_db(db_path):
     # 确保数据库文件不存在
     if os.path.exists(db_path):

@@ -12,6 +12,7 @@ from ms_service_profiler.data_source.db_data_source import DBDataSource
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 
+
 def test_process_normal():
     # 模拟convert_db_to_df的返回值
     mock_df = pd.DataFrame({
