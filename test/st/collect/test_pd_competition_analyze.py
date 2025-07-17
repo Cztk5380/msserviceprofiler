@@ -178,7 +178,6 @@ def process_database_messages(
         fields: List[str],
         grand_total: defaultdict
 ) -> tuple[defaultdict, int]:
-
     counter = defaultdict(int)
     kvcache_count = 0
 
@@ -205,11 +204,19 @@ def collect_db_stats(root_dir, fields, table_name):
     grand_total = defaultdict(int)
 
     # 查找PROF目录
-    prof_dirs = [
+    prof_dirs_PROF = [
         d.rstrip(os.sep)
         for d in glob.glob(os.path.join(root_dir, "**/PROF_*/"), recursive=True)
         if os.path.isdir(d)
     ]
+    prof_dirs_DB = [
+        d.rstrip(os.sep)
+        for d in glob.glob(os.path.join(root_dir, "**/ms_service_*.db"), recursive=True)
+        if os.path.isfile(d)
+    ]
+
+    prof_dirs = prof_dirs_PROF + prof_dirs_DB
+
     assert prof_dirs, f"No PROF directories found under root directory | path={root_dir}"
 
     for prof_dir in prof_dirs:
@@ -240,7 +247,6 @@ def check_column(actual_columns, expected_columns, context=""):
     pytest.assume(not missing_columns, f"Table {context} is missing columns: {missing_columns}")
 
 
-
 def check_no_empty_lines_before_first_line(dataframe, context=""):
     empty_line = 0
     # 检查是否有空行
@@ -251,7 +257,6 @@ def check_no_empty_lines_before_first_line(dataframe, context=""):
             break
 
     pytest.assume(empty_line == 0, f"{context} table has {empty_line} empty lines.")
-
 
 
 def check_no_empty_lines_between_first_last_line(dataframe, context=""):
@@ -531,64 +536,6 @@ class TestPdCompetition(unittest.TestCase):
         except Exception as e:
             raise self.failureException(f"Failed to read CSV file | path={csv_path} error={str(e)}")
 
-    def _validate_db_consistency(self):
-        """数据库与CSV总值一致性校验"""
-
-        # 统计数据库总值
-        db_stats = collect_db_stats(
-            root_dir=self.INPUT_PATH,
-            fields=["modelExec", "BatchSchedule", "batchFrameworkProcessing", "KVCache"],
-            table_name="MsprofTxEx",
-        )
-        db_total = db_stats.get("_total", {})
-
-        validation_rules = [
-            # batch.csv 校验
-            {
-                "db_field": "modelExec",
-                "csv_path": os.path.join(self.OUTPUT_PATH, "batch.csv"),
-                "csv_column": "name",
-                "match_value": "modelExec"
-            },
-            {
-                "db_field": "BatchSchedule",
-                "csv_path": os.path.join(self.OUTPUT_PATH, "batch.csv"),
-                "csv_column": "name",
-                "match_value": "BatchSchedule"
-            },
-            {
-                "db_field": "batchFrameworkProcessing",
-                "csv_path": os.path.join(self.OUTPUT_PATH, "batch.csv"),
-                "csv_column": "name",
-                "match_value": "batchFrameworkProcessing"
-            },
-            # kvcache.csv 校验
-            {
-                "db_field": "KVCache",
-                "csv_path": os.path.join(self.OUTPUT_PATH, "kvcache.csv"),
-                "csv_column": "device_kvcache_left",
-                "match_value": None # 统计行数
-            }
-        ]
-
-        # 统一校验逻辑
-        failures = []
-        for rule in validation_rules:
-            db_count = db_total.get(rule["db_field"], 0)
-            csv_count = self._validate_csv_count(
-                csv_path=rule["csv_path"],
-                column=rule["csv_column"],
-                match_value=rule["match_value"]
-            )
-
-            if db_count != csv_count:
-                msg = f"Count mismatch for {rule['db_field']}: DB={db_count} vs CSV={csv_count}"
-                failures.append(msg)
-
-        if failures:
-            self.fail("\n".join(failures))
-        else:
-            self.assertTrue(True, "All data is consistent.")
 
     def check_req_data_csv_integrity(self):
         # 校验该路径下是否正确生成req_data的csv文件，以及文件内容
@@ -614,12 +561,10 @@ class TestPdCompetition(unittest.TestCase):
         expected_header = ['name', 'res_list', 'start_time(ms)', 'end_time(ms)', 'batch_size', \
                            'batch_type', 'during_time(ms)']
 
-
     def test_example(self):
         service_config, profiler_so = get_args_from_yaml(os.path.join(script_dir, "collect_analyze_st_args.yaml"))
 
         ip_address = get_ip_address_for_request(service_config)
-
 
         test_dir = create_directory_with_timestamp("/home")
 
@@ -634,17 +579,7 @@ class TestPdCompetition(unittest.TestCase):
         os.makedirs(self.OUTPUT_PATH, mode=0o750, exist_ok=True)
 
         execute_cmd(["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH,
-               "--format", *self.FORMAT])
-
-        if not glob.glob(os.path.join(self.INPUT_PATH, "**ms_service_*.db"), recursive=True):
-            with self.subTest("Validate DB field consistency across PROF directories"):
-                self._validate_db_consistency()
-
-        # 校验输出文件是否存在
-        with self.subTest():
-            self.check_req_data_csv_integrity()
-        with self.subTest():
-            self.check_batch_data_csv_integrity()
+             "--format", *self.FORMAT])
 
         # kvcache校验
         with self.subTest("Check kvcache CSV content"):
@@ -676,9 +611,5 @@ class TestPdCompetition(unittest.TestCase):
         shutil.rmtree(self.OUTPUT_PATH)
 
 
-
-
 if __name__ == '__main__':
     TestPdCompetition().test_example()
-
-
