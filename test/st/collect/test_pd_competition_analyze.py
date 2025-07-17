@@ -502,7 +502,7 @@ def check_chrome_tracing_valid(output_path):
 class TestPdCompetition(unittest.TestCase):
     ANALYZE_PROFILER = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")),
                                     "ms_service_profiler/parse.py")
-    INPUT_PATH = create_directory_with_timestamp("/home")
+    INPUT_PATH = os.path.join(create_directory_with_timestamp("/home"), "prof_result")
     OUTPUT_PATH = "/data/ms_service_profiler/output/analyze"
     FORMAT = ['csv', 'json', 'db']
     KVCACHE_CSV_FILE_NAME = "kvcache.csv"
