@@ -130,6 +130,45 @@ def test_load(mock_load_prof, mock_get_filepaths):
         msprof_data_source.load('dummy_path')
 
 
+def test_load_start_cnt(setup_test_msprof_directory):
+    mock_file_content = "cntvct: 123\nclock_monotonic_raw: 456"
+    mock_path = setup_test_msprof_directory / "PROF_test" / "host_start.log"
+
+    # 创建测试目录和文件
+    mock_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(mock_path, 'w') as f:
+        f.write(mock_file_content)
+
+    # 修改文件权限，确保文件和目录是安全的
+    os.chmod(mock_path, 0o600)
+    os.chmod(mock_path.parent, 0o700)
+
+    with patch("ms_service_profiler.utils.file_open_check.ms_open", mock_open(read_data=mock_file_content)):
+        cntvct, clock_monotonic_raw = MsprofDataSource.load_start_cnt(str(mock_path))
+
+        assert cntvct == 123
+        assert clock_monotonic_raw == 456
+
+
+def test_load_start_time(setup_test_msprof_directory):
+    mock_file_content = '{"collectionTimeBegin": 123456.789, "clockMonotonicRaw": 0}'
+
+    mock_path = setup_test_msprof_directory / "PROF_test" / "start_info"
+
+    # 创建测试目录和文件
+    mock_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(mock_path, 'w') as f:
+        f.write(mock_file_content)
+
+    # 修改文件权限，确保文件和目录是安全的
+    os.chmod(mock_path, 0o600)
+    os.chmod(mock_path.parent, 0o700)
+
+    with patch("ms_service_profiler.utils.file_open_check.ms_open", mock_open(read_data=mock_file_content)):
+        result = MsprofDataSource.load_start_time(str(mock_path))
+        assert result == (123456.789, 0)
+
+
 def test_load_tx_data(setup_test_msprof_directory):
     db_path = setup_test_msprof_directory / "PROF_test" / "msproftx.db"
     result = MsprofDataSource.load_tx_data(db_path)
