@@ -502,7 +502,7 @@ def check_chrome_tracing_valid(output_path):
 class TestPdCompetition(unittest.TestCase):
     ANALYZE_PROFILER = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")),
                                     "ms_service_profiler/parse.py")
-    INPUT_PATH = os.path.join(create_directory_with_timestamp("/home"), "prof_result")
+    INPUT_PATH = "/data/ms_service_profiler/collect_data"
     OUTPUT_PATH = "/data/ms_service_profiler/output/analyze"
     FORMAT = ['csv', 'json', 'db']
     KVCACHE_CSV_FILE_NAME = "kvcache.csv"
@@ -615,15 +615,19 @@ class TestPdCompetition(unittest.TestCase):
                            'batch_type', 'during_time(ms)']
 
 
-
     def test_example(self):
         service_config, profiler_so = get_args_from_yaml(os.path.join(script_dir, "collect_analyze_st_args.yaml"))
 
         ip_address = get_ip_address_for_request(service_config)
 
-        execute_cmd(['bash', os.path.join(script_dir, "utils", "start_mindie_service.sh"), service_config, self.INPUT_PATH, profiler_so])
 
-        update_json(os.path.join(self.INPUT_PATH, "profiler.json"), ["enable"], 1)
+        test_dir = create_directory_with_timestamp("/home")
+
+        execute_cmd(['bash', os.path.join(script_dir, "utils", "start_mindie_service.sh"), service_config, test_dir,
+                     profiler_so])
+
+        update_json(os.path.join(test_dir, "profiler.json"), ["enable"], 1)
+        update_json(os.path.join(test_dir, "profiler.json"), ["prof_dir"], self.INPUT_PATH)
 
         execute_cmd(['bash', os.path.join(script_dir, "utils", "send_single_request.sh"), ip_address])
 
@@ -675,6 +679,6 @@ class TestPdCompetition(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    TestPdCompetition().test_example()
 
 
