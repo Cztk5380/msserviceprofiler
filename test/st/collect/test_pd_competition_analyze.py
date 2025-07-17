@@ -669,6 +669,8 @@ class TestPdCompetition(unittest.TestCase):
         with self.subTest():
             check_chrome_tracing_content_valid(self.OUTPUT_PATH)
 
+        shutil.rmtree(self.OUTPUT_PATH)
+
 
 
 
