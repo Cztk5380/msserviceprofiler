@@ -12,7 +12,7 @@ from typing import Dict, List
 import re
 import pandas as pd
 from jsonschema import validate, ValidationError
-from ...st.utils import execute_cmd
+from test.st.utils import execute_cmd
 import pytest
 from ms_service_profiler.exporters.utils import CURVE_VIEW_NAME_LIST
 
@@ -148,17 +148,20 @@ def get_args_from_yaml(yaml_path):
     profiler_so = config.get('profiler_so', '')
     return service_config, profiler_so
 
+
 def get_db_path(prof_dir: str) -> str:
     """验证数据库路径"""
     db_path = os.path.join(prof_dir, "host", "sqlite", "msproftx.db")
     assert os.path.isfile(db_path), f"Database file missing | path={db_path}"
     return db_path
 
+
 def validate_table(conn: sqlite3.Connection, table_name: str) -> None:
     """验证表结构"""
     cursor = conn.execute(f"PRAGMA table_info({table_name})")
     db_fields = [col[1] for col in cursor.fetchall()]
     assert "message" in db_fields, "Table {table_name} is missing message field"
+
 
 def parse_message(message: str) -> dict:
     pattern = r"\^([^^]+)\^:(\^?.*?\^?)(?=\^|,|}|$)"
@@ -167,6 +170,7 @@ def parse_message(message: str) -> dict:
         k: v.strip('^').rstrip(',')
         for k, v in matches
     }
+
 
 def process_database_messages(
         conn: sqlite3.Connection,
@@ -229,10 +233,12 @@ def collect_db_stats(root_dir, fields, table_name):
 
     return {**results, "_total": dict(grand_total)}
 
+
 def check_column(actual_columns, expected_columns, context=""):
     # 检查是否有缺失的列
     missing_columns = set(expected_columns) - set(actual_columns)
     pytest.assume(not missing_columns, f"Table {context} is missing columns: {missing_columns}")
+
 
 
 def check_no_empty_lines_before_first_line(dataframe, context=""):
@@ -247,11 +253,13 @@ def check_no_empty_lines_before_first_line(dataframe, context=""):
     pytest.assume(empty_line == 0, f"{context} table has {empty_line} empty lines.")
 
 
+
 def check_no_empty_lines_between_first_last_line(dataframe, context=""):
     # 计算非空行的数量
     empty_rows = dataframe.eq('').all(axis=1)
     num_empty_rows = empty_rows.sum()
     pytest.assume(num_empty_rows == 0, f"{context} table has empty lines.")
+
 
 def check_kvcache_csv_content(output_path, csv_file_name):
     expected_csv_columns = [
@@ -268,6 +276,7 @@ def check_kvcache_csv_content(output_path, csv_file_name):
     check_column(actual_columns, expected_csv_columns, context=csv_file_name)
     check_no_empty_lines_before_first_line(df, context=csv_file_name)
     check_no_empty_lines_between_first_last_line(df, context=csv_file_name)
+
 
 def check_kvcache_db_content(output_path, db_file_name):
     db_file = os.path.join(output_path, db_file_name)
@@ -289,6 +298,7 @@ def check_kvcache_db_content(output_path, db_file_name):
     check_column(actual_columns, expected_db_columns, context=db_file_name)
 
     conn.close()
+
 
 def check_has_vaild_table(cursor, table_name, columns_to_check):
     # 校验存在数据表
@@ -320,6 +330,7 @@ def check_has_vaild_table(cursor, table_name, columns_to_check):
 
     pytest.assume(False, f"No rows with all non-null values in columns: {columns_to_check}")
 
+
 def check_chrome_tracing_content_valid(output_path):
     trace_view_json = glob.glob(f"{output_path}/chrome_tracing.json")[0]
     assert os.path.exists(trace_view_json)
@@ -329,6 +340,7 @@ def check_chrome_tracing_content_valid(output_path):
     exist = ["NPU Usage"]
     for key in exist:
         pytest.assume(key in text, "The chrome_tracing.json should include NPU Usage.")
+
 
 def check_latency_data(output_path):
     # 校验db文件正常生成
@@ -373,6 +385,7 @@ def check_table_with_no_empty_data(cursor, table_name, columns_to_check):
         if any(field is None for field in row):
             pytest.assume(False, f"Null values detected in row {row_idx}")
 
+
 def check_insight_table(output_path):
     # 校验db文件正常生成
     db_path = os.path.join(output_path, 'profiler.db')
@@ -416,6 +429,7 @@ def check_insight_views(output_path):
     # 关闭连接
     conn.close()
 
+
 def check_req_status(output_path):
     from enum import Enum
 
@@ -442,6 +456,7 @@ def check_req_status(output_path):
     # 校验列存在
     for col in ['timestamp', 'WAITING', 'PENDING', 'RUNNING']:
         assert col in df.columns.tolist()
+
 
 def check_chrome_tracing_valid(output_path):
     trace_view_json = glob.glob(f"{output_path}/chrome_tracing.json")[0]
