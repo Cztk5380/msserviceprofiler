@@ -575,8 +575,8 @@ class TestPdCompetition(unittest.TestCase):
         execute_cmd(['bash', os.path.join(script_dir, "utils", "start_mindie_service.sh"), service_config, test_dir,
                      profiler_so])
 
-        update_json(os.path.join(test_dir, "profiler.json"), ["enable"], 1)
         update_json(os.path.join(test_dir, "profiler.json"), ["prof_dir"], self.INPUT_PATH)
+        update_json(os.path.join(test_dir, "profiler.json"), ["enable"], 1)
 
         execute_cmd(['bash', os.path.join(script_dir, "utils", "send_single_request.sh"), ip_address])
 
