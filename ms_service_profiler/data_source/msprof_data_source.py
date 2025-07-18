@@ -226,6 +226,7 @@ class MsprofDataSource(BaseDataSource):
         )
 
     def load(self, prof_path):
+        from ms_service_profiler.parse import gen_msprof_command, run_msprof_command, clear_last_msprof_output, is_need_msprof
         file_filter = {
             "tx": "msproftx.db",
             "host_start": "host_start.log",
