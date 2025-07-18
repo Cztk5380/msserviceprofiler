@@ -1,6 +1,8 @@
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
 
+import os
 import json
+import subprocess
 
 import pandas as pd
 from pathlib import Path
@@ -12,7 +14,11 @@ from ms_service_profiler.data_source.base_data_source import BaseDataSource, Tas
 from ms_service_profiler.utils.error import LoadDataError
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.utils.log import logger, set_log_level
-from ms_service_profiler.constant import US_PER_SECOND
+from ms_service_profiler.constant import US_PER_SECOND, MSPROF_REPORTS_PATH
+from ms_service_profiler.exporters.utils import (
+    create_sqlite_db, check_input_path_valid, check_output_path_valid,
+    find_file_in_dir, delete_dir_safely, find_all_file_complete
+)
 
 
 @Task.register("data_source:msprof")
@@ -135,19 +141,32 @@ class MsprofDataSource(BaseDataSource):
         )
 
     @classmethod
+    def _parse_value(line, key):
+        if f"{key}:" not in line:
+            return None
+
+        parts = line.strip().split(": ")
+        if len(parts) < 2:
+            return None
+
+        try:
+            return int(parts[1])
+        except (ValueError, IndexError):
+            return None
+
+    @classmethod
     def load_start_cnt(cls, config_path):
-        from ms_service_profiler.parse import _parse_value
         cntvct = 0
         clock_monotonic_raw = 0
 
         with ms_open(config_path, 'r') as f:
             for line in f:
-                cntvct_val = _parse_value(line, "cntvct")
+                cntvct_val = cls._parse_value(line, "cntvct")
                 if cntvct_val is not None:
                     cntvct = cntvct_val
                     continue
 
-                clock_val = _parse_value(line, "clock_monotonic_raw")
+                clock_val = cls._parse_value(line, "clock_monotonic_raw")
                 if clock_val is not None:
                     clock_monotonic_raw = clock_val
 
@@ -224,8 +243,53 @@ class MsprofDataSource(BaseDataSource):
             msprof_data=msprof_files
         )
 
+    @classmethod
+    def gen_msprof_command(cls, full_path):
+        if len(full_path.split()) != 1:
+            raise ValueError(f"{full_path} is invalid.")
+
+        config_path = os.path.join(os.path.dirname(__file__), "config", MSPROF_REPORTS_PATH)
+        if not os.path.isfile(config_path):
+            logger.error("File not found: %r, please re-install the ascend-toolkit", config_path)
+            raise OSError
+
+        command = f"msprof --export=on --reports={config_path} --output={full_path}"
+        logger.debug("command: %s", command)
+        return command
+
+    @classmethod
+    def run_msprof_command(cls, command):
+        command_list = command.split()
+        try:
+            subprocess.run(command_list, stdout=subprocess.DEVNULL, check=True)
+        except subprocess.CalledProcessError as e:
+            logger.error(f"msprof error: {e}")
+        except Exception as e:
+            logger.error(f"msprof error occurred: {e}")
+
+    @classmethod
+    def clear_last_msprof_output(cls, full_path):
+        # 调用msprof前删除mindstudio_profiler_output文件夹
+        msprof_output_path = os.path.join(full_path, 'mindstudio_profiler_output')
+
+        #  如果不存在mindstudio_profiler_output文件夹，则不需要清理
+        if not os.path.isdir(msprof_output_path):
+            return
+
+        delete_dir_safely(msprof_output_path)
+
+    @classmethod
+    def is_need_msprof(cls, full_path):
+        if not find_all_file_complete(full_path, 'all_file.complete'):
+            return True
+
+        msprof_output_path = os.path.join(full_path, 'mindstudio_profiler_output')
+        if not os.path.isdir(msprof_output_path):
+            return True
+
+        return False
+
     def load(self, prof_path):
-        from ms_service_profiler.parse import gen_msprof_command, run_msprof_command, clear_last_msprof_output, is_need_msprof
         file_filter = {
             "tx": "msproftx.db",
             "host_start": "host_start.log",
@@ -234,10 +298,10 @@ class MsprofDataSource(BaseDataSource):
             "msprof": ("msprof_*.json", True)
         }
         cur_path = str(prof_path)
-        if is_need_msprof(cur_path):
-            command = gen_msprof_command(cur_path)
-            clear_last_msprof_output(cur_path)
-            run_msprof_command(command)
+        if self.is_need_msprof(cur_path):
+            command = self.gen_msprof_command(cur_path)
+            self.clear_last_msprof_output(cur_path)
+            self.run_msprof_command(command)
         filepaths = self.get_filepaths(prof_path, file_filter)
         try:
             data = self.load_prof(filepaths)
