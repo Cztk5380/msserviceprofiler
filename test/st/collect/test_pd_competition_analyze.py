@@ -578,11 +578,7 @@ class TestPdCompetition(unittest.TestCase):
         update_json(os.path.join(test_dir, "profiler.json"), ["enable"], 1)
         update_json(os.path.join(test_dir, "profiler.json"), ["prof_dir"], self.INPUT_PATH)
 
-        time.sleep(60)
-
         execute_cmd(['bash', os.path.join(script_dir, "utils", "send_single_request.sh"), ip_address])
-
-        time.sleep(10)
 
         os.makedirs(self.OUTPUT_PATH, mode=0o750, exist_ok=True)
 
