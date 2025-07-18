@@ -100,6 +100,37 @@ def test_get_prof_paths(mock_glob):
     assert result[1] == mock_path2
 
 
+@patch('ms_service_profiler.data_source.msprof_data_source.MsprofDataSource.get_filepaths')
+@patch('ms_service_profiler.data_source.msprof_data_source.MsprofDataSource.load_prof')
+def test_load(mock_load_prof, mock_get_filepaths):
+    # 设置get_filepaths和load_prof方法的返回值
+    mock_get_filepaths.return_value = {
+        "tx": "msproftx.db",
+        "cpu": "host_cpu_usage.db",
+        "memory": "host_mem_usage.db",
+        "host_start": "host_start.log",
+        "info": "info.json",
+        "start_info": "start_info",
+        "msprof": "msprof_*.json"
+    }
+    mock_load_prof.return_value = {"data": "dummy_data"}
+
+    # 创建MsprofDataSource实例
+    msprof_data_source = MsprofDataSource({})
+
+    # 调用load方法
+    result = msprof_data_source.load('dummy_path')
+
+    # 断言结果是一个字典
+    assert isinstance(result, dict)
+    assert result == {"data": "dummy_data"}
+
+    # 测试异常处理
+    mock_load_prof.side_effect = Exception('Test exception')
+    with pytest.raises(LoadDataError, match='dummy_path'):
+        msprof_data_source.load('dummy_path')
+
+
 def test_load_start_cnt(setup_test_msprof_directory):
     mock_file_content = "cntvct: 123\nclock_monotonic_raw: 456"
     mock_path = setup_test_msprof_directory / "PROF_test" / "host_start.log"
