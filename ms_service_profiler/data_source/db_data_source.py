@@ -13,6 +13,7 @@ from ms_service_profiler.utils.error import LoadDataError
 class DBDataSource(BaseDataSource):
     @classmethod
     def get_prof_paths(cls, input_path: str):
+        from ms_service_profiler.parse import get_filepaths
         file_filter = {
             "service": "ms_service_*.db"
         }
