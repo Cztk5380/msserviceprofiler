@@ -12,7 +12,6 @@ from ms_service_profiler.data_source.base_data_source import BaseDataSource, Tas
 from ms_service_profiler.utils.error import LoadDataError
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.utils.log import logger, set_log_level
-from ms_service_profiler.parse import gen_msprof_command, run_msprof_command, clear_last_msprof_output, is_need_msprof
 from ms_service_profiler.constant import US_PER_SECOND
 
 
