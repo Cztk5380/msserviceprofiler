@@ -3,6 +3,7 @@
 import re
 import os
 import sqlite3
+import shutil
 
 import logging
 import pandas as pd
