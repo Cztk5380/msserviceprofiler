@@ -181,7 +181,7 @@ def test_handle_other_wildcard_patterns(setup_test_db_directory):
     if alias in result:
         assert Path(result[alias]).name.startswith("msprof_")
 
-def test_handle_other_wildcard_patterns_empty_folder_path(setup_test_directory):
+def test_handle_other_wildcard_patterns_empty_folder_path(setup_test_db_directory):
     """
     测试 handle_other_wildcard_patterns 函数在 folder_path 为空时的行为。
     """
@@ -194,7 +194,7 @@ def test_handle_other_wildcard_patterns_empty_folder_path(setup_test_directory):
     assert result == filepaths, "当 folder_path 为空时，filepaths 应该保持不变"
 
 
-def test_handle_other_wildcard_patterns_non_existent_folder_path(setup_test_directory):
+def test_handle_other_wildcard_patterns_non_existent_folder_path(setup_test_db_directory):
     """
     测试 handle_other_wildcard_patterns 函数在 folder_path 不存在时的行为。
     """
@@ -207,11 +207,11 @@ def test_handle_other_wildcard_patterns_non_existent_folder_path(setup_test_dire
     assert not result, "当 folder_path 不存在时，filepaths 应该保持不变"
 
 
-def test_handle_other_wildcard_patterns_pattern_matches_file(setup_test_directory):
+def test_handle_other_wildcard_patterns_pattern_matches_file(setup_test_db_directory):
     """
     测试 handle_other_wildcard_patterns 函数在 pattern 匹配到文件时的行为。
     """
-    folder_path = setup_test_directory
+    folder_path = setup_test_db_directory
     pattern = "*.txt"
     alias = "test_alias"
     filepaths = {}
@@ -228,11 +228,11 @@ def test_handle_other_wildcard_patterns_pattern_matches_file(setup_test_director
     test_file.unlink()
 
 
-def test_handle_other_wildcard_patterns_pattern_no_match(setup_test_directory):
+def test_handle_other_wildcard_patterns_pattern_no_match(setup_test_db_directory):
     """
     测试 handle_other_wildcard_patterns 函数在 pattern 没有匹配到任何文件时的行为。
     """
-    folder_path = setup_test_directory
+    folder_path = setup_test_db_directory
     pattern = "*.txt"
     alias = "test_alias"
     filepaths = {}
@@ -266,11 +266,11 @@ def test_handle_service_pattern_non_existent_folder_path():
     assert not result, "当 folder_path 不存在时，filepaths 应该保持不变"
 
 
-def test_handle_service_pattern_pattern_matches_files(setup_test_directory):
+def test_handle_service_pattern_pattern_matches_files(setup_test_db_directory):
     """
     测试 handle_service_pattern 函数在 regex_pattern 匹配到文件时的行为。
     """
-    folder_path = setup_test_directory / "PROF_test"
+    folder_path = setup_test_db_directory / "PROF_test"
     alias = "test_alias"
     filepaths = {}
 
@@ -287,11 +287,11 @@ def test_handle_service_pattern_pattern_matches_files(setup_test_directory):
     assert str(test_file) in result[alias], "匹配到的文件路径应该在 filepaths[alias] 中"
 
 
-def test_handle_service_pattern_pattern_no_match(setup_test_directory):
+def test_handle_service_pattern_pattern_no_match(setup_test_db_directory):
     """
     测试 handle_service_pattern 函数在 regex_pattern 没有匹配到任何文件时的行为。
     """
-    folder_path = setup_test_directory / "PROF_test"
+    folder_path = setup_test_db_directory / "PROF_test"
     alias = "test_alias"
     filepaths = {}
 
@@ -303,11 +303,11 @@ def test_handle_service_pattern_pattern_no_match(setup_test_directory):
     assert not result, "当 regex_pattern 没有匹配到任何文件时，filepaths 应该保持不变"
 
 
-def test_handle_service_pattern_alias_already_exists(setup_test_directory):
+def test_handle_service_pattern_alias_already_exists(setup_test_db_directory):
     """
     测试 handle_service_pattern 函数在 alias 已存在于 filepaths 中时的行为。
     """
-    folder_path = setup_test_directory / "PROF_test"
+    folder_path = setup_test_db_directory / "PROF_test"
     alias = "test_alias"
     filepaths = {alias: ["existing_file_path"]}
 
