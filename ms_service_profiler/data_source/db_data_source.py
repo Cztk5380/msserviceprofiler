@@ -43,6 +43,19 @@ class DBDataSource(BaseDataSource):
         return filepaths
 
     @classmethod
+    def handle_service_pattern(cls, folder_path, alias, filepaths):
+        regex_pattern = r'^ms_service_[\w.-]+.db'
+        matched_files = []
+        for fp in Path(folder_path).rglob('*.db'):
+            if re.match(regex_pattern, fp.name):
+                matched_files.append(str(fp))
+        if matched_files:
+            if alias not in filepaths:
+                filepaths[alias] = []
+            filepaths[alias].extend(matched_files)
+        return filepaths
+
+    @classmethod
     def get_filepaths(cls, folder_path, file_filter):
         filepaths = {}
         reverse_d = {value: key for key, value in file_filter.items()}
@@ -53,7 +66,8 @@ class DBDataSource(BaseDataSource):
 
         # 创建映射
         pattern_handlers = {
-            "msprof_*.json": cls.handle_msprof_pattern
+            "msprof_*.json": cls.handle_msprof_pattern,
+            "ms_service_*.db": cls.handle_service_pattern
         }
 
         # 通配符匹配的文件路径
