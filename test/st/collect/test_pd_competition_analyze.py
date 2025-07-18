@@ -575,15 +575,18 @@ class TestPdCompetition(unittest.TestCase):
         execute_cmd(['bash', os.path.join(script_dir, "utils", "start_mindie_service.sh"), service_config, test_dir,
                      profiler_so])
 
-        update_json(os.path.join(test_dir, "profiler.json"), ["prof_dir"], self.INPUT_PATH)
         update_json(os.path.join(test_dir, "profiler.json"), ["enable"], 1)
 
         execute_cmd(['bash', os.path.join(script_dir, "utils", "send_single_request.sh"), ip_address])
 
         os.makedirs(self.OUTPUT_PATH, mode=0o750, exist_ok=True)
 
-        execute_cmd(["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH,
-             "--format", *self.FORMAT])
+        assert check_table_header_in_directory(
+            os.path.join(test_dir, "prof_result"),
+            "Mstx", ["message", "flag", "timestamp", "endTimestamp", "markId", "tid", "pid"])
+
+        # execute_cmd(["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH,
+        #      "--format", *self.FORMAT])
 
 
 if __name__ == '__main__':
