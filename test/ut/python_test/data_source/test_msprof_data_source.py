@@ -114,7 +114,7 @@ def test_load(mock_load_prof, mock_get_filepaths,mock_gen_cmd):
         "msprof": "msprof_*.json"
     }
     mock_load_prof.return_value = {"data": "dummy_data"}
-    mock_gen_cmd.return_value = ["dummy", "command"]
+    mock_gen_cmd.return_value = "dummy command"
 
     # 创建MsprofDataSource实例
     msprof_data_source = MsprofDataSource({})
