@@ -4,7 +4,6 @@ import json
 
 import pandas as pd
 
-from ms_service_profiler.parse import get_filepaths
 from ms_service_profiler.data_source.base_data_source import BaseDataSource, Task
 from ms_service_profiler.utils.error import LoadDataError
 
