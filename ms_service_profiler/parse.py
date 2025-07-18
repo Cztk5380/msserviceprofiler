@@ -13,19 +13,14 @@ from collections import deque
 import pandas as pd
 
 from ms_service_profiler.task.task import Task
-import ms_service_profiler.pipeline
-import ms_service_profiler.data_source
 from ms_service_profiler.exporters.factory import ExporterFactory
-from ms_service_profiler.constant import US_PER_SECOND, MSPROF_REPORTS_PATH
 from ms_service_profiler.plugins import (
     builtin_plugins, custom_plugins, PluginMsptiProcess, PluginEpBalanceProcess, PluginMoeSlowRankProcess
 )
-from ms_service_profiler.plugins.sort_plugins import sort_plugins
 from ms_service_profiler.utils.log import logger, set_log_level
 from ms_service_profiler.utils.timer import timer, Timer
 from ms_service_profiler.utils.error import ParseError, LoadDataError
-from ms_service_profiler.utils.file_open_check import FileStat
-from ms_service_profiler.utils.file_open_check import ms_open
+
 from ms_service_profiler.exporters.utils import (
     create_sqlite_db, check_input_path_valid, check_output_path_valid,
     find_file_in_dir, delete_dir_safely, find_all_file_complete

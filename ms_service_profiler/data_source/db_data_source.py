@@ -53,8 +53,7 @@ class DBDataSource(BaseDataSource):
 
         # 创建映射
         pattern_handlers = {
-            "msprof_*.json": cls.handle_msprof_pattern,
-            "ms_service_*.db": cls.handle_service_pattern
+            "msprof_*.json": cls.handle_msprof_pattern
         }
 
         # 通配符匹配的文件路径
