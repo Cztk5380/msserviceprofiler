@@ -9,7 +9,6 @@ import sqlite3
 from json import JSONDecodeError
 
 from ms_service_profiler.data_source.base_data_source import BaseDataSource, Task
-from ms_service_profiler.parse import _parse_value
 from ms_service_profiler.utils.error import LoadDataError
 from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.utils.log import logger, set_log_level
@@ -138,6 +137,7 @@ class MsprofDataSource(BaseDataSource):
 
     @classmethod
     def load_start_cnt(cls, config_path):
+        from ms_service_profiler.parse import _parse_value
         cntvct = 0
         clock_monotonic_raw = 0
 
