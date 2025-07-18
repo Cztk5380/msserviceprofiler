@@ -141,7 +141,7 @@ class MsprofDataSource(BaseDataSource):
         )
 
     @classmethod
-    def _parse_value(line, key):
+    def _parse_value(cls, line, key):
         if f"{key}:" not in line:
             return None
 
