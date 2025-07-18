@@ -102,8 +102,8 @@ def test_get_prof_paths(mock_glob):
 
 @patch('ms_service_profiler.data_source.msprof_data_source.MsprofDataSource.get_filepaths')
 @patch('ms_service_profiler.data_source.msprof_data_source.MsprofDataSource.load_prof')
-def test_load(mock_load_prof, mock_get_filepaths):
-    # 设置get_filepaths和load_prof方法的返回值
+def test_load(self, mock_load_prof, mock_get_filepaths):
+    # 设置 get_filepaths 和 load_prof 方法的返回值
     mock_get_filepaths.return_value = {
         "tx": "msproftx.db",
         "cpu": "host_cpu_usage.db",
@@ -115,18 +115,58 @@ def test_load(mock_load_prof, mock_get_filepaths):
     }
     mock_load_prof.return_value = {"data": "dummy_data"}
 
-    # 创建MsprofDataSource实例
+    # 创建 MsprofDataSource 实例
     msprof_data_source = MsprofDataSource({})
 
-    # 调用load方法
+    # 调用 load 方法
     result = msprof_data_source.load('dummy_path')
 
     # 断言结果是一个字典
-    assert isinstance(result, dict)
-    assert result == {"data": "dummy_data"}
+    self.assertIsInstance(result, dict)
+    self.assertEqual(result, {"data": "dummy_data"})
 
-    # 测试异常处理
+@patch('ms_service_profiler.data_source.msprof_data_source.MsprofDataSource.get_filepaths')
+@patch('ms_service_profiler.data_source.msprof_data_source.MsprofDataSource.load_prof')
+@patch('os.path.isfile', return_value=False)
+def test_load_with_missing_config(self, mock_isfile, mock_load_prof, mock_get_filepaths):
+    # 设置 get_filepaths 和 load_prof 方法的返回值
+    mock_get_filepaths.return_value = {
+        "tx": "msproftx.db",
+        "cpu": "host_cpu_usage.db",
+        "memory": "host_mem_usage.db",
+        "host_start": "host_start.log",
+        "info": "info.json",
+        "start_info": "start_info",
+        "msprof": "msprof_*.json"
+    }
+    mock_load_prof.return_value = {"data": "dummy_data"}
+
+    # 创建 MsprofDataSource 实例
+    msprof_data_source = MsprofDataSource({})
+
+    # 验证是否抛出 FileNotFoundError
+    with pytest.raises(FileNotFoundError):
+        msprof_data_source.load('dummy_path')
+
+@patch('ms_service_profiler.data_source.msprof_data_source.MsprofDataSource.get_filepaths')
+@patch('ms_service_profiler.data_source.msprof_data_source.MsprofDataSource.load_prof')
+def test_load_with_load_prof_exception(self, mock_load_prof, mock_get_filepaths):
+    # 设置 get_filepaths 和 load_prof 方法的返回值
+    mock_get_filepaths.return_value = {
+        "tx": "msproftx.db",
+        "cpu": "host_cpu_usage.db",
+        "memory": "host_mem_usage.db",
+        "host_start": "host_start.log",
+        "info": "info.json",
+        "start_info": "start_info",
+        "msprof": "msprof_*.json"
+    }
     mock_load_prof.side_effect = Exception('Test exception')
+
+    # 创建 MsprofDataSource 实例
+    msprof_data_source = MsprofDataSource({})
+
+    # 验证是否抛出 LoadDataError
     with pytest.raises(LoadDataError, match='dummy_path'):
         msprof_data_source.load('dummy_path')
 
