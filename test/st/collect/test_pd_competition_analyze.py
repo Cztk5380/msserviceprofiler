@@ -563,7 +563,7 @@ class TestPdCompetition(unittest.TestCase):
                            'batch_type', 'during_time(ms)']
 
     def test_example(self):
-        service_config, profiler_so = get_args_from_yaml(os.path.join(script_dir, "collect_analyze_st_args.yaml"))
+        service_config, profiler_so = get_args_from_yaml(os.path.join(script_dir, "collect_st_args.yaml"))
 
         ip_address = get_ip_address_for_request(service_config)
 

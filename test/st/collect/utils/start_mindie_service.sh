@@ -45,6 +45,11 @@ set_env_variable() {
     local service_config_path=$1
 
     echo "in set_env_variable"
+    source /usr/local/Ascend/ascend-toolkit/set_env.sh
+    source /usr/local/Ascend/nnal/atb/set_env.sh
+    source /usr/local/Ascend/atb-models/set_env.sh
+    source /usr/local/Ascend/mindie/set_env.sh
+    source /usr/local/Ascend/mindie/latest/mindie-service/set_env.sh
     export SERVICE_PROF_CONFIG_PATH=$service_config_path
 }
 

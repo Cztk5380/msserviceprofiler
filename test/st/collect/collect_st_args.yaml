@@ -1,2 +1,2 @@
-service_config: ""
-profiler_so: ""
+service_config: "/data/ms_service_profiler/input/config.json"
+profiler_so: "/data/ms_service_profiler/input/msserviceprofiler/build/output/lib/libms_service_profiler.so"
