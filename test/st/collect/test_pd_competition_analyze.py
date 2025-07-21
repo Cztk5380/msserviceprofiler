@@ -509,7 +509,6 @@ def check_chrome_tracing_valid(output_path):
 class TestPdCompetition(unittest.TestCase):
     ANALYZE_PROFILER = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")),
                                     "ms_service_profiler/parse.py")
-    INPUT_PATH = "/data/ms_service_profiler/collect_data"
     OUTPUT_PATH = "/data/ms_service_profiler/output/analyze"
     FORMAT = ['csv', 'json', 'db']
     KVCACHE_CSV_FILE_NAME = "kvcache.csv"
@@ -570,6 +569,8 @@ class TestPdCompetition(unittest.TestCase):
 
         test_dir = create_directory_with_timestamp("/home")
 
+        self.INPUT_PATH = os.path.join(test_dir, "prof_result")
+
         os.makedirs(self.INPUT_PATH, mode=0o750, exist_ok=True)
 
         execute_cmd(['bash', os.path.join(script_dir, "utils", "start_mindie_service.sh"), service_config, test_dir,
@@ -581,13 +582,45 @@ class TestPdCompetition(unittest.TestCase):
 
         os.makedirs(self.OUTPUT_PATH, mode=0o750, exist_ok=True)
 
-        assert check_table_header_in_directory(
-            os.path.join(test_dir, "prof_result"),
-            "Mstx", ["message", "flag", "timestamp", "endTimestamp", "markId", "tid", "pid"])
+        execute_cmd(
+            ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH,
+             "--format", *self.FORMAT])
 
-        # execute_cmd(["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH,
-        #      "--format", *self.FORMAT])
+        # 校验输出文件是否存在
+        with self.subTest():
+            self.check_req_data_csv_integrity()
+        with self.subTest():
+            self.check_batch_data_csv_integrity()
 
+        # kvcache校验
+        with self.subTest("Check kvcache CSV content"):
+            check_kvcache_csv_content(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME)
+        with self.subTest("Check kvcache DB content"):
+            check_kvcache_db_content(self.OUTPUT_PATH, self.DB_FILE_NAME)
+
+        # 校验时延数据生成
+        with self.subTest():
+            check_latency_data(self.OUTPUT_PATH)
+
+        # 校验Insight可视化数据生成
+        with self.subTest():
+            check_insight_table(self.OUTPUT_PATH)
+            check_insight_views(self.OUTPUT_PATH)
+
+        # 校验请求状态数的数据生成
+        with self.subTest():
+            check_req_status(self.OUTPUT_PATH)
+
+        # 校验chrome_tracing的数据格式
+        with self.subTest():
+            check_chrome_tracing_valid(self.OUTPUT_PATH)
+
+        # 校验chrome_tracing的数据内容
+        with self.subTest():
+            check_chrome_tracing_content_valid(self.OUTPUT_PATH)
+
+        shutil.rmtree(test_dir)
+        shutil.rmtree(self.OUTPUT_PATH)
 
 if __name__ == '__main__':
     TestPdCompetition().test_example()
