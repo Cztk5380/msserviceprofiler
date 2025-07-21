@@ -510,7 +510,6 @@ class TestPdCompetition(unittest.TestCase):
     ANALYZE_PROFILER = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")),
                                     "ms_service_profiler/parse.py")
     OUTPUT_PATH = "/data/ms_service_profiler/output/analyze"
-    FORMAT = ['csv', 'json', 'db']
     KVCACHE_CSV_FILE_NAME = "kvcache.csv"
     DB_FILE_NAME = "profiler.db"
 
@@ -583,8 +582,7 @@ class TestPdCompetition(unittest.TestCase):
         os.makedirs(self.OUTPUT_PATH, mode=0o750, exist_ok=True)
 
         execute_cmd(
-            ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH,
-             "--format", *self.FORMAT])
+            ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH])
 
         # 校验输出文件是否存在
         with self.subTest():
