@@ -297,7 +297,7 @@ class MsprofDataSource(BaseDataSource):
             "start_info": "start_info",
             "msprof": ("msprof_*.json", True)
         }
-        cur_path = str(prof_path.parent)
+        cur_path = str(prof_path)
         if self.is_need_msprof(cur_path):
             command = self.gen_msprof_command(cur_path)
             self.clear_last_msprof_output(cur_path)

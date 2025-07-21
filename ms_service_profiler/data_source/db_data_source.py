@@ -56,7 +56,7 @@ class DBDataSource(BaseDataSource):
         return filepaths
 
     @classmethod
-    def get_filepaths(cls, folder_path, file_filter):
+    def get_filepath(cls, folder_path, file_filter):
         filepaths = {}
         reverse_d = {value: key for key, value in file_filter.items()}
         wildcard_patterns = [p for p in reverse_d.keys() if "*" in p or "?" in p]
@@ -84,7 +84,7 @@ class DBDataSource(BaseDataSource):
             "service": "ms_service_*.db"
         }
 
-        filepaths = cls.get_filepaths(input_path, file_filter)
+        filepaths = cls.get_filepath(input_path, file_filter)
 
         db_files = filepaths.get("service", [])
         if db_files:

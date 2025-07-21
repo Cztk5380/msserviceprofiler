@@ -99,10 +99,11 @@ def test_get_prof_paths(mock_glob):
     assert result[0] == mock_path1
     assert result[1] == mock_path2
 
+
 @patch('ms_service_profiler.data_source.msprof_data_source.MsprofDataSource.gen_msprof_command')
 @patch('ms_service_profiler.data_source.msprof_data_source.MsprofDataSource.get_filepaths')
 @patch('ms_service_profiler.data_source.msprof_data_source.MsprofDataSource.load_prof')
-def test_load(mock_load_prof, mock_get_filepaths,mock_gen_cmd):
+def test_load(mock_load_prof, mock_get_filepaths, mock_gen_cmd):
     # 设置get_filepaths和load_prof方法的返回值
     mock_get_filepaths.return_value = {
         "tx": "msproftx.db",

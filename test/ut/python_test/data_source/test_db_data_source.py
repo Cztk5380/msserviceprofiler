@@ -81,6 +81,7 @@ def setup_test_db_directory(tmp_path):
             shutil.rmtree(filename)
     tmp_path.rmdir()
 
+
 def test_process_normal():
     # 模拟convert_db_to_df的返回值
     mock_df = pd.DataFrame({
@@ -180,6 +181,7 @@ def test_handle_other_wildcard_patterns(setup_test_db_directory):
     assert isinstance(result, dict)
     if alias in result:
         assert Path(result[alias]).name.startswith("msprof_")
+
 
 def test_handle_other_wildcard_patterns_empty_folder_path(setup_test_db_directory):
     """
