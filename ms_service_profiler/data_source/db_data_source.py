@@ -26,7 +26,7 @@ class DBDataSource(BaseDataSource):
     def handle_msprof_pattern(cls, folder_path, alias, filepaths):
         regex_pattern = r'^msprof_\d+\.json$'
         matched_files = []
-        for fp in Path(folder_path).rglob('*.json'):
+        for fp in Path(folder_path).parent.rglob('*.json'):
             if re.match(regex_pattern, fp.name):
                 matched_files.append(str(fp))
         if matched_files:
