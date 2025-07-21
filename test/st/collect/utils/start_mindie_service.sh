@@ -76,7 +76,7 @@ bak_replace_file() {
 create_config_file() {
     local config_path=${1}
     local prof_dir=${2}
-    local enable=${3:-0}
+    local enable=${3:-1}
     local profiler_level=${4:-"INFO"}
     local acl_task_time=${5:-0}
 
@@ -172,7 +172,7 @@ main() {
 
     bak_replace_file "$SRC_LIBMS_SERVICE_PROFILER_SO" "$DST_LIBMS_SERVICE_PROFILER_SO"
 
-    create_config_file "$SERVICE_PROFILER_CONFIG_PATH" "$TEST_DIR/prof_result" 0 "INFO" 0
+    create_config_file "$SERVICE_PROFILER_CONFIG_PATH" "$TEST_DIR/prof_result" 1 "INFO" 0
 
     if ! start_mindie_service "$MINDIE_LOG_FILE"; then
         echo "ST: test_pd_compitition FAILED: failed to start mindie service"

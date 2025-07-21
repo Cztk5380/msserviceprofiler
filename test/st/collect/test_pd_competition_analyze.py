@@ -510,6 +510,7 @@ class TestPdCompetition(unittest.TestCase):
     ANALYZE_PROFILER = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")),
                                     "ms_service_profiler/parse.py")
     OUTPUT_PATH = "/data/ms_service_profiler/output/analyze"
+    FORMAT = ['csv', 'json', 'db']
     KVCACHE_CSV_FILE_NAME = "kvcache.csv"
     DB_FILE_NAME = "profiler.db"
 
@@ -575,14 +576,13 @@ class TestPdCompetition(unittest.TestCase):
         execute_cmd(['bash', os.path.join(script_dir, "utils", "start_mindie_service.sh"), service_config, test_dir,
                      profiler_so])
 
-        update_json(os.path.join(test_dir, "profiler.json"), ["enable"], 1)
-
         execute_cmd(['bash', os.path.join(script_dir, "utils", "send_single_request.sh"), ip_address])
 
         os.makedirs(self.OUTPUT_PATH, mode=0o750, exist_ok=True)
 
         execute_cmd(
-            ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH])
+            ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH,
+             "--format", *self.FORMAT])
 
         # 校验输出文件是否存在
         with self.subTest():
