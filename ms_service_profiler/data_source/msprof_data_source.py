@@ -248,7 +248,7 @@ class MsprofDataSource(BaseDataSource):
         if len(full_path.split()) != 1:
             raise ValueError(f"{full_path} is invalid.")
 
-        config_path = os.path.join(os.path.dirname(__file__), "config", MSPROF_REPORTS_PATH)
+        config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "config", MSPROF_REPORTS_PATH))
         if not os.path.isfile(config_path):
             logger.error("File not found: %r, please re-install the ascend-toolkit", config_path)
             raise OSError
@@ -297,7 +297,7 @@ class MsprofDataSource(BaseDataSource):
             "start_info": "start_info",
             "msprof": ("msprof_*.json", True)
         }
-        cur_path = str(prof_path)
+        cur_path = str(prof_path.parent)
         if self.is_need_msprof(cur_path):
             command = self.gen_msprof_command(cur_path)
             self.clear_last_msprof_output(cur_path)
