@@ -282,7 +282,7 @@ def sort_trace_events_by_pid(pid_label_map):
         if dp != -1:
             labels.append(f"dp{int(dp)}")
         elif dp_rank != -1:
-            labels.append(f"rank{int(dp_rank)}")
+            labels.append(f"dp{int(dp_rank)}")
 
         pid_sorting_meta.append(dict(
             name="process_labels",
