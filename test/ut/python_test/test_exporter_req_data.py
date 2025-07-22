@@ -61,12 +61,12 @@ class TestExporterReqData(unittest.TestCase):
             'name': ['httpReq', 'encode', 'Enqueue', 'ReqState', 'ReqState', 'ReqState', 'DecodeEnd', 'httpRes',
                      'prefillRes', 'decodeRes'],
             'message': [
-                {'domain': 'Request', 'rid': 0, 'name': 'httpReq', 'type': 0},
+                {'domain': 'Request', 'rid': '1', 'name': 'httpReq', 'type': 0},  # 将 rid 转换为字符串
                 {'domain': 'Request', 'rid': 'endpoint_common_1', 'name': 'encode', 'type': 2, '=recvTokenSize': 4},
-                {'domain': 'Request', 'rid': 0, '=QueueSize': 1, 'queue': 20, 'name': 'Enqueue', 'type': 0},
-                {'domain': 'Request', 'rid': 0, '+WAITING': -1, '+RUNNING': 1, 'name': 'ReqState', 'type': 0},
-                {'domain': 'Request', 'rid': 0, '+RUNNING': -1, '+PENDING': 1, 'name': 'ReqState', 'type': 0},
-                {'domain': 'Request', 'rid': 0, '+PENDING': -1, '+RUNNING': 1, 'name': 'ReqState', 'type': 0},
+                {'domain': 'Request', 'rid': '1', '=QueueSize': 1, 'queue': 20, 'name': 'Enqueue', 'type': 0},
+                {'domain': 'Request', 'rid': '1', '+WAITING': -1, '+RUNNING': 1, 'name': 'ReqState', 'type': 0},
+                {'domain': 'Request', 'rid': '1', '+RUNNING': -1, '+PENDING': 1, 'name': 'ReqState', 'type': 0},
+                {'domain': 'Request', 'rid': '1', '+PENDING': -1, '+RUNNING': 1, 'name': 'ReqState', 'type': 0},
                 {'domain': 'Request', 'rid': 'endpoint_common_1',
                  '=replyTokenSize': 250, 'name': 'DecodeEnd', 'type': 0},
                 {'domain': 'Request', 'rid': 'endpoint_common_1', 'action': 'Process', 'name': 'httpRes', 'type': 0},
@@ -75,7 +75,7 @@ class TestExporterReqData(unittest.TestCase):
             ],
             'start_time': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
             'end_time': [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5],
-            'rid': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            'rid': ['1', '1', '1', '1', '1', '1', '1', '1', '1', '1'],  # 将 rid 转换为字符串
             'recvTokenSize=': ['', 4, '', '', '', '', '', '', '', ''],  # 修改长度
             'replyTokenSize=': ['', '', '', '', '', '', 250, '', '', ''],  # 修改长度
             'RUNNING+': ['', '', '', 1, '', 1, '', '', '', ''],  # 修改长度
@@ -83,7 +83,7 @@ class TestExporterReqData(unittest.TestCase):
             'during_time': [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
             'domain': ['Request', 'Request', 'Request', 'Request', 'Request', 'Request', 'Request', 'Request',
                        'Request', 'Request'],
-            'rid_list': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            'rid_list': ['1', '1', '1', '1', '1', '1', '1', '1', '1', '1'],  # 将 rid_list 转换为字符串
             'token_id_list': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             'pid': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             'hostname': ['host1', 'host1', 'host1', 'host1', 'host1', 'host1', 'host1', 'host1', 'host1', 'host1'],
@@ -96,7 +96,7 @@ class TestExporterReqData(unittest.TestCase):
     def create_ttft_df(self):
         # 创建一个包含 'ttft' 列的示例DataFrame
         data = {
-            'rid': [1, 2],
+            'rid': ['1', '2'],  # 将 rid 转换为字符串
             'ttft': [100, 200]
         }
         return pd.DataFrame(data)
@@ -104,11 +104,10 @@ class TestExporterReqData(unittest.TestCase):
     def create_queue_wait_df(self):
         # 创建包含'req_que_wait_df' 的df
         data = {
-            'rid': [1, 2],
+            'rid': ['1', '2'],  # 将 rid 转换为字符串
             'que_wait_time': [40, 50]
         }
-        return  pd.DataFrame(data)
-
+        return pd.DataFrame(data)
 
     def test_export(self):
         try:
@@ -144,6 +143,7 @@ class TestExporterReqData(unittest.TestCase):
         finally:
             # 清理
             shutil.rmtree(test_path)
+
 
 if __name__ == '__main__':
     unittest.main()
