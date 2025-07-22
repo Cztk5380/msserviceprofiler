@@ -107,8 +107,8 @@ def test_parse_with_invalid_rid_from_message():
 def test_parse_with_invalid_rid_link_map():
     df = pd.DataFrame({
         "type": [3, 3],
-        "from": [1, 2],
-        "to": ['a', 'b']
+        "to": [1, 2],
+        "from": ['a', 'b']
     })
     with pytest.raises(ValueError):
         rid_link_map = parse_rid_map(df)

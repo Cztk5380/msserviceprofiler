@@ -46,21 +46,21 @@ class ExporterReqStatus(ExporterBase):
                 df['status'] = df['status'].map(old_status_mapping)
 
                 # 将status列转换为one-hot编码
-                status_df = pd.get_dummies(df['status'], prefix='', prefix_sep='')
+                df = pd.get_dummies(df['status'], prefix='', prefix_sep='')
 
                 # 添加timestamp列
-                status_df.insert(0, 'timestamp', metrics['start_datetime'])
+                df.insert(0, 'timestamp', metrics['start_datetime'])
 
                 # 补全缺失的状态列，值为0
                 for status in old_status_mapping.values():
-                    if status not in status_df.columns:
-                        status_df[status] = 0
+                    if status not in df.columns:
+                        df[status] = 0
 
-                if 'PENDING' not in status_df.columns:
-                    status_df['PENDING'] = 0
+                if 'PENDING' not in df.columns:
+                    df['PENDING'] = 0
 
                 # 确保列的顺序正确
-                status_df = status_df[['timestamp'] + list(old_status_mapping.values()) + ['PENDING']]
+                df = df[['timestamp'] + list(old_status_mapping.values()) + ['PENDING']]
 
             else:
                 req_status_cols = [col for col in metrics.columns if col in ReqStatus.__members__]
@@ -78,7 +78,7 @@ class ExporterReqStatus(ExporterBase):
                         df = df.assign(**{column_name: [None] * len(df)})
 
         write_result_to_db(
-            df_param_list=[[status_df, 'request_status']],
+            df_param_list=[[df, 'request_status']],
             table_name='request_status',
             create_view_sql=[CREATE_REQUEST_STATE_VIEW_SQL]
         )

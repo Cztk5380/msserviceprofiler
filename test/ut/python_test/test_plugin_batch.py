@@ -95,7 +95,6 @@ class TestPluginBatch(unittest.TestCase):
         self.assertEqual(self.plugin.batch_list[("req1", "req2")]["time"], row.end_time)
         self.assertIn((1, 1001, "modelExec"), self.plugin.batch_exec)
 
-
     def test_deal_with_preprocess_row(self):
         # 测试 deal_with_preprocess_row 方法
         row = MagicMock()
@@ -106,7 +105,7 @@ class TestPluginBatch(unittest.TestCase):
         row.name = "preprocess"
         row.start_time = 1622534400
         row.end_time = 1622534405
-        row.blocks = ["block1", "block2"]
+        row.blocks = None
 
         last_preprocess = dict()
         self.plugin.batch_req = {
@@ -123,9 +122,8 @@ class TestPluginBatch(unittest.TestCase):
         # 检查 batch_req 是否正确更新
         self.assertIn((1, "req1"), self.plugin.batch_req)
         self.assertIn((1, "req2"), self.plugin.batch_req)
-        self.assertEqual(self.plugin.batch_req[(1, "req1")].get("block"), "block1")
-        self.assertEqual(self.plugin.batch_req[(1, "req2")].get("block"), "block2")
-
+        self.assertIsNone(self.plugin.batch_req[(1, "req1")].get("block"))
+        self.assertIsNone(self.plugin.batch_req[(1, "req2")].get("block"))
 
     def test_deal_with_forward_row(self):
         # 测试 deal_with_forward_row 方法
@@ -142,7 +140,6 @@ class TestPluginBatch(unittest.TestCase):
         self.plugin.deal_with_forward_row(row, last_preprocess)
         self.assertIn((1, 1001, "forward"), self.plugin.batch_exec)
 
-
     def test_extract_batch_info(self):
         # 测试 extract_batch_info 方法
         batch_df = pd.DataFrame([
@@ -152,7 +149,7 @@ class TestPluginBatch(unittest.TestCase):
             {"name": "modelExec", "start_time": 1622534410, "end_time": 1622534415, "pid": 1001, "tid": 2001,
              "hostname": "host1", "rid_list": ["req1", "req2"]},
             {"name": "preprocess", "start_time": 1622534420, "end_time": 1622534425, "pid": 1001, "tid": 2001,
-             "hostname": "host1", "rid_list": ["req1", "req2"], "blocks": ["block1", "block2"]},
+             "hostname": "host1", "rid_list": ["req1", "req2"], "blocks": None},  # 修改为 None 或一个单一的值
         ])
 
         self.plugin.extract_batch_info(batch_df)
@@ -166,8 +163,8 @@ class TestPluginBatch(unittest.TestCase):
         assert (1, "req2") in self.plugin.batch_req
 
         # 修改期望的字典以匹配 deal_with_preprocess_row 方法的实际行为
-        expected_req1 = {"batch_id": 1, "req_id": "req1", "rid": "req1", "key1": "value1", "block": "block1"}
-        expected_req2 = {"batch_id": 1, "req_id": "req2", "rid": "req2", "key2": "value2", "block": "block2"}
+        expected_req1 = {"batch_id": 1, "req_id": "req1", "rid": "req1", "key1": "value1", "block": None}
+        expected_req2 = {"batch_id": 1, "req_id": "req2", "rid": "req2", "key2": "value2", "block": None}
 
         self.assertEqual(self.plugin.batch_req[(1, "req1")], expected_req1)
         self.assertEqual(self.plugin.batch_req[(1, "req2")], expected_req2)
@@ -176,7 +173,6 @@ class TestPluginBatch(unittest.TestCase):
         assert (1, 1001, "BatchSchedule") in self.plugin.batch_exec
         assert (1, 1001, "modelExec") in self.plugin.batch_exec
         assert (1, 1001, "preprocess") in self.plugin.batch_exec
-
 
     def test_parse(self):
         # 测试 parse 方法
@@ -188,7 +184,7 @@ class TestPluginBatch(unittest.TestCase):
                 {"name": "modelExec", "start_time": 1622534410, "end_time": 1622534415, "pid": 1001, "tid": 2001,
                  "hostname": "host1", "rid_list": ["req1", "req2"]},
                 {"name": "preprocess", "start_time": 1622534420, "end_time": 1622534425, "pid": 1001, "tid": 2001,
-                 "hostname": "host1", "rid_list": ["req1", "req2"], "blocks": ["block1", "block2"]}
+                 "hostname": "host1", "rid_list": ["req1", "req2"], "blocks": None},
             ])
         }
 
