@@ -52,7 +52,7 @@ class TestExporterReqData(unittest.TestCase):
         self.data = {
             'tx_data_df': self.create_df(),
             'req_ttft_df': self.create_ttft_df(),
-            'req_que_wait_df': pd.DataFrame()
+            'req_que_wait_df': self.create_queue_wait_df()
         }
 
     def create_df(self):
@@ -100,6 +100,15 @@ class TestExporterReqData(unittest.TestCase):
             'ttft': [100, 200]
         }
         return pd.DataFrame(data)
+
+    def create_queue_wait_df(self):
+        # 创建包含'req_que_wait_df' 的df
+        data = {
+            'rid': [1, 2],
+            'que_wait_time': [40, 50]
+        }
+        return  pd.DataFrame(data)
+
 
     def test_export(self):
         try:
