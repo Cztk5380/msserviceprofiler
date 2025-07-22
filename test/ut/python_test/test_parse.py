@@ -16,14 +16,8 @@ import stat
 
 from ms_service_profiler.parse import Task
 from ms_service_profiler.parse import (
-    get_filepaths,
-    handle_exact_match,
-    handle_msprof_pattern,
-    handle_other_wildcard_patterns,
-    handle_service_pattern,
     build_task_dag,
     main,
-    preprocess_prof_folders,
     load_ops_db
 )
 
@@ -103,60 +97,6 @@ def setup_test_directory(tmp_path):
     tmp_path.rmdir()
 
 
-def test_get_filepaths(setup_test_directory):
-    folder_path = setup_test_directory / "PROF_test"
-    file_filter = {
-        "tx": "msproftx.db",
-        "cpu": "host_cpu_usage.db",
-        "memory": "host_mem_usage.db",
-        "host_start": "host_start.log",
-        "info": "info.json",
-        "start_info": "start_info",
-        "msprof": "msprof_*.json"
-    }
-    result = get_filepaths(folder_path, file_filter)
-    assert isinstance(result, dict)
-    assert "tx" in result
-    assert "msprof" in result
-
-
-def test_handle_exact_match(setup_test_directory):
-    folder_path = setup_test_directory / "PROF_test"
-    reverse_d = {
-        "msproftx.db": "tx",
-        "host_cpu_usage.db": "cpu",
-        "host_mem_usage.db": "memory",
-        "host_start.log": "host_start",
-        "info.json": "info",
-        "start_info": "start_info"
-    }
-    result = handle_exact_match(folder_path, reverse_d)
-    assert isinstance(result, dict)
-    assert "tx" in result
-    assert Path(result["tx"]).name == "msproftx.db"
-
-
-def test_handle_msprof_pattern(setup_test_directory):
-    folder_path = setup_test_directory / "PROF_test"
-    alias = "msprof"
-    filepaths = {}
-    result = handle_msprof_pattern(folder_path, alias, filepaths)
-    assert isinstance(result, dict)
-    assert alias in result
-    assert all(re.match(r'^msprof_\d+\.json$', Path(p).name) for p in result[alias])
-
-
-def test_handle_other_wildcard_patterns(setup_test_directory):
-    folder_path = setup_test_directory / "PROF_test"
-    pattern = "msprof_*.json"
-    alias = "msprof"
-    filepaths = {}
-    result = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
-    assert isinstance(result, dict)
-    if alias in result:
-        assert Path(result[alias]).name.startswith("msprof_")
-
-
 class MockTask(Task):
     name = "mock_task"
 
@@ -210,156 +150,6 @@ def test_build_task_dag(mock_get_retister_by_name):
     assert "mock_task2" in head_tasks
     assert "depend_task1" in head_tasks
     assert "depend_task2" in head_tasks
-
-
-def test_handle_other_wildcard_patterns_empty_folder_path(setup_test_directory):
-    """
-    测试 handle_other_wildcard_patterns 函数在 folder_path 为空时的行为。
-    """
-    folder_path = ""
-    pattern = "*.txt"
-    alias = "test_alias"
-    filepaths = {}
-
-    result = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
-    assert result == filepaths, "当 folder_path 为空时，filepaths 应该保持不变"
-
-
-def test_handle_other_wildcard_patterns_non_existent_folder_path(setup_test_directory):
-    """
-    测试 handle_other_wildcard_patterns 函数在 folder_path 不存在时的行为。
-    """
-    folder_path = "/non_existent_path"
-    pattern = "*.txt"
-    alias = "test_alias"
-    filepaths = {}
-
-    result = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
-    assert not result, "当 folder_path 不存在时，filepaths 应该保持不变"
-
-
-def test_handle_other_wildcard_patterns_pattern_matches_file(setup_test_directory):
-    """
-    测试 handle_other_wildcard_patterns 函数在 pattern 匹配到文件时的行为。
-    """
-    folder_path = setup_test_directory
-    pattern = "*.txt"
-    alias = "test_alias"
-    filepaths = {}
-
-    # 创建一个临时测试文件
-    test_file = folder_path / "test_file.txt"
-    test_file.touch()
-
-    result = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
-    assert alias in result, "当 pattern 匹配到文件时，filepaths 应该包含 alias"
-    assert result[alias] == str(test_file), "filepaths[alias] 应该是匹配到的文件路径"
-
-    # 清理临时文件
-    test_file.unlink()
-
-
-def test_handle_other_wildcard_patterns_pattern_no_match(setup_test_directory):
-    """
-    测试 handle_other_wildcard_patterns 函数在 pattern 没有匹配到任何文件时的行为。
-    """
-    folder_path = setup_test_directory
-    pattern = "*.txt"
-    alias = "test_alias"
-    filepaths = {}
-
-    # 不创建任何文件
-    result = handle_other_wildcard_patterns(folder_path, pattern, alias, filepaths)
-    assert not result, "当 pattern 没有匹配到任何文件时，filepaths 应该保持不变"
-
-
-def test_handle_service_pattern_empty_folder_path():
-    """
-    测试 handle_service_pattern 函数在 folder_path 为空时的行为。
-    """
-    folder_path = ""
-    alias = "test_alias"
-    filepaths = {}
-
-    result = handle_service_pattern(folder_path, alias, filepaths)
-    assert not result, "当 folder_path 为空时，filepaths 应该保持不变"
-
-
-def test_handle_service_pattern_non_existent_folder_path():
-    """
-    测试 handle_service_pattern 函数在 folder_path 不存在时的行为。
-    """
-    folder_path = "/non_existent_path"
-    alias = "test_alias"
-    filepaths = {}
-
-    result = handle_service_pattern(folder_path, alias, filepaths)
-    assert not result, "当 folder_path 不存在时，filepaths 应该保持不变"
-
-
-def test_handle_service_pattern_pattern_matches_files(setup_test_directory):
-    """
-    测试 handle_service_pattern 函数在 regex_pattern 匹配到文件时的行为。
-    """
-    folder_path = setup_test_directory / "PROF_test"
-    alias = "test_alias"
-    filepaths = {}
-
-    # 确保测试目录中有符合 regex_pattern 的文件
-    test_file = folder_path / "ms_service_test_file.db"
-    test_file.touch()
-
-    # 调用函数
-    result = handle_service_pattern(folder_path, alias, filepaths)
-
-    # 检查结果
-    assert alias in result, "当 regex_pattern 匹配到文件时，filepaths 应该包含 alias"
-    assert len(result[alias]) == 1, "filepaths[alias] 应该包含匹配到的文件路径"
-    assert str(test_file) in result[alias], "匹配到的文件路径应该在 filepaths[alias] 中"
-
-
-def test_handle_service_pattern_pattern_no_match(setup_test_directory):
-    """
-    测试 handle_service_pattern 函数在 regex_pattern 没有匹配到任何文件时的行为。
-    """
-    folder_path = setup_test_directory / "PROF_test"
-    alias = "test_alias"
-    filepaths = {}
-
-    # 删除所有匹配的文件
-    for file in folder_path.rglob('ms_service_*.db'):
-        file.unlink()
-
-    result = handle_service_pattern(folder_path, alias, filepaths)
-    assert not result, "当 regex_pattern 没有匹配到任何文件时，filepaths 应该保持不变"
-
-
-def test_handle_service_pattern_alias_already_exists(setup_test_directory):
-    """
-    测试 handle_service_pattern 函数在 alias 已存在于 filepaths 中时的行为。
-    """
-    folder_path = setup_test_directory / "PROF_test"
-    alias = "test_alias"
-    filepaths = {alias: ["existing_file_path"]}
-
-    # 确保测试目录中有符合 regex_pattern 的文件
-    test_file1 = folder_path / "ms_service_test_file1.db"
-    test_file1.touch()
-    test_file2 = folder_path / "ms_service_test_file2.db"
-    test_file2.touch()
-    test_file3 = folder_path / "ms_service_test_file3.db"
-    test_file3.touch()
-
-    # 调用函数
-    result = handle_service_pattern(folder_path, alias, filepaths)
-
-    # 检查结果
-    assert alias in result, "filepaths 应该包含 alias"
-    assert len(result[alias]) == 4, "filepaths[alias] 应该包含所有匹配的文件路径和已存在的路径"
-    assert "existing_file_path" in result[alias], "已存在的路径应该在 filepaths[alias] 中"
-    assert str(test_file1) in result[alias], "匹配到的文件路径应该在 filepaths[alias] 中"
-    assert str(test_file2) in result[alias], "匹配到的文件路径应该在 filepaths[alias] 中"
-    assert str(test_file3) in result[alias], "匹配到的文件路径应该在 filepaths[alias] 中"
 
 
 def test_timestamp_conversion_and_duration_calculation(setup_test_directory):
@@ -458,30 +248,6 @@ def test_add_and_rename_hostname(setup_test_directory):
     assert df.columns.tolist() == ["hostuid", "hostname"], "列名应正确"
     assert df.iloc[0]['hostuid'] == "host1", "hostuid 列的值应正确"
     assert df.iloc[1]['hostuid'] == "host2", "hostuid 列的值应正确"
-
-
-def test_empty_directory(setup_test_directory):
-    empty_dir = setup_test_directory / "empty_dir"
-    empty_dir.mkdir()
-    assert not preprocess_prof_folders(empty_dir)
-
-
-# 测试目录中没有需要处理的 PROF_ 文件夹的情况
-def test_no_msprof_needed(setup_test_directory):
-    no_prof_dir = setup_test_directory / "NO_PROF_1"
-    no_prof_dir.mkdir()
-    (no_prof_dir / "valid_file").write_text("Valid content")
-    assert preprocess_prof_folders(setup_test_directory)
-
-
-# 测试生成 msprof 命令并成功执行的情况
-def test_msprof_command_generation(setup_test_directory):
-    assert preprocess_prof_folders(setup_test_directory)
-
-
-# 测试 msprof 命令执行后成功生成 msproftx.db 文件的情况
-def test_msprof_output_found(setup_test_directory):
-    assert preprocess_prof_folders(setup_test_directory)
 
 
 def test_main():

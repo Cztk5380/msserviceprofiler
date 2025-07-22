@@ -1,23 +1,90 @@
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
 
 import json
+import re
 
 import pandas as pd
+from pathlib import Path
 
-from ms_service_profiler.parse import get_filepaths
+
 from ms_service_profiler.data_source.base_data_source import BaseDataSource, Task
 from ms_service_profiler.utils.error import LoadDataError
 
 
 @Task.register("data_source:db")
 class DBDataSource(BaseDataSource):
+
+    @classmethod
+    def handle_exact_match(cls, folder_path, reverse_d):
+        filepaths = {}
+        for fp in Path(folder_path).rglob('*'):
+            if fp.name in reverse_d:
+                filepaths[reverse_d[fp.name]] = str(fp)
+        return filepaths
+
+    @classmethod
+    def handle_msprof_pattern(cls, folder_path, alias, filepaths):
+        regex_pattern = r'^msprof_\d+\.json$'
+        matched_files = []
+        for fp in Path(folder_path).parent.rglob('*.json'):
+            if re.match(regex_pattern, fp.name):
+                matched_files.append(str(fp))
+        if matched_files:
+            if alias not in filepaths:
+                filepaths[alias] = []
+            filepaths[alias].extend(matched_files)
+        return filepaths
+
+    @classmethod
+    def handle_other_wildcard_patterns(cls, folder_path, pattern, alias, filepaths):
+        for fp in Path(folder_path).rglob(pattern):
+            filepaths[alias] = str(fp)
+            break
+        return filepaths
+
+    @classmethod
+    def handle_service_pattern(cls, folder_path, alias, filepaths):
+        regex_pattern = r'^ms_service_[\w.-]+.db'
+        matched_files = []
+        for fp in Path(folder_path).rglob('*.db'):
+            if re.match(regex_pattern, fp.name):
+                matched_files.append(str(fp))
+        if matched_files:
+            if alias not in filepaths:
+                filepaths[alias] = []
+            filepaths[alias].extend(matched_files)
+        return filepaths
+
+    @classmethod
+    def get_filepath(cls, folder_path, file_filter):
+        filepaths = {}
+        reverse_d = {value: key for key, value in file_filter.items()}
+        wildcard_patterns = [p for p in reverse_d.keys() if "*" in p or "?" in p]
+
+        # 精确匹配的文件路径
+        filepaths = cls.handle_exact_match(folder_path, reverse_d)
+
+        # 创建映射
+        pattern_handlers = {
+            "msprof_*.json": cls.handle_msprof_pattern,
+            "ms_service_*.db": cls.handle_service_pattern
+        }
+
+        # 通配符匹配的文件路径
+        for pattern in wildcard_patterns:
+            alias = reverse_d[pattern]
+            handler = pattern_handlers.get(pattern, cls.handle_other_wildcard_patterns)
+            filepaths = handler(folder_path, alias, filepaths)
+
+        return filepaths
+
     @classmethod
     def get_prof_paths(cls, input_path: str):
         file_filter = {
             "service": "ms_service_*.db"
         }
 
-        filepaths = get_filepaths(input_path, file_filter)
+        filepaths = cls.get_filepath(input_path, file_filter)
 
         db_files = filepaths.get("service", [])
         if db_files:
