@@ -6,7 +6,7 @@ import json
 import sqlite3
 import logging
 import yaml
-from st.utils import execute_cmd
+from test.st.utils import execute_cmd
 
 # 获取当前脚本所在的目录
 script_path = os.path.abspath(__file__)
