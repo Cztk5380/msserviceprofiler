@@ -1,5 +1,7 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
+import pandas as pd
+
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
 from ms_service_profiler.exporters.utils import write_result_to_db, CURVE_VIEW_NAME_LIST, check_domain_valid
@@ -33,25 +35,53 @@ class ExporterReqStatus(ExporterBase):
                 logger.warning("The metrics data is empty, please check")
                 return
 
-            req_status_cols = [col for col in metrics.columns if col in ReqStatus.__members__]
+            # mindIE 重构后新逻辑
+            if 'status' in df.columns:
+                old_status_mapping = {
+                    'waiting': 'WAITING',
+                    'running': 'RUNNING',
+                }
 
-            df = metrics[req_status_cols].astype(int)
-            df.insert(0, 'timestamp', metrics['start_datetime'])
+                # 将status列的值映射到旧版状态值
+                df['status'] = df['status'].map(old_status_mapping)
 
-            # 默认会从db文件中筛选下述列进行展示，如不存在该列需要补齐
-            show_columns = []
-            for status in ReqStatus:
-                show_columns.append(status.name)
+                # 将status列转换为one-hot编码
+                status_df = pd.get_dummies(df['status'], prefix='', prefix_sep='')
 
-            for column_name in show_columns:
-                if column_name not in df.columns:
-                    df = df.assign(**{column_name: [None] * len(df)})
+                # 添加timestamp列
+                status_df.insert(0, 'timestamp', metrics['start_datetime'])
 
-            write_result_to_db(
-                df_param_list=[[df, 'request_status']],
-                table_name='request_status',
-                create_view_sql=[CREATE_REQUEST_STATE_VIEW_SQL]
-            )
+                # 补全缺失的状态列，值为0
+                for status in old_status_mapping.values():
+                    if status not in status_df.columns:
+                        status_df[status] = 0
+
+                if 'PENDING' not in status_df.columns:
+                    status_df['PENDING'] = 0
+
+                # 确保列的顺序正确
+                status_df = status_df[['timestamp'] + list(old_status_mapping.values()) + ['PENDING']]
+
+            else:
+                req_status_cols = [col for col in metrics.columns if col in ReqStatus.__members__]
+
+                df = metrics[req_status_cols].astype(int)
+                df.insert(0, 'timestamp', metrics['start_datetime'])
+
+                # 默认会从db文件中筛选下述列进行展示，如不存在该列需要补齐
+                show_columns = []
+                for status in ReqStatus:
+                    show_columns.append(status.name)
+
+                for column_name in show_columns:
+                    if column_name not in df.columns:
+                        df = df.assign(**{column_name: [None] * len(df)})
+
+        write_result_to_db(
+            df_param_list=[[status_df, 'request_status']],
+            table_name='request_status',
+            create_view_sql=[CREATE_REQUEST_STATE_VIEW_SQL]
+        )
 
 
 CREATE_REQUEST_STATE_VIEW_SQL = f"""

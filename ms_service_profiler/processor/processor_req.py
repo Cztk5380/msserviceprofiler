@@ -169,10 +169,6 @@ class ProcessorReq(ProcessorBase):
         # 如果有decode ，取第一个 decode
         first_decode = req_event_df[req_event_df["event"] == "decode"].groupby("rid").first()
         first_decode["rid"] = first_decode.index
-        # # 请求结束时间为sendResponse，且end_flag=1
-        # last_send_response = req_event_df[(req_event_df["event"] == "sendResponse") & (req_event_df["end_flag"] == 1)]
-        # last_send_response = last_send_response.groupby("rid").first()  # 按 rid 分组
-        # last_send_response["rid"] = last_send_response.index
 
         calc_df = pd.concat([calc_df, first_decode])
 
@@ -204,7 +200,7 @@ class ProcessorReq(ProcessorBase):
         if req_que_wait_df is None or req_queue_df.empty:
             return req_que_wait_df
 
-            # 1. 把事件拆成两类
+        # 1. 把事件拆成两类
         enq = req_queue_df[req_queue_df["event"] == "Enqueue"]
         deq = req_queue_df[req_queue_df["event"] == "Dequeue"]
 
@@ -227,7 +223,6 @@ class ProcessorReq(ProcessorBase):
         req_event_df, req_attr_df, req_queue_df = self.parse_req(data_df, batch_event_df, batch_attr_df)
         req_ttft_df = self.calc_ttft(req_event_df)
         req_queue_wait_time_df = self.calc_que_wait(req_queue_df)
-        # req_queue_wait_time_df.to_csv('/home/chepishuai/pd_common/MindIE_710/result_common/req_wait_df.csv')
         req_attr_df["ttft"] = req_ttft_df["ttft"]
 
         # ttft 和 que_wait_time为原始数据，单位为微秒，需要exporter中调用时进行单位转换
