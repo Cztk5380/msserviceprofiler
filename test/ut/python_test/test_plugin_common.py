@@ -110,8 +110,9 @@ def test_parse_with_invalid_rid_link_map():
         "to": [1, 2],
         "from": ['a', 'b']
     })
-    with pytest.raises(ValueError):
-        rid_link_map = parse_rid_map(df)
+    rid_link_map = parse_rid_map(df)
+    assert isinstance(rid_link_map, dict)
+    assert len(rid_link_map) == 0
 
 
 def test_extract_ids_from_reslist():

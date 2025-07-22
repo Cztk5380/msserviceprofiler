@@ -166,8 +166,9 @@ class TestPluginBatch(unittest.TestCase):
         expected_req1 = {"batch_id": 1, "req_id": "req1", "rid": "req1", "key1": "value1", "block": None}
         expected_req2 = {"batch_id": 1, "req_id": "req2", "rid": "req2", "key2": "value2", "block": None}
 
-        self.assertEqual(self.plugin.batch_req[(1, "req1")], expected_req1)
-        self.assertEqual(self.plugin.batch_req[(1, "req2")], expected_req2)
+        # 使用 assertDictEqual 来比较字典
+        self.assertDictEqual(self.plugin.batch_req[(1, "req1")], expected_req1)
+        self.assertDictEqual(self.plugin.batch_req[(1, "req2")], expected_req2)
 
         # 检查 batch_exec 是否正确更新
         assert (1, 1001, "BatchSchedule") in self.plugin.batch_exec

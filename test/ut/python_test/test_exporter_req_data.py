@@ -74,10 +74,10 @@ class TestExporterReqData(unittest.TestCase):
             'start_time': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
             'end_time': [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5],
             'rid': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            'recvTokenSize=': ['', 4, '', '', '', '', '', ''],
-            'replyTokenSize=': ['', '', '', '', '', '', 250, ''],
-            'RUNNING+': ['', '', '', 1, '', 1, '', ''],
-            'PENDING+': ['', '', '', '', 1, '', '', ''],
+            'recvTokenSize=': ['', 4, '', '', '', '', '', '', '', ''],  # 修改长度
+            'replyTokenSize=': ['', '', '', '', '', '', 250, '', '', ''],  # 修改长度
+            'RUNNING+': ['', '', '', 1, '', 1, '', '', '', ''],  # 修改长度
+            'PENDING+': ['', '', '', '', 1, '', '', '', '', ''],  # 修改长度
             'during_time': [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
             'domain': ['Request', 'Request', 'Request', 'Request', 'Request', 'Request', 'Request', 'Request',
                        'Request', 'Request'],
