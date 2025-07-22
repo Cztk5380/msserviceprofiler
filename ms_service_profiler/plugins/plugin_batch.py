@@ -75,7 +75,7 @@ class PluginBatch(PluginBase):
         last_preprocess[(row.pid, row.tid, row.hostname)] = dict(rid_list=row.rid_list)
         cls.add_exec_info(batch_id, row.pid, row.name, row.start_time, row.end_time)
         try:
-            if row.blocks is None or len(row.blocks) != len(row.rid_list):
+            if row.blocks is None or pd.isna(row.blocks) or len(row.blocks) != len(row.rid_list):
                 return
         except AttributeError:
             return
@@ -86,15 +86,29 @@ class PluginBatch(PluginBase):
     def deal_with_forward_row(cls, row, last_preprocess):
         rid_list = last_preprocess.get((row.pid, row.tid, row.hostname), dict()).get("rid_list", None)
         if rid_list is None:
-            return
-        batch_info = cls.batch_list.get(tuple(rid_list))
-        if batch_info is None:
-            return
-        batch_id = batch_info.get("id", 0)
-        if batch_id == 0:
-            return
-        if batch_info.get("time", 0) > row.end_time:
+            batch_id = next(
+                (entry["batch_id"] for entry in cls.batch_req.values() if "block" not in entry),
+                None
+            )
+            if batch_id == 0:
+                return
             cls.add_exec_info(batch_id, row.pid, row.name, row.start_time, row.end_time)
+        else:
+            batch_info = cls.batch_list.get(tuple(rid_list))
+            if batch_info is None:
+                return
+            batch_id = batch_info.get("id", 0)
+            if batch_id == 0:
+                return
+            if batch_info.get("time", 0) > row.end_time:
+                cls.add_exec_info(batch_id, row.pid, row.name, row.start_time, row.end_time)
+        try:
+            if row.blocks is None or pd.isna(row.blocks) or len(row.blocks) != len(row.rid_list):
+                return
+        except AttributeError:
+            return
+        for index, rid in enumerate(row.rid_list):
+            cls.add_req_info(batch_id, rid, block=row.blocks[index])
 
     @classmethod
     def extract_batch_info(cls, batch_df):

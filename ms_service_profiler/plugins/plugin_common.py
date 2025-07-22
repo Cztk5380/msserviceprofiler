@@ -79,7 +79,7 @@ def extract_rid(rid_from_message, rid_map):
 def parse_rid_map(all_data_df):
     df = all_data_df[all_data_df["type"] == 3]  # already checked 'type' in all_data_df
     if "from" in df.columns and "to" in df.columns:
-        rid_link_map = dict(zip(df['from'], df['to']))
+        rid_link_map = dict(zip(df['to'], df['from']))
     else:
         rid_link_map = {}
 

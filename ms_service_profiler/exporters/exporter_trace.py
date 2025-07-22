@@ -342,10 +342,9 @@ def add_trace_events(valid_name_df):
             'tid': tid
         })
         if batch_size is not None:
-            args_dict.update({
-                'batch_type': batch_type,
-                'batch_size': batch_size,
-            })
+            args_dict.update({'batch_size': batch_size})
+        if batch_type is not None:
+            args_dict.update({'batch_type': batch_type})
         if res_list is not None:
             args_dict.update({"res_list": res_list})
         if batch_size is None and rid != res_list:
