@@ -240,7 +240,7 @@ class ExporterLatency(ExporterBase):
     @staticmethod
     @timer(log_func=logger.info)
     def gen_exporter_decode_gen_speed_views(req_event_df):
-        calc_df = req_event_df[req_event_df["event"] == "modelExec"]
+        calc_df = req_event_df[req_event_df["event"].isin(["modelExec", "Execute"])]
 
         sorted_calc_df = calc_df.sort_values(['rid', 'start_time'])
 
