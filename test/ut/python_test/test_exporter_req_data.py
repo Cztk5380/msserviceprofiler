@@ -8,7 +8,7 @@ import shutil
 import pandas as pd
 from ms_service_profiler.parse import parse
 from ms_service_profiler.exporters.base import ExporterBase
-from ms_service_profiler.exporters.exporter_req_data import process_data, update_name, ExporterReqData
+from ms_service_profiler.exporters.exporter_req_data import ExporterReqData
 
 
 class TestProcessData(unittest.TestCase):
@@ -43,27 +43,6 @@ class TestProcessData(unittest.TestCase):
             'PENDING+': [0, 1, 0],
             'name': ['RUNNING', 'PENDING', 'reqstate']
         })
-
-    def test_process_data_equal_rows(self):
-        # 测试当req_en_queue_df和req_running_df的行数一致时
-        result = process_data(self.req_en_queue_df, self.req_running_df, self.pending_df)
-        expected = pd.DataFrame({
-            'rid': ['1'],
-            'queue_wait_time': [11]
-        })
-        pd.testing.assert_frame_equal(result, expected)
-
-
-    def test_update_name(self):
-        # 应用函数
-        result = update_name(self.test_data.iloc[0])
-        self.assertEqual(result['name'], self.expected_results.iloc[0]['name'])
-
-        result = update_name(self.test_data.iloc[1])
-        self.assertEqual(result['name'], self.expected_results.iloc[1]['name'])
-
-        result = update_name(self.test_data.iloc[2])
-        self.assertEqual(result['name'], self.expected_results.iloc[2]['name'])
 
 
 class TestExporterReqData(unittest.TestCase):
