@@ -539,8 +539,6 @@ def parse_run(input_path, exporters, args=None):
             try:
                 future.result()
             except Exception as e:
-                import traceback
-                traceback.print_exception(e)
                 logger.error(f"Error raise from exporter: {exporter_name}, message: {e}")
 
     logger.info('Exporter done.')

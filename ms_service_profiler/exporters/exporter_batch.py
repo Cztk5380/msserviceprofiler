@@ -60,7 +60,6 @@ class ExporterBatchData(ExporterBase):
                 batch_name = 'batchFrameworkProcessing'
             else:
                 batch_name = 'Schedule'
-            # batch_name = 'BatchSchedule' if (df['name'] == 'BatchSchedule').any() else 'batchFrameworkProcessing'
             batch_df = df[df['name'].isin([batch_name, 'modelExec'])]
             if batch_df.empty:
                 logger.warning("No batch data found. Please check msproftx.db.")

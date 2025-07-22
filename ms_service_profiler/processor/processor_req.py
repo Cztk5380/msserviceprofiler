@@ -99,7 +99,7 @@ class ProcessorReq(ProcessorBase):
     def parse_req(self, data_df: pd.DataFrame, batch_event_df: pd.DataFrame, batch_attr_df: pd.DataFrame):
         req_event_df = pd.DataFrame(columns=["rid", "event", "iter", "start_time", "end_time", "batch_id"])
         req_attr_df = pd.DataFrame(columns=["rid", "recv_token", "reply_token", "ttft"])
-        req_queue_df = pd.DataFrame(columns=["rid", "start_time", "end_time",  "event", "status"])
+        req_queue_df = pd.DataFrame(columns=["rid", "start_time", "end_time", "event", "status"])
 
         if data_df is None or data_df.empty:
             return req_event_df, req_attr_df, req_queue_df
