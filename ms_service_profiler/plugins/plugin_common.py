@@ -79,12 +79,12 @@ def extract_rid(rid_from_message, rid_map):
 def parse_rid_map(all_data_df):
     df = all_data_df[all_data_df["type"] == 3]  # already checked 'type' in all_data_df
     if "from" in df.columns and "to" in df.columns:
-        rid_link_map = dict(zip(df['from'], df['to']))
+        rid_link_map = dict(zip(df['to'], df['from']))
     else:
         rid_link_map = {}
 
     try:
-        rid_link_map = {k: int(v) for k, v in rid_link_map.items()}
+        rid_link_map = {k: str(v) for k, v in rid_link_map.items()}
     except Exception as ex:
         logger.error(f'rid must be integer. {ex}')
         raise

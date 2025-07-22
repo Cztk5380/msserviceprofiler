@@ -38,6 +38,10 @@ class PluginReqStatus(PluginBase):
         if tx_data_df is None:
             raise ValueError("tx_data_df is None")
 
+        # mindIE 重构后，不再使用数字映射状态码的方式，直接从status列中可取得状态，如waiting、running、swapped
+        if 'status' in tx_data_df.columns:
+            return data
+
         tx_data_df['message'] = tx_data_df['message'].apply(parse_message_state_name)
         rename_mapping = {
             col: status_index_to_status_name(col)

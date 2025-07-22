@@ -36,6 +36,6 @@ class PipelineService(PipelineBase):
         data = self.run_step(PluginProcessName, PluginProcessName.name, data, False)
         data = self.run_step(PluginBatch, PluginBatch.name, data, False)
         req_dict = ProcessorReq().parse(data.get("tx_data_df"))
- 
+
         data.update(req_dict)
         return data

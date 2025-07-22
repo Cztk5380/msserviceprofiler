@@ -73,7 +73,7 @@ class ProcessorRes(ProcessorBase):
                     continue
 
                 rid_map = data_df[data_df['from'].notna()].set_index("to").to_dict(orient='dict')["from"]
-                rid_map.update({"{:g}".format(k): v for k, v in rid_map.items()})
+                rid_map.update({k: v for k, v in rid_map.items()})
 
                 hostname = process_info.get("hostname")
                 pid = process_info.get("pid")
