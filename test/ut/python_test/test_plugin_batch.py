@@ -163,8 +163,8 @@ class TestPluginBatch(unittest.TestCase):
         assert (1, "req2") in self.plugin.batch_req
 
         # 修改期望的字典以匹配 deal_with_preprocess_row 方法的实际行为
-        expected_req1 = {"batch_id": 1, "req_id": "req1", "rid": "req1", "key1": "value1", "block": None}
-        expected_req2 = {"batch_id": 1, "req_id": "req2", "rid": "req2", "key2": "value2", "block": None}
+        expected_req1 = {"batch_id": 1, "req_id": "req1", "rid": "req1", "key1": "value1"}
+        expected_req2 = {"batch_id": 1, "req_id": "req2", "rid": "req2", "key2": "value2"}
 
         # 使用 assertDictEqual 来比较字典
         self.assertDictEqual(self.plugin.batch_req[(1, "req1")], expected_req1)

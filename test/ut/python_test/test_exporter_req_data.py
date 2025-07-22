@@ -50,7 +50,9 @@ class TestExporterReqData(unittest.TestCase):
         test_path = os.path.join(os.getcwd(), "output_test")
         self.args = type('Args', (object,), {'output_path': test_path, 'format': ['csv']})
         self.data = {
-            'tx_data_df': self.create_df()
+            'tx_data_df': self.create_df(),
+            'req_ttft_df': self.create_ttft_df(),
+            'req_que_wait_df': pd.DataFrame()
         }
 
     def create_df(self):
@@ -91,6 +93,14 @@ class TestExporterReqData(unittest.TestCase):
 
         return pd.DataFrame(data)
 
+    def create_ttft_df(self):
+        # 创建一个包含 'ttft' 列的示例DataFrame
+        data = {
+            'rid': [1, 2],
+            'ttft': [100, 200]
+        }
+        return pd.DataFrame(data)
+
     def test_export(self):
         try:
             test_path = os.path.join(os.getcwd(), "output_test")
@@ -102,7 +112,6 @@ class TestExporterReqData(unittest.TestCase):
             # 调用export方法
             ExporterReqData.export(self.data)
             # 验证CSV文件是否生成
-            
             self.assertTrue(file_path.is_file())
         finally:
             # 清理
@@ -126,7 +135,6 @@ class TestExporterReqData(unittest.TestCase):
         finally:
             # 清理
             shutil.rmtree(test_path)
-
 
 if __name__ == '__main__':
     unittest.main()
