@@ -264,22 +264,26 @@ def sort_trace_events_by_pid(pid_label_map):
     for pid, item in pid_label_map.items():
         host_name = item.get("hostname", "")
         dp = item.get("dp", -1)
-        pid_sorting.append((pid, host_name, dp))
+        dp_rank = item.get("dp_rank", -1)
+        pid_sorting.append((pid, host_name, dp, dp_rank))
     
     pid_sorting.sort(key=lambda x: (x[2], x[1]))
 
     for index, item in enumerate(pid_sorting):
-        pid, host_name, dp = item
+        pid, host_name, dp, dp_rank = item
         pid_sorting_meta.append(dict(
             name="process_sort_index",
             ph="M",
             pid=pid,
             args=dict(sort_index=index))
         )
-        if dp == -1:
-            labels = [host_name]
-        else:
-            labels = [host_name, f"dp{int(dp)}"]
+        labels = [host_name]
+
+        if dp != -1:
+            labels.append(f"dp{int(dp)}")
+        elif dp_rank != -1:
+            labels.append(f"rank{int(dp_rank)}")
+
         pid_sorting_meta.append(dict(
             name="process_labels",
             ph="M",
