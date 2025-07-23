@@ -182,6 +182,12 @@ class ProcessorReq(ProcessorBase):
 
         calc_df = pd.concat([calc_df, first_decode])
 
+        # 如果有 sendResponse，取最后一个
+        last_send_response = req_event_df[req_event_df["event"] == "sendResponse"].groupby("rid").last()
+        if not last_send_response.empty:
+            last_send_response["rid"] = last_send_response.index
+            calc_df = pd.concat([calc_df, last_send_response])
+
         group_by_df = calc_df.groupby("rid").agg({
             "start_time": "min",
             "end_time": "max",
