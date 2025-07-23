@@ -130,18 +130,28 @@ class ProcessorReq(ProcessorBase):
         req_attr_df['rid'] = req_attr_df.index
 
         # 2. 构建请求队列用于后续计算队列等待时长
-
-        mask = data_df['name'].isin(['Dequeue', 'Enqueue']) & (data_df['status'] == 'waiting')
+        status_col = data_df.get('status')
+        if status_col is not None:
+            mask = data_df['name'].isin(['Dequeue', 'Enqueue']) & (data_df['status'] == 'waiting')
+        else:
+            # 处理列不存在的情况
+            mask = data_df['name'].isin(['Dequeue', 'Enqueue'])  # 或者其他逻辑
 
         # loc 一次性赋值，不触发警告
         tmp = data_df.loc[mask, :].copy(deep=False)  # 浅拷贝，内存开销小
         tmp['rid'] = tmp['rid'].astype(str).str.strip().str.split(r'\s*,\s*')
+        # 在构造 req_queue_df 时
+        status_col = tmp.get('status')
+        selected_columns = ['rid', 'start_time', 'end_time', 'event']
+        if status_col is not None:
+            selected_columns.append('status')
+
         req_queue_df = (
             tmp
             .explode('rid')
             .query('rid.str.strip() != ""')
             .rename(columns={'name': 'event'})
-            [['rid', 'start_time', 'end_time', 'event', 'status']]
+            [selected_columns]
         )
 
         # 3. 拆解Batch
@@ -171,6 +181,12 @@ class ProcessorReq(ProcessorBase):
         first_decode["rid"] = first_decode.index
 
         calc_df = pd.concat([calc_df, first_decode])
+
+        # 如果有 sendResponse，取最后一个
+        last_send_response = req_event_df[req_event_df["event"] == "sendResponse"].groupby("rid").last()
+        if not last_send_response.empty:
+            last_send_response["rid"] = last_send_response.index
+            calc_df = pd.concat([calc_df, last_send_response])
 
         group_by_df = calc_df.groupby("rid").agg({
             "start_time": "min",

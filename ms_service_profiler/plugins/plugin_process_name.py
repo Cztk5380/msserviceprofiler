@@ -49,7 +49,6 @@ class PluginProcessName(PluginBase):
             if not unique_dp_rank_df.empty:
                 dp_rank = unique_dp_rank_df['dpRankId'].iloc[0]
                 if dp_rank != -1:
-                    logger.warning(f'dp_rank is {dp_rank}')
                     pid_label_map[row.pid]['dp_rank'] = dp_rank
 
         # 查找所有的 preprocess 标签，这里面有 rid ，获取第一个 rid ，从键值对中查找 dp ，组成 pid 到 dp 的键值对
