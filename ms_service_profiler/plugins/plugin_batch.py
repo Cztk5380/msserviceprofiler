@@ -75,7 +75,7 @@ class PluginBatch(PluginBase):
         last_preprocess[(row.pid, row.tid, row.hostname)] = dict(rid_list=row.rid_list)
         cls.add_exec_info(batch_id, row.pid, row.name, row.start_time, row.end_time)
         try:
-            if row.blocks is None or pd.isna(row.blocks) or len(row.blocks) != len(row.rid_list):
+            if row.blocks is None or pd.isna(row.blocks).any() or len(row.blocks) != len(row.rid_list):
                 return
         except AttributeError:
             return
