@@ -572,7 +572,6 @@ void Config::SaveConfigToJsonFile() const
             return;
         }
         close(fd);
- 
         char realTempPath[PATH_MAX + 1] = {0};
         if (realpath(tempPath.data(), realTempPath) == nullptr) {
             PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));  // LCOV_EXCL_LINE
@@ -589,7 +588,6 @@ void Config::SaveConfigToJsonFile() const
         }
         outputFile << GetConfigData().dump(jsonIndentSize);
         outputFile.close();
- 
         auto ret = rename(realTempPath, configPath.c_str());
         if (ret != 0 && errno != ENOENT) {
             PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));  // LCOV_EXCL_LINE
