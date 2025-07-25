@@ -564,7 +564,8 @@ void Config::SaveConfigToJsonFile() const
         std::string dirPath = GetDirPath(configPath);
         std::string tempDir = dirPath + "/";
         std::vector<char> tempPath(tempDir.begin(), tempDir.end());
-        tempPath.insert(tempPath.end(), "temp_XXXXXX", "temp_XXXXXX" + 11);
+        const size_t TEMP_TEMPLATE_LENGTH = 11;  // "temp_XXXXXX"的长度, 11个字符
+        tempPath.insert(tempPath.end(), "temp_XXXXXX", "temp_XXXXXX" + TEMP_TEMPLATE_LENGTH); // temp_XXXXXX 临时目录
         tempPath.push_back('\0');
         const int fd = mkstemp(tempPath.data());
         if (fd == -1) {
