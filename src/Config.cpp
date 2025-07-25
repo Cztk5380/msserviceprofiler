@@ -562,40 +562,43 @@ void Config::SaveConfigToJsonFile() const
     }
     try {
         std::string dirPath = GetDirPath(configPath);
-        char tempFile[] = "temp_XXXXXX";
-        const int fd = mkstemp(tempFile);
+        std::string tempDir = dirPath + "/";
+        std::vector<char> tempPath(tempDir.begin(), tempDir.end());
+        tempPath.insert(tempPath.end(), "temp_XXXXXX", "temp_XXXXXX" + 11);
+        tempPath.push_back('\0');
+        const int fd = mkstemp(tempPath.data());
         if (fd == -1) {
-            PROF_LOGW("mkstemp failed: %s", strerror(errno));  // LCOV_EXCL_LINE
+            PROF_LOGW("mkstemp failed: %s", strerror(errno));
             return;
         }
         close(fd);
-        std::string tempPath = dirPath+"/"+tempFile;
+ 
         char realTempPath[PATH_MAX + 1] = {0};
-        if (realpath(tempPath.c_str(), realTempPath) == nullptr) {
-            PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));  // LCOV_EXCL_LINE
+        if (realpath(tempPath.data(), realTempPath) == nullptr) {
+            PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));
             return;
         }
         if (!SecurityUtils::CheckFileBeforeWrite(realTempPath)) {
             return;
         }
-        PROF_LOGD("file generation in the path %s", realTempPath);  // LCOV_EXCL_LINE
+        PROF_LOGD("file generation in the path %s", realTempPath);
         std::ofstream outputFile(realTempPath);
         if (!outputFile.is_open()) {
-            PROF_LOGW("Automatic config file generation failed %s", realTempPath);  // LCOV_EXCL_LINE
+            PROF_LOGW("Automatic config file generation failed %s", realTempPath);
             return;
         }
         outputFile << GetConfigData().dump(jsonIndentSize);
         outputFile.close();
-
+ 
         auto ret = rename(realTempPath, configPath.c_str());
         if (ret != 0 && errno != ENOENT) {
-            PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));  // LCOV_EXCL_LINE
+            PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));
             remove(realTempPath);
             return;
         }
-        PROF_LOGI("Successfully saved profiler configuration to: %s", configPath.c_str());  // LCOV_EXCL_LINE
+        PROF_LOGI("Successfully saved profiler configuration to: %s", configPath.c_str());
     } catch (const std::exception& e) {
-        PROF_LOGE("Failed to save config to JSON file: %s", e.what());  // LCOV_EXCL_LINE
+        PROF_LOGE("Failed to save config to JSON file: %s", e.what());
     }
 }
 }
