@@ -568,23 +568,23 @@ void Config::SaveConfigToJsonFile() const
         tempPath.push_back('\0');
         const int fd = mkstemp(tempPath.data());
         if (fd == -1) {
-            PROF_LOGW("mkstemp failed: %s", strerror(errno));   // LCOV_EXCL_LINE
+            PROF_LOGW("mkstemp failed: %s", strerror(errno));  // LCOV_EXCL_LINE
             return;
         }
         close(fd);
  
         char realTempPath[PATH_MAX + 1] = {0};
         if (realpath(tempPath.data(), realTempPath) == nullptr) {
-            PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));   // LCOV_EXCL_LINE
+            PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));  // LCOV_EXCL_LINE
             return;
         }
         if (!SecurityUtils::CheckFileBeforeWrite(realTempPath)) {
             return;
         }
-        PROF_LOGD("file generation in the path %s", realTempPath);   // LCOV_EXCL_LINE
+        PROF_LOGD("file generation in the path %s", realTempPath);  // LCOV_EXCL_LINE
         std::ofstream outputFile(realTempPath);
         if (!outputFile.is_open()) {
-            PROF_LOGW("Automatic config file generation failed %s", realTempPath);   // LCOV_EXCL_LINE
+            PROF_LOGW("Automatic config file generation failed %s", realTempPath);  // LCOV_EXCL_LINE
             return;
         }
         outputFile << GetConfigData().dump(jsonIndentSize);
@@ -592,13 +592,13 @@ void Config::SaveConfigToJsonFile() const
  
         auto ret = rename(realTempPath, configPath.c_str());
         if (ret != 0 && errno != ENOENT) {
-            PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));   // LCOV_EXCL_LINE
+            PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));  // LCOV_EXCL_LINE
             remove(realTempPath);
             return;
         }
-        PROF_LOGI("Successfully saved profiler configuration to: %s", configPath.c_str());   // LCOV_EXCL_LINE
+        PROF_LOGI("Successfully saved profiler configuration to: %s", configPath.c_str());  // LCOV_EXCL_LINE
     } catch (const std::exception& e) {
-        PROF_LOGE("Failed to save config to JSON file: %s", e.what());   // LCOV_EXCL_LINE
+        PROF_LOGE("Failed to save config to JSON file: %s", e.what());  // LCOV_EXCL_LINE
     }
 }
 }
