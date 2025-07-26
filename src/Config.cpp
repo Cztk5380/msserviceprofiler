@@ -125,6 +125,7 @@ void Config::ParseConfig(const Json& configJson)
     ParseDomain(configJson);
     ParseCollectConfig(configJson);
     ParseMspti(configJson);
+    ParseAicoreMetrics(configJson);
 }
 
 void Config::ParseMspti(const Json& config)
@@ -187,6 +188,12 @@ std::string Config::GetDefaultProfPath() const
     std::string homePath = GetEnvAsString("HOME");
     profPath.append(homePath).append("/.ms_server_profiler/");
     return profPath;
+}
+
+std::string Config::GetDefaultAclprofAicoreMetrics() const
+{
+    std::string AclprofAicoreMetrics = "ACL_AICORE_NONE";
+    return AclprofAicoreMetrics;
 }
 
 std::string Config::GetDirPath(std::string configPath) const
@@ -276,7 +283,7 @@ void Config::ParseAclTaskTime(const Json &config)
         if (aclProfTaskTimeLevel.first != "L0" && aclProfTaskTimeLevel.first != "L1") {
             PROF_LOGW("aclProfTaskTimeLevel should be L0 or L1, now it is %s, default to L0",
                 aclProfTaskTimeLevel.first.c_str());  // LCOV_EXCL_LINE
-            aclProfTaskTimeLevel.first = "L0";
+            aclTaskTimeLevel_ = aclProfTaskTimeLevel.first;
         }
         aclTaskTimeLevel_ = aclProfTaskTimeLevel.first;
         PROF_LOGI("profile aclTaskTimeLevel: %s", aclTaskTimeLevel_.c_str());  // LCOV_EXCL_LINE
