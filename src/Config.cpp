@@ -562,16 +562,19 @@ void Config::SaveConfigToJsonFile() const
     }
     try {
         std::string dirPath = GetDirPath(configPath);
-        char tempFile[] = "temp_XXXXXX";
-        const int fd = mkstemp(tempFile);
+        std::string tempDir = dirPath + "/";
+        std::vector<char> tempPath(tempDir.begin(), tempDir.end());
+        const size_t TEMP_TEMPLATE_LENGTH = 11;  // "temp_XXXXXX"的长度, 11个字符
+        tempPath.insert(tempPath.end(), "temp_XXXXXX", "temp_XXXXXX" + TEMP_TEMPLATE_LENGTH); // temp_XXXXXX 临时目录
+        tempPath.push_back('\0');
+        const int fd = mkstemp(tempPath.data());
         if (fd == -1) {
             PROF_LOGW("mkstemp failed: %s", strerror(errno));  // LCOV_EXCL_LINE
             return;
         }
         close(fd);
-        std::string tempPath = dirPath+"/"+tempFile;
         char realTempPath[PATH_MAX + 1] = {0};
-        if (realpath(tempPath.c_str(), realTempPath) == nullptr) {
+        if (realpath(tempPath.data(), realTempPath) == nullptr) {
             PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));  // LCOV_EXCL_LINE
             return;
         }
@@ -586,7 +589,6 @@ void Config::SaveConfigToJsonFile() const
         }
         outputFile << GetConfigData().dump(jsonIndentSize);
         outputFile.close();
-
         auto ret = rename(realTempPath, configPath.c_str());
         if (ret != 0 && errno != ENOENT) {
             PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));  // LCOV_EXCL_LINE
