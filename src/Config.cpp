@@ -128,6 +128,15 @@ void Config::ParseConfig(const Json& configJson)
     ParseAicoreMetrics(configJson);
 }
 
+void Config::ParseAicoreMetrics(const Json& config)
+{
+    if (config.contains("aclprofAicoreMetrics")) {
+        aclprofAicoreMetrics_ = config["aclprofAicoreMetrics"];
+    } else {
+        aclprofAicoreMetrics_ = GetDefaultAclprofAicoreMetrics();
+    }
+}
+
 void Config::ParseMspti(const Json& config)
 {
     if (config.contains("api_filter")) {
