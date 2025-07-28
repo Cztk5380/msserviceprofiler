@@ -612,7 +612,7 @@ AclprofConfig* ServiceProfilerManager::ProfCreateConfig() {
 
             } else{
                 std::cout << "############" << std::endl;
-                const std::string configStr = config_->GetAclTaskTimeLevel();
+                const std::string configStr = config_->GetAcldataTypeConfig();
                 ProcessProfilingConfig(configStr, profSwitch);
                 // 调试信息输出
                 std::cout << "[DEBUG] Current profSwitch configuration:\n"
