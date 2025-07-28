@@ -88,7 +88,7 @@ def parse_rid_map(all_data_df):
     try:
         rid_link_map = {str(k): str(v) for k, v in rid_link_map.items()}
     except Exception as ex:
-        logger.error(f'rid must be integer. {ex}')
+        logger.error(f'rid must be str. {ex}')
         raise
 
     return rid_link_map
