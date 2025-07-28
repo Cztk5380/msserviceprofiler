@@ -1,7 +1,5 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-import ast
-
 import pandas as pd
 import numpy as np
 from ms_service_profiler.plugins.base import PluginBase
@@ -88,24 +86,17 @@ def parse_rid_map(all_data_df):
     try:
         rid_link_map = {str(k): str(v) for k, v in rid_link_map.items()}
     except Exception as ex:
-        logger.error(f'rid must be str. {ex}')
+        logger.error(f'rid can not convert to str. {ex}')
         raise
 
     return rid_link_map
 
 
-def fix_rid(item):
+def convert_rid_to_str(item):
     """
     由于mindIE采集数据中存在rid为str或者int类型，此函数用于类型统一为str
-    rid结构类似"[{'rid': 0, 'iter': 0}]"
+    rid结构类似[{'rid': 0, 'iter': 0}]
     """
-    # 处理字符串输入
-    if isinstance(item, str):
-        try:
-            item = ast.literal_eval(item)
-        except (SyntaxError, ValueError):
-            return item
-
     # 验证数据结构
     if not isinstance(item, list) or not item:
         return item
@@ -125,7 +116,7 @@ def parse_rid(tx_data_df):
     if "type" not in tx_data_df.columns or "rid" not in tx_data_df.columns:
         logger.warning('Missing columns "type" or "rid". Skip parsing')
         return tx_data_df, None
-    tx_data_df['res_list'] = tx_data_df['rid'].map(fix_rid)
+    tx_data_df['res_list'] = tx_data_df['rid'].map(convert_rid_to_str)
     rid_link_map = parse_rid_map(tx_data_df)
 
     df = tx_data_df['rid'].apply(lambda x: extract_rid(x, rid_link_map))
