@@ -44,6 +44,8 @@ protected:
     {
         GlobalMockObject::reset();
     }
+
+    static constexpr size_t MAX = 32;
 };
 
 TEST_F(TestProfiler, Construction)
@@ -168,6 +170,40 @@ TEST_F(TestProfiler, ArrayAttrProfDisable)
         [](decltype(prof) *x, int y) -> void { x->Attr("value", y); });
     EXPECT_STREQ(prof_null_detailed.GetMsg().c_str(), "");
     ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
+}
+
+TEST_F(TestProfiler, AttrProfEnableString) {
+    // 构造一个比 MAX 长的字符串
+    char long_str[MAX + 10] = {0};
+    std::memset(long_str, 'A', MAX + 9);
+    long_str[MAX + 9] = '\0';
+
+    ResID rid(long_str);
+
+    // 1. 长度不超过 MAX-1
+    EXPECT_EQ(std::strlen(rid.resValue.strRid), MAX - 1);
+    // 2. 末尾一定是 '\0'
+    EXPECT_EQ(rid.resValue.strRid[MAX - 1], '\0');
+    // 3. 内容正确截断
+    EXPECT_TRUE(std::memcmp(rid.resValue.strRid, long_str, MAX - 1) == 0);
+}
+
+TEST_F(TestProfiler, AttrProfEnableString) {
+    char exact[MAX] = {0};
+    std::memset(exact, 'B', MAX - 1);   // 留一个给 '\0'
+    exact[MAX - 1] = '\0';
+
+    ResID rid(exact);
+
+    EXPECT_EQ(std::strlen(rid.resValue.strRid), MAX - 1);
+    EXPECT_EQ(rid.resValue.strRid[MAX - 1], '\0');
+}
+
+TEST_F(TestProfiler, AttrProfEnableString) {
+    ResID rid("");
+
+    EXPECT_EQ(std::strlen(rid.resValue.strRid), 0);
+    EXPECT_EQ(rid.resValue.strRid[0], '\0');
 }
 
 TEST_F(TestProfiler, AttrProfEnableString)
