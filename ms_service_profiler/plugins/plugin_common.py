@@ -84,19 +84,39 @@ def parse_rid_map(all_data_df):
         rid_link_map = {}
 
     try:
-        rid_link_map = {k: str(v) for k, v in rid_link_map.items()}
+        rid_link_map = {str(k): str(v) for k, v in rid_link_map.items()}
     except Exception as ex:
-        logger.error(f'rid must be integer. {ex}')
+        logger.error(f'rid can not convert to str. {ex}')
         raise
 
     return rid_link_map
+
+
+def convert_rid_to_str(item):
+    """
+    由于mindIE采集数据中存在rid为str或者int类型，此函数用于类型统一为str
+    rid结构类似[{'rid': 0, 'iter': 0}]
+    """
+    # 验证数据结构
+    if not isinstance(item, list) or not item:
+        return item
+
+    # 处理第一个元素
+    processed = []
+    for elem in item:
+        if isinstance(elem, dict) and 'rid' in elem:
+            processed.append({**elem, 'rid': str(elem['rid'])})
+        else:
+            processed.append(elem)
+
+    return processed
 
 
 def parse_rid(tx_data_df):
     if "type" not in tx_data_df.columns or "rid" not in tx_data_df.columns:
         logger.warning('Missing columns "type" or "rid". Skip parsing')
         return tx_data_df, None
-    tx_data_df['res_list'] = tx_data_df['rid']
+    tx_data_df['res_list'] = tx_data_df['rid'].map(convert_rid_to_str)
     rid_link_map = parse_rid_map(tx_data_df)
 
     df = tx_data_df['rid'].apply(lambda x: extract_rid(x, rid_link_map))

@@ -113,7 +113,7 @@ def test_parse_with_invalid_rid_link_map():
     rid_link_map = parse_rid_map(df)
     assert isinstance(rid_link_map, dict)
     assert len(rid_link_map) == 2
-    assert rid_link_map == {1: 'a', 2: 'b'}
+    assert rid_link_map == {'1': 'a', '2': 'b'}
 
 
 def test_extract_ids_from_reslist():
