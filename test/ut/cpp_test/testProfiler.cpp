@@ -19,7 +19,6 @@ constexpr int TEST_NUMER_ARRAY_LEN = 2;
 constexpr int TEST_NUMER_123 = 123;
 constexpr uint32_t TEST_NUMER_1234 = 1234U;
 constexpr float TEST_NUMER_6 = 0.6;
-const size_t MAX_RES_STR_IZE = 10;
 
 namespace msServiceProfiler {
 
@@ -335,26 +334,25 @@ TEST_F(TestProfiler, MetricProfEnable)
     EXPECT_STREQ(prof.GetMsg().c_str(), "^key=^:123,");
 }
 
-TEST_F(TestProfiler, MaxSizeString)
+TEST(TestProfiler, Over128)
 {
-    const char* maxStr = "123456789";  // 长度为 9 的字符串
-    ResID resID(maxStr);
+    char src[MAX_RES_STR_IZE + 2];          // 129 字节
+    std::fill(src, src + len, 'A'); // 0~127 共 128 个 'A'
+    src[MAX_RES_STR_IZE] = 'B';             // 第 129 字节，故意越界
+    src[MAX_RES_STR_IZE + 1] = '\0';        // 终止符
 
-    char expected[MAX_RES_STR_IZE] = "123456789";
-    expected[MAX_RES_STR_IZE - 1] = '\0';  // 确保终止符
+    ResID rid(src);
 
-    EXPECT_STREQ(resID.resValue.strRid, expected);
-}
+    // 1) 长度最多 127
+    EXPECT_EQ(std::strlen(rid.resValue.strRid), MAX_RES_STR_IZE - 1);
 
-TEST_F(TestProfiler, OversizedString)
-{
-    const char* oversizedStr = "12345678901234567890";  // 长度为 20 的字符串
-    ResID resID(oversizedStr);
+    // 2) 第 128 字节一定是 '\0'
+    EXPECT_EQ(rid.resValue.strRid[MAX_RES_STR_IZE - 1], '\0');
 
-    char expected[MAX_RES_STR_IZE] = "123456789";
-    expected[MAX_RES_STR_IZE - 1] = '\0';  // 确保终止符
-
-    EXPECT_STREQ(resID.resValue.strRid, expected);
+    // 3) 内容被正确截断
+    EXPECT_TRUE(std::all_of(rid.resValue.strRid,
+                            rid.resValue.strRid + MAX_RES_STR_IZE - 1,
+                            [](char c) { return c == 'A'; }));
 }
 
 TEST_F(TestProfiler, MetricScopeProfDisable)
