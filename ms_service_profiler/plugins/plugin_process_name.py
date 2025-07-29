@@ -16,7 +16,7 @@ class PluginProcessName(PluginBase):
         tx_data_df: pd.DataFrame = data.get('tx_data_df')
         
         if 'scope#dp' not in tx_data_df or 'rid' not in tx_data_df:
-            # nothing to do 
+            # nothing to do
             return data
 
         # 从kvcache 中获取 rid 和 dp 的键值对
@@ -43,28 +43,9 @@ class PluginProcessName(PluginBase):
             tx_data_df['pid'] = tx_data_df['pid'].astype("str") + '-' + tx_data_df['hostname'] + '-' + tx_data_df[
                 'hostuid']
 
-        if 'dpRankId' in tx_data_df.columns:
-            valid_dp_rank_df = tx_data_df[['dpRankId', 'pid']].drop_duplicates()
-            valid_dp_rank_df = valid_dp_rank_df[
-                valid_dp_rank_df['dpRankId'].notna() &
-                (valid_dp_rank_df['dpRankId'] != -1)
-                ]
-
-            if not valid_dp_rank_df.empty:
-                # 使用 groupby 和 transform 找到每个 dpRankId 对应的第一个 pid
-                first_pid = valid_dp_rank_df.groupby('dpRankId')['pid'].transform('first')
-                valid_dp_rank_df = valid_dp_rank_df.drop_duplicates('dpRankId')
-                valid_dp_rank_df['first_pid'] = first_pid
-
-                # 创建 dp_rank_pid_map
-                dp_rank_pid_map = dict(zip(valid_dp_rank_df['dpRankId'], valid_dp_rank_df['first_pid']))
-
-                # 更新 pid_label_map
-                for dp_rank, pid in dp_rank_pid_map.items():
-                    if pid in pid_label_map:
-                        pid_label_map[pid]['dp_rank'] = str(dp_rank)
-                    else:
-                        pid_label_map[pid] = {'dp_rank': str(dp_rank)}
+        # 处理 dpRankId 逻辑
+        pid_label_map = cls.process_dp_rank_id(tx_data_df, pid_label_map)
+        logger.warning(f'pid_label_map before process_dp_rank_id: {pid_label_map}')
 
         # 查找所有的 preprocess 标签，这里面有 rid ，获取第一个 rid ，从键值对中查找 dp ，组成 pid 到 dp 的键值对
         preprocess_df = tx_data_df[tx_data_df['name'] == 'preprocess']
@@ -83,6 +64,34 @@ class PluginProcessName(PluginBase):
         data['pid_label_map'] = pid_label_map
         return data
 
+    @classmethod
+    def process_dp_rank_id(cls, tx_data_df: pd.DataFrame, pid_label_map: dict) -> dict:
+        """
+        处理 dpRankId 逻辑，将结果更新到 pid_label_map 中
+        """
+        if 'dpRankId' not in tx_data_df.columns:
+            return pid_label_map
 
+        valid_dp_rank_df = tx_data_df[['dpRankId', 'pid']].drop_duplicates()
+        valid_dp_rank_df = valid_dp_rank_df[
+            valid_dp_rank_df['dpRankId'].notna() &
+            (valid_dp_rank_df['dpRankId'] != -1)
+            ]
 
+        if not valid_dp_rank_df.empty:
+            # 使用 groupby 和 transform 找到每个 dpRankId 对应的第一个 pid
+            first_pid = valid_dp_rank_df.groupby('dpRankId')['pid'].transform('first')
+            valid_dp_rank_df = valid_dp_rank_df.drop_duplicates('dpRankId')
+            valid_dp_rank_df['first_pid'] = first_pid
 
+            # 创建 dp_rank_pid_map
+            dp_rank_pid_map = dict(zip(valid_dp_rank_df['dpRankId'], valid_dp_rank_df['first_pid']))
+
+            # 更新 pid_label_map
+            for dp_rank, pid in dp_rank_pid_map.items():
+                if pid in pid_label_map:
+                    pid_label_map[pid]['dp_rank'] = str(dp_rank)
+                else:
+                    pid_label_map[pid] = {'dp_rank': str(dp_rank)}
+
+        return pid_label_map
