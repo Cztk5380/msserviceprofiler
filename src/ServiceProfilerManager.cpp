@@ -501,24 +501,23 @@ void ServiceProfilerManager::SetAclProfHostSysConfig() const
 AclprofConfig* ServiceProfilerManager::ProfCreateConfig()
 {
     uint32_t profSwitch = ACL_PROF_MSPROFTX;
-
     uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
-    uint32_t deviceNums = 1;
-    if (g_deviceID == INVALID_DEVICE_ID) {
-        deviceNums = 0;  // On host process
-    } else {
-        deviceNums = 1;  // On device process
+    uint32_t deviceNums = g_deviceID == INVALID_DEVICE_ID ? 0 : 1;
+
+    if (g_deviceID != INVALID_DEVICE_ID) {
         deviceIdList[0] = g_deviceID;
-        if (static_cast<bool>(config_->GetEnableAclTaskTime())) {
+
+        if (config_->GetEnableAclTaskTime()) {
             const std::string configStr = config_->GetAcldataTypeConfig();
             if (!configStr.empty()) {
                 profSwitch = config_->ParseAclProfilingConfig(configStr);
             } else {
-                if (config_->GetAclTaskTimeLevel() == "L0") {
-                profSwitch |= ACL_PROF_TASK_TIME_L0;
-            } else if (config_->GetAclTaskTimeLevel() == "L1") {
-                profSwitch |= (ACL_PROF_TASK_TIME | ACL_PROF_ACL_API);
-            }
+                const std::string taskTimeLevel = config_->GetAclTaskTimeLevel();
+                if (taskTimeLevel == "L0") {
+                    profSwitch |= ACL_PROF_TASK_TIME_L0;
+                } else if (taskTimeLevel == "L1") {
+                    profSwitch |= (ACL_PROF_TASK_TIME | ACL_PROF_ACL_API);
+                }
             }
 
             npuFlag_ = true;
@@ -536,7 +535,7 @@ AclprofConfig* ServiceProfilerManager::ProfCreateConfig()
         nullptr,
         profSwitch);
     if (profConfig == nullptr) {
-        PROF_LOGE("acl prof create config failed.");  // LCOV_EXCL_LINE
+        PROF_LOGE("acl prof create config failed.");
     } else {
         this->configHandle_ = profConfig;
     }
