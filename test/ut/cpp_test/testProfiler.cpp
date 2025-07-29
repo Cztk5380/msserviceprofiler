@@ -47,28 +47,6 @@ protected:
     }
 };
 
-TEST_F(TestProfiler, MaxSizeString)
-{
-    const char* maxStr = "123456789";  // 长度为 9 的字符串
-    ResID resID(maxStr);
-
-    char expected[MAX_RES_STR_IZE] = "123456789";
-    expected[MAX_RES_STR_IZE - 1] = '\0';  // 确保终止符
-
-    EXPECT_STREQ(resID.resValue.strRid, expected);
-}
-
-TEST_F(TestProfiler, OversizedString)
-{
-    const char* oversizedStr = "12345678901234567890";  // 长度为 20 的字符串
-    ResID resID(oversizedStr);
-
-    char expected[MAX_RES_STR_IZE] = "123456789";
-    expected[MAX_RES_STR_IZE - 1] = '\0';  // 确保终止符
-
-    EXPECT_STREQ(resID.resValue.strRid, expected);
-}
-
 TEST_F(TestProfiler, Construction)
 {
     ResID ridInt(TEST_NUMER_1);
@@ -355,6 +333,28 @@ TEST_F(TestProfiler, MetricProfEnable)
 {
     auto prof = PROF(INFO, Metric("key", TEST_NUMER_123));
     EXPECT_STREQ(prof.GetMsg().c_str(), "^key=^:123,");
+}
+
+TEST_F(TestProfiler, MaxSizeString)
+{
+    const char* maxStr = "123456789";  // 长度为 9 的字符串
+    ResID resID(maxStr);
+
+    char expected[MAX_RES_STR_IZE] = "123456789";
+    expected[MAX_RES_STR_IZE - 1] = '\0';  // 确保终止符
+
+    EXPECT_STREQ(resID.resValue.strRid, expected);
+}
+
+TEST_F(TestProfiler, OversizedString)
+{
+    const char* oversizedStr = "12345678901234567890";  // 长度为 20 的字符串
+    ResID resID(oversizedStr);
+
+    char expected[MAX_RES_STR_IZE] = "123456789";
+    expected[MAX_RES_STR_IZE - 1] = '\0';  // 确保终止符
+
+    EXPECT_STREQ(resID.resValue.strRid, expected);
 }
 
 TEST_F(TestProfiler, MetricScopeProfDisable)
