@@ -22,6 +22,8 @@
 #include <unordered_map>
 #include <algorithm>
 
+
+
 namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
 constexpr int ACL_PROF_ENABLE_TASK_TIME = 1;
@@ -180,10 +182,11 @@ uint32_t Config::ParseAclProfilingConfig(const std::string& configStr) {
     
     for (size_t i = 0; i < maxProcess; ++i) {
         const auto& flagName = tokens[i];
-        if (auto it = flagMap.find(flagName); it != flagMap.end()) {
+        auto it = flagMap.find(flagName);
+        if (it != flagMap.end()) {
             profSwitch |= it->second;
         } else {
-            PROF_LOGE("Unknown profiling flag: %s", flagName);  // LCOV_EXCL_LINE
+            PROF_LOGE("Unknown profiling flag: %s", flagName.c_str());  // LCOV_EXCL_LINE
         }
     }
     return profSwitch;

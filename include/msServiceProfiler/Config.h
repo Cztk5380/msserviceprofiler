@@ -7,6 +7,7 @@
 #include <string>
 #include <nlohmann/json.hpp>
 #include "ServiceProfilerInterface.h"
+#include "acl/acl_prof.h"
 
 using Json = nlohmann::json;
 
@@ -53,6 +54,8 @@ public:
     MS_SERVICE_INLINE_FLAG bool GetMsptiEnable() const { return msptiEnable_; }
     MS_SERVICE_INLINE_FLAG const std::string GetApiFilter() const { return apiFilter_; }
     MS_SERVICE_INLINE_FLAG const std::string GetKernelFilter() const { return kernelFilter_; }
+    aclprofAicoreMetrics ConvertStringToAicoreMetrics(const std::string& metricStr);
+    uint32_t ParseAclProfilingConfig(const std::string& configStr);
 
 private:
     std::string GetEnvAsString(const std::string& envName) const;
@@ -74,8 +77,6 @@ private:
     bool ParseHostConfig(const Json& config);
     bool ParseNpuConfig(const Json& config);
     void ParseMspti(const Json& config);
-    AclprofConfig* ProfCreateConfig();
-    uint32_t ParseAclProfilingConfig(const std::string& configStr);
     std::vector<std::string> SplitAndTrimString(const std::string& str, char delimiter) const;
     void LogDomainInfo() const;
     void ParseDomain(const Json& config);

@@ -86,7 +86,7 @@ namespace msServiceProfiler {
 
         void StartMsptiProf(std::string& profPath);
 
-        aclprofAicoreMetrics ConvertStringToAicoreMetrics(const std::string& metricStr);
+        AclprofConfig* ProfCreateConfig();
 
         void StartAclProf(std::string& profPath);
 

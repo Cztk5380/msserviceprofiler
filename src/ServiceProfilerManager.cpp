@@ -37,7 +37,14 @@
 #include "msServiceProfiler/ServiceProfilerDbWriter.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
 
-
+#include <bitset>
+#include <algorithm>
+#include <cctype>
+#include <sstream>
+#include <bitset>
+#include <iostream>
+#include <unordered_map>
+#include <algorithm>
 namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
