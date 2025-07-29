@@ -150,7 +150,8 @@ void Config::ParseDataTypeConfig(const Json& config)
 }
 
 
-uint32_t Config::ParseAclProfilingConfig(const std::string& configStr) {
+uint32_t Config::ParseAclProfilingConfig(const std::string& configStr)
+{
     uint32_t profSwitch = ACL_PROF_MSPROFTX;
     static const std::unordered_map<std::string, uint32_t> flagMap = {
         {"ACL_PROF_ACL_API", ACL_PROF_ACL_API},
@@ -193,8 +194,7 @@ aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& met
     }
     
     // 完整ACL枚举名称到枚举值的映射表
-    static const std::unordered_map<std::string, aclprofAicoreMetrics> metricMap = 
-    {
+    static const std::unordered_map<std::string, aclprofAicoreMetrics> metricMap = {
         {"ACL_AICORE_PIPE_UTILIZATION", ACL_AICORE_PIPE_UTILIZATION},
         {"ACL_AICORE_MEMORY_BANDWIDTH", ACL_AICORE_MEMORY_BANDWIDTH},
         {"ACL_AICORE_L0B_AND_WIDTH", ACL_AICORE_L0B_AND_WIDTH},
@@ -206,7 +206,6 @@ aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& met
 
     // 查找匹配项
     auto it = metricMap.find(upperStr);
-    
     if (it != metricMap.end()) {
         return it->second;
     }
