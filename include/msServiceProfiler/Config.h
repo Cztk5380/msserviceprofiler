@@ -31,7 +31,7 @@ public:
     MS_SERVICE_INLINE_FLAG bool IsAclProf() const {return enableAclTaskTime_ || hostCpuUsage_ || hostMemoryUsage_; }
 
     MS_SERVICE_INLINE_FLAG std::string GetAclTaskTimeLevel() const { return aclTaskTimeLevel_; }
-    MS_SERVICE_INLINE_FLAG std::string GetAcldataTypeConfig() const { return acldataTypeConfig_; }
+    MS_SERVICE_INLINE_FLAG std::string GetAcldataTypeConfig() const { return aclDataTypeConfig_; }
     MS_SERVICE_INLINE_FLAG int GetAclTaskTimeDuration() const { return aclTaskTimeDuration_; }
     void SetAclTaskTimeDuration(int aclTaskTimeDuration){aclTaskTimeDuration_ = aclTaskTimeDuration;}
     MS_SERVICE_INLINE_FLAG bool GetNpuMemoryUsage() const { return npuMemoryUsage_; }
@@ -64,9 +64,11 @@ private:
     void CheckAclKernelConflict();
     std::string GetDefaultProfPath() const;
     std::string GetDefaultAclprofAicoreMetrics() const;
+    std::string GetDefaultAclDataTypeConfig() const;
     std::string GetDirPath(std::string configPath) const;
     void ParseProfPath(const Json& config);
     void ParseAicoreMetrics(const Json& config);
+    void ParseDataTypeConfig(const Json& config);
     void ParseLevel(const Json& config);
     bool ParseCollectConfig(const Json& config);
     bool ParseHostConfig(const Json& config);
@@ -84,7 +86,7 @@ private:
     bool enableAclTaskTime_ = false;
     int aclTaskTimeDuration_ = 0;
     std::string aclTaskTimeLevel_ = "L0";
-    std::string acldataTypeConfig_ = "ACL_PROF_ACL_API | ACL_PROF_AICORE_METRICS";
+    std::string aclDataTypeConfig_ = "";
     std::string configPath_;
     std::string profPathDateTail_;
     std::string profPath_;

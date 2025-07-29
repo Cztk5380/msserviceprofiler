@@ -605,21 +605,21 @@ AclprofConfig* ServiceProfilerManager::ProfCreateConfig() {
         deviceIdList[0] = g_deviceID;
         std::cout << "@@@@@@@@@@@@@@@@@@" << std::endl;
         if (static_cast<bool>(config_->GetEnableAclTaskTime())) {
-            if (config_->GetAclTaskTimeLevel() == "L0") {
-                profSwitch |= ACL_PROF_TASK_TIME_L0;
-            } else if (config_->GetAclTaskTimeLevel() == "L1") {
-                profSwitch |= (ACL_PROF_TASK_TIME | ACL_PROF_ACL_API);
-
-            } else{
-                std::cout << "############" << std::endl;
-                const std::string configStr = config_->GetAcldataTypeConfig();
+            const std::string configStr = config_->GetAcldataTypeConfig();
+            if (!configStr.empty()) {
                 ProcessProfilingConfig(configStr, profSwitch);
-                // 调试信息输出
                 std::cout << "[DEBUG] Current profSwitch configuration:\n"
                         << "  Binary: 0b" << std::bitset<32>(profSwitch) << "\n"
                         << "  Hex:    0x" << std::hex << profSwitch << std::dec << "\n"
                         << "  Active flags count: " 
                         << std::bitset<32>(profSwitch).count() << std::endl;
+            }
+            else {
+                if (config_->GetAclTaskTimeLevel() == "L0") {
+                profSwitch |= ACL_PROF_TASK_TIME_L0;
+            } else if (config_->GetAclTaskTimeLevel() == "L1") {
+                profSwitch |= (ACL_PROF_TASK_TIME | ACL_PROF_ACL_API);
+            }
             }
 
             npuFlag_ = true;

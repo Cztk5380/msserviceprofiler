@@ -126,6 +126,7 @@ void Config::ParseConfig(const Json& configJson)
     ParseCollectConfig(configJson);
     ParseMspti(configJson);
     ParseAicoreMetrics(configJson);
+    ParseDataTypeConfig(configJson);
 }
 
 void Config::ParseAicoreMetrics(const Json& config)
@@ -134,6 +135,15 @@ void Config::ParseAicoreMetrics(const Json& config)
         aclprofAicoreMetrics_ = config["aclprofAicoreMetrics"];
     } else {
         aclprofAicoreMetrics_ = GetDefaultAclprofAicoreMetrics();
+    }
+}
+
+void Config::ParseDataTypeConfig(const Json& config)
+{
+    if (config.contains("aclDataTypeConfig")) {
+        aclDataTypeConfig_ = config["aclDataTypeConfig"];
+    } else {
+        aclDataTypeConfig_ = GetDefaultAclDataTypeConfig();
     }
 }
 
@@ -203,6 +213,12 @@ std::string Config::GetDefaultAclprofAicoreMetrics() const
 {
     std::string AclprofAicoreMetrics = "ACL_AICORE_NONE";
     return AclprofAicoreMetrics;
+}
+
+std::string Config::GetDefaultAclDataTypeConfig() const
+{
+    std::string aclDataTypeConfig = "ACL_PROF_TASK_TIME | ACL_PROF_ACL_API | ACL_PROF_AICORE_METRICS";
+    return aclDataTypeConfig;
 }
 
 std::string Config::GetDirPath(std::string configPath) const
