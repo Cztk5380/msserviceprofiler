@@ -498,7 +498,6 @@ void ServiceProfilerManager::SetAclProfHostSysConfig() const
         strlen(std::to_string(config_->GetHostFreq()).c_str()));
 }
 
-
 AclprofConfig* ServiceProfilerManager::ProfCreateConfig()
 {
     uint32_t profSwitch = ACL_PROF_MSPROFTX;
