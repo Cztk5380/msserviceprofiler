@@ -56,6 +56,7 @@ namespace msServiceProfiler {
 
         ResID(const char *strRid) noexcept : type(ResType::STRING)
         {
+            resValue.strRid[MAX_RES_STR_IZE - 1] = '\0';
             for (size_t i = 0; i < MAX_RES_STR_IZE; i++) {
                 resValue.strRid[i] = strRid[i];
                 if (strRid[i] == '\0') {
