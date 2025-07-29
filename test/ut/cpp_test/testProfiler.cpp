@@ -19,17 +19,7 @@ constexpr int TEST_NUMER_ARRAY_LEN = 2;
 constexpr int TEST_NUMER_123 = 123;
 constexpr uint32_t TEST_NUMER_1234 = 1234U;
 constexpr float TEST_NUMER_6 = 0.6;
-static constexpr size_t MAX = 32;
-const size_t MAX = 100;
-
-// 定义 memset_s 函数（假设环境不支持 C11 标准）
-errno_t memset_s(void* dest, size_t destSize, int ch, size_t count) {
-    if (dest == nullptr || destSize < count) {
-        return -1; // 错误处理
-    }
-    std::memset(dest, ch, count);
-    return 0;
-}
+const size_t MAX_RES_STR_IZE = 10;
 
 namespace msServiceProfiler {
 
@@ -56,6 +46,28 @@ protected:
         GlobalMockObject::reset();
     }
 };
+
+TEST_F(TestProfiler, MaxSizeString)
+{
+    const char* maxStr = "123456789";  // 长度为 9 的字符串
+    ResID resID(maxStr);
+
+    char expected[MAX_RES_STR_IZE] = "123456789";
+    expected[MAX_RES_STR_IZE - 1] = '\0';  // 确保终止符
+
+    EXPECT_STREQ(resID.resValue.strRid, expected);
+}
+
+TEST_F(TestProfiler, OversizedString)
+{
+    const char* oversizedStr = "12345678901234567890";  // 长度为 20 的字符串
+    ResID resID(oversizedStr);
+
+    char expected[MAX_RES_STR_IZE] = "123456789";
+    expected[MAX_RES_STR_IZE - 1] = '\0';  // 确保终止符
+
+    EXPECT_STREQ(resID.resValue.strRid, expected);
+}
 
 TEST_F(TestProfiler, Construction)
 {
@@ -179,51 +191,6 @@ TEST_F(TestProfiler, ArrayAttrProfDisable)
         [](decltype(prof) *x, int y) -> void { x->Attr("value", y); });
     EXPECT_STREQ(prof_null_detailed.GetMsg().c_str(), "");
     ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
-}
-
-TEST_F(TestProfiler, AttrProfEnableString)
-{
-    // 构造一个比 MAX 长的字符串
-    char long_str[MAX + 10] = {0};
-    errno_t ret = memset_s(long_str, sizeof(long_str), 'A', MAX + 9);
-    if (ret != 0) {
-        std::cerr << "memset_s failed" << std::endl;
-        return;
-    }
-    long_str[MAX + 9] = '\0';
-
-    ResID rid(long_str);
-
-    // 1. 长度不超过 MAX-1
-    EXPECT_EQ(std::strlen(rid.resValue.strRid), MAX - 1);
-    // 2. 末尾一定是 '\0'
-    EXPECT_EQ(rid.resValue.strRid[MAX - 1], '\0');
-    // 3. 内容正确截断
-    EXPECT_TRUE(std::memcmp(rid.resValue.strRid, long_str, MAX - 1) == 0);
-}
-
-TEST_F(TestProfiler, AttrProfEnableString)
-{
-    char exact[MAX] = {0};
-    errno_t ret = memset_s(exact, sizeof(exact), 'B', MAX - 1);   // 留一个给 '\0'
-    if (ret != EOK) {
-        // 处理错误
-        return;
-    }
-    exact[MAX - 1] = '\0';
-
-    ResID rid(exact);
-
-    EXPECT_EQ(std::strlen(rid.resValue.strRid), MAX - 1);
-    EXPECT_EQ(rid.resValue.strRid[MAX - 1], '\0');
-}
-
-TEST_F(TestProfiler, AttrProfEnableString)
-{
-    ResID rid("");
-
-    EXPECT_EQ(std::strlen(rid.resValue.strRid), 0);
-    EXPECT_EQ(rid.resValue.strRid[0], '\0');
 }
 
 TEST_F(TestProfiler, AttrProfEnableString)
