@@ -334,10 +334,10 @@ TEST_F(TestProfiler, MetricProfEnable)
     EXPECT_STREQ(prof.GetMsg().c_str(), "^key=^:123,");
 }
 
-TEST(TestProfiler, Over128)
+TEST_F(TestProfiler, Over128)
 {
     char src[MAX_RES_STR_IZE + 2];          // 129 字节
-    std::fill(src, src + len, 'A'); // 0~127 共 128 个 'A'
+    std::fill(src, src + 128, 'A'); // 0~127 共 128 个 'A'
     src[MAX_RES_STR_IZE] = 'B';             // 第 129 字节，故意越界
     src[MAX_RES_STR_IZE + 1] = '\0';        // 终止符
 
