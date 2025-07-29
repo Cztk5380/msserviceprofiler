@@ -21,7 +21,7 @@ public:
     MS_SERVICE_INLINE_FLAG bool GetEnableAclTaskTime() const { return enableAclTaskTime_; }
     MS_SERVICE_INLINE_FLAG const std::string& GetProfPath() const { return profPath_; }
     MS_SERVICE_INLINE_FLAG const std::string& GetConfigPath() const { return configPath_; }
-    //MS_SERVICE_INLINE_FLAG const std::string& GetAclprofAicoreMetrics() const { return aclprofAicoreMetrics_; }
+    MS_SERVICE_INLINE_FLAG const std::string& GetAclprofAicoreMetrics() const { return aclprofAicoreMetrics_; }
     MS_SERVICE_INLINE_FLAG const std::string& GetProfPathDateTail() const { return profPathDateTail_; }
     MS_SERVICE_INLINE_FLAG bool GetHostCpuUsage() const { return hostCpuUsage_; }
     MS_SERVICE_INLINE_FLAG bool GetHostMemoryUsage() const { return hostMemoryUsage_; }
@@ -63,10 +63,10 @@ private:
     void CheckMsptiConflict();
     void CheckAclKernelConflict();
     std::string GetDefaultProfPath() const;
-    //std::string GetDefaultAclprofAicoreMetrics() const;
+    std::string GetDefaultAclprofAicoreMetrics() const;
     std::string GetDirPath(std::string configPath) const;
     void ParseProfPath(const Json& config);
-    //void ParseAicoreMetrics(const Json& config);
+    void ParseAicoreMetrics(const Json& config);
     void ParseLevel(const Json& config);
     bool ParseCollectConfig(const Json& config);
     bool ParseHostConfig(const Json& config);
@@ -84,7 +84,7 @@ private:
     bool enableAclTaskTime_ = false;
     int aclTaskTimeDuration_ = 0;
     std::string aclTaskTimeLevel_ = "L0";
-    std::string acldataTypeConfig_ = "ACL_PROF_ACL_API | ACL_PROF_AICORE_METRICS"
+    std::string acldataTypeConfig_ = "ACL_PROF_ACL_API | ACL_PROF_AICORE_METRICS";
     std::string configPath_;
     std::string profPathDateTail_;
     std::string profPath_;
