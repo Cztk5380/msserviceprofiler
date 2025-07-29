@@ -56,12 +56,11 @@ namespace msServiceProfiler {
 
         ResID(const char *strRid) noexcept : type(ResType::STRING)
         {
-            for (size_t i = 0; i < MAX_RES_STR_IZE; i++) {
+            size_t i = 0;
+            for (; i < MAX_RES_STR_IZE - 1 && strRid[i] != '\0'; ++i) {
                 resValue.strRid[i] = strRid[i];
-                if (strRid[i] == '\0') {
-                    break;
-                }
             }
+            resValue.strRid[i] = '\0';   // 统一补终止符
         }
 
         ResID(const std::string &strRid) noexcept : ResID(strRid.c_str())

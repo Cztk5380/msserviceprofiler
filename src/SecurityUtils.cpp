@@ -144,6 +144,7 @@ static std::string GetRealPath(std::string const &path)
     }
     std::string result(absPath);
     free(absPath);
+    absPath = nullptr;
     return result;
 }
 
