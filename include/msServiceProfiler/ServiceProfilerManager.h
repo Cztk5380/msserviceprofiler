@@ -84,9 +84,9 @@ namespace msServiceProfiler {
 
         void MarkFirstProcessAsMain();
 
-        void StartMsptiProf(std::string& profPath);
-
         AclprofConfig* ProfCreateConfig();
+
+        void StartMsptiProf(std::string& profPath);
 
         void StartAclProf(std::string& profPath);
 

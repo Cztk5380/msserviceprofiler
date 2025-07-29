@@ -375,7 +375,7 @@ void Config::ParseAclTaskTime(const Json &config)
         if (aclProfTaskTimeLevel.first != "L0" && aclProfTaskTimeLevel.first != "L1") {
             PROF_LOGW("aclProfTaskTimeLevel should be L0 or L1, now it is %s, default to L0",
                 aclProfTaskTimeLevel.first.c_str());  // LCOV_EXCL_LINE
-            aclTaskTimeLevel_ = aclProfTaskTimeLevel.first;
+            aclProfTaskTimeLevel.first = "L0";
         }
         aclTaskTimeLevel_ = aclProfTaskTimeLevel.first;
         PROF_LOGI("profile aclTaskTimeLevel: %s", aclTaskTimeLevel_.c_str());  // LCOV_EXCL_LINE
