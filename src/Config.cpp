@@ -44,6 +44,7 @@ void Config::ReadAndSaveConfig()
     auto configJson = ReadConfigFile();
     ParseConfig(configJson);
     SaveConfigToJsonFile();
+    ReadConfigPath();  // Set configPath_ after save
 }
 
 std::string Config::GetEnvAsString(const std::string& envName) const
