@@ -13,6 +13,15 @@
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Config.h"
 
+#include <bitset>
+#include <algorithm>
+#include <cctype>
+#include <sstream>
+#include <bitset>
+#include <iostream>
+#include <unordered_map>
+#include <algorithm>
+
 namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
 constexpr int ACL_PROF_ENABLE_TASK_TIME = 1;
@@ -145,6 +154,71 @@ void Config::ParseDataTypeConfig(const Json& config)
     } else {
         aclDataTypeConfig_ = GetDefaultAclDataTypeConfig();
     }
+}
+
+
+uint32_t Config::ParseAclProfilingConfig(const std::string& configStr) {
+    uint32_t profSwitch = ACL_PROF_MSPROFTX;
+    static const std::unordered_map<std::string, uint32_t> flagMap = {
+        {"ACL_PROF_ACL_API", ACL_PROF_ACL_API},
+        {"ACL_PROF_TASK_TIME", ACL_PROF_TASK_TIME},
+        {"ACL_PROF_TASK_TIME_L0", ACL_PROF_TASK_TIME_L0},
+        {"ACL_PROF_OP_ATTR", ACL_PROF_OP_ATTR},
+        {"ACL_PROF_AICORE_METRICS", ACL_PROF_AICORE_METRICS},
+        {"ACL_PROF_TASK_MEMORY", ACL_PROF_TASK_MEMORY},
+        {"ACL_PROF_AICPU", ACL_PROF_AICPU},
+        {"ACL_PROF_L2CACHE", ACL_PROF_L2CACHE},
+        {"ACL_PROF_HCCL_TRACE", ACL_PROF_HCCL_TRACE},
+        {"ACL_PROF_TRAINING_TRACE", ACL_PROF_TRAINING_TRACE},
+        {"ACL_PROF_RUNTIME_API", ACL_PROF_RUNTIME_API}
+    };
+
+    // 使用SplitAndTrimString进行预处理
+    const auto& tokens = SplitAndTrimString(configStr, ',');
+    // 设置最大处理次数
+    const size_t maxProcess = std::min(tokens.size(), flagMap.size());
+    
+    for (size_t i = 0; i < maxProcess; ++i) {
+        const auto& flagName = tokens[i];
+        if (auto it = flagMap.find(flagName); it != flagMap.end()) {
+            profSwitch |= it->second;
+        } else {
+            PROF_LOGE("Unknown profiling flag: %s", flagName);  // LCOV_EXCL_LINE
+        }
+    }
+    return profSwitch;
+}
+
+aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& metricStr) {
+    // 创建大写字符串副本
+    std::string upperStr;
+    upperStr.reserve(metricStr.size());
+    for (char c : metricStr) {
+        upperStr.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
+    }
+    
+    // 完整ACL枚举名称到枚举值的映射表
+    static const std::unordered_map<std::string, aclprofAicoreMetrics> metricMap = {
+        //{"ACL_AICORE_ARITHMETIC_UTILIZATION", ACL_AICORE_ARITHMETIC_UTILIZATION},
+        {"ACL_AICORE_PIPE_UTILIZATION", ACL_AICORE_PIPE_UTILIZATION},
+        {"ACL_AICORE_MEMORY_BANDWIDTH", ACL_AICORE_MEMORY_BANDWIDTH},
+        {"ACL_AICORE_L0B_AND_WIDTH", ACL_AICORE_L0B_AND_WIDTH},
+        {"ACL_AICORE_RESOURCE_CONFLICT_RATIO", ACL_AICORE_RESOURCE_CONFLICT_RATIO},
+        {"ACL_AICORE_MEMORY_UB", ACL_AICORE_MEMORY_UB},
+        {"ACL_AICORE_L2_CACHE", ACL_AICORE_L2_CACHE},
+        //{"ACL_AICORE_PIPE_EXECUTE_UTILIZATION", ACL_AICORE_PIPE_EXECUTE_UTILIZATION},
+        //{"ACL_AICORE_MEMORY_ACCESS", ACL_AICORE_MEMORY_ACCESS},
+        {"ACL_AICORE_NONE", ACL_AICORE_NONE}
+    };
+
+    // 查找匹配项
+    auto it = metricMap.find(upperStr);
+    if (it != metricMap.end()) {
+        return it->second;
+    }
+
+    // 未找到匹配项
+    return ACL_AICORE_NONE;
 }
 
 void Config::ParseMspti(const Json& config)

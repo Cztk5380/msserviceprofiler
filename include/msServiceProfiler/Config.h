@@ -74,6 +74,8 @@ private:
     bool ParseHostConfig(const Json& config);
     bool ParseNpuConfig(const Json& config);
     void ParseMspti(const Json& config);
+    AclprofConfig* ProfCreateConfig();
+    uint32_t ParseAclProfilingConfig(const std::string& configStr);
     std::vector<std::string> SplitAndTrimString(const std::string& str, char delimiter) const;
     void LogDomainInfo() const;
     void ParseDomain(const Json& config);

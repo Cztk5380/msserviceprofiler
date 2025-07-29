@@ -36,14 +36,7 @@
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/ServiceProfilerDbWriter.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
-#include <bitset>
-#include <algorithm>
-#include <cctype>
-#include <sstream>
-#include <bitset>
-#include <iostream>
-#include <unordered_map>
-#include <algorithm>
+
 
 namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
@@ -506,90 +499,6 @@ void ServiceProfilerManager::SetAclProfHostSysConfig() const
         strlen(std::to_string(config_->GetHostFreq()).c_str()));
 }
 
-void ServiceProfilerManager::trim(std::string &s) {
-        if (s.empty()) return;
-        
-        // 去除左侧空格
-        s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
-            return !std::isspace(ch);
-        }));
- 
-        // 去除右侧空格
-        s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
-            return !std::isspace(ch);
-        }).base(), s.end());
-    }
- 
-    // 性能采集配置处理函数
-void ServiceProfilerManager::ProcessProfilingConfig(const std::string& configStr, uint32_t& profSwitch) {
-    std::istringstream iss(configStr);
-    std::string flagName;
-    
-    while (std::getline(iss, flagName, ',')) {
-        trim(flagName);
-        
-        if (flagName.empty()) continue;
-
-        // 标志映射
-        if (flagName == "ACL_PROF_ACL_API") {
-            profSwitch |= ACL_PROF_ACL_API;
-        } else if (flagName == "ACL_PROF_TASK_TIME") {
-            profSwitch |= ACL_PROF_TASK_TIME;
-        } else if (flagName == "ACL_PROF_TASK_TIME_L0") {
-            profSwitch |= ACL_PROF_TASK_TIME_L0;
-        } else if (flagName == "ACL_PROF_OP_ATTR") {
-            profSwitch |= ACL_PROF_OP_ATTR;
-        } else if (flagName == "ACL_PROF_AICORE_METRICS") {
-            profSwitch |= ACL_PROF_AICORE_METRICS;
-        } else if (flagName == "ACL_PROF_TASK_MEMORY") {
-            profSwitch |= ACL_PROF_TASK_MEMORY;
-        } else if (flagName == "ACL_PROF_AICPU") {
-            profSwitch |= ACL_PROF_AICPU;
-        } else if (flagName == "ACL_PROF_L2CACHE") {
-            profSwitch |= ACL_PROF_L2CACHE;
-        } else if (flagName == "ACL_PROF_HCCL_TRACE") {
-            profSwitch |= ACL_PROF_HCCL_TRACE;
-        } else if (flagName == "ACL_PROF_TRAINING_TRACE") {
-            profSwitch |= ACL_PROF_TRAINING_TRACE;
-        } else if (flagName == "ACL_PROF_RUNTIME_API") {
-            profSwitch |= ACL_PROF_RUNTIME_API;
-        } else {
-            std::cerr << "[WARN] Unknown profiling flag: " << flagName << std::endl;
-        }
-    }
-}
-
-aclprofAicoreMetrics ServiceProfilerManager::ConvertStringToAicoreMetrics(const std::string& metricStr) {
-    // 创建大写字符串副本
-    std::string upperStr;
-    upperStr.reserve(metricStr.size());
-    for (char c : metricStr) {
-        upperStr.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
-    }
-    
-    // 完整ACL枚举名称到枚举值的映射表
-    static const std::unordered_map<std::string, aclprofAicoreMetrics> metricMap = {
-        //{"ACL_AICORE_ARITHMETIC_UTILIZATION", ACL_AICORE_ARITHMETIC_UTILIZATION},
-        {"ACL_AICORE_PIPE_UTILIZATION", ACL_AICORE_PIPE_UTILIZATION},
-        {"ACL_AICORE_MEMORY_BANDWIDTH", ACL_AICORE_MEMORY_BANDWIDTH},
-        {"ACL_AICORE_L0B_AND_WIDTH", ACL_AICORE_L0B_AND_WIDTH},
-        {"ACL_AICORE_RESOURCE_CONFLICT_RATIO", ACL_AICORE_RESOURCE_CONFLICT_RATIO},
-        {"ACL_AICORE_MEMORY_UB", ACL_AICORE_MEMORY_UB},
-        {"ACL_AICORE_L2_CACHE", ACL_AICORE_L2_CACHE},
-        //{"ACL_AICORE_PIPE_EXECUTE_UTILIZATION", ACL_AICORE_PIPE_EXECUTE_UTILIZATION},
-        //{"ACL_AICORE_MEMORY_ACCESS", ACL_AICORE_MEMORY_ACCESS},
-        {"ACL_AICORE_NONE", ACL_AICORE_NONE}
-    };
-
-    // 查找匹配项
-    auto it = metricMap.find(upperStr);
-    if (it != metricMap.end()) {
-        return it->second;
-    }
-
-    // 未找到匹配项
-    return ACL_AICORE_NONE;
-}
 
 AclprofConfig* ServiceProfilerManager::ProfCreateConfig() {
     // 基础标志（根据业务需求设置）
@@ -607,7 +516,7 @@ AclprofConfig* ServiceProfilerManager::ProfCreateConfig() {
         if (static_cast<bool>(config_->GetEnableAclTaskTime())) {
             const std::string configStr = config_->GetAcldataTypeConfig();
             if (!configStr.empty()) {
-                ProcessProfilingConfig(configStr, profSwitch);
+                profSwitch = config_->ParseAclProfilingConfig(configStr);
                 std::cout << "[DEBUG] Current profSwitch configuration:\n"
                         << "  Binary: 0b" << std::bitset<32>(profSwitch) << "\n"
                         << "  Hex:    0x" << std::hex << profSwitch << std::dec << "\n"
@@ -628,7 +537,7 @@ AclprofConfig* ServiceProfilerManager::ProfCreateConfig() {
 
     // 创建性能采集配置
     const std::string AicoreMetrics = config_->GetAclprofAicoreMetrics();
-    aclprofAicoreMetrics aicoreMetricsEnum = ConvertStringToAicoreMetrics(AicoreMetrics);
+    aclprofAicoreMetrics aicoreMetricsEnum = config_->ConvertStringToAicoreMetrics(AicoreMetrics);
 
     auto profConfig = aclprofCreateConfig(
         deviceIdList,
