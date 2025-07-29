@@ -19,6 +19,17 @@ constexpr int TEST_NUMER_ARRAY_LEN = 2;
 constexpr int TEST_NUMER_123 = 123;
 constexpr uint32_t TEST_NUMER_1234 = 1234U;
 constexpr float TEST_NUMER_6 = 0.6;
+static constexpr size_t MAX = 32;
+const size_t MAX = 100;
+
+// 定义 memset_s 函数（假设环境不支持 C11 标准）
+errno_t memset_s(void* dest, size_t destSize, int ch, size_t count) {
+    if (dest == nullptr || destSize < count) {
+        return -1; // 错误处理
+    }
+    std::memset(dest, ch, count);
+    return 0;
+}
 
 namespace msServiceProfiler {
 
@@ -44,8 +55,6 @@ protected:
     {
         GlobalMockObject::reset();
     }
-
-    static constexpr size_t MAX = 32;
 };
 
 TEST_F(TestProfiler, Construction)
@@ -172,10 +181,15 @@ TEST_F(TestProfiler, ArrayAttrProfDisable)
     ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
 }
 
-TEST_F(TestProfiler, AttrProfEnableString) {
+TEST_F(TestProfiler, AttrProfEnableString)
+{
     // 构造一个比 MAX 长的字符串
     char long_str[MAX + 10] = {0};
-    std::memset(long_str, 'A', MAX + 9);
+    errno_t ret = memset_s(long_str, sizeof(long_str), 'A', MAX + 9);
+    if (ret != 0) {
+        std::cerr << "memset_s failed" << std::endl;
+        return;
+    }
     long_str[MAX + 9] = '\0';
 
     ResID rid(long_str);
@@ -188,9 +202,14 @@ TEST_F(TestProfiler, AttrProfEnableString) {
     EXPECT_TRUE(std::memcmp(rid.resValue.strRid, long_str, MAX - 1) == 0);
 }
 
-TEST_F(TestProfiler, AttrProfEnableString) {
+TEST_F(TestProfiler, AttrProfEnableString)
+{
     char exact[MAX] = {0};
-    std::memset(exact, 'B', MAX - 1);   // 留一个给 '\0'
+    errno_t ret = memset_s(exact, sizeof(exact), 'B', MAX - 1);   // 留一个给 '\0'
+    if (ret != EOK) {
+        // 处理错误
+        return;
+    }
     exact[MAX - 1] = '\0';
 
     ResID rid(exact);
@@ -199,7 +218,8 @@ TEST_F(TestProfiler, AttrProfEnableString) {
     EXPECT_EQ(rid.resValue.strRid[MAX - 1], '\0');
 }
 
-TEST_F(TestProfiler, AttrProfEnableString) {
+TEST_F(TestProfiler, AttrProfEnableString)
+{
     ResID rid("");
 
     EXPECT_EQ(std::strlen(rid.resValue.strRid), 0);
