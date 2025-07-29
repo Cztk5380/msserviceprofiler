@@ -507,7 +507,7 @@ void ServiceProfilerManager::SetAclProfHostSysConfig() const
 }
 
 
-AclprofConfig* ServiceProfilerManager::ProfCreateConfig() 
+AclprofConfig* ServiceProfilerManager::ProfCreateConfig()
 {
     uint32_t profSwitch = ACL_PROF_MSPROFTX;
 

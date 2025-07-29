@@ -183,10 +183,11 @@ uint32_t Config::ParseAclProfilingConfig(const std::string& configStr) {
     return profSwitch;
 }
 
-aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& metricStr) {
-    // 创建大写字符串副本
+aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& metricStr)
+{
     std::string upperStr;
     upperStr.reserve(metricStr.size());
+    
     for (char c : metricStr) {
         upperStr.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
     }
@@ -205,6 +206,7 @@ aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& met
 
     // 查找匹配项
     auto it = metricMap.find(upperStr);
+    
     if (it != metricMap.end()) {
         return it->second;
     }
