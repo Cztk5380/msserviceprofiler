@@ -507,30 +507,22 @@ void ServiceProfilerManager::SetAclProfHostSysConfig() const
 }
 
 
-AclprofConfig* ServiceProfilerManager::ProfCreateConfig() {
-    // 基础标志（根据业务需求设置）
+AclprofConfig* ServiceProfilerManager::ProfCreateConfig() 
+{
     uint32_t profSwitch = ACL_PROF_MSPROFTX;
 
     uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
     uint32_t deviceNums = 1;
-    std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << std::endl;
     if (g_deviceID == INVALID_DEVICE_ID) {
         deviceNums = 0;  // On host process
     } else {
         deviceNums = 1;  // On device process
         deviceIdList[0] = g_deviceID;
-        std::cout << "@@@@@@@@@@@@@@@@@@" << std::endl;
         if (static_cast<bool>(config_->GetEnableAclTaskTime())) {
             const std::string configStr = config_->GetAcldataTypeConfig();
             if (!configStr.empty()) {
                 profSwitch = config_->ParseAclProfilingConfig(configStr);
-                std::cout << "[DEBUG] Current profSwitch configuration:\n"
-                        << "  Binary: 0b" << std::bitset<32>(profSwitch) << "\n"
-                        << "  Hex:    0x" << std::hex << profSwitch << std::dec << "\n"
-                        << "  Active flags count: " 
-                        << std::bitset<32>(profSwitch).count() << std::endl;
-            }
-            else {
+            } else {
                 if (config_->GetAclTaskTimeLevel() == "L0") {
                 profSwitch |= ACL_PROF_TASK_TIME_L0;
             } else if (config_->GetAclTaskTimeLevel() == "L1") {
@@ -545,15 +537,13 @@ AclprofConfig* ServiceProfilerManager::ProfCreateConfig() {
     // 创建性能采集配置
     const std::string AicoreMetrics = config_->GetAclprofAicoreMetrics();
     aclprofAicoreMetrics aicoreMetricsEnum = config_->ConvertStringToAicoreMetrics(AicoreMetrics);
-
+    PROF_LOGD("Current profSwitch configuration: Hex: 0x%x", profSwitch);
     auto profConfig = aclprofCreateConfig(
         deviceIdList,
         deviceNums,
         aicoreMetricsEnum,
         nullptr,
-        profSwitch
-    );
-
+        profSwitch);
     if (profConfig == nullptr) {
         PROF_LOGE("acl prof create config failed.");  // LCOV_EXCL_LINE
     } else {

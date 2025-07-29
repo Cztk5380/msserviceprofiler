@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <unordered_map>
 
 #include "securec.h"
 
@@ -12,16 +13,6 @@
 #include "msServiceProfiler/SecurityUtils.h"
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Config.h"
-
-#include <bitset>
-#include <algorithm>
-#include <cctype>
-#include <sstream>
-#include <bitset>
-#include <iostream>
-#include <unordered_map>
-#include <algorithm>
-
 
 
 namespace msServiceProfiler {
@@ -201,16 +192,14 @@ aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& met
     }
     
     // 完整ACL枚举名称到枚举值的映射表
-    static const std::unordered_map<std::string, aclprofAicoreMetrics> metricMap = {
-        //{"ACL_AICORE_ARITHMETIC_UTILIZATION", ACL_AICORE_ARITHMETIC_UTILIZATION},
+    static const std::unordered_map<std::string, aclprofAicoreMetrics> metricMap = 
+    {
         {"ACL_AICORE_PIPE_UTILIZATION", ACL_AICORE_PIPE_UTILIZATION},
         {"ACL_AICORE_MEMORY_BANDWIDTH", ACL_AICORE_MEMORY_BANDWIDTH},
         {"ACL_AICORE_L0B_AND_WIDTH", ACL_AICORE_L0B_AND_WIDTH},
         {"ACL_AICORE_RESOURCE_CONFLICT_RATIO", ACL_AICORE_RESOURCE_CONFLICT_RATIO},
         {"ACL_AICORE_MEMORY_UB", ACL_AICORE_MEMORY_UB},
         {"ACL_AICORE_L2_CACHE", ACL_AICORE_L2_CACHE},
-        //{"ACL_AICORE_PIPE_EXECUTE_UTILIZATION", ACL_AICORE_PIPE_EXECUTE_UTILIZATION},
-        //{"ACL_AICORE_MEMORY_ACCESS", ACL_AICORE_MEMORY_ACCESS},
         {"ACL_AICORE_NONE", ACL_AICORE_NONE}
     };
 
