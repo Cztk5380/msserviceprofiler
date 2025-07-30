@@ -55,7 +55,7 @@ public:
     MS_SERVICE_INLINE_FLAG const std::string GetKernelFilter() const { return kernelFilter_; }
     aclprofAicoreMetrics ConvertStringToAicoreMetrics(const std::string& configStr);
     uint32_t GetProfilingSwitch();
-    uint32_t ParseAclProfilingConfig(const std::string& configStr);
+    uint32_t ConvertStringToAclDataType(const std::string& configStr);
 
 private:
     std::string GetEnvAsString(const std::string& envName) const;

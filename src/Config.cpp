@@ -149,14 +149,14 @@ void Config::ParseAicoreMetrics(const Json& config)
 void Config::ParseDataTypeConfig(const Json& config)
 {
     if (config.contains("aclDataTypeConfig")) {
-        aclDataTypeConfig_ = ParseAclProfilingConfig(config["aclDataTypeConfig"]);
+        aclDataTypeConfig_ = ConvertStringToAclDataType(config["aclDataTypeConfig"]);
     } else {
         aclDataTypeConfig_ = ACL_PROF_TASK_TIME | ACL_PROF_ACL_API | ACL_PROF_AICORE_METRICS;
     }
 }
 
 
-uint32_t Config::ParseAclProfilingConfig(const std::string& configStr)
+uint32_t Config::ConvertStringToAclDataType(const std::string& configStr)
 {
     uint32_t profSwitch = ACL_PROF_MSPROFTX;
     static const std::unordered_map<std::string, uint32_t> flagMap = {

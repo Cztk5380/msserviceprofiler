@@ -499,7 +499,7 @@ void ServiceProfilerManager::SetAclProfHostSysConfig() const
 }
 
 AclprofConfig *ServiceProfilerManager::ProfCreateConfig()
-{   
+{
     uint32_t profSwitch = ACL_PROF_MSPROFTX;
     uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
     uint32_t deviceNums = g_deviceID == INVALID_DEVICE_ID ? 0 : 1;
