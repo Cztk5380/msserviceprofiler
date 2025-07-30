@@ -142,7 +142,7 @@ void Config::ParseAicoreMetrics(const Json& config)
     if (config.contains("aclprofAicoreMetrics")) {
         aclprofAicoreMetrics_ = ConvertStringToAicoreMetrics(config["aclprofAicoreMetrics"]);
     } else {
-        aclprofAicoreMetrics_ = ACL_AICORE_NONE;
+        aclprofAicoreMetrics_ = ACL_AICORE_PIPE_UTILIZATION;
     }
 }
 
@@ -151,7 +151,7 @@ void Config::ParseDataTypeConfig(const Json& config)
     if (config.contains("aclDataTypeConfig")) {
         aclDataTypeConfig_ = ConvertStringToAclDataType(config["aclDataTypeConfig"]);
     } else {
-        aclDataTypeConfig_ = ACL_PROF_TASK_TIME | ACL_PROF_ACL_API | ACL_PROF_AICORE_METRICS;
+        aclDataTypeConfig_ = ACL_PROF_MSPROFTX | ACL_PROF_TASK_TIME_L0;
     }
 }
 
