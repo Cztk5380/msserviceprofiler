@@ -49,6 +49,8 @@ public:
     void InitProfPathDateTail(bool forceReinit = false);
     bool PrepareConfigAndPath(std::string& configPath) const;
     void SaveConfigToJsonFile() const;
+    void ParseAicoreMetrics(const Json& config);
+    void ParseDataTypeConfig(const Json& config);
 
     MS_SERVICE_INLINE_FLAG bool GetMsptiEnable() const { return msptiEnable_; }
     MS_SERVICE_INLINE_FLAG const std::string GetApiFilter() const { return apiFilter_; }
@@ -68,8 +70,6 @@ private:
     std::string GetDefaultProfPath() const;
     std::string GetDirPath(std::string configPath) const;
     void ParseProfPath(const Json& config);
-    void ParseAicoreMetrics(const Json& config);
-    void ParseDataTypeConfig(const Json& config);
     void ParseLevel(const Json& config);
     bool ParseCollectConfig(const Json& config);
     bool ParseHostConfig(const Json& config);
