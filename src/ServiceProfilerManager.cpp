@@ -508,22 +508,13 @@ AclprofConfig *ServiceProfilerManager::ProfCreateConfig()
         deviceIdList[0] = g_deviceID;
 
         if (config_->GetEnableAclTaskTime()) {
-            const std::string configStr = config_->GetAcldataTypeConfig();
-            const std::string taskTimeLevel = config_->GetAclTaskTimeLevel();
-            if (!configStr.empty()) {
-                profSwitch = config_->ParseAclProfilingConfig(configStr);
-            } else if (taskTimeLevel == "L0") {
-                profSwitch |= ACL_PROF_TASK_TIME_L0;
-            } else if (taskTimeLevel == "L1") {
-                profSwitch |= (ACL_PROF_TASK_TIME | ACL_PROF_ACL_API);
-            }
+            uint32_t profSwitch = config_->GetProfilingSwitch();
             npuFlag_ = true;
         }
     }
 
     // 创建性能采集配置
-    const std::string AicoreMetrics = config_->GetAclprofAicoreMetrics();
-    aclprofAicoreMetrics aicoreMetricsEnum = config_->ConvertStringToAicoreMetrics(AicoreMetrics);
+    aclprofAicoreMetrics aicoreMetricsEnum = config_->ConvertStringToAicoreMetrics();
     PROF_LOGD("Current profSwitch configuration: Hex: 0x%x", profSwitch);
     auto profConfig = aclprofCreateConfig(
         deviceIdList,

@@ -54,7 +54,8 @@ public:
     MS_SERVICE_INLINE_FLAG bool GetMsptiEnable() const { return msptiEnable_; }
     MS_SERVICE_INLINE_FLAG const std::string GetApiFilter() const { return apiFilter_; }
     MS_SERVICE_INLINE_FLAG const std::string GetKernelFilter() const { return kernelFilter_; }
-    aclprofAicoreMetrics ConvertStringToAicoreMetrics(const std::string& metricStr);
+    aclprofAicoreMetrics ConvertStringToAicoreMetrics();
+    uint32_t GetProfilingSwitch();
     uint32_t ParseAclProfilingConfig(const std::string& configStr);
 
 private:
@@ -67,7 +68,7 @@ private:
     void CheckAclKernelConflict();
     std::string GetDefaultProfPath() const;
     std::string GetDefaultAclprofAicoreMetrics() const;
-    std::string GetDefaultAclDataTypeConfig() const;
+    uint32_t GetDefaultAclDataTypeConfig() const;
     std::string GetDirPath(std::string configPath) const;
     void ParseProfPath(const Json& config);
     void ParseAicoreMetrics(const Json& config);

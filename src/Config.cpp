@@ -14,7 +14,6 @@
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Config.h"
 
-
 namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
 constexpr int ACL_PROF_ENABLE_TASK_TIME = 1;
@@ -184,8 +183,30 @@ uint32_t Config::ParseAclProfilingConfig(const std::string& configStr)
     return profSwitch;
 }
 
-aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& metricStr)
+uint32_t Config::GetProfilingSwitch()
 {
+    uint32_t profSwitch = 0;
+    const std::string configStr = GetAcldataTypeConfig();
+    const std::string taskTimeLevel = GetAclTaskTimeLevel();
+
+    if (!configStr.empty()) {
+        profSwitch = ParseAclProfilingConfig(configStr);
+    } else {
+        profSwitch = ACL_PROF_MSPROFTX;
+    }
+
+    if (taskTimeLevel == "L0") {
+        profSwitch |= ACL_PROF_TASK_TIME_L0;
+    } else if (taskTimeLevel == "L1") {
+        profSwitch |= (ACL_PROF_TASK_TIME | ACL_PROF_ACL_API);
+    }
+
+    return profSwitch;
+}
+
+aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics()
+{
+    const std::string& metricStr = GetAclprofAicoreMetrics();
     std::string upperStr;
     upperStr.reserve(metricStr.size());
     
@@ -282,10 +303,10 @@ std::string Config::GetDefaultAclprofAicoreMetrics() const
     return AclprofAicoreMetrics;
 }
 
-std::string Config::GetDefaultAclDataTypeConfig() const
+uint32_t Config::GetDefaultAclDataTypeConfig() const
 {
-    std::string aclDataTypeConfig = "ACL_PROF_TASK_TIME | ACL_PROF_ACL_API | ACL_PROF_AICORE_METRICS";
-    return aclDataTypeConfig;
+    uint32_t aclDataType = ACL_PROF_TASK_TIME | ACL_PROF_ACL_API | ACL_PROF_AICORE_METRICS;
+    return aclDataType;
 }
 
 std::string Config::GetDirPath(std::string configPath) const
