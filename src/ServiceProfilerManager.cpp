@@ -499,11 +499,10 @@ void ServiceProfilerManager::SetAclProfHostSysConfig() const
 }
 
 AclprofConfig *ServiceProfilerManager::ProfCreateConfig()
-{
+{   
     uint32_t profSwitch = ACL_PROF_MSPROFTX;
     uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
     uint32_t deviceNums = g_deviceID == INVALID_DEVICE_ID ? 0 : 1;
-
     if (g_deviceID != INVALID_DEVICE_ID) {
         deviceIdList[0] = g_deviceID;
 
@@ -512,10 +511,10 @@ AclprofConfig *ServiceProfilerManager::ProfCreateConfig()
             npuFlag_ = true;
         }
     }
-
     // 创建性能采集配置
-    aclprofAicoreMetrics aicoreMetricsEnum = config_->ConvertStringToAicoreMetrics();
+    aclprofAicoreMetrics aicoreMetricsEnum = config_->GetAclProfAicoreMetrics();
     PROF_LOGD("Current profSwitch configuration: Hex: 0x%x", profSwitch);
+    PROF_LOGD("Current aicoreMetricsEnum configuration: %d", aicoreMetricsEnum);
     auto profConfig = aclprofCreateConfig(
         deviceIdList,
         deviceNums,

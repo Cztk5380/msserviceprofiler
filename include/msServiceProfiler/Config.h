@@ -22,7 +22,6 @@ public:
     MS_SERVICE_INLINE_FLAG bool GetEnableAclTaskTime() const { return enableAclTaskTime_; }
     MS_SERVICE_INLINE_FLAG const std::string& GetProfPath() const { return profPath_; }
     MS_SERVICE_INLINE_FLAG const std::string& GetConfigPath() const { return configPath_; }
-    MS_SERVICE_INLINE_FLAG const std::string& GetAclprofAicoreMetrics() const { return aclprofAicoreMetrics_; }
     MS_SERVICE_INLINE_FLAG const std::string& GetProfPathDateTail() const { return profPathDateTail_; }
     MS_SERVICE_INLINE_FLAG bool GetHostCpuUsage() const { return hostCpuUsage_; }
     MS_SERVICE_INLINE_FLAG bool GetHostMemoryUsage() const { return hostMemoryUsage_; }
@@ -30,9 +29,9 @@ public:
     MS_SERVICE_INLINE_FLAG const std::set<std::string>& GetValidDomain() const { return validDomain_; }
     MS_SERVICE_INLINE_FLAG bool GetEnableDomainFilter() const { return enableDomainFilter_; }
     MS_SERVICE_INLINE_FLAG bool IsAclProf() const {return enableAclTaskTime_ || hostCpuUsage_ || hostMemoryUsage_; }
-
+    MS_SERVICE_INLINE_FLAG aclprofAicoreMetrics GetAclProfAicoreMetrics() const { return aclprofAicoreMetrics_; }
     MS_SERVICE_INLINE_FLAG std::string GetAclTaskTimeLevel() const { return aclTaskTimeLevel_; }
-    MS_SERVICE_INLINE_FLAG std::string GetAcldataTypeConfig() const { return aclDataTypeConfig_; }
+    MS_SERVICE_INLINE_FLAG uint32_t GetAcldataTypeConfig() const { return aclDataTypeConfig_; }
     MS_SERVICE_INLINE_FLAG int GetAclTaskTimeDuration() const { return aclTaskTimeDuration_; }
     void SetAclTaskTimeDuration(int aclTaskTimeDuration){aclTaskTimeDuration_ = aclTaskTimeDuration;}
     MS_SERVICE_INLINE_FLAG bool GetNpuMemoryUsage() const { return npuMemoryUsage_; }
@@ -54,7 +53,7 @@ public:
     MS_SERVICE_INLINE_FLAG bool GetMsptiEnable() const { return msptiEnable_; }
     MS_SERVICE_INLINE_FLAG const std::string GetApiFilter() const { return apiFilter_; }
     MS_SERVICE_INLINE_FLAG const std::string GetKernelFilter() const { return kernelFilter_; }
-    aclprofAicoreMetrics ConvertStringToAicoreMetrics();
+    aclprofAicoreMetrics ConvertStringToAicoreMetrics(const std::string& configStr);
     uint32_t GetProfilingSwitch();
     uint32_t ParseAclProfilingConfig(const std::string& configStr);
 
@@ -67,8 +66,6 @@ private:
     void CheckMsptiConflict();
     void CheckAclKernelConflict();
     std::string GetDefaultProfPath() const;
-    std::string GetDefaultAclprofAicoreMetrics() const;
-    uint32_t GetDefaultAclDataTypeConfig() const;
     std::string GetDirPath(std::string configPath) const;
     void ParseProfPath(const Json& config);
     void ParseAicoreMetrics(const Json& config);
@@ -90,11 +87,11 @@ private:
     bool enableAclTaskTime_ = false;
     int aclTaskTimeDuration_ = 0;
     std::string aclTaskTimeLevel_ = "L0";
-    std::string aclDataTypeConfig_ = "";
+    uint32_t aclDataTypeConfig_ = 0;
     std::string configPath_;
     std::string profPathDateTail_;
     std::string profPath_;
-    std::string aclprofAicoreMetrics_ = "ACL_AICORE_NONE";
+    aclprofAicoreMetrics aclprofAicoreMetrics_ = ACL_AICORE_NONE;
     bool enableDomainFilter_ = false;
     std::set<std::string> validDomain_;
 

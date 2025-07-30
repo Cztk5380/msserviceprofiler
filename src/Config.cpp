@@ -14,6 +14,13 @@
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Config.h"
 
+#include <iostream>
+#include <string>
+#include <unistd.h>
+#include <cerrno>
+#include <cstring>
+#include <sys/stat.h>
+
 namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
 constexpr int ACL_PROF_ENABLE_TASK_TIME = 1;
@@ -133,18 +140,18 @@ void Config::ParseConfig(const Json& configJson)
 void Config::ParseAicoreMetrics(const Json& config)
 {
     if (config.contains("aclprofAicoreMetrics")) {
-        aclprofAicoreMetrics_ = config["aclprofAicoreMetrics"];
+        aclprofAicoreMetrics_ = ConvertStringToAicoreMetrics(config["aclprofAicoreMetrics"]);
     } else {
-        aclprofAicoreMetrics_ = GetDefaultAclprofAicoreMetrics();
+        aclprofAicoreMetrics_ = ACL_AICORE_NONE;
     }
 }
 
 void Config::ParseDataTypeConfig(const Json& config)
 {
     if (config.contains("aclDataTypeConfig")) {
-        aclDataTypeConfig_ = config["aclDataTypeConfig"];
+        aclDataTypeConfig_ = ParseAclProfilingConfig(config["aclDataTypeConfig"]);
     } else {
-        aclDataTypeConfig_ = GetDefaultAclDataTypeConfig();
+        aclDataTypeConfig_ = ACL_PROF_TASK_TIME | ACL_PROF_ACL_API | ACL_PROF_AICORE_METRICS;
     }
 }
 
@@ -185,32 +192,22 @@ uint32_t Config::ParseAclProfilingConfig(const std::string& configStr)
 
 uint32_t Config::GetProfilingSwitch()
 {
-    uint32_t profSwitch = 0;
-    const std::string configStr = GetAcldataTypeConfig();
+    uint32_t profSwitch = aclDataTypeConfig_;
     const std::string taskTimeLevel = GetAclTaskTimeLevel();
-
-    if (!configStr.empty()) {
-        profSwitch = ParseAclProfilingConfig(configStr);
-    } else {
-        profSwitch = ACL_PROF_MSPROFTX;
-    }
-
     if (taskTimeLevel == "L0") {
         profSwitch |= ACL_PROF_TASK_TIME_L0;
     } else if (taskTimeLevel == "L1") {
         profSwitch |= (ACL_PROF_TASK_TIME | ACL_PROF_ACL_API);
     }
-
     return profSwitch;
 }
 
-aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics()
+aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& configStr)
 {
-    const std::string& metricStr = GetAclprofAicoreMetrics();
     std::string upperStr;
-    upperStr.reserve(metricStr.size());
+    upperStr.reserve(configStr.size());
     
-    for (char c : metricStr) {
+    for (char c : configStr) {
         upperStr.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
     }
     
@@ -295,18 +292,6 @@ std::string Config::GetDefaultProfPath() const
     std::string homePath = GetEnvAsString("HOME");
     profPath.append(homePath).append("/.ms_server_profiler/");
     return profPath;
-}
-
-std::string Config::GetDefaultAclprofAicoreMetrics() const
-{
-    std::string AclprofAicoreMetrics = "ACL_AICORE_NONE";
-    return AclprofAicoreMetrics;
-}
-
-uint32_t Config::GetDefaultAclDataTypeConfig() const
-{
-    uint32_t aclDataType = ACL_PROF_TASK_TIME | ACL_PROF_ACL_API | ACL_PROF_AICORE_METRICS;
-    return aclDataType;
 }
 
 std::string Config::GetDirPath(std::string configPath) const
