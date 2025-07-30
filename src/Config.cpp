@@ -151,14 +151,14 @@ void Config::ParseDataTypeConfig(const Json& config)
     if (config.contains("aclDataTypeConfig")) {
         aclDataTypeConfig_ = ConvertStringToAclDataType(config["aclDataTypeConfig"]);
     } else {
-        aclDataTypeConfig_ = ACL_PROF_MSPROFTX | ACL_PROF_TASK_TIME_L0;
+        aclDataTypeConfig_ = 0;
     }
 }
 
 
 uint32_t Config::ConvertStringToAclDataType(const std::string& configStr)
 {
-    uint32_t profSwitch = ACL_PROF_MSPROFTX;
+    uint32_t profSwitch = 0;
     static const std::unordered_map<std::string, uint32_t> flagMap = {
         {"ACL_PROF_ACL_API", ACL_PROF_ACL_API},
         {"ACL_PROF_TASK_TIME", ACL_PROF_TASK_TIME},
@@ -192,7 +192,7 @@ uint32_t Config::ConvertStringToAclDataType(const std::string& configStr)
 
 uint32_t Config::GetProfilingSwitch()
 {
-    uint32_t profSwitch = aclDataTypeConfig_;
+    uint32_t profSwitch = aclDataTypeConfig_ | ACL_PROF_MSPROFTX;
     const std::string taskTimeLevel = GetAclTaskTimeLevel();
     if (taskTimeLevel == "L0") {
         profSwitch |= ACL_PROF_TASK_TIME_L0;
