@@ -507,7 +507,7 @@ AclprofConfig *ServiceProfilerManager::ProfCreateConfig()
         deviceIdList[0] = g_deviceID;
 
         if (config_->GetEnableAclTaskTime()) {
-            uint32_t profSwitch = config_->GetProfilingSwitch();
+            profSwitch = config_->GetProfilingSwitch();
             npuFlag_ = true;
         }
     }
