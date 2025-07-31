@@ -126,7 +126,7 @@ class TestForwardDataUtils(unittest.TestCase):
             'end_time': [150, 250, 350]
         })
         result_df = calculate_relative_times(df)
-        self.assertEqual(result_df['relative_start_time(ms)'].tolist(), [0.0, 100.0, 200.0])
+        self.assertEqual(result_df['relative_start_time'].tolist(), [0.0, 100.0, 200.0])
 
     def test_calculate_bubble_time(self):
         # 测试计算 bubble_time
@@ -137,7 +137,7 @@ class TestForwardDataUtils(unittest.TestCase):
         })
         result_df = calculate_bubble_time(df)
         result_df = result_df.fillna(0)
-        self.assertEqual(result_df['bubble_time(ms)'].tolist(), [50.0, 50.0, 0.0])
+        self.assertEqual(result_df['bubble_time'].tolist(), [50.0, 50.0, 0.0])
 
     def test_get_batch_name(self):
         # 测试获取 batch_name
@@ -184,5 +184,5 @@ class TestForwardDataUtils(unittest.TestCase):
         })
         result_df = get_relative_and_bubble(df)
         result_df = result_df.fillna(0)
-        self.assertEqual(result_df['relative_start_time(ms)'].tolist(), [0.0, 100.0, 0.0])
-        self.assertEqual(result_df['bubble_time(ms)'].tolist(), [50.0, 0, 0])
+        self.assertEqual(result_df['relative_start_time'].tolist(), [0.0, 100.0, 0.0])
+        self.assertEqual(result_df['bubble_time'].tolist(), [50.0, 0, 0])

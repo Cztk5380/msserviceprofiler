@@ -13,7 +13,9 @@ REQUIED_NAME = set(["forward"])
 REMAME_COLUMNS = {
     "start_time": "start_time(ms)",
     "end_time": "end_time(ms)",
-    "during_time": "during_time(ms)"
+    "during_time": "during_time(ms)",
+    "relative_start_time": "relative_start_time(ms)",
+    "bubble_time": "bubble_time(ms)"
 }
 DELETE_COLUMNS = ["rid", "rid_list", "pid", "tid"]
 
@@ -37,7 +39,7 @@ class ExporterForwardData(ExporterBase):
             return
         output = cls.args.output_path
 
-        if check_domain_valid(df, ["ModelExecute", "BatchSchedule", "Schedule"], "forward") is False:
+        if not check_domain_valid(df, ["ModelExecute", "BatchSchedule", "Schedule"], "forward"):
             return
         # 取出 forward 和 batch_start_name
         batch_name = get_batch_name(df)
@@ -74,44 +76,39 @@ class ExporterForwardData(ExporterBase):
 # 按 hostname 分组，并计算每个分组的相对时间
 def calculate_relative_times(group):
     base_time = group["start_time"].min()  # 以每个分组中的最小 start_time 为基准时间
-    group["relative_start_time(ms)"] = (group["start_time"] - base_time).round(2)
+    group["relative_start_time"] = (group["start_time"] - base_time).round(2)
     return group
 
 
 def calculate_bubble_time(group):
-    group["bubble_time(ms)"] = (group["start_time"].shift(-1) - group["end_time"]).round(2)
+    group["bubble_time"] = (group["start_time"].shift(-1) - group["end_time"]).round(2)
     return group
 
 
 def get_batch_name(dataframe):
-    batch_name = ""
     if (dataframe["name"] == "BatchSchedule").any():
-        batch_name = "BatchSchedule"
-    elif (dataframe["name"] == "batchFrameworkProcessing").any():
-        batch_name = "batchFrameworkProcessing"
-    else:
-        batch_name = "Schedule"
-    return batch_name
+        return "BatchSchedule"
+    return "batchFrameworkProcessing"
 
 
 def get_filter_forward_df(required_name, forward_df):
-    # copy 消除pandas警告
-    filter_df = forward_df[forward_df["name"].isin(required_name)].copy()
+    mask = forward_df["name"].isin(required_name)
 
-    ori_columns = ["name", "relative_start_time(ms)", "start_time", "end_time",
-                    "during_time", "bubble_time(ms)", "batch_size", "batch_type",
+    ori_columns = ["name", "relative_start_time", "start_time", "end_time",
+                    "during_time", "bubble_time", "batch_size", "batch_type",
                     "forward_iter", "rid", "rid_list", "dp_rank", "prof_id", "hostname",
                     "pid", "tid"]
     
     missing_columns = set(ori_columns) - set(forward_df.columns)
     for col in missing_columns:
-        filter_df[col] = None
+        forward_df.loc[mask, col] = None
     convert_time_cols = ["during_time", "start_time", "end_time"]
-    filter_df[convert_time_cols] = filter_df[convert_time_cols].div(US_PER_MS)
+    forward_df[convert_time_cols] = forward_df[convert_time_cols].astype(float)
+    forward_df.loc[mask, convert_time_cols] = forward_df.loc[mask, convert_time_cols].div(US_PER_MS)
 
-    filter_df = filter_df.reindex(columns=ori_columns)
+    forward_df = forward_df.reindex(columns=ori_columns)
 
-    return filter_df
+    return forward_df[mask]
 
 
 def get_batch_info(forward_df, batch_name):
@@ -120,22 +117,22 @@ def get_batch_info(forward_df, batch_name):
     # 按rid分组forward_df
     forward_df_grouped = forward_df.groupby("rid")
 
-    merged = pd.DataFrame(columns=forward_df.columns)
+    result = []
 
     # 遍历每组rid
     for _, group in forward_df_grouped:
         temp_result = group.copy()
-        
-        batch_name_indices = group[group['name'] == batch_name].index
+        batch_name_indices = group[group["name"] == batch_name].index
         if len(batch_name_indices) == 0:
             continue
 
         for idx in batch_name_indices:
-            temp_result.loc[(temp_result.index > idx), 'batch_type'] = group.loc[idx, 'batch_type']
+            temp_result.loc[(temp_result.index > idx), "batch_type"] = group.loc[idx, "batch_type"]
         
         # 将处理后的组添加到最终结果中
-        merged = pd.concat([merged, temp_result], ignore_index=True)
+        result.append(temp_result)
 
+    merged = pd.concat(result, ignore_index=True)
     mask = (merged["name"] != batch_name)
     merged = merged[mask].sort_values(by=["start_time"]).reset_index(drop=True)
 
@@ -146,7 +143,7 @@ def get_relative_and_bubble(forward_df):
     forward_df = forward_df.groupby("hostname").apply(calculate_relative_times).reset_index(drop=True)
     # 计算 bubble_time
     forward_df = forward_df.groupby("prof_id").apply(calculate_bubble_time).reset_index(drop=True)
-    mask = forward_df.groupby(["prof_id", "pid"]).cumcount(ascending=False) == 0
-    forward_df.loc[mask, "bubble_time(ms)"] = pd.NA
+    mask = forward_df.groupby("prof_id").cumcount(ascending=False) == 0
+    forward_df.loc[mask, "bubble_time"] = pd.NA
 
     return forward_df
