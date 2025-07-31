@@ -18,14 +18,13 @@ class ExporterFactory:
     exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterReqData, ExporterBatchData, \
                     ExporterKVCacheData, ExporterLatency, ExporterPDComm, ExporterMspti, \
                     ExporterEpBalance, ExporterMoe, ExporterForwardData]
-    # exporter_cls = [ExporterForwardData]
 
     @staticmethod
     def create_exporters(args):
         exporters = []
         enable_exporter = ['trace', 'req_status', 'req_data', 'batch_data', 'kvcache_data', 'latency', 'pd_comm',
                            "ep_balance", "moe_analysis", "forward_data"]
-        # enable_exporter = ["forward_data"]
+
         for name in enable_exporter:
             exporters.append(ExporterFactory.create(name, args))
         return exporters
