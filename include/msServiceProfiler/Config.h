@@ -49,21 +49,18 @@ public:
     void InitProfPathDateTail(bool forceReinit = false);
     bool PrepareConfigAndPath(std::string& configPath) const;
     void SaveConfigToJsonFile() const;
-    void ParseAicoreMetrics(const Json& config);
-    void ParseDataTypeConfig(const Json& config);
 
     MS_SERVICE_INLINE_FLAG bool GetMsptiEnable() const { return msptiEnable_; }
     MS_SERVICE_INLINE_FLAG const std::string GetApiFilter() const { return apiFilter_; }
     MS_SERVICE_INLINE_FLAG const std::string GetKernelFilter() const { return kernelFilter_; }
-    aclprofAicoreMetrics ConvertStringToAicoreMetrics(const std::string& configStr);
-    uint32_t GetProfilingSwitch();
-    uint32_t ConvertStringToAclDataType(const std::string& configStr);
 
 private:
     std::string GetEnvAsString(const std::string& envName) const;
     void ReadConfigPath();
     void ParseEnable(const Json& config);
     void ParseTimeLimit(const Json& config);
+    void ParseAicoreMetrics(const Json& config);
+    void ParseDataTypeConfig(const Json& config);
     void ParseAclTaskTime(const Json& config);
     void CheckMsptiConflict();
     void CheckAclKernelConflict();
@@ -79,6 +76,9 @@ private:
     void LogDomainInfo() const;
     void ParseDomain(const Json& config);
     nlohmann::ordered_json GetConfigData() const;
+    aclprofAicoreMetrics ConvertStringToAicoreMetrics(const std::string& configStr);
+    uint32_t GetProfilingSwitch();
+    uint32_t ConvertStringToAclDataType(const std::string& configStr);
 
     bool isServiceProfConfigPathSet = false;
     bool enable_ = false;

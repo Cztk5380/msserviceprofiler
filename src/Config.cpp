@@ -14,13 +14,6 @@
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Config.h"
 
-#include <iostream>
-#include <string>
-#include <unistd.h>
-#include <cerrno>
-#include <cstring>
-#include <sys/stat.h>
-
 namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
 constexpr int ACL_PROF_ENABLE_TASK_TIME = 1;
