@@ -16,16 +16,11 @@
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
 
-#include "msServiceProfiler/msServiceProfiler.h"
-#include "msServiceProfiler/ServiceProfilerManager.h"
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Config.h"
 #include "stubs.h"
 
 using namespace ::testing;
-
-void MarkEventLongAttr(const char *msg);
-namespace msServiceProfiler { void Write2Tx(const std::vector<int> &memoryInfo, const std::string metricName); }
 
 using namespace msServiceProfiler;
 
@@ -38,47 +33,119 @@ TEST(ProfilerTest, TestParseMspti)
     configTest2["api_filter"] = 1;
     configTest2["kernel_filter"] = 1;
 
-    ServiceProfilerManager manager;
+    Config config;
 
-    EXPECT_NO_THROW(manager.config_->ParseMspti(configTest1));
-    EXPECT_NO_THROW(manager.config_->ParseMspti(configTest2));
+    EXPECT_NO_THROW(config.ParseMspti(configTest1));
+    EXPECT_NO_THROW(config.ParseMspti(configTest2));
 }
 
 TEST(ProfilerTest, TestGetConfigData)
 {
-    ServiceProfilerManager manager;
+    Config config;
 
-    EXPECT_NO_THROW(manager.config_->GetConfigData());
+    EXPECT_NO_THROW(config.GetConfigData());
 }
 
 TEST(ProfilerTest, TestSetFileEnable)
 {
-    ServiceProfilerManager manager;
+    Config config;
 
-    EXPECT_NO_THROW(manager.config_->SetFileEnable(0));
+    EXPECT_NO_THROW(config.SetFileEnable(0));
 }
 
 TEST(ProfilerTest, TestSaveConfigToJsonFileInvalidPath)
 {
     std::string path = "";
     setenv("SERVICE_PROF_CONFIG_PATH", path.c_str(), 1);
-    ServiceProfilerManager manager;
+    Config config;
 
-    EXPECT_NO_THROW(manager.config_->SaveConfigToJsonFile());
+    EXPECT_NO_THROW(config.SaveConfigToJsonFile());
 }
 
 TEST(ProfilerTest, TestSaveConfigToJsonFileValidPath)
 {
-    std::string path = "enable.json";
+    std::string path = "/tmp/enable.json";
     setenv("SERVICE_PROF_CONFIG_PATH", path.c_str(), 1);
-    ServiceProfilerManager manager;
+    Config config;
 
-    EXPECT_NO_THROW(manager.config_->SaveConfigToJsonFile());
+    EXPECT_NO_THROW(config.SaveConfigToJsonFile());
+    EXPECT_NO_THROW(config.SaveConfigToJsonFile());  // Run again for testing file exists
+    if (access(path.c_str(), F_OK) == 0) {
+        std::remove(path.c_str());
+    }
 }
 
 TEST(ProfilerTest, TestSplitAndTrimString)
 {
-    ServiceProfilerManager manager;
+    Config config;
 
-    EXPECT_NO_THROW(manager.config_->SplitAndTrimString("Request; KVCache", ";"));
+    EXPECT_NO_THROW(config.SplitAndTrimString("Request; KVCache", ";"));
+}
+
+TEST(ProfilerTest, TestAclprofAicoreMetricsValid)
+{
+    Config config;
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["aclprofAicoreMetrics"] = "ACL_AICORE_PIPE_UTILIZATION";
+    EXPECT_NO_THROW(config.ParseConfig(configTest));
+}
+
+TEST(ProfilerTest, TestAclprofAicoreMetricsInvalid)
+{
+    Config config;
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["aclprofAicoreMetrics"] = "test";
+    EXPECT_NO_THROW(config.ParseConfig(configTest));
+}
+
+TEST(ProfilerTest, TestAclDataTypeConfigValid)
+{
+    Config config;
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["aclDataTypeConfig"] = "test";
+    EXPECT_NO_THROW(config.ParseConfig(configTest));
+}
+
+TEST(ProfilerTest, TestAclDataTypeConfigInValid)
+{
+    Config config;
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["aclDataTypeConfig"] = "ACL_PROF_TASK_TIME,ACL_PROF_TASK_MEMORY";
+    EXPECT_NO_THROW(config.ParseConfig(configTest));
+}
+
+TEST(ProfilerTest, TestGetProfilingSwitchL0)
+{
+    Config config;
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["acl_prof_task_time_level"] = "L0";
+    configTest["aclDataTypeConfig"] = "ACL_PROF_ACL_API,ACL_PROF_TASK_TIME,ACL_PROF_AICORE_METRICS";
+    EXPECT_NO_THROW(config.ParseConfig(configTest));
+
+    uint32_t profSwitch = config.GetProfilingSwitch();
+    EXPECT_EQ(profSwitch, 0x887);
+}
+
+TEST(ProfilerTest, TestGetProfilingSwitchL1)
+{
+    Config config;
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["acl_prof_task_time_level"] = "L1";
+    configTest["aclDataTypeConfig"] = "ACL_PROF_ACL_API,ACL_PROF_TASK_TIME,ACL_PROF_AICORE_METRICS";
+    EXPECT_NO_THROW(config.ParseConfig(configTest));
+
+    uint32_t profSwitch = config.GetProfilingSwitch();
+    EXPECT_EQ(profSwitch, 0x87);
+}
+
+TEST(ProfilerTest, TestGetProfilingSwitchInvalid)
+{
+    Config config;
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["acl_prof_task_time_level"] = "test";
+    configTest["aclDataTypeConfig"] = "ACL_PROF_ACL_API,ACL_PROF_TASK_TIME,ACL_PROF_AICORE_METRICS";
+    EXPECT_NO_THROW(config.ParseConfig(configTest));
+
+    uint32_t profSwitch = config.GetProfilingSwitch();
+    EXPECT_EQ(profSwitch, 0x887);
 }

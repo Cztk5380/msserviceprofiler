@@ -248,12 +248,7 @@ class MsprofDataSource(BaseDataSource):
         if len(full_path.split()) != 1:
             raise ValueError(f"{full_path} is invalid.")
 
-        config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "config", MSPROF_REPORTS_PATH))
-        if not os.path.isfile(config_path):
-            logger.error("File not found: %r, please re-install the ascend-toolkit", config_path)
-            raise OSError
-
-        command = f"msprof --export=on --reports={config_path} --output={full_path}"
+        command = f"msprof --export=on --output={full_path}"
         logger.debug("command: %s", command)
         return command
 

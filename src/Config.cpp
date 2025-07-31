@@ -153,6 +153,7 @@ void Config::ParseDataTypeConfig(const Json& config)
 uint32_t Config::ConvertStringToAclDataType(const std::string& configStr)
 {
     uint32_t profSwitch = 0;
+    // LCOV_EXCL_START
     static const std::unordered_map<std::string, uint32_t> flagMap = {
         {"ACL_PROF_ACL_API", ACL_PROF_ACL_API},
         {"ACL_PROF_TASK_TIME", ACL_PROF_TASK_TIME},
@@ -166,12 +167,13 @@ uint32_t Config::ConvertStringToAclDataType(const std::string& configStr)
         {"ACL_PROF_TRAINING_TRACE", ACL_PROF_TRAINING_TRACE},
         {"ACL_PROF_RUNTIME_API", ACL_PROF_RUNTIME_API}
     };
+    // LCOV_EXCL_STOP
 
     // 使用SplitAndTrimString进行预处理
     const auto& tokens = SplitAndTrimString(configStr, ',');
 
     if (tokens.size() > flagMap.size()) {
-        PROF_LOGW("Too many aclDataTypeConfig provided, check if there are repeated values.");
+        PROF_LOGW("Too many aclDataTypeConfig provided, check if there are repeated values.");  // LCOV_EXCL_LINE
     }
     for (size_t i = 0; i < tokens.size(); ++i) {
         const auto& flagName = tokens[i];
@@ -190,11 +192,14 @@ uint32_t Config::GetProfilingSwitch()
 {
     uint32_t profSwitch = aclDataTypeConfig_ | ACL_PROF_MSPROFTX;
     const std::string taskTimeLevel = GetAclTaskTimeLevel();
+
+    PROF_LOGD("In GetProfilingSwitch, taskTimeLevel: %s", taskTimeLevel.c_str());  // LCOV_EXCL_LINE
     if (taskTimeLevel == "L0") {
         profSwitch |= ACL_PROF_TASK_TIME_L0;
     } else if (taskTimeLevel == "L1") {
         profSwitch |= (ACL_PROF_TASK_TIME | ACL_PROF_ACL_API);
     }
+    PROF_LOGD("In GetProfilingSwitch, profSwitch: 0x%x", profSwitch);  // LCOV_EXCL_LINE
     return profSwitch;
 }
 
@@ -208,6 +213,7 @@ aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& con
     }
     
     // 完整ACL枚举名称到枚举值的映射表
+    // LCOV_EXCL_START
     static const std::unordered_map<std::string, aclprofAicoreMetrics> metricMap = {
         {"ACL_AICORE_PIPE_UTILIZATION", ACL_AICORE_PIPE_UTILIZATION},
         {"ACL_AICORE_MEMORY_BANDWIDTH", ACL_AICORE_MEMORY_BANDWIDTH},
@@ -217,6 +223,7 @@ aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& con
         {"ACL_AICORE_L2_CACHE", ACL_AICORE_L2_CACHE},
         {"ACL_AICORE_NONE", ACL_AICORE_NONE}
     };
+    // LCOV_EXCL_STOP
 
     // 查找匹配项
     auto it = metricMap.find(upperStr);
@@ -265,7 +272,7 @@ void Config::ParseTimeLimit(const Json& config)
 
     if (config.contains("timelimit")) {
         if (config["timelimit"].is_number_integer()) {
-            PROF_LOGD("Got timelimit value: %d", static_cast<int>(config["timelimit"]));
+            PROF_LOGD("Got timelimit value: %d", static_cast<int>(config["timelimit"]));  // LCOV_EXCL_LINE
             if (config["timelimit"] <= 0) {
                 timeLimit_ = 0;
             } else if (config["timelimit"] > 0 && config["timelimit"] <= MAX_TIME_LIMIT) {
@@ -273,8 +280,8 @@ void Config::ParseTimeLimit(const Json& config)
                 PROF_LOGI("profile timeLimit_: %u", timeLimit_);  // LCOV_EXCL_LINE
             } else {
                 timeLimit_ = MAX_TIME_LIMIT;
-                PROF_LOGW("timelimit value is higher than %d, will set %d", MAX_TIME_LIMIT, MAX_TIME_LIMIT);
                 // LCOV_EXCL_LINE
+                PROF_LOGW("timelimit value is higher than %d, will set %d", MAX_TIME_LIMIT, MAX_TIME_LIMIT);
             }
         } else {
             PROF_LOGW("timelimit value is not an integer, the profiling time is not assigned.");  // LCOV_EXCL_LINE
@@ -284,8 +291,8 @@ void Config::ParseTimeLimit(const Json& config)
 
 std::string Config::GetDefaultProfPath() const
 {
-    std::string profPath;
-    std::string homePath = GetEnvAsString("HOME");
+    std::string profPath;  // LCOV_EXCL_LINE
+    std::string homePath = GetEnvAsString("HOME"); // LCOV_EXCL_LINE
     profPath.append(homePath).append("/.ms_server_profiler/");
     return profPath;
 }
@@ -320,9 +327,11 @@ void Config::CheckMsptiConflict()
 {
     std::string ld_preload_str = GetEnvAsString("LD_PRELOAD");
     if (ld_preload_str.find("libmspti.so") != std::string::npos) {
-        PROF_LOGW("Detected mspti is enabled, which conflicts with acl prof. "  // LCOV_EXCL_LINE
-                  "`acl_task_time` has been reset to the default value 0. If you need to enable it,"  // LCOV_EXCL_LINE
-                  "check the loading of libmspti.so in LD_PRELOAD.");  // LCOV_EXCL_LINE
+        // LCOV_EXCL_START
+        PROF_LOGW("Detected mspti is enabled, which conflicts with acl prof. "
+                  "`acl_task_time` has been reset to the default value 0. If you need to enable it,"
+                  "check the loading of libmspti.so in LD_PRELOAD.");
+        // LCOV_EXCL_STOP
         enableAclTaskTime_ = false;
     }
 }
@@ -337,8 +346,10 @@ void Config::CheckAclKernelConflict()
     if (profilerSampleConfig != nullptr) {
         enableAclTaskTime_ = false;
         msptiEnable_ = false;
-        PROF_LOGE("Failed to initialize acl_task_time, env variable `PROFILER_SAMPLECONFIG` is set."  // LCOV_EXCL_LINE
-                  "This causes conflicts with kernels profiling. ");  // LCOV_EXCL_LINE
+        // LCOV_EXCL_START
+        PROF_LOGE("Failed to initialize acl_task_time, env variable `PROFILER_SAMPLECONFIG` is set."
+                  "This causes conflicts with kernels profiling. ");
+        // LCOV_EXCL_STOP
         return;
     }
 
@@ -347,8 +358,10 @@ void Config::CheckAclKernelConflict()
     if (profilingMode != nullptr && std::string(profilingMode) == "dynamic") {
         enableAclTaskTime_ = false;
         msptiEnable_ = false;
+        // LCOV_EXCL_START
         PROF_LOGE("Failed to initialize acl_task_time, env variable `PROFILING_MODE` is set to dynamic."
-                  "This causes conflicts with kernels profiling. ");  // LCOV_EXCL_LINE
+                  "This causes conflicts with kernels profiling. ");
+        // LCOV_EXCL_STOP
         return;
     }
 }
@@ -375,8 +388,10 @@ void Config::ParseAclTaskTime(const Json &config)
         auto aclProfTaskTimeLevel = MsUtils::SplitStr(config["acl_prof_task_time_level"], ';');
         // parser aclTaskTimeLevel
         if (aclProfTaskTimeLevel.first != "L0" && aclProfTaskTimeLevel.first != "L1") {
+            // LCOV_EXCL_START
             PROF_LOGW("aclProfTaskTimeLevel should be L0 or L1, now it is %s, default to L0",
-                aclProfTaskTimeLevel.first.c_str());  // LCOV_EXCL_LINE
+                aclProfTaskTimeLevel.first.c_str());
+            // LCOV_EXCL_STOP
             aclProfTaskTimeLevel.first = "L0";
         }
         aclTaskTimeLevel_ = aclProfTaskTimeLevel.first;
@@ -389,7 +404,7 @@ void Config::ParseAclTaskTime(const Json &config)
         try {
             aclTaskTimeDuration_ = std::stoi(aclProfTaskTimeLevel.second);
         } catch (const std::invalid_argument& e) {
-            PROF_LOGW("aclTaskTimeDuration value is Invalid argument, now it is %s",
+            PROF_LOGW("aclTaskTimeDuration value is Invalid argument, now it is %s",  // LCOV_EXCL_LINE
                 aclProfTaskTimeLevel.second.c_str());  // LCOV_EXCL_LINE
             return;
         } catch (const std::out_of_range& e) {
@@ -409,6 +424,7 @@ void Config::ParseAclTaskTime(const Json &config)
 void Config::ParseLevel(const Json &config)
 {
     level_ = Level::INFO;
+    // LCOV_EXCL_START
     static const std::map<std::string, Level> ENUM_MAP = {
         {"ERROR", Level::ERROR},
         {"INFO", Level::INFO},
@@ -422,6 +438,7 @@ void Config::ParseLevel(const Json &config)
         {"L1", Level::L1},
         {"L2", Level::L2},
     };
+    // LCOV_EXCL_STOP
 
     if (config.contains("profiler_level")) {
         const auto profilerLevel = config["profiler_level"];
@@ -543,17 +560,19 @@ bool Config::ParseHostConfig(const Json &config)
                 hostCpuUsage_ = true;
                 hostMemoryUsage_ = true;
             } else {
+                // LCOV_EXCL_START
                 LOG_ONCE_E("To enable host cpu or host memory usage collection, set host_system_usage_freq "
                     "between %u and %u. To disable it, set this value to -1. "
                     "host cpu or host memory usage collection is now disabled.",
-                    hostFreqMin_, hostFreqMax_);  // LCOV_EXCL_LINE
+                    hostFreqMin_, hostFreqMax_);
+                // LCOV_EXCL_STOP
 
                 hostCpuUsage_ = false;
                 hostMemoryUsage_ = false;
                 ret = false;
             }
         } catch (const std::exception &e) {
-            LOG_ONCE_E("fail to convert host_system_usage_freq config to uint,"
+            LOG_ONCE_E("fail to convert host_system_usage_freq config to uint,"  // LCOV_EXCL_LINE
                       "will not collect host cpu or host memory usage.");  // LCOV_EXCL_LINE
             hostCpuUsage_ = false;
             hostMemoryUsage_ = false;
@@ -576,16 +595,17 @@ bool Config::ParseNpuConfig(const Json &config)
                 npuMemoryFreq_ = npuMemoryFreq;
                 npuMemoryUsage_ = true;
             } else {
+                // LCOV_EXCL_START
                 LOG_ONCE_E("To enable npu memory usage collection, set npu_memory_usage_freq "
                     "between %u and %u. To disable it, set this value to -1. "
                     "npu memory usage collection is now disabled.",
-                    npuMemoryFreqMin_, npuMemoryFreqMax_);  // LCOV_EXCL_LINE
+                    npuMemoryFreqMin_, npuMemoryFreqMax_);
+                // LCOV_EXCL_STOP
                 npuMemoryUsage_ = false;
                 ret = false;
             }
         } catch (const std::exception &e) {
-            LOG_ONCE_E(
-                "Fail to convert npu_memory_usage_freq config to uint, "
+            LOG_ONCE_E("Fail to convert npu_memory_usage_freq config to uint, "  // LCOV_EXCL_LINE
                 "will not collect npu memory usage.");  // LCOV_EXCL_LINE
             npuMemoryUsage_ = false;
             ret = false;
@@ -613,10 +633,12 @@ bool Config::PrepareConfigAndPath(std::string& configPath) const
     }
 
     if (access(configPath.c_str(), F_OK) == 0) {
+        PROF_LOGD("Config path: %s already exists", configPath.c_str());  // LCOV_EXCL_LINE
         return false;
     }
     std::string dirPath = GetDirPath(configPath);
     if (access(dirPath.c_str(), W_OK) != 0) {
+        PROF_LOGW("Directory of Config path is invalid for writing: %s", dirPath.c_str());  // LCOV_EXCL_LINE
         return false;
     }
 
@@ -625,6 +647,7 @@ bool Config::PrepareConfigAndPath(std::string& configPath) const
 
 nlohmann::ordered_json Config::GetConfigData() const
 {
+    // LCOV_EXCL_START
     return {
         {"enable", enable_ ? 1 : 0},
         {"prof_dir", GetDefaultProfPath()},
@@ -636,6 +659,7 @@ nlohmann::ordered_json Config::GetConfigData() const
         {"timelimit", 0},
         {"domain", ""},
     };
+    // LCOV_EXCL_STOP
 }
 
 void Config::SetFileEnable(bool enable)
@@ -697,7 +721,7 @@ void Config::SaveConfigToJsonFile() const
             return;
         }
         PROF_LOGI("Successfully saved profiler configuration to: %s", configPath.c_str());  // LCOV_EXCL_LINE
-    } catch (const std::exception& e) {
+    } catch (const std::exception& e) {  // LCOV_EXCL_LINE
         PROF_LOGE("Failed to save config to JSON file: %s", e.what());  // LCOV_EXCL_LINE
     }
 }
