@@ -168,10 +168,11 @@ uint32_t Config::ConvertStringToAclDataType(const std::string& configStr)
 
     // 使用SplitAndTrimString进行预处理
     const auto& tokens = SplitAndTrimString(configStr, ',');
-    // 设置最大处理次数
-    const size_t maxProcess = std::min(tokens.size(), flagMap.size());
-    
-    for (size_t i = 0; i < maxProcess; ++i) {
+
+    if (tokens.size() > flagMap.size()) {
+        PROF_LOGW("Too many aclDataTypeConfig provided, check if there are repeated values.");
+    }
+    for (size_t i = 0; i < tokens.size(); ++i) {
         const auto& flagName = tokens[i];
         auto it = flagMap.find(flagName);
         if (it != flagMap.end()) {
@@ -180,6 +181,7 @@ uint32_t Config::ConvertStringToAclDataType(const std::string& configStr)
             PROF_LOGE("Unknown profiling flag: %s", flagName.c_str());  // LCOV_EXCL_LINE
         }
     }
+
     return profSwitch;
 }
 
