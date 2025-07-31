@@ -9,7 +9,7 @@ from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
 
 
-REQUIED_NAME = ["forward"]
+REQUIED_NAME = set(["forward"])
 REMAME_COLUMNS = {
     "start_time": "start_time(ms)",
     "end_time": "end_time(ms)",
@@ -41,7 +41,7 @@ class ExporterForwardData(ExporterBase):
             return
         # 取出 forward 和 batch_start_name
         batch_name = get_batch_name(df)
-        REQUIED_NAME.append(batch_name)
+        REQUIED_NAME.add(batch_name)
         check_all = all(element in df["name"].unique() for element in REQUIED_NAME)
         if not check_all:
             logger.warning(f"The data is not complete, please check. \
@@ -116,7 +116,7 @@ def get_filter_forward_df(required_name, forward_df):
 
 def get_batch_info(forward_df, batch_name):
     if forward_df[["batch_type", "batch_size"]].notna().all().all():
-        return forward_df[forward_df["name" != batch_name]]
+        return forward_df[forward_df["name"] != batch_name]
     # 按rid分组forward_df
     forward_df_grouped = forward_df.groupby("rid")
 
