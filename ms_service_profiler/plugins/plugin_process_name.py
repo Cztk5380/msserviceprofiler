@@ -45,7 +45,6 @@ class PluginProcessName(PluginBase):
 
         # 处理 dpRankId 逻辑
         pid_label_map = cls.process_dp_rank_id(tx_data_df, pid_label_map)
-        logger.warning(f'pid_label_map before process_dp_rank_id: {pid_label_map}')
 
         # 查找所有的 preprocess 标签，这里面有 rid ，获取第一个 rid ，从键值对中查找 dp ，组成 pid 到 dp 的键值对
         preprocess_df = tx_data_df[tx_data_df['name'] == 'preprocess']
