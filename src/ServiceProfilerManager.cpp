@@ -501,25 +501,26 @@ void ServiceProfilerManager::SetAclProfHostSysConfig() const
 AclprofConfig *ServiceProfilerManager::ProfCreateConfig()
 {
     uint32_t profSwitch = ACL_PROF_MSPROFTX;
-
     uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
-    uint32_t deviceNums = 1;
-    if (g_deviceID == INVALID_DEVICE_ID) {
-        deviceNums = 0;  // On host process
-    } else {
-        deviceNums = 1;  // On device process
+    uint32_t deviceNums = g_deviceID == INVALID_DEVICE_ID ? 0 : 1;
+    if (g_deviceID != INVALID_DEVICE_ID) {
         deviceIdList[0] = g_deviceID;
-        if (static_cast<bool>(config_->GetEnableAclTaskTime())) {
-            if (config_->GetAclTaskTimeLevel() == "L0") {
-                profSwitch |= ACL_PROF_TASK_TIME_L0;
-            } else if (config_->GetAclTaskTimeLevel() == "L1") {
-                profSwitch |= (ACL_PROF_TASK_TIME | ACL_PROF_ACL_API);
-            }
+
+        if (config_->GetEnableAclTaskTime()) {
+            profSwitch = config_->GetProfilingSwitch();
             npuFlag_ = true;
         }
     }
-
-    auto profConfig = aclprofCreateConfig(deviceIdList, deviceNums, ACL_AICORE_NONE, nullptr, profSwitch);
+    // 创建性能采集配置
+    aclprofAicoreMetrics aicoreMetricsEnum = config_->GetAclProfAicoreMetrics();
+    PROF_LOGD("Current profSwitch configuration: Hex: 0x%x", profSwitch);
+    PROF_LOGD("Current aicoreMetricsEnum configuration: %d", aicoreMetricsEnum);
+    auto profConfig = aclprofCreateConfig(
+        deviceIdList,
+        deviceNums,
+        aicoreMetricsEnum,
+        nullptr,
+        profSwitch);
     if (profConfig == nullptr) {
         PROF_LOGE("acl prof create config failed.");  // LCOV_EXCL_LINE
     } else {
