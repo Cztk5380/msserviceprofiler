@@ -334,6 +334,27 @@ TEST_F(TestProfiler, MetricProfEnable)
     EXPECT_STREQ(prof.GetMsg().c_str(), "^key=^:123,");
 }
 
+TEST_F(TestProfiler, Over128)
+{
+    char src[MAX_RES_STR_IZE + 2];          // 129 字节
+    std::fill(src, src + 128, 'A'); // 0~127 共 128 个 'A'
+    src[MAX_RES_STR_IZE] = 'B';             // 第 129 字节，故意越界
+    src[MAX_RES_STR_IZE + 1] = '\0';        // 终止符
+
+    ResID rid(src);
+
+    // 1) 长度最多 127
+    EXPECT_EQ(std::strlen(rid.resValue.strRid), MAX_RES_STR_IZE - 1);
+
+    // 2) 第 128 字节一定是 '\0'
+    EXPECT_EQ(rid.resValue.strRid[MAX_RES_STR_IZE - 1], '\0');
+
+    // 3) 内容被正确截断
+    EXPECT_TRUE(std::all_of(rid.resValue.strRid,
+                            rid.resValue.strRid + MAX_RES_STR_IZE - 1,
+                            [](char c) { return c == 'A'; }));
+}
+
 TEST_F(TestProfiler, MetricScopeProfDisable)
 {
     auto prof = PROF(DETAILED, MetricScope("key", TEST_NUMER_123));

@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <unordered_map>
 
 #include "securec.h"
 
@@ -44,6 +45,7 @@ void Config::ReadAndSaveConfig()
     auto configJson = ReadConfigFile();
     ParseConfig(configJson);
     SaveConfigToJsonFile();
+    ReadConfigPath();  // Set configPath_ after save
 }
 
 std::string Config::GetEnvAsString(const std::string& envName) const
@@ -125,6 +127,105 @@ void Config::ParseConfig(const Json& configJson)
     ParseDomain(configJson);
     ParseCollectConfig(configJson);
     ParseMspti(configJson);
+    ParseAicoreMetrics(configJson);
+    ParseDataTypeConfig(configJson);
+}
+
+void Config::ParseAicoreMetrics(const Json& config)
+{
+    if (config.contains("aclprofAicoreMetrics")) {
+        aclprofAicoreMetrics_ = ConvertStringToAicoreMetrics(config["aclprofAicoreMetrics"]);
+    } else {
+        aclprofAicoreMetrics_ = ACL_AICORE_PIPE_UTILIZATION;
+    }
+}
+
+void Config::ParseDataTypeConfig(const Json& config)
+{
+    if (config.contains("aclDataTypeConfig")) {
+        aclDataTypeConfig_ = ConvertStringToAclDataType(config["aclDataTypeConfig"]);
+    } else {
+        aclDataTypeConfig_ = 0;
+    }
+}
+
+
+uint32_t Config::ConvertStringToAclDataType(const std::string& configStr)
+{
+    uint32_t profSwitch = 0;
+    static const std::unordered_map<std::string, uint32_t> flagMap = {
+        {"ACL_PROF_ACL_API", ACL_PROF_ACL_API},
+        {"ACL_PROF_TASK_TIME", ACL_PROF_TASK_TIME},
+        {"ACL_PROF_TASK_TIME_L0", ACL_PROF_TASK_TIME_L0},
+        {"ACL_PROF_OP_ATTR", ACL_PROF_OP_ATTR},
+        {"ACL_PROF_AICORE_METRICS", ACL_PROF_AICORE_METRICS},
+        {"ACL_PROF_TASK_MEMORY", ACL_PROF_TASK_MEMORY},
+        {"ACL_PROF_AICPU", ACL_PROF_AICPU},
+        {"ACL_PROF_L2CACHE", ACL_PROF_L2CACHE},
+        {"ACL_PROF_HCCL_TRACE", ACL_PROF_HCCL_TRACE},
+        {"ACL_PROF_TRAINING_TRACE", ACL_PROF_TRAINING_TRACE},
+        {"ACL_PROF_RUNTIME_API", ACL_PROF_RUNTIME_API}
+    };
+
+    // 使用SplitAndTrimString进行预处理
+    const auto& tokens = SplitAndTrimString(configStr, ',');
+
+    if (tokens.size() > flagMap.size()) {
+        PROF_LOGW("Too many aclDataTypeConfig provided, check if there are repeated values.");
+    }
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        const auto& flagName = tokens[i];
+        auto it = flagMap.find(flagName);
+        if (it != flagMap.end()) {
+            profSwitch |= it->second;
+        } else {
+            PROF_LOGE("Unknown profiling flag: %s", flagName.c_str());  // LCOV_EXCL_LINE
+        }
+    }
+
+    return profSwitch;
+}
+
+uint32_t Config::GetProfilingSwitch()
+{
+    uint32_t profSwitch = aclDataTypeConfig_ | ACL_PROF_MSPROFTX;
+    const std::string taskTimeLevel = GetAclTaskTimeLevel();
+    if (taskTimeLevel == "L0") {
+        profSwitch |= ACL_PROF_TASK_TIME_L0;
+    } else if (taskTimeLevel == "L1") {
+        profSwitch |= (ACL_PROF_TASK_TIME | ACL_PROF_ACL_API);
+    }
+    return profSwitch;
+}
+
+aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& configStr)
+{
+    std::string upperStr;
+    upperStr.reserve(configStr.size());
+    
+    for (char c : configStr) {
+        upperStr.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
+    }
+    
+    // 完整ACL枚举名称到枚举值的映射表
+    static const std::unordered_map<std::string, aclprofAicoreMetrics> metricMap = {
+        {"ACL_AICORE_PIPE_UTILIZATION", ACL_AICORE_PIPE_UTILIZATION},
+        {"ACL_AICORE_MEMORY_BANDWIDTH", ACL_AICORE_MEMORY_BANDWIDTH},
+        {"ACL_AICORE_L0B_AND_WIDTH", ACL_AICORE_L0B_AND_WIDTH},
+        {"ACL_AICORE_RESOURCE_CONFLICT_RATIO", ACL_AICORE_RESOURCE_CONFLICT_RATIO},
+        {"ACL_AICORE_MEMORY_UB", ACL_AICORE_MEMORY_UB},
+        {"ACL_AICORE_L2_CACHE", ACL_AICORE_L2_CACHE},
+        {"ACL_AICORE_NONE", ACL_AICORE_NONE}
+    };
+
+    // 查找匹配项
+    auto it = metricMap.find(upperStr);
+    if (it != metricMap.end()) {
+        return it->second;
+    }
+
+    // 未找到匹配项
+    return ACL_AICORE_NONE;
 }
 
 void Config::ParseMspti(const Json& config)
@@ -562,16 +663,19 @@ void Config::SaveConfigToJsonFile() const
     }
     try {
         std::string dirPath = GetDirPath(configPath);
-        char tempFile[] = "temp_XXXXXX";
-        const int fd = mkstemp(tempFile);
+        std::string tempDir = dirPath + "/";
+        std::vector<char> tempPath(tempDir.begin(), tempDir.end());
+        const size_t TEMP_TEMPLATE_LENGTH = 11;  // "temp_XXXXXX"的长度, 11个字符
+        tempPath.insert(tempPath.end(), "temp_XXXXXX", "temp_XXXXXX" + TEMP_TEMPLATE_LENGTH); // temp_XXXXXX 临时目录
+        tempPath.push_back('\0');
+        const int fd = mkstemp(tempPath.data());
         if (fd == -1) {
             PROF_LOGW("mkstemp failed: %s", strerror(errno));  // LCOV_EXCL_LINE
             return;
         }
         close(fd);
-        std::string tempPath = dirPath+"/"+tempFile;
         char realTempPath[PATH_MAX + 1] = {0};
-        if (realpath(tempPath.c_str(), realTempPath) == nullptr) {
+        if (realpath(tempPath.data(), realTempPath) == nullptr) {
             PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));  // LCOV_EXCL_LINE
             return;
         }
@@ -586,7 +690,6 @@ void Config::SaveConfigToJsonFile() const
         }
         outputFile << GetConfigData().dump(jsonIndentSize);
         outputFile.close();
-
         auto ret = rename(realTempPath, configPath.c_str());
         if (ret != 0 && errno != ENOENT) {
             PROF_LOGW("Automatic config file generation failed: %s", strerror(errno));  // LCOV_EXCL_LINE
