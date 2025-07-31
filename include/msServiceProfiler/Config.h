@@ -31,7 +31,6 @@ public:
     MS_SERVICE_INLINE_FLAG bool IsAclProf() const {return enableAclTaskTime_ || hostCpuUsage_ || hostMemoryUsage_; }
     MS_SERVICE_INLINE_FLAG aclprofAicoreMetrics GetAclProfAicoreMetrics() const { return aclprofAicoreMetrics_; }
     MS_SERVICE_INLINE_FLAG std::string GetAclTaskTimeLevel() const { return aclTaskTimeLevel_; }
-    MS_SERVICE_INLINE_FLAG uint32_t GetAcldataTypeConfig() const { return aclDataTypeConfig_; }
     MS_SERVICE_INLINE_FLAG int GetAclTaskTimeDuration() const { return aclTaskTimeDuration_; }
     void SetAclTaskTimeDuration(int aclTaskTimeDuration){aclTaskTimeDuration_ = aclTaskTimeDuration;}
     MS_SERVICE_INLINE_FLAG bool GetNpuMemoryUsage() const { return npuMemoryUsage_; }
