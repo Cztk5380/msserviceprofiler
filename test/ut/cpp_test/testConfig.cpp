@@ -82,3 +82,31 @@ TEST(ProfilerTest, TestSplitAndTrimString)
 
     EXPECT_NO_THROW(manager.config_->SplitAndTrimString("Request; KVCache", ";"));
 }
+
+TEST(ProfilerTest, TestParseAicoreMetrics)
+{
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["aclprofAicoreMetrics"] = "ACL_AICORE_PIPE_UTILIZATION";
+
+    ServiceProfilerManager manager;
+    EXPECT_NO_THROW(manager.config_->ParseConfig(configTest));
+}
+
+TEST(ProfilerTest, TestParseDataTypeConfig)
+{
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["aclDataTypeConfig"] = "ACL_PROF_TASK_TIME";
+
+    ServiceProfilerManager manager;
+    EXPECT_NO_THROW(manager.config_->ParseConfig(configTest));
+}
+
+TEST(ProfilerTest, TestGetProfilingSwitch)
+{
+    nlohmann::json configTest = nlohmann::json::object();
+    configTest["aclDataTypeConfig"] = "ACL_PROF_TASK_TIME";
+    
+    ServiceProfilerManager manager;
+    manager.config_->ParseConfig(configTest);
+    EXPECT_NO_THROW(manager.config_->GetProfilingSwitch());
+}
