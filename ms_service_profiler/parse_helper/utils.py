@@ -2,6 +2,7 @@
 
 import sqlite3
 import datetime
+import os
 from concurrent.futures import ProcessPoolExecutor
 import pandas as pd
 
@@ -32,10 +33,15 @@ def _convert_db_to_df(file_path):
     try:
         for name, value in data:
             df[name] = value
+
+        # file_path一定为 .db文件，无风险
+        file_name = os.path.basename(file_path)
+        prof_id = os.path.splitext(file_name)[0]
+        df["prof_id"] = prof_id
     except Exception as e:
         logger.warning("%s: %r", e, file_path)
         return df
-
+    
     return df
 
 
