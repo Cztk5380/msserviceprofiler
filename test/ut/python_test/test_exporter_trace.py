@@ -197,7 +197,13 @@ def test_exporter_export(mock_save, mock_create, mock_data, mock_mspti):
     called_args, called_kwargs = mock_create.call_args
 
     # 手动验证参数中的 DataFrame 内容
-    pd.testing.assert_frame_equal(called_args[0], mock_data['tx_data_df'])
+    called_args_domain = called_args[0].pop('domain')
+    mock_data_without_domain = mock_data['tx_data_df'].drop(columns=['domain'], errors='ignore')
+    # 非domain列相等
+    pd.testing.assert_frame_equal(called_args[0], mock_data_without_domain)
+    # domain列为domain+tid
+    custom_domain = pd.Series(["domain1(0)", "domain2(1)"])
+    pd.testing.assert_series_equal(called_args_domain, custom_domain, check_names=False)
 
 
 def test_write_trace_data_to_file():
