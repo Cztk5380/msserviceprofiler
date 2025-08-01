@@ -42,19 +42,14 @@ class ExporterTrace(TaskExporterBase):
         if data is not None:
             all_data_df = data.get('tx_data_df', pd.DataFrame(columns=["name", "domain"])).copy()
 
-            # 过滤显示数据, Meta不显示
-            all_data_df = all_data_df[~all_data_df['domain'].isin(['Meta'])]
+            # 对domain进行预处理，以便相同domain的数据在同一个泳道中显示
+            prepare_domain_for_process(all_data_df)
 
             if 'pid_label_map' in data:
                 pid_label_map = data['pid_label_map']
             else:
                 pid_label_map = None
 
-            # 如果只采集到了python数据而没有采集到cpp数据，则直接认为name为domain
-            if 'domain' not in all_data_df.columns:
-                all_data_df['domain'] = all_data_df['name']
-
-            all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
             msprof_data_df = data.get('msprof_data', pd.DataFrame())
 
             cann_data = [load_single_prof(pf, index) for index, pf in enumerate(msprof_data_df)]
@@ -91,6 +86,27 @@ class ExporterTrace(TaskExporterBase):
             create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
             save_trace_data_into_db(merged_data)
             logger.info('Write trace data to db success')
+
+
+def prepare_domain_for_process(all_data_df):
+    # 如果只采集到了python数据而没有采集到cpp数据，则直接认为name为domain，确保domain列存在
+    if 'domain' not in all_data_df.columns:
+        all_data_df['domain'] = all_data_df['name']  # 直接添加新列
+
+    # 过滤显示数据, Meta不显示
+    meta_mask = all_data_df['domain'].isin(['Meta'])
+    all_data_df.drop(all_data_df[meta_mask].index, inplace=True)
+    
+    # 对于非Request, RequestState, KVCache泳道区分tid显示
+    mask = ~all_data_df['domain'].isin(['Request', 'RequestState', 'KVCache'])
+    all_data_df.loc[mask, 'domain'] = (
+        all_data_df.loc[mask, 'domain'].astype(str) 
+        + '(' 
+        + all_data_df.loc[mask, 'tid'].astype(str)
+        + ')'
+    )
+
+    all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
 
 
 def process_prof_trace_events(events, index):
