@@ -44,7 +44,8 @@ TABLE_DATA_VIEW_NAME_LIST = {
     'kvcache': 'kvcache_usage',
     'pd_split_communication': 'pd_communication_info',
     'request': 'request_data',
-    'pd_split_kvcache': 'pd_split_pull_kvcache'
+    'pd_split_kvcache': 'pd_split_pull_kvcache',
+    'forward': 'forward_info'
 }
 
 
