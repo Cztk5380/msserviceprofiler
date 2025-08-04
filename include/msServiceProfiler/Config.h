@@ -76,7 +76,7 @@ private:
     void LogDomainInfo() const;
     void ParseDomain(const Json& config);
     nlohmann::ordered_json GetConfigData() const;
-    aclprofAicoreMetrics ConvertStringToAicoreMetrics(const std::string& configStr);
+    aclprofAicoreMetrics ConvertStringToAicoreMetrics(const std::string& configStr) const;
     uint32_t ConvertStringToAclDataType(const std::string& configStr) const;
 
     bool isServiceProfConfigPathSet = false;
