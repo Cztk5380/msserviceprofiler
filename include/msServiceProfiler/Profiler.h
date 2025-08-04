@@ -202,7 +202,7 @@ namespace msServiceProfiler {
             * @return 返回Profiler&当前对象，支持链式调用
         */
         template <Level levelAttr = level>
-        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const ResID &value)
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const ResID &value) const
         {
             if (IsEnable(levelAttr)) {
                 if (value.type == ResType::UINT64) {
@@ -234,7 +234,7 @@ namespace msServiceProfiler {
             * @param rid [in] 请求id，可以由字符串或数值隐式转换
             * @return 返回当前Profiler&对象，支持链式调用
         */
-        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Resource(const ResID &rid)
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Resource(const ResID &rid) const
         {
             if (IsEnable(level)) {
                 if (!rid.IsIllegal()) {
@@ -253,7 +253,7 @@ namespace msServiceProfiler {
         */
         template <typename T>
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &ArrayResource(const T &startIter, const T &endIter,
-            typename ArrayCollectorHelper<Profiler<level>, T>::AttrCollectCallback callback)
+            typename ArrayCollectorHelper<Profiler<level>, T>::AttrCollectCallback callback) const
         {
             return this->ArrayAttr("rid", startIter, endIter, callback);
         }
@@ -421,7 +421,7 @@ namespace msServiceProfiler {
             * @brief 记录一个事件
             * @param eventName [in] 事件名
         */
-        MS_SERVICE_PROFILER_HIDDEN void Event(const char *eventName)
+        MS_SERVICE_PROFILER_HIDDEN void Event(const char *eventName) const
         {
             if (this->IsEnable(level)) {
                 this->Attr("name", eventName);
@@ -437,7 +437,7 @@ namespace msServiceProfiler {
             * @param fromRid [in] ResID类型的编号，ResID可以由字符串或数值隐式转换。
             * @param toRid [in] ResID类型的编号，ResID可以由字符串或数值隐式转换。
         */
-        MS_SERVICE_PROFILER_HIDDEN void Link(const ResID &fromRid, const ResID &toRid)
+        MS_SERVICE_PROFILER_HIDDEN void Link(const ResID &fromRid, const ResID &toRid) const
         {
             if (this->IsEnable(level)) {
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_LINK));
@@ -449,18 +449,18 @@ namespace msServiceProfiler {
         }
 
     public:
-        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const char *value)
+        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const char *value) const
         {
             msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallAddMetaInfo(key, value);
         }
 
-        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const std::string &value)
+        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const std::string &value) const
         {
             AddMetaInfo(key, value.c_str());
         }
 
         template <typename T>
-        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const T value)
+        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const T value) const
         {
             AddMetaInfo(key, std::to_string(value).c_str());
         }

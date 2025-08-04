@@ -2,8 +2,9 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
  */
 #include "securec.h"
-#include "msServiceProfiler/DbBuffer.h"
+
 #include "msServiceProfiler/Log.h"
+#include "msServiceProfiler/DbBuffer.h"
 
 namespace msServiceProfiler {
 
@@ -88,8 +89,15 @@ std::unique_ptr<NodeMarkerData> DbBuffer::Push(std::unique_ptr<NodeMarkerData> p
         pHead_ = pNext;
     }
 
-    pHead_->pMarkerData = std::move(pMarkerData);
-    SizeAdd();
+    // 检查 pHead_ 是否为空
+    if (pHead_ != nullptr) {
+        pHead_->pMarkerData = std::move(pMarkerData);
+        SizeAdd();
+    } else {
+        LOG_ONCE_E("pHead_ is null, cannot proceed."); // LCOV_EXCL_LINE
+        return nullptr;
+    }
+
     return nullptr;
 }
 

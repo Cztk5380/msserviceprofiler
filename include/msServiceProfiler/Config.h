@@ -48,7 +48,7 @@ public:
     void InitProfPathDateTail(bool forceReinit = false);
     bool PrepareConfigAndPath(std::string& configPath) const;
     void SaveConfigToJsonFile() const;
-    uint32_t GetProfilingSwitch();
+    uint32_t GetProfilingSwitch() const;
 
     MS_SERVICE_INLINE_FLAG bool GetMsptiEnable() const { return msptiEnable_; }
     MS_SERVICE_INLINE_FLAG const std::string GetApiFilter() const { return apiFilter_; }
@@ -77,7 +77,7 @@ private:
     void ParseDomain(const Json& config);
     nlohmann::ordered_json GetConfigData() const;
     aclprofAicoreMetrics ConvertStringToAicoreMetrics(const std::string& configStr);
-    uint32_t ConvertStringToAclDataType(const std::string& configStr);
+    uint32_t ConvertStringToAclDataType(const std::string& configStr) const;
 
     bool isServiceProfConfigPathSet = false;
     bool enable_ = false;
