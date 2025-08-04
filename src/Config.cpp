@@ -669,8 +669,8 @@ void Config::SetFileEnable(bool enable)
     std::string configPath = GetEnvAsString("SERVICE_PROF_CONFIG_PATH");
     auto configJson = ReadConfigFile();
     configJson["enable"] = 0;
-    IsPathLenLegal(configPath)
-    IsPathDepthLegal(configPath)
+    IsPathLenLegal(configPath);
+    IsPathDepthLegal(configPath);
     std::ofstream outputFile(configPath.c_str());
     if (!outputFile.is_open()) {
         PROF_LOGW("Automatic config file update failed %s", configPath.c_str());  // LCOV_EXCL_LINE
