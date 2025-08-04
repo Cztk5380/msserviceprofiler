@@ -669,21 +669,9 @@ void Config::SetFileEnable(bool enable)
     std::string configPath = GetEnvAsString("SERVICE_PROF_CONFIG_PATH");
     auto configJson = ReadConfigFile();
     configJson["enable"] = 0;
-    char *canonicalPath = realpath(configPath.c_str(), nullptr);
-    if (canonicalPath == nullptr) {
-        PROF_LOGW("Failed to canonicalize path: %s", configPath.c_str()); // LCOV_EXCL_LINE
-        return;
-    }
-
-    // 校验
-    if (!IsValidPath(canonicalPath)) {
-        PROF_LOGW("Invalid path: %s", canonicalPath); // LCOV_EXCL_LINE
-        free(canonicalPath);
-        return;
-    }
-
-    std::ofstream outputFile(canonicalPath);
-    free(canonicalPath);
+    IsPathLenLegal(configPath)
+    IsPathDepthLegal(configPath)
+    std::ofstream outputFile(configPath.c_str());
     if (!outputFile.is_open()) {
         PROF_LOGW("Automatic config file update failed %s", configPath.c_str());  // LCOV_EXCL_LINE
         return;
