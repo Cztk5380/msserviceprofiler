@@ -268,7 +268,7 @@ TEST_F(TestProfiler, AttrProfDisableNull)
 
 TEST_F(TestProfiler, AttrProfEnableResID)
 {
-    auto prof = PROF(INFO, Attr("key", ResID(TEST_NUMER_2)));
+    auto prof = PROF(INFO, Attr("key", static_cast<long long>(ResID(TEST_NUMER_2).resValue.rid)));
     EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:2,");
 }
 
@@ -279,7 +279,8 @@ TEST_F(TestProfiler, AttrProfEnableResIDStr)
 }
 TEST_F(TestProfiler, AttrProfDisAbleResID)
 {
-    auto prof = PROF(DETAILED, Attr("key", ResID(TEST_NUMER_2)));
+    const long long ridValue = static_cast<long long>(ResID(TEST_NUMER_2).resValue.rid);
+    auto prof = PROF(DETAILED, Attr("key", ridValue));
     EXPECT_STREQ(prof.GetMsg().c_str(), "");
 }
 
