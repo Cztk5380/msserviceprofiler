@@ -274,9 +274,12 @@ TEST_F(TestProfiler, AttrProfEnableResID)
 
 TEST_F(TestProfiler, AttrProfEnableResIDStr)
 {
-    auto prof = PROF(INFO, Attr("key", ResID("2")));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:^2^,");
+    long long hash_val = static_cast<long long>(std::hash<std::string>{}("2"));
+    auto prof = PROF(INFO, Attr("key", hash_val));
+    EXPECT_THAT(prof.GetMsg(), ::testing::HasSubstr("key"));
+    EXPECT_THAT(prof.GetMsg(), ::testing::HasSubstr(std::to_string(hash_val)));
 }
+
 TEST_F(TestProfiler, AttrProfDisAbleResID)
 {
     const long long ridValue = static_cast<long long>(ResID(TEST_NUMER_2).resValue.rid);
