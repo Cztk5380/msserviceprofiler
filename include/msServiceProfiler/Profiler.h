@@ -88,6 +88,18 @@ namespace msServiceProfiler {
         return "UNKNOWN";
     }
 
+    inline std::string to_string(float value) {
+        return std::to_string(value);
+    }
+
+    inline std::string to_string(double value) {
+        return std::to_string(value);
+    }
+
+    inline std::string to_string(bool value) {
+        return value ? "true" : "false";
+    }
+
     enum class MarkType : uint8_t { TYPE_EVENT = 0, TYPE_METRIC = 1, TYPE_SPAN = 2, TYPE_LINK = 3 };
 
     template <typename TProfiler, typename T>
