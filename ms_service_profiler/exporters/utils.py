@@ -76,7 +76,7 @@ def create_view_with_renamed_column(cursor, table_name, view_name, rename_cols):
     # 获取所有列名
     cursor.execute(f"PRAGMA table_info({table_name})")
     columns = [column[1] for column in cursor.fetchall()]  # 第2个元素是列名
-    
+
     # 构建SELECT部分，重命名指定列
     select_parts = []
     for col in columns:
@@ -84,7 +84,7 @@ def create_view_with_renamed_column(cursor, table_name, view_name, rename_cols):
             select_parts.append(f'"{col}" AS "{rename_cols[col]}"')
         else:
             select_parts.append(col)
-    
+
     select_clause = ", ".join(select_parts)
 
     # 创建视图
@@ -231,13 +231,13 @@ def save_dataframe_to_csv(filtered_df, output, file_name, check_columns=None):
     if filtered_df is None or not isinstance(filtered_df, pd.DataFrame) or filtered_df.empty or output is None:
         logger.warning("Writing csv %r failed due to invalid dataframe:\n\t%s", file_name, filtered_df)
         return
-    
+
     # check column names
     for col in filtered_df.columns:
         if not _check_csv_value_is_valid(col):
             logger.error(f"Column name {col} contains malicious value.")
             return
-    
+
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     file_path = output_path / file_name
@@ -246,7 +246,7 @@ def save_dataframe_to_csv(filtered_df, output, file_name, check_columns=None):
     if not _preprocess_dataframe(filtered_df, check_columns):
         logger.warning(f"DataFrame contains invalid values. Aborting write to {file_name}.")
         return
-    
+
     with ms_open(file_path, "w") as f:
         filtered_df.to_csv(f, index=False)
         logger.info(f"Write to {file_name} success.")
@@ -255,7 +255,7 @@ def save_dataframe_to_csv(filtered_df, output, file_name, check_columns=None):
 def _preprocess_dataframe(df, check_columns=None):
     if not check_columns:
         return True
-    
+
     # 校验单元格是否合法
     for col in check_columns:
         if col in df.columns:
@@ -263,7 +263,7 @@ def _preprocess_dataframe(df, check_columns=None):
             if has_invalid_value:
                 logger.warning(f"Column {col} contains malicious values")
                 return False
-    
+
     return True
 
 
@@ -346,7 +346,7 @@ def check_output_path_valid(path):
 def find_file_in_dir(directory, filename):
     count = 0
     max_iter = MAX_ITERATIONS
- 
+
     for _, _, files in os.walk(directory):
         count += len(files)
         if count > max_iter:
@@ -360,7 +360,7 @@ def find_all_file_complete(directory, filename='all_file.complete'):
     count = 0
     data_count = 0
     data_with_file_count = 0
- 
+
     for root, _, files in os.walk(directory):
         count += len(files)
         if count > MAX_ITERATIONS:
@@ -404,4 +404,14 @@ def check_domain_valid(df, domain_list, exporter_name):
     if missing_domains:
         logger.warning(f"Exporter {exporter_name} - missing domains: {missing_domains}")
 
+    return True
+
+def check_columns_valid(df, column_list, exporter_name):
+    current_columns = set(df.columns)
+
+    missing_columns = [column for column in column_list if column not in current_columns]
+
+    if missing_columns:
+        logger.warning(f"Exporter {exporter_name} - missing columns: {missing_columns}")
+        return False
     return True
