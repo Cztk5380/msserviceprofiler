@@ -5,6 +5,7 @@ from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import KeyExcept
+from ms_service_profiler.constant import LARGE_TIME_STAMP
 
 
 class PluginBatch(PluginBase):
@@ -52,7 +53,10 @@ class PluginBatch(PluginBase):
         batch_id = batch_info.get("id", 0)
         if batch_id == 0:
             return
-        cls.batch_list[tuple(row.rid_list)]["time"] = row.end_time
+        if row.name == 'modelExec':
+            cls.batch_list[tuple(row.rid_list)]["time"] = row.end_time
+        else:
+            cls.batch_list[tuple(row.rid_list)]["time"] = LARGE_TIME_STAMP
         cls.add_exec_info(batch_id, row.pid, row.name, row.start_time, row.end_time)
 
     @classmethod
@@ -124,7 +128,7 @@ class PluginBatch(PluginBase):
             if row.name in ('BatchSchedule', 'batchFrameworkProcessing'):
                 batch_index = batch_index + 1
                 cls.deal_with_batch_row(row, batch_index)
-            if row.name == 'modelExec':
+            if row.name in ('modelExec', 'Execute'):
                 cls.deal_with_model_exec_row(row)
             if row.name == 'preprocess':
                 cls.deal_with_preprocess_row(row, last_preprocess)
@@ -142,7 +146,7 @@ class PluginBatch(PluginBase):
                 raise ValueError("tx_data_df is None")
 
             batch_df = tx_data_df[tx_data_df['name'].isin(['BatchSchedule', 'batchFrameworkProcessing', \
-                'modelExec', 'preprocess', 'forward'])]
+                'modelExec', 'preprocess', 'forward', 'Execute'])]
 
             # 从 preprocess 中读取 res_list 和 rid_list 信息到它后面的 forward
             batch_df = batch_df.sort_values(by=['hostname', 'start_time', 'pid', 'tid'])
