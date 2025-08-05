@@ -175,7 +175,7 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const char *value)
         {
             if (IsEnable(levelAttr)) {
-                msg_.append("^").append(attrName).append("^:^").append(value.to_string()).append("^,");
+                msg_.append("^").append(attrName).append("^:^").append(value).append("^,");
             }
             return *this;
         }
