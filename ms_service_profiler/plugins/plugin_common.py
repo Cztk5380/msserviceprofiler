@@ -116,6 +116,10 @@ def convert_rid_to_str(item, rid_map=None):
 
 
 def parse_rid(tx_data_df):
+    if "type" not in tx_data_df.columns or "rid" not in tx_data_df.columns:
+        logger.warning('Missing columns "type" or "rid". Skip parsing')
+        return tx_data_df, None
+
     # 1.生成映射rid_link_map
     rid_link_map = parse_rid_map(tx_data_df)
 
