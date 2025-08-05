@@ -221,7 +221,7 @@ namespace msServiceProfiler {
             * @return 返回Profiler&当前对象，支持链式调用
         */
         template <Level levelAttr = level, typename T>
-        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const T value)
+        MS_SERVICE_PROFILER_HIDDEN inline const Profiler &Attr(const char *attrName, const T value)
         {
             if (IsEnable(levelAttr)) {
                 msg_.append("^").append(attrName).append("^:").append(std::to_string(value)).append(",");
