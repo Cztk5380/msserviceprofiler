@@ -84,7 +84,7 @@ class PluginBatch(PluginBase):
 
     @classmethod
     def deal_with_forward_row(cls, row, last_preprocess):
-        rid_list = last_preprocess.get((row.pid, row.tid, row.hostname), dict()).get("rid_list", None)
+        rid_list = last_preprocess.get((row.pid, row.tid, row.hostname), {}).get("rid_list")
         if rid_list is None:
             rid_list = row.rid_list  # 从 forward 行中获取 rid_list
 
