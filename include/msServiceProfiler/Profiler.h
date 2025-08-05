@@ -78,6 +78,16 @@ namespace msServiceProfiler {
         }
     };
 
+    inline std::string to_string(const ResID& rid)
+    {
+        if (rid.type == ResType::UINT64) {
+            return std::to_string(rid.resValue.rid);
+        } else if (rid.type == ResType::STRING) {
+            return std::string(rid.resValue.strRid);
+        }
+        return "UNKNOWN";
+    }
+
     enum class MarkType : uint8_t { TYPE_EVENT = 0, TYPE_METRIC = 1, TYPE_SPAN = 2, TYPE_LINK = 3 };
 
     template <typename TProfiler, typename T>
