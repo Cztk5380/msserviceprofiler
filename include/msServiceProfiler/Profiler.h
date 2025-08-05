@@ -208,7 +208,7 @@ namespace msServiceProfiler {
                 if (value.type == ResType::UINT64) {
                     return Attr(attrName, value.resValue.rid);
                 } else {
-                    return Attr(attrName, value.resValue.strRid);
+                    return Attr(attrName, std::string(value.resValue.strRid));
                 }
             }
             return *this;
