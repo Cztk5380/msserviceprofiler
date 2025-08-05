@@ -76,13 +76,6 @@ namespace msServiceProfiler {
             static const ResID ILLEGAL_RESOURCE = ResID(std::numeric_limits<uint64_t>::max());
             return ILLEGAL_RESOURCE;
         }
-
-        std::string to_string() const {
-        if (type == ResType::UINT64) {
-            return std::to_string(resValue.rid);
-        } else {
-            return std::string(resValue.strRid);
-        }
     }
     };
 
@@ -232,8 +225,16 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const T value)
         {
             if (IsEnable(levelAttr)) {
-                msg_.append("^").append(attrName).append("^:").append(value.to_string()).append(",");
-            }
+                if constexpr (std::is_same_v<T, ResID>) {
+                    if (value.type == ResType::UINT64) {
+                        msg_.append("^").append(attrName).append("^:").append(std::to_string(value.resValue.rid)).append(",");
+                    } else {
+                        msg_.append("^").append(attrName).append("^:").append(value.resValue.strRid).append(",");
+                    }
+                } else {
+                    msg_.append("^").append(attrName).append("^:").append(std::to_string(value)).append(",");
+                }
+    }
             return *this;
         }
 
