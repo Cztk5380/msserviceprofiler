@@ -424,7 +424,7 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN void Event(const char *eventName) const
         {
             if (this->IsEnable(level)) {
-                this->Attr("name"s, eventName);
+                this->Attr(std::string("name"), std::string(eventName));
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_EVENT));
                 msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
                     .CallMarkEvent(this->GetMsg().c_str());
