@@ -297,7 +297,7 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN Profiler &SpanStart(const char *spanName, bool autoEnd = true)
         {
             if (IsEnable(level)) {
-                this->Attr("name", std::string(eventName));
+                this->Attr("name", spanName);
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_SPAN));
                 spanHandle_ = msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
                     .CallStartSpanWithName(spanName);
@@ -424,7 +424,7 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN void Event(const char *eventName) const
         {
             if (this->IsEnable(level)) {
-                this->Attr("name", eventName);
+                this->Attr("name", std::string(eventName));
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_EVENT));
                 msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
                     .CallMarkEvent(this->GetMsg().c_str());
