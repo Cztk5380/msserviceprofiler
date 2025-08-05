@@ -78,28 +78,6 @@ namespace msServiceProfiler {
         }
     };
 
-    inline std::string to_string(const ResID& rid)
-    {
-        if (rid.type == ResType::UINT64) {
-            return std::to_string(rid.resValue.rid);
-        } else if (rid.type == ResType::STRING) {
-            return std::string(rid.resValue.strRid);
-        }
-        return "UNKNOWN";
-    }
-
-    inline std::string to_string(float value) {
-        return std::to_string(value);
-    }
-
-    inline std::string to_string(double value) {
-        return std::to_string(value);
-    }
-
-    inline std::string to_string(bool value) {
-        return value ? "true" : "false";
-    }
-
     enum class MarkType : uint8_t { TYPE_EVENT = 0, TYPE_METRIC = 1, TYPE_SPAN = 2, TYPE_LINK = 3 };
 
     template <typename TProfiler, typename T>
@@ -246,7 +224,7 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const T value)
         {
             if (IsEnable(levelAttr)) {
-                msg_.append("^").append(attrName).append("^:").append(to_string(value)).append(",");
+                msg_.append("^").append(attrName).append("^:").append(std::to_string(value)).append(",");
             }
             return *this;
         }
