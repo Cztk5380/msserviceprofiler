@@ -92,33 +92,39 @@ def parse_rid_map(all_data_df):
     return rid_link_map
 
 
-def convert_rid_to_str(item):
+def convert_rid_to_str(item, rid_map=None):
     """
-    由于mindIE采集数据中存在rid为str或者int类型，此函数用于类型统一为str
-    rid结构类似[{'rid': 0, 'iter': 0}]
+    转换函数：
+    1. 统一rid为字符串
+    2. 应用rid_link_map映射
     """
-    # 验证数据结构
     if not isinstance(item, list) or not item:
         return item
 
-    # 处理第一个元素
     processed = []
     for elem in item:
         if isinstance(elem, dict) and 'rid' in elem:
-            processed.append({**elem, 'rid': str(elem['rid'])})
+            # 应用映射
+            original_rid = elem.get('rid')
+            mapped_rid = str(rid_map.get(original_rid, original_rid)) if rid_map else original_rid
+            # 保留其他字段（如iter）
+            new_elem = {**elem, 'rid': str(mapped_rid)}
+            processed.append(new_elem)
         else:
             processed.append(elem)
-
     return processed
 
 
 def parse_rid(tx_data_df):
-    if "type" not in tx_data_df.columns or "rid" not in tx_data_df.columns:
-        logger.warning('Missing columns "type" or "rid". Skip parsing')
-        return tx_data_df, None
-    tx_data_df['res_list'] = tx_data_df['rid'].map(convert_rid_to_str)
+    # 1.生成映射rid_link_map
     rid_link_map = parse_rid_map(tx_data_df)
 
+    # 2. 使用带映射的convert_rid_to_str生成res_list
+    tx_data_df['res_list'] = tx_data_df['rid'].map(
+        lambda x: convert_rid_to_str(x, rid_link_map)  # 传入映射字典
+    )
+
+    # 3. 后续处理保持不变
     df = tx_data_df['rid'].apply(lambda x: extract_rid(x, rid_link_map))
     tx_data_df[['rid', 'rid_list', 'token_id_list', 'dp_list']] = pd.DataFrame(df.tolist(), index=tx_data_df.index)
 

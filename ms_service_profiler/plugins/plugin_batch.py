@@ -86,6 +86,12 @@ class PluginBatch(PluginBase):
     def deal_with_forward_row(cls, row, last_preprocess):
         rid_list = last_preprocess.get((row.pid, row.tid, row.hostname), dict()).get("rid_list", None)
         if rid_list is None:
+            rid_list = row.rid_list  # 从 forward 行中获取 rid_list
+
+        # 更新 last_preprocess
+        last_preprocess[(row.pid, row.tid, row.hostname)] = dict(rid_list=rid_list)
+
+        if rid_list is None:
             batch_id = next(
                 (entry["batch_id"] for entry in cls.batch_req.values() if "block" not in entry),
                 None
