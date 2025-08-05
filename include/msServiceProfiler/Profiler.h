@@ -76,6 +76,14 @@ namespace msServiceProfiler {
             static const ResID ILLEGAL_RESOURCE = ResID(std::numeric_limits<uint64_t>::max());
             return ILLEGAL_RESOURCE;
         }
+
+        std::string to_string() const {
+        if (type == ResType::UINT64) {
+            return std::to_string(resValue.rid);
+        } else {
+            return std::string(resValue.strRid);
+        }
+    }
     };
 
     enum class MarkType : uint8_t { TYPE_EVENT = 0, TYPE_METRIC = 1, TYPE_SPAN = 2, TYPE_LINK = 3 };
