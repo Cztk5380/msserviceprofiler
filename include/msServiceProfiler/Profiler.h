@@ -83,7 +83,6 @@ namespace msServiceProfiler {
         } else {
             return std::string(resValue.strRid);
         }
-    }
     };
 
     enum class MarkType : uint8_t { TYPE_EVENT = 0, TYPE_METRIC = 1, TYPE_SPAN = 2, TYPE_LINK = 3 };
@@ -183,7 +182,7 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const char *value)
         {
             if (IsEnable(levelAttr)) {
-                msg_.append("^").append(attrName).append("^:^").append(value).append("^,");
+                msg_.append("^").append(attrName).append("^:^").append(value.to_string()).append("^,");
             }
             return *this;
         }
@@ -232,13 +231,7 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const T value)
         {
             if (IsEnable(levelAttr)) {
-                if constexpr (std::is_fundamental_v<T>) {
-                    // 对于基本类型，使用 std::to_string
-                    msg_.append("^").append(attrName).append("^:").append(std::to_string(value)).append(",");
-                } else {
-                    // 对于自定义类型，调用其 to_string 方法
-                    msg_.append("^").append(attrName).append("^:").append(value.to_string()).append(",");
-                }
+                msg_.append("^").append(attrName).append("^:").append(value.to_string()).append(",");
             }
             return *this;
         }
