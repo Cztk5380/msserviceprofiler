@@ -232,7 +232,7 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const T value)
         {
             if (IsEnable(levelAttr)) {
-                msg_.append("^").append(attrName).append("^:").append(std::to_string(value)).append(",");
+                msg_.append("^").append(attrName).append("^:").append(value.to_string()).append(",");
             }
             return *this;
         }
