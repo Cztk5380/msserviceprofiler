@@ -202,13 +202,13 @@ namespace msServiceProfiler {
             * @return 返回Profiler&当前对象，支持链式调用
         */
         template <Level levelAttr = level>
-        MS_SERVICE_PROFILER_HIDDEN inline const Profiler &Attr(const char *attrName, const ResID &value) const
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const ResID &value) const
         {
             if (IsEnable(levelAttr)) {
                 if (value.type == ResType::UINT64) {
-                    Attr(attrName, value.resValue.rid);
+                    return Attr(attrName, value.resValue.rid);
                 } else {
-                    Attr(attrName, std::string(value.resValue.strRid));
+                    return Attr(attrName, std::string(value.resValue.strRid));
                 }
             }
             return *this;
