@@ -93,8 +93,8 @@ void TestEvent()
 
 void TestLinker()
 {
-    PROF(INFO, Domain(__func__).Link(TEST_VALUE_1234, msServiceProfiler::ResID("test_event_66")));
-    PROF(INFO, Domain(__func__).Link(TEST_VALUE_56, msServiceProfiler::ResID(std::string("str56")));
+    PROF(INFO, Domain(__func__).Link(TEST_VALUE_1234, "test_event_66"));
+    PROF(INFO, Domain(__func__).Link(TEST_VALUE_56, "str56"));
 }
 
 void TestMetaData()
