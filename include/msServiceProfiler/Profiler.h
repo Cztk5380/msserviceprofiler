@@ -78,10 +78,11 @@ namespace msServiceProfiler {
         }
 
         std::string to_string() const {
-        if (type == ResType::UINT64) {
-            return std::to_string(resValue.rid);
-        } else {
-            return std::string(resValue.strRid);
+            if (type == ResType::UINT64) {
+                return std::to_string(resValue.rid);
+            } else {
+                return std::string(resValue.strRid);
+            }
         }
     };
 
