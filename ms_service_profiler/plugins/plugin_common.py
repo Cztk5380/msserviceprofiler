@@ -43,10 +43,12 @@ def extract_ids_from_reslist(rid_from_message, rid_map):
 
     for req in rid_from_message:
         if isinstance(req, int) or isinstance(req, float):
-            rid.append(int(req))
+            rid.append(get_real_rid(req, rid_map))
+            # rid.append(int(req))
             token_id.append(None)
         elif isinstance(req, dict):
-            rid.append(str(rid_map.get(req.get('rid', None), req.get('rid', None))))
+            req_id = req.get('rid', None)
+            rid.append(get_real_rid(req_id, rid_map))
             # iter_size 为vllm数据采集特有字段
             if req.get('iter_size'):
                 token_id.append(extract_iter_from_batch(req))
@@ -62,32 +64,49 @@ def extract_ids_from_reslist(rid_from_message, rid_map):
     return rid, token_id, dp_id
 
 
+def get_real_rid(rid_from_message, rid_map):
+    rid_from_message = convert_to_format_str(rid_from_message)
+    return rid_map.get(rid_from_message, rid_from_message)
+
+
 def extract_rid(rid_from_message, rid_map):
     rid, rid_list, token_id_list, dp_list = None, None, None, None
     if rid_from_message is not None:
-        if isinstance(rid_from_message, str):
-            rid = str(rid_map.get(rid_from_message, rid_from_message))
-        elif isinstance(rid_from_message, list):
+        if isinstance(rid_from_message, list):
             rid_list, token_id_list, dp_list = extract_ids_from_reslist(rid_from_message, rid_map)
             rid = ','.join(map(str, rid_list))
         else:
-            rid = str(rid_from_message)
+            rid = get_real_rid(rid_from_message, rid_map)
 
     return rid, rid_list, token_id_list, dp_list
+
+
+def convert_to_format_str(x):
+    if x is None:
+        return None  # 或其他默认值
+    try:
+        # 尝试转换为浮点数并检查是否为整数
+        x_float = float(x)
+        if x_float.is_integer():
+            return str(int(x_float))
+        else:
+            return str(x_float)
+    except Exception as ex:
+        # 非数值类型保持原样
+        try: 
+            return str(x)
+        except:
+            raise ValueError(f'rid can not convert to str. {ex}')
 
 
 def parse_rid_map(all_data_df):
     df = all_data_df[all_data_df["type"] == 3]  # already checked 'type' in all_data_df
     if "from" in df.columns and "to" in df.columns:
+        df.loc[:, 'from'] = df['from'].apply(convert_to_format_str)
+        df.loc[:, 'to'] = df['to'].apply(convert_to_format_str)
         rid_link_map = dict(zip(df['to'], df['from']))
     else:
         rid_link_map = {}
-
-    try:
-        rid_link_map = {str(k): str(v) for k, v in rid_link_map.items()}
-    except Exception as ex:
-        logger.error(f'rid can not convert to str. {ex}')
-        raise
 
     return rid_link_map
 
