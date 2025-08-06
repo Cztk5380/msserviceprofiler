@@ -58,11 +58,8 @@ class ExporterTrace(TaskExporterBase):
                 msprof_data_ppid = pf.get("pid")
                 msprof_data_pids = set()
                 for prof_path in pf.get("msprof_files"):
-                    cann_prof_data = load_single_prof(prof_path, index)
-                    for prof_slice_data in cann_prof_data.get("traceEvents"):
-                        msprof_data_pids.add(prof_slice_data.get("pid")) 
+                    cann_prof_data, msprof_data_pids = load_single_prof(prof_path, index)
                     cann_data.append(cann_prof_data)
-                msprof_data_pids.discard(None)
                 for msprof_data_pid in msprof_data_pids:
                     pid_ppid_map.append((msprof_data_pid, msprof_data_ppid))
             
@@ -126,14 +123,17 @@ def prepare_domain_for_process(all_data_df):
 
 
 def process_prof_trace_events(events, index):
+    pid_list = set()
     for event in events:
+        pid_list.add(event.get('pid'))
         event_id = event.get('id')
         event_ph = event.get('ph')
         if event_id is not None and event_ph in ['s', 'f']:
             # 将 event_id 和 index 转换为字符串并拼接，保证不会重复
             event['id'] = str(event_id) + '_' + str(index)
 
-    return [x for x in events if x.get("name") != 'process_sort_index']
+    pid_list.discard(None)
+    return [x for x in events if x.get("name") != 'process_sort_index'], pid_list
 
 
 def load_single_prof(pf, prof_id):
@@ -154,9 +154,9 @@ def load_single_prof(pf, prof_id):
         )
         return {"traceEvents": []}
 
-    trace_events = process_prof_trace_events(trace_events, prof_id)
+    trace_events, pid_list = process_prof_trace_events(trace_events, prof_id)
 
-    return {"traceEvents": trace_events}
+    return {"traceEvents": trace_events}, pid_list
 
 
 def find_cann_pid(trace_events):
