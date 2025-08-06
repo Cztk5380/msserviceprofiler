@@ -299,6 +299,7 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map):
         process_tree[pid] = ppid
     
     process_prefix = {}
+    
     def build_prcess_prefix(pid):
         if pid in process_prefix:
             return process_prefix[pid]
@@ -313,7 +314,7 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map):
     
     process_prefix_list = [(ori_pid, build_prcess_prefix(pid)) for pid, _, ori_pid in pid_ppid_map]
     
-    process_prefix_list.sort(key = lambda x: x[1])
+    process_prefix_list.sort(key=lambda x: x[1])
 
     for index, item in enumerate(process_prefix_list):
         pid, _ = item
