@@ -63,7 +63,9 @@ class ExporterTrace(TaskExporterBase):
                 for msprof_data_pid in msprof_data_pids:
                     pid_ppid_map.append((msprof_data_pid, msprof_data_ppid))
             
-            pid_ppid_map.extend(set(zip(all_data_df['pid'], all_data_df['ppid'])))
+            if "ppid" in all_data_df and "pid" in all_data_df:
+                pid_ppid_map.extend(set(zip(all_data_df['pid'], all_data_df['ppid'])))
+
             pid_ppid_map = [(str(pid), ppid, pid) for pid, ppid in pid_ppid_map]
             
             trace_data = create_trace_events(all_data_df, pid_label_map, pid_ppid_map)

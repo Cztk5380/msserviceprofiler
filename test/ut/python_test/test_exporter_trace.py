@@ -37,7 +37,7 @@ def mock_data():
     msprof_data = []
     for profile, date_time in zip(profiles, date_times):
         file_path = f'{base_path}{profile}/mindstudio_profiler_output/msprof_{date_time}.json'
-        msprof_data.append(dict(msprof_files=[file_path]))
+        msprof_data.append(dict(msprof_files=[file_path], pid=12))
 
     # 模拟输入的 DataFrame 数据
     return {
