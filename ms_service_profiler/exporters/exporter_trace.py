@@ -168,7 +168,7 @@ def save_trace_data_into_db(trace_data):
         conn.commit()
     except Exception as ex:
         conn.rollback()  # 失败时回滚
-        raise DatabaseError("Cannot update sqlite database when create trace table.") from ex
+        raise DatabaseError(f"Cannot update sqlite database when create trace table due to {ex}") from ex
     finally:
         if conn:
             conn.close()

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
+from decimal import Decimal
 from collections import defaultdict
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.file_open_check import safe_json_dump
@@ -69,7 +70,7 @@ UPDATA_SQL_TEMPLATES = {
 
 
 def convert_ts_to_ns(ts):
-    return float(ts) * NS_PER_US
+    return int((Decimal(str(ts)) * NS_PER_US))
 
 
 # M类型: thread, process
