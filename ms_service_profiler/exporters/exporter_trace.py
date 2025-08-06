@@ -142,17 +142,17 @@ def load_single_prof(pf, prof_id):
             trace_events = json.load(file)
     except OpenException as oe:
         logger.warning(f"OpenException occurred {oe}")
-        return {"traceEvents": []}
+        return {"traceEvents": []}, set()
     except FileNotFoundError:
         logger.warning("The msprof.json file was not found. Please check the file path.")
-        return {"traceEvents": []}
+        return {"traceEvents": []}, set()
     except json.JSONDecodeError:
         logger.warning(
             "%r is not in a valid JSON format, " \
             "which might be normal and probably because this file stores 'mstx' data only",
             pf
         )
-        return {"traceEvents": []}
+        return {"traceEvents": []}, set()
 
     trace_events, pid_list = process_prof_trace_events(trace_events, prof_id)
 
