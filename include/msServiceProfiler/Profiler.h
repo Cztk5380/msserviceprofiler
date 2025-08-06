@@ -202,7 +202,7 @@ namespace msServiceProfiler {
             * @return 返回Profiler&当前对象，支持链式调用
         */
         template <Level levelAttr = level>
-        MS_SERVICE_PROFILER_HIDDEN inline const Profiler &Attr(const char *attrName, const ResID &value) const
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const ResID &value)
         {
             if (IsEnable(levelAttr)) {
                 if (value.type == ResType::UINT64) {
@@ -421,7 +421,7 @@ namespace msServiceProfiler {
             * @brief 记录一个事件
             * @param eventName [in] 事件名
         */
-        MS_SERVICE_PROFILER_HIDDEN void Event(const char *eventName) const
+        MS_SERVICE_PROFILER_HIDDEN void Event(const char *eventName)
         {
             if (this->IsEnable(level)) {
                 this->Attr("name", std::string(eventName));
@@ -437,7 +437,7 @@ namespace msServiceProfiler {
             * @param fromRid [in] ResID类型的编号，ResID可以由字符串或数值隐式转换。
             * @param toRid [in] ResID类型的编号，ResID可以由字符串或数值隐式转换。
         */
-        MS_SERVICE_PROFILER_HIDDEN void Link(const ResID &fromRid, const ResID &toRid) const
+        MS_SERVICE_PROFILER_HIDDEN void Link(const ResID &fromRid, const ResID &toRid)
         {
             if (this->IsEnable(level)) {
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_LINK));
