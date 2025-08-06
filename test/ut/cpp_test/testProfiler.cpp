@@ -266,7 +266,7 @@ TEST_F(TestProfiler, AttrProfDisableNull)
     ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
 }
 
-EST_F(TestProfiler, AttrProfEnableResID)
+TEST_F(TestProfiler, AttrProfEnableResID)
 {
     auto prof = PROF(INFO, Attr("key", ResID(TEST_NUMER_2)));
     EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:2,");
