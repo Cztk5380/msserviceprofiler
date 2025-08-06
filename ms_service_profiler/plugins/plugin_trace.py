@@ -1,5 +1,7 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
+import pandas as pd
+
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger
@@ -25,22 +27,50 @@ class PluginTrace(PluginBase):
     depends = ["plugin_common", "plugin_req_status"]
 
     @staticmethod
+    def map_batch_type(batch_type, batch_type_mapping):
+        if pd.isna(batch_type):
+            return None  # 保持为空值
+        return batch_type_mapping.get(batch_type, "Other")
+
+    @staticmethod
     def fix_batch_type(tx_data_df):
         with KeyExcept('name', 'hostname', 'pid', "batch_type", "rid_list", ignore=True, msg=""):
+            # 创建映射字典
+            batch_type_mapping = {
+                0: "Prefill",
+                1: "Decode",
+                2: "Extend",
+                3: "Mixed",
+                5: "Dummy",
+            }
+
+            # MindIE重构后BatchSchedule中存在batchType字段，很准确，不需要执行之前逻辑
+            if 'batchType' in tx_data_df.columns:
+                # 使用映射方法设置 batch_type
+                tx_data_df['batch_type'] = tx_data_df['batchType'].apply(
+                    lambda x: PluginTrace.map_batch_type(x, batch_type_mapping)
+                )
+                # 跳过后续逻辑
+                return tx_data_df
+
             # 判断每个进程的角色
             role_df = tx_data_df[tx_data_df["name"].isin(["prefillRes", "decodeRes"])]
             # role_map hostname+pid -> role
-            role_map = dict(zip(zip(role_df['hostname'], role_df['pid']), role_df['name'].map(dict(prefillRes=HostRole.PREFILL, decodeRes=HostRole.DECODE))))
+            role_map = dict(zip(zip(role_df['hostname'], role_df['pid']),
+                                role_df['name'].map(dict(prefillRes=HostRole.PREFILL, decodeRes=HostRole.DECODE))))
 
             # 筛选出角色和 batch_type 冲突的部分
-            tx_data_df['role'] = tx_data_df[tx_data_df['batch_type'].notna()].apply(lambda row: role_map.get((row['hostname'], row['pid']), None), axis=1)
+            tx_data_df['role'] = tx_data_df[tx_data_df['batch_type'].notna()].apply(
+                lambda row: role_map.get((row['hostname'], row['pid']), None), axis=1)
 
             # prefill 冲突的部分，错判部分全部置为other
-            prefill_conflict = tx_data_df[(tx_data_df['role'] == HostRole.PREFILL) & (tx_data_df['batch_type'] != "Prefill")]
+            prefill_conflict = tx_data_df[
+                (tx_data_df['role'] == HostRole.PREFILL) & (tx_data_df['batch_type'] != "Prefill")]
             tx_data_df.loc[prefill_conflict.index, "batch_type"] = "Other"
 
             # decode 按请求拆分，最后一个置为decode，其他置为other, 再汇总为 batch，有一个为decode 就置为decode，其他置为 other
-            decode_conflict = tx_data_df[(tx_data_df['role'] == HostRole.DECODE) & (tx_data_df['batch_type'] != "Decode")]
+            decode_conflict = tx_data_df[
+                (tx_data_df['role'] == HostRole.DECODE) & (tx_data_df['batch_type'] != "Decode")]
             decode_conflict = decode_conflict[["hostname", "pid", "name", "rid_list"]].reset_index().explode("rid_list")
             decode_conflict["batchtype"] = BatchType.OTHER
             last_rows = decode_conflict.groupby(["hostname", "pid", "name", "rid_list"]).tail(1).index
@@ -59,8 +89,8 @@ class PluginTrace(PluginBase):
     @classmethod
     @timer(logger.info)
     def parse(cls, data):
-        with KeyExcept('token_id_list', 'batch_type', 'rid_list', ignore=True, 
-            msg="ignoring current process by default."):
+        with KeyExcept('token_id_list', 'batch_type', 'rid_list', ignore=True,
+                       msg="ignoring current process by default."):
             tx_data_df = data.get('tx_data_df')
             if tx_data_df is None:
                 raise ValueError("tx_data_df is None")
