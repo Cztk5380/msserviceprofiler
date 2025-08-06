@@ -406,6 +406,7 @@ def check_domain_valid(df, domain_list, exporter_name):
 
     return True
 
+
 def check_columns_valid(df, column_list, exporter_name):
     current_columns = set(df.columns)
 
