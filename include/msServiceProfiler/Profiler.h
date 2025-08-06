@@ -206,7 +206,8 @@ namespace msServiceProfiler {
         {
             if (IsEnable(levelAttr)) {
                 if (value.type == ResType::UINT64) {
-                    return Attr(attrName, std::to_string(value.resValue.rid).c_str());
+                    auto str = std::to_string(value.resValue.rid);
+                    return Attr(attrName, str);
                 } else {
                     return Attr(attrName, std::string(value.resValue.strRid));
                 }
