@@ -52,8 +52,23 @@ class ExporterTrace(TaskExporterBase):
 
             msprof_data_df = data.get('msprof_data', pd.DataFrame())
 
-            cann_data = [load_single_prof(pf, index) for index, pf in enumerate(msprof_data_df)]
-            trace_data = create_trace_events(all_data_df, pid_label_map)
+            cann_data = []
+            pid_ppid_map = []
+            for index, pf in enumerate(msprof_data_df):
+                msprof_data_ppid = pf.get("pid")
+                msprof_data_pids = set()
+                for prof_path in pf.get("msprof_files"):
+                    cann_prof_data, msprof_data_pids = load_single_prof(prof_path, index)
+                    cann_data.append(cann_prof_data)
+                for msprof_data_pid in msprof_data_pids:
+                    pid_ppid_map.append((msprof_data_pid, msprof_data_ppid))
+            
+            if "ppid" in all_data_df and "pid" in all_data_df:
+                pid_ppid_map.extend(set(zip(all_data_df['pid'], all_data_df['ppid'])))
+
+            pid_ppid_map = [(str(pid), ppid, pid) for pid, ppid in pid_ppid_map]
+            
+            trace_data = create_trace_events(all_data_df, pid_label_map, pid_ppid_map)
             merged_data = merge_json_data(trace_data, cann_data)
         else:
             merged_data = {"traceEvents": []}
@@ -110,13 +125,17 @@ def prepare_domain_for_process(all_data_df):
 
 
 def process_prof_trace_events(events, index):
+    pid_list = set()
     for event in events:
+        pid_list.add(event.get('pid'))
         event_id = event.get('id')
         event_ph = event.get('ph')
         if event_id is not None and event_ph in ['s', 'f']:
             # 将 event_id 和 index 转换为字符串并拼接，保证不会重复
             event['id'] = str(event_id) + '_' + str(index)
-    return events
+
+    pid_list.discard(None)
+    return [x for x in events if x.get("name") != 'process_sort_index'], pid_list
 
 
 def load_single_prof(pf, prof_id):
@@ -125,21 +144,21 @@ def load_single_prof(pf, prof_id):
             trace_events = json.load(file)
     except OpenException as oe:
         logger.warning(f"OpenException occurred {oe}")
-        return {"traceEvents": []}
+        return {"traceEvents": []}, set()
     except FileNotFoundError:
         logger.warning("The msprof.json file was not found. Please check the file path.")
-        return {"traceEvents": []}
+        return {"traceEvents": []}, set()
     except json.JSONDecodeError:
         logger.warning(
             "%r is not in a valid JSON format, " \
             "which might be normal and probably because this file stores 'mstx' data only",
             pf
         )
-        return {"traceEvents": []}
+        return {"traceEvents": []}, set()
 
-    trace_events = process_prof_trace_events(trace_events, prof_id)
+    trace_events, pid_list = process_prof_trace_events(trace_events, prof_id)
 
-    return {"traceEvents": trace_events}
+    return {"traceEvents": trace_events}, pid_list
 
 
 def find_cann_pid(trace_events):
@@ -244,7 +263,7 @@ def add_flow_event(flow_event_df):
     return flow_trace_events
 
 
-def create_trace_events(all_data_df, pid_label_map=None):
+def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
     metric_event = ['npu', 'KVCache', 'PullKVCache']
 
     # 普通事件
@@ -267,44 +286,60 @@ def create_trace_events(all_data_df, pid_label_map=None):
         trace_events.extend(flow_trace_events)
         
     trace_events = sort_trace_events_by_tid(trace_events)
-    if pid_label_map is not None:
-        trace_events.extend(sort_trace_events_by_pid(pid_label_map))
+    if pid_label_map is not None or pid_ppid_map is not None:
+        trace_events.extend(sort_trace_events_by_pid(pid_label_map, pid_ppid_map))
 
     trace_data = {"traceEvents": trace_events}
     return trace_data
 
 
-def sort_trace_events_by_pid(pid_label_map):
+def sort_trace_events_by_pid(pid_label_map, pid_ppid_map):
     pid_sorting_meta = []
-    pid_sorting = []
-    for pid, item in pid_label_map.items():
-        host_name = item.get("hostname", "")
-        dp = item.get("dp", -1)
-        dp_rank = item.get("dp_rank", -1)
-        pid_sorting.append((pid, host_name, dp, dp_rank))
     
-    pid_sorting.sort(key=lambda x: (x[2], x[1]))
+    process_tree = {}
+    for pid, ppid, _ in pid_ppid_map:
+        process_tree[pid] = ppid
+    
+    process_prefix = {}
+    
+    def build_prcess_prefix(pid):
+        if pid in process_prefix:
+            return process_prefix[pid]
+        ppid = process_tree.get(pid)
+        if ppid is None:
+            return ""
+        
+        ppid_prefix = build_prcess_prefix(ppid)
+        pid_prefix = f"{ppid_prefix}.{pid}"
+        process_prefix[pid] = pid_prefix
+        return pid_prefix
+    
+    process_prefix_list = [(ori_pid, build_prcess_prefix(pid)) for pid, _, ori_pid in pid_ppid_map]
+    
+    process_prefix_list.sort(key=lambda x: x[1])
 
-    for index, item in enumerate(pid_sorting):
-        pid, host_name, dp, dp_rank = item
+    for index, item in enumerate(process_prefix_list):
+        pid, _ = item
         pid_sorting_meta.append(dict(
             name="process_sort_index",
             ph="M",
             pid=pid,
             args=dict(sort_index=index))
         )
-        labels = [host_name]
+        labels = []
+        if pid_label_map is not None and "host_name" in pid_label_map.get(pid, []): 
+            labels.append(pid_label_map.get(pid).get("host_name"))
+        if pid_label_map is not None and "dp" in pid_label_map.get(pid, []): 
+            labels.append(f"dp{pid_label_map.get(pid).get('dp')}")
+        elif pid_label_map is not None and "dp_rank" in pid_label_map.get(pid, []): 
+            labels.append(f"dp{pid_label_map.get(pid).get('dp_rank')}")
 
-        if dp != -1:
-            labels.append(f"dp{int(dp)}")
-        elif dp_rank != -1:
-            labels.append(f"dp{int(dp_rank)}")
-
-        pid_sorting_meta.append(dict(
-            name="process_labels",
-            ph="M",
-            pid=pid,
-            args=dict(labels=','.join(labels)))
+        if labels:
+            pid_sorting_meta.append(dict(
+                name="process_labels",
+                ph="M",
+                pid=pid,
+                args=dict(labels=','.join(labels)))
         )
     
     return pid_sorting_meta
