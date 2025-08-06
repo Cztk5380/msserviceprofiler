@@ -48,6 +48,18 @@ TABLE_DATA_VIEW_NAME_LIST = {
 }
 
 
+class COLUMN_CONST:
+    HOSTUID_COLUMN = 'hostuid'
+    PID_COLUMN = 'pid'
+    START_TIME_COLUMN = 'start_time'
+    START_TIME_MS_COLUMN = 'start_time (ms)'
+    RELATIVE_START_TIME_MS_COLUMN = 'relative_start_time (ms)'
+    DOMAIN_COLUMN = 'domain'
+    NAME_COLUMN = 'name'
+    STATUS_COLUMN = 'status'
+    QUEUESIZE_COLUMN = 'QueueSize='
+
+
 def write_result_to_db(df_param_list, create_view_sql=None, table_name="", rename_cols=None):
     """
         df_param_list: [[需要存入db中table的df, table name], [...]]

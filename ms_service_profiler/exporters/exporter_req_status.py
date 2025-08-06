@@ -1,11 +1,12 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
 import pandas as pd
+import numpy as np
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.plugins.plugin_req_status import ReqStatus
 from ms_service_profiler.exporters.utils import write_result_to_db, CURVE_VIEW_NAME_LIST, check_domain_valid, \
-    check_columns_valid, save_dataframe_to_csv
+    check_columns_valid, save_dataframe_to_csv, COLUMN_CONST
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import key_except
@@ -20,43 +21,50 @@ class ExporterReqStatus(ExporterBase):
 
     @classmethod
     @timer(logger.info)
-    @key_except('domain', 'name', ignore=True, msg="ignoring current exporter by default.")
+    @key_except(COLUMN_CONST.DOMAIN_COLUMN, COLUMN_CONST.NAME_COLUMN, \
+        ignore=True, msg="ignoring current exporter by default.")
     def export(cls, data) -> None:
         if 'db' not in cls.args.format and 'csv' not in cls.args.format:
             return
 
         if cls.valid_for_csv_output(data):
             df = data.get('tx_data_df')
-            need_columns = ["hostuid", "pid", "start_time", "domain", "name", "status", "QueueSize="]
+            need_columns = [COLUMN_CONST.HOSTUID_COLUMN, COLUMN_CONST.PID_COLUMN, COLUMN_CONST.START_TIME_COLUMN, \
+                COLUMN_CONST.DOMAIN_COLUMN, COLUMN_CONST.NAME_COLUMN, COLUMN_CONST.STATUS_COLUMN, \
+                    COLUMN_CONST.QUEUESIZE_COLUMN]
 
             mask = (
-                (df['domain'] == 'Schedule') &
-                (df['name'] == 'Queue') &
-                (df['status'].isin(['waiting', 'running', 'swapped']))
+                (df[COLUMN_CONST.DOMAIN_COLUMN] == 'Schedule') &
+                (df[COLUMN_CONST.NAME_COLUMN] == 'Queue') &
+                (df[COLUMN_CONST.STATUS_COLUMN].isin(['waiting', 'running', 'swapped']))
             )
             df = df.loc[mask, need_columns]
-            df['waiting'] = df.apply(lambda row: row['QueueSize='] if row['status'] == 'waiting' else None, axis=1)
-            df['running'] = df.apply(lambda row: row['QueueSize='] if row['status'] == 'running' else None, axis=1)
-            df['swapped'] = df.apply(lambda row: row['QueueSize='] if row['status'] == 'swapped' else None, axis=1)
+            df['waiting'] = np.where(df[COLUMN_CONST.STATUS_COLUMN] == 'waiting', \
+                df[COLUMN_CONST.QUEUESIZE_COLUMN], None)
+            df['running'] = np.where(df[COLUMN_CONST.STATUS_COLUMN] == 'running', \
+                df[COLUMN_CONST.QUEUESIZE_COLUMN], None)
+            df['swapped'] = np.where(df[COLUMN_CONST.STATUS_COLUMN] == 'swapped', \
+                df[COLUMN_CONST.QUEUESIZE_COLUMN], None)
 
-            # start_time列改名为timestamp (ms)，并转换为毫秒为单位
-            df.rename(columns={'start_time': 'timestamp (ms)'}, inplace=True)
-            df['timestamp (ms)'] = df['timestamp (ms)'] / 1000.0
-            df['timestamp (ms)'] = df['timestamp (ms)'].round(2)
+            # start_time转换为毫秒为单位
+            df[COLUMN_CONST.START_TIME_MS_COLUMN] = df[COLUMN_CONST.START_TIME_COLUMN] / 1000.0
+            df[COLUMN_CONST.START_TIME_MS_COLUMN] = df[COLUMN_CONST.START_TIME_MS_COLUMN].round(2)
 
-            # 增加relative_timestamp (ms)列
-            df['relative_timestamp (ms)'] = df.groupby('pid')['timestamp (ms)'].transform(lambda x: x - x.min())
-            df['relative_timestamp (ms)'] = df['relative_timestamp (ms)'].round(2)
+            # 增加relative_start_time (ms)列
+            df[COLUMN_CONST.RELATIVE_START_TIME_MS_COLUMN] = \
+                df.groupby(COLUMN_CONST.PID_COLUMN)[COLUMN_CONST.START_TIME_MS_COLUMN].transform(lambda x: x - x.min())
+            df[COLUMN_CONST.RELATIVE_START_TIME_MS_COLUMN] = df[COLUMN_CONST.RELATIVE_START_TIME_MS_COLUMN].round(2)
 
-            # 去掉domain status QueueSize=这三列
-            df.drop(columns=['domain', 'status', 'QueueSize=', 'name'], inplace=True)
 
-            desired_columns = ['hostuid', 'pid', 'timestamp (ms)', 'relative_timestamp (ms)', \
+            desired_columns = [COLUMN_CONST.HOSTUID_COLUMN, COLUMN_CONST.PID_COLUMN, \
+                COLUMN_CONST.START_TIME_MS_COLUMN, COLUMN_CONST.RELATIVE_START_TIME_MS_COLUMN, \
                 'waiting', 'running', 'swapped']
             df = df[desired_columns]
 
             output = cls.args.output_path
+            logger.info("Start save data to csv")
             save_dataframe_to_csv(df, output, "request_status.csv")
+            logger.info('Write request status data to csv success')
 
         if cls.valid_for_db_output(data):
             df = data.get('tx_data_df')
@@ -65,11 +73,13 @@ class ExporterReqStatus(ExporterBase):
             # 处理 status 列的映射和编码
             df = cls._process_status_columns(df, metrics)
 
+            logger.info('Start write request data to db')
             write_result_to_db(
                 df_param_list=[[df, 'request_status']],
                 table_name='request_status',
                 create_view_sql=[cls.CREATE_REQUEST_STATE_VIEW_SQL]
             )
+            logger.info('Write request data to db success')
 
     @classmethod
     def valid_for_csv_output(cls, data):
@@ -78,7 +88,9 @@ class ExporterReqStatus(ExporterBase):
             logger.warning("The data is empty, please check")
             return False
 
-        need_columns = ["hostuid", "pid", "start_time", "domain", "name", "status", "QueueSize="]
+        need_columns = [COLUMN_CONST.HOSTUID_COLUMN, COLUMN_CONST.PID_COLUMN, COLUMN_CONST.START_TIME_COLUMN, \
+            COLUMN_CONST.DOMAIN_COLUMN, COLUMN_CONST.NAME_COLUMN, COLUMN_CONST.STATUS_COLUMN, \
+                COLUMN_CONST.QUEUESIZE_COLUMN]
         if not check_columns_valid(df, need_columns, cls.name):
             return False
         if not check_domain_valid(df, ['Schedule'], cls.name):
@@ -103,7 +115,7 @@ class ExporterReqStatus(ExporterBase):
 
     @classmethod
     def _process_status_columns(cls, df, metrics):
-        if 'status' in df.columns:
+        if COLUMN_CONST.STATUS_COLUMN in df.columns:
             df = cls._map_and_encode_status(df, metrics)
         else:
             df = cls._prepare_metrics_df(df, metrics)
@@ -117,10 +129,10 @@ class ExporterReqStatus(ExporterBase):
         }
 
         # 将status列的值映射到旧版状态值
-        df['status'] = df['status'].map(old_status_mapping)
+        df[COLUMN_CONST.STATUS_COLUMN] = df[COLUMN_CONST.STATUS_COLUMN].map(old_status_mapping)
 
         # 将status列转换为one-hot编码
-        df = pd.get_dummies(df['status'], prefix='', prefix_sep='')
+        df = pd.get_dummies(df[COLUMN_CONST.STATUS_COLUMN], prefix='', prefix_sep='')
 
         # 添加timestamp列
         df.insert(0, 'timestamp', metrics['start_datetime'])

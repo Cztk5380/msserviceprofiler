@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import pytest
 import pandas as pd
+import numpy as np
 from ms_service_profiler.exporters.exporter_req_status import ExporterReqStatus
 from ms_service_profiler.exporters.utils import create_sqlite_db, visual_db_fp
 
@@ -91,11 +92,11 @@ def test_export_with_csv_format():
         expected_df = pd.DataFrame({
             'hostuid': [1, 2, 3],
             'pid': [101, 101, 102],
-            'timestamp (ms)': [1.0, 1.01, 1.02],
-            'relative_timestamp (ms)': [0, 0.01, 0],
-            'waiting': [10., None, None],
-            'running': [None, 15., None],
-            'swapped': [None, None, 20.]
+            'start_time (ms)': [1.0, 1.01, 1.02],
+            'relative_start_time (ms)': [0, 0.01, 0],
+            'waiting': np.array([10, None, None]),
+            'running': np.array([None, 15, None]),
+            'swapped': np.array([None, None, 20])
         })
         pd.testing.assert_frame_equal(mock_save_dataframe_to_csv.call_args[0][0], expected_df)
         assert mock_save_dataframe_to_csv.call_args[0][1] == 'output_path'
