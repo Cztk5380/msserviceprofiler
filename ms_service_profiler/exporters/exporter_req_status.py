@@ -46,18 +46,17 @@ class ExporterReqStatus(ExporterBase):
             df['swapped'] = np.where(df[COLUMN_CONST.STATUS_COLUMN] == 'swapped', \
                 df[COLUMN_CONST.QUEUESIZE_COLUMN], None)
 
-            # start_time转换为毫秒为单位
-            df[COLUMN_CONST.START_TIME_MS_COLUMN] = df[COLUMN_CONST.START_TIME_COLUMN] / 1000.0
-            df[COLUMN_CONST.START_TIME_MS_COLUMN] = df[COLUMN_CONST.START_TIME_MS_COLUMN].round(2)
+            # 增加timestamp(ms)列
+            df[COLUMN_CONST.TIMESTAMP_MS_COLUMN] = (df[COLUMN_CONST.START_TIME_COLUMN] / 1000.0).round(2)
 
-            # 增加relative_start_time (ms)列
-            df[COLUMN_CONST.RELATIVE_START_TIME_MS_COLUMN] = \
-                df.groupby(COLUMN_CONST.PID_COLUMN)[COLUMN_CONST.START_TIME_MS_COLUMN].transform(lambda x: x - x.min())
-            df[COLUMN_CONST.RELATIVE_START_TIME_MS_COLUMN] = df[COLUMN_CONST.RELATIVE_START_TIME_MS_COLUMN].round(2)
+            # 增加relative_timestamp(ms)列
+            df[COLUMN_CONST.RELATIVE_TIMESTAMP_MS_COLUMN] = \
+                df.groupby(COLUMN_CONST.PID_COLUMN)[COLUMN_CONST.TIMESTAMP_MS_COLUMN].transform(
+                    lambda x: (x - x.min()).round(2))
 
 
             desired_columns = [COLUMN_CONST.HOSTUID_COLUMN, COLUMN_CONST.PID_COLUMN, \
-                COLUMN_CONST.START_TIME_MS_COLUMN, COLUMN_CONST.RELATIVE_START_TIME_MS_COLUMN, \
+                COLUMN_CONST.TIMESTAMP_MS_COLUMN, COLUMN_CONST.RELATIVE_TIMESTAMP_MS_COLUMN, \
                 'waiting', 'running', 'swapped']
             df = df[desired_columns]
 
