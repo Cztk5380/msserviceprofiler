@@ -87,8 +87,10 @@ void TestMetric()
 
 void TestEvent()
 {
-    PROF(INFO, Domain(__func__).Attr("attr3", std::to_string(TEST_VALUE_66)).Event("test_event_66"));
-    PROF(INFO, Domain(__func__).Attr("attr3", std::to_string(TEST_VALUE_56)).Event("test_event_66"));
+        printf("TestEvent start\n");
+    // PROF(INFO, Domain(__func__).Attr("attr3", "66").Event("test_event_66"));
+    // PROF(INFO, Domain(__func__).Attr("attr3", "56").Event("test_event_66"));
+    printf("TestEvent end\n");
 }
 
 void TestLinker()
