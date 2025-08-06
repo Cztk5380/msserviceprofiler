@@ -208,7 +208,7 @@ namespace msServiceProfiler {
                 if (value.type == ResType::UINT64) {
                     return Attr(attrName, value.resValue.rid);
                 } else {
-                    return Attr(attrName, std::string(value.resValue.strRid));
+                    return Attr(attrName, value.resValue.strRid);
                 }
             }
             return *this;
@@ -234,7 +234,7 @@ namespace msServiceProfiler {
             * @param rid [in] 请求id，可以由字符串或数值隐式转换
             * @return 返回当前Profiler&对象，支持链式调用
         */
-        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Resource(const ResID &rid) const
+        MS_SERVICE_PROFILER_HIDDEN inline Profiler &Resource(const ResID &rid)
         {
             if (IsEnable(level)) {
                 if (!rid.IsIllegal()) {
@@ -424,7 +424,7 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN void Event(const char *eventName)
         {
             if (this->IsEnable(level)) {
-                this->Attr("name", std::string(eventName));
+                this->Attr("name", eventName);
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_EVENT));
                 msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
                     .CallMarkEvent(this->GetMsg().c_str());

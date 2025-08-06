@@ -266,24 +266,21 @@ TEST_F(TestProfiler, AttrProfDisableNull)
     ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
 }
 
-TEST_F(TestProfiler, AttrProfEnableResID)
+EST_F(TestProfiler, AttrProfEnableResID)
 {
-    auto prof = PROF(INFO, Attr("key", static_cast<long long>(ResID(TEST_NUMER_2).resValue.rid)));
+    auto prof = PROF(INFO, Attr("key", ResID(TEST_NUMER_2)));
     EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:2,");
 }
 
 TEST_F(TestProfiler, AttrProfEnableResIDStr)
 {
-    long long hash_val = static_cast<long long>(std::hash<std::string>{}("2"));
-    auto prof = PROF(INFO, Attr("key", hash_val));
-    EXPECT_THAT(prof.GetMsg(), ::testing::HasSubstr("key"));
-    EXPECT_THAT(prof.GetMsg(), ::testing::HasSubstr(std::to_string(hash_val)));
+    auto prof = PROF(INFO, Attr("key", ResID("2")));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:^2^,");
 }
 
 TEST_F(TestProfiler, AttrProfDisAbleResID)
 {
-    const long long ridValue = static_cast<long long>(ResID(TEST_NUMER_2).resValue.rid);
-    auto prof = PROF(DETAILED, Attr("key", ridValue));
+    auto prof = PROF(DETAILED, Attr("key", ResID(TEST_NUMER_2)));
     EXPECT_STREQ(prof.GetMsg().c_str(), "");
 }
 
