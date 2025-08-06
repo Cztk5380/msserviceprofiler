@@ -37,7 +37,7 @@ def mock_data():
     msprof_data = []
     for profile, date_time in zip(profiles, date_times):
         file_path = f'{base_path}{profile}/mindstudio_profiler_output/msprof_{date_time}.json'
-        msprof_data.append(file_path)
+        msprof_data.append(dict(msprof_files=[file_path]))
 
     # 模拟输入的 DataFrame 数据
     return {
@@ -164,8 +164,9 @@ def test_integration(mock_data):
     with patch("ms_service_profiler.exporters.exporter_trace.ms_open", return_value=mock_file) as mock_ms_open:
         trace_data = {"traceEvents": []}
         for pf in mock_data["msprof_data"]:
-            result, _ = load_single_prof(pf, ["123"])
-            trace_data = merge_json_data(trace_data, [result])
+            for prof_path in pf.get("msprof_files"):
+                result, _ = load_single_prof(prof_path, ["123"])
+                trace_data = merge_json_data(trace_data, [result])
 
         # 验证 ms_open 被正确调用
         mock_ms_open.assert_called()
