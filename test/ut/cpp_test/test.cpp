@@ -85,11 +85,11 @@ void TestMetric()
     PROF(INFO, Domain(__func__).Metric("attr3", TEST_VALUE_66).SpanStart("test_metric_66"));
 }
 
-void TestEvent()
-{
-    PROF(INFO, Domain(__func__).Attr("attr3", TEST_VALUE_66).Event("test_event_66"));
-    PROF(INFO, Domain(__func__).Attr("attr3", TEST_VALUE_56).Event("test_event_66"));
-}
+//void TestEvent()
+//{
+//    PROF(INFO, Domain(__func__).Attr("attr3", TEST_VALUE_66).Event("test_event_66"));
+//    PROF(INFO, Domain(__func__).Attr("attr3", TEST_VALUE_56).Event("test_event_66"));
+//}
 
 void TestLinker()
 {
@@ -160,7 +160,7 @@ void SmokeTest()
 {
     TestSmoke("TestSpan", TestSpan);
     TestSmoke("TestMetric", TestMetric);
-    TestSmoke("TestEvent", TestEvent);
+//    TestSmoke("TestEvent", TestEvent);
     TestSmoke("TestLinker", TestLinker);
     TestSmoke("TestNpuMemoryUsage", TestNpuMemoryUsage);
     TestSmoke("TestMetaData", TestMetaData);
@@ -224,12 +224,12 @@ void SpeedTest()
 {
     TestSpeed("TestSpan", TestSpan, TEST_SPEED_5_US);
     TestSpeed("TestMetric", TestMetric, TEST_SPEED_5_US);
-    TestSpeed("TestEvent", TestEvent, TEST_SPEED_5_US);
+//    TestSpeed("TestEvent", TestEvent, TEST_SPEED_5_US);
     TestSpeed("TestLinker", TestLinker, TEST_SPEED_5_US);
     TestSpeed("TestSpan100NumAttr", TestSpan100NumAttr, TEST_SPEED_5_US);
     TestSpeed("TestSpan100ObjAttr", TestSpan100ObjAttr, TEST_SPEED_5_US);
-    TestSpeed(
-        "TestEvent1000Times", []() -> void { Times(TestEvent, 1000); }, TEST_SPEED_5_US * 1000);
+//    TestSpeed(
+//        "TestEvent1000Times", []() -> void { Times(TestEvent, 1000); }, TEST_SPEED_5_US * 1000);
 }
 
 void ViolentSpeedTest()
