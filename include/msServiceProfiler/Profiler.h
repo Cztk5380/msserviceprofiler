@@ -253,7 +253,7 @@ namespace msServiceProfiler {
         */
         template <typename T>
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &ArrayResource(const T &startIter, const T &endIter,
-            typename ArrayCollectorHelper<Profiler<level>, T>::AttrCollectCallback callback) const
+            typename ArrayCollectorHelper<Profiler<level>, T>::AttrCollectCallback callback)
         {
             return this->ArrayAttr("rid", startIter, endIter, callback);
         }
