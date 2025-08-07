@@ -414,24 +414,24 @@ TEST_F(TestProfiler, EventProfDisable)
 TEST_F(TestProfiler, LinkProfEnable)
 {
     auto prof = PROF(INFO, Domain("test"));
-    prof.Link(msServiceProfiler::ResID{"key"}, msServiceProfiler::ResID{"key2"});
+    prof.Link("key", "key2");
     EXPECT_STREQ(prof.GetMsg().c_str(), "^domain^:^test^,^type^:3,^from^:^key^,^to^:^key2^,");
 }
 
 TEST_F(TestProfiler, LinkProfDisable)
 {
     auto prof = PROF(DETAILED, Domain("test"));
-    prof.Link(msServiceProfiler::ResID{"key"}, msServiceProfiler::ResID{"key2"});
+    prof.Link("key", "key2");
     EXPECT_STREQ(prof.GetMsg().c_str(), "");
 
     ServiceProfilerInterface::GetInstance().ptrIsEnable_ = nullptr;
 
     auto prof_null_info = PROF(INFO, Domain("test"));
-    prof_null_info.Link(msServiceProfiler::ResID{"key"}, msServiceProfiler::ResID{"key2"});
+    prof_null_info.Link("key", "key2");
     EXPECT_STREQ(prof_null_info.GetMsg().c_str(), "");
 
     auto prof_null_detailed = PROF(DETAILED, Domain("test"));
-    prof_null_detailed.Link(msServiceProfiler::ResID{"key"}, msServiceProfiler::ResID{"key2"});
+    prof_null_detailed.Link("key", "key2");
     EXPECT_STREQ(prof_null_detailed.GetMsg().c_str(), "");
 
     ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
