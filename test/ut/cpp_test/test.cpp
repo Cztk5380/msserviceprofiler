@@ -87,14 +87,14 @@ void TestMetric()
 
 void TestEvent()
 {
-    PROF(INFO, Domain(__func__).Attr("attr3", std::to_string(TEST_VALUE_66)).Event("test_event_66"));
-    PROF(INFO, Domain(__func__).Attr("attr3", std::to_string(TEST_VALUE_56)).Event("test_event_66"));
+    PROF(INFO, Domain(__func__).Attr("attr3", TEST_VALUE_66).Event("test_event_66"));
+    PROF(INFO, Domain(__func__).Attr("attr3", TEST_VALUE_56).Event("test_event_66"));
 }
 
 void TestLinker()
 {
-    PROF(INFO, Domain(__func__).Link(TEST_VALUE_1234, std::string("test_event_66")));
-    PROF(INFO, Domain(__func__).Link(TEST_VALUE_56, std::string("str56")));
+    PROF(INFO, Domain(__func__).Link(TEST_VALUE_1234, "test_event_66"));
+    PROF(INFO, Domain(__func__).Link(TEST_VALUE_56, "str56"));
 }
 
 void TestMetaData()
