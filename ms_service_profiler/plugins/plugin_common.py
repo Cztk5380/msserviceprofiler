@@ -44,11 +44,9 @@ def extract_ids_from_reslist(rid_from_message, rid_map):
     for req in rid_from_message:
         if isinstance(req, int) or isinstance(req, float):
             rid.append(get_real_rid(req, rid_map))
-            # rid.append(int(req))
             token_id.append(None)
         elif isinstance(req, dict):
-            req_id = req.get('rid', None)
-            rid.append(get_real_rid(req_id, rid_map))
+            rid.append(get_real_rid(req.get('rid'), rid_map))
             # iter_size 为vllm数据采集特有字段
             if req.get('iter_size'):
                 token_id.append(extract_iter_from_batch(req))
@@ -65,8 +63,11 @@ def extract_ids_from_reslist(rid_from_message, rid_map):
 
 
 def get_real_rid(rid_from_message, rid_map):
-    rid_from_message = convert_to_format_str(rid_from_message)
-    return rid_map.get(rid_from_message, rid_from_message)
+    if rid_from_message is None:
+        return rid_from_message
+
+    format_rid = convert_to_format_str(rid_from_message)
+    return rid_map.get(format_rid, format_rid)
 
 
 def extract_rid(rid_from_message, rid_map):
@@ -82,31 +83,20 @@ def extract_rid(rid_from_message, rid_map):
 
 
 def convert_to_format_str(x):
-    if x is None:
-        return None  # 或其他默认值
     try:
-        # 尝试转换为浮点数并检查是否为整数
-        x_float = float(x)
-        if x_float.is_integer():
-            return str(int(x_float))
-        else:
-            return str(x_float)
+        return str(int(x))
     except Exception as ex:
-        # 非数值类型保持原样
-        try: 
-            return str(x)
-        except:
-            raise ValueError(f'rid can not convert to str. {ex}')
+        return x
 
 
 def parse_rid_map(all_data_df):
     df = all_data_df[all_data_df["type"] == 3]  # already checked 'type' in all_data_df
     if "from" in df.columns and "to" in df.columns:
-        df.loc[:, 'from'] = df['from'].apply(convert_to_format_str)
-        df.loc[:, 'to'] = df['to'].apply(convert_to_format_str)
         rid_link_map = dict(zip(df['to'], df['from']))
     else:
         rid_link_map = {}
+
+    rid_link_map = {convert_to_format_str(k): convert_to_format_str(v) for k, v in rid_link_map.items()}
 
     return rid_link_map
 
