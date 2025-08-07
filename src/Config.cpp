@@ -669,8 +669,14 @@ void Config::SetFileEnable(bool enable)
     std::string configPath = GetEnvAsString("SERVICE_PROF_CONFIG_PATH");
     auto configJson = ReadConfigFile();
     configJson["enable"] = 0;
-    SecurityUtils::IsPathLenLegal(configPath);
-    SecurityUtils::IsPathDepthLegal(configPath);
+    if (!SecurityUtils::IsPathLenLegal(configPath)) {
+        PROF_LOGE("Invalid config path due to excessive length: %s", configPath.c_str()); // LCOV_EXCL_LINE
+        return;
+    }
+    if (!SecurityUtils::IsPathDepthLegal(configPath)) {
+        PROF_LOGE("Invalid config path due to excessive depth: %s", configPath.c_str()); // LCOV_EXCL_LINE
+        return;
+    }
     std::ofstream outputFile(configPath.c_str());
     if (!outputFile.is_open()) {
         PROF_LOGW("Automatic config file update failed %s", configPath.c_str());  // LCOV_EXCL_LINE
