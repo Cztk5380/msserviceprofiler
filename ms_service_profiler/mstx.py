@@ -8,6 +8,13 @@ class LibServiceProfiler:
     lib_service_profiler = None
 
     def __init__(self) -> None:
+        self.is_initialized = False
+
+    def init(self) -> None:
+        if self.is_initialized:
+            return
+
+        self.is_initialized = True
         so_name = "libms_service_profiler.so"
         fp = get_valid_lib_path(so_name)
 
@@ -58,42 +65,51 @@ class LibServiceProfiler:
 
 
     def start_span(self, name=None):
+        self.init()
         if self.func_start_span_with_name is None:
             return 0
         msg = "" if name is None else name
         return self.func_start_span_with_name(bytes(msg, encoding="utf-8"))
 
     def end_span(self, span_handle):
+        self.init()
         if self.func_end_span is not None:
             self.func_end_span(span_handle)
 
     def mark_span_attr(self, msg, span_handle):
+        self.init()
         if self.func_mark_span_attr is not None:
             self.func_mark_span_attr(bytes(msg, encoding="utf-8"), span_handle)
 
     def mark_event(self, msg):
+        self.init()
         if self.func_mark_event is not None:
             self.func_mark_event(bytes(msg, encoding="utf-8"))
 
     def start_profiler(self):
+        self.init()
         if self.func_start_service_profiler is not None:
             self.func_start_service_profiler()
 
     def stop_profiler(self):
+        self.init()
         if self.func_stop_service_profiler is not None:
             self.func_stop_service_profiler()
 
     def is_enable(self, profiler_level):
+        self.init()
         if self.func_is_enable is None:
             return False
         return self.func_is_enable(profiler_level)
 
     def is_domain_enable(self, domain_name):
+        self.init()
         if self.func_is_valid_dommain is None:
             return True
         return self.func_is_valid_dommain(bytes(domain_name, encoding="utf-8"))
     
     def add_meta_info(self, key, value):
+        self.init()
         if self.func_add_meta_info is not None:
             self.func_add_meta_info(bytes(key, encoding="utf-8"), bytes(value, encoding="utf-8"))
 
