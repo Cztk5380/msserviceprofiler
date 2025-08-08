@@ -449,18 +449,18 @@ namespace msServiceProfiler {
         }
 
     public:
-        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const char *value)
+        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const char *value) const
         {
             msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallAddMetaInfo(key, value);
         }
 
-        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const std::string &value)
+        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const std::string &value) const
         {
             AddMetaInfo(key, value.c_str());
         }
 
         template <typename T>
-        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const T value)
+        MS_SERVICE_PROFILER_HIDDEN inline void AddMetaInfo(const char *key, const T value) const
         {
             AddMetaInfo(key, std::to_string(value).c_str());
         }

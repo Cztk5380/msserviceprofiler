@@ -34,8 +34,8 @@
 #include "msServiceProfiler/Profiler.h"
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
-#include "msServiceProfiler/ServiceProfilerDbWriter.h"
 #include "msServiceProfiler/DbBuffer.h"
+#include "msServiceProfiler/ServiceProfilerDbWriter.h"
 
 namespace {
 constexpr int ALIGN_SIZE = 8;
@@ -148,7 +148,7 @@ public:
     void StartTransAction() const
     {
         // 开始事务
-        if (db_ == nullptr || inited == false) {
+        if (db_ == nullptr || !inited) {
             return;
         }
         char *errMsg = nullptr;
@@ -162,7 +162,7 @@ public:
     {
         // 提交最终事务
         char *errMsg = nullptr;
-        if (db_ == nullptr || inited == false) {
+        if (db_ == nullptr || !inited) {
             return;
         }
         if (sqlite3_exec(db_, "COMMIT", nullptr, nullptr, &errMsg) != SQLITE_OK) {
@@ -353,7 +353,7 @@ public:
         int waitUs = MIN_WAIT_US;
         std::set<std::shared_ptr<DbBuffer>> disableDbBuffers;
         std::vector<std::shared_ptr<DbBuffer>> workingDbBuffers;
-        while (threadExitFlag_ == false) {
+        while (!threadExitFlag_) {
             std::this_thread::sleep_for(std::chrono::microseconds(waitUs));
             {
                 // 获取锁，并且看下列表是否有变化，有的话同步到函数变量中，处理的时候就可以释放锁

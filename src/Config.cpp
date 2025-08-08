@@ -150,7 +150,7 @@ void Config::ParseDataTypeConfig(const Json& config)
 }
 
 
-uint32_t Config::ConvertStringToAclDataType(const std::string& configStr)
+uint32_t Config::ConvertStringToAclDataType(const std::string& configStr) const
 {
     uint32_t profSwitch = 0;
     // LCOV_EXCL_START
@@ -188,7 +188,7 @@ uint32_t Config::ConvertStringToAclDataType(const std::string& configStr)
     return profSwitch;
 }
 
-uint32_t Config::GetProfilingSwitch()
+uint32_t Config::GetProfilingSwitch() const
 {
     uint32_t profSwitch = aclDataTypeConfig_ | ACL_PROF_MSPROFTX;
     const std::string taskTimeLevel = GetAclTaskTimeLevel();
@@ -203,7 +203,7 @@ uint32_t Config::GetProfilingSwitch()
     return profSwitch;
 }
 
-aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& configStr)
+aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& configStr) const
 {
     std::string upperStr;
     upperStr.reserve(configStr.size());
@@ -669,6 +669,14 @@ void Config::SetFileEnable(bool enable)
     std::string configPath = GetEnvAsString("SERVICE_PROF_CONFIG_PATH");
     auto configJson = ReadConfigFile();
     configJson["enable"] = 0;
+    if (!SecurityUtils::IsPathLenLegal(configPath)) {
+        PROF_LOGE("Invalid config path due to excessive length: %s", configPath.c_str()); // LCOV_EXCL_LINE
+        return;
+    }
+    if (!SecurityUtils::IsPathDepthLegal(configPath)) {
+        PROF_LOGE("Invalid config path due to excessive depth: %s", configPath.c_str()); // LCOV_EXCL_LINE
+        return;
+    }
     std::ofstream outputFile(configPath.c_str());
     if (!outputFile.is_open()) {
         PROF_LOGW("Automatic config file update failed %s", configPath.c_str());  // LCOV_EXCL_LINE
