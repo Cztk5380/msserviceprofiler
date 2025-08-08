@@ -9,6 +9,27 @@ class LibServiceProfiler:
 
     def __init__(self) -> None:
         self.is_initialized = False
+        self.func_start_span = None
+        self.func_end_span = None
+        self.func_mark_span_attr = None
+        self.func_mark_event = None
+        self.func_start_service_profiler = None
+        self.func_stop_service_profiler = None
+        self.func_is_enable = None
+        self.func_add_meta_info = None
+        self.func_is_valid_dommain = None
+        self.lib = None
+
+        self.func_start_span_with_name = None
+        self.func_end_span = None
+        self.func_mark_span_attr = None
+        self.func_mark_event = None
+        self.func_start_service_profiler = None
+        self.func_stop_service_profiler = None
+        self.func_is_enable = None
+        self.func_is_valid_dommain = None
+        self.func_add_meta_info = None
+
 
     def init(self) -> None:
         if self.is_initialized:
@@ -27,16 +48,6 @@ class LibServiceProfiler:
         except Exception:
             self.lib = None
 
-        self.func_start_span = None
-        self.func_end_span = None
-        self.func_mark_span_attr = None
-        self.func_mark_event = None
-        self.func_start_service_profiler = None
-        self.func_stop_service_profiler = None
-        self.func_is_enable = None
-        self.func_add_meta_info = None
-        self.func_is_valid_dommain = None
-
         if self.lib is not None:
             self.func_start_span_with_name = self.lib.StartSpanWithName
             self.func_start_span_with_name.argtypes = (ctypes.c_char_p, )
@@ -53,7 +64,7 @@ class LibServiceProfiler:
             self.func_is_enable = self.lib.IsEnable
             self.func_is_enable.argtypes = (ctypes.c_ulong,)
             self.func_is_enable.restype = ctypes.c_bool
-            
+
             if hasattr(self.lib, "IsValidDomain"):
                 self.func_is_valid_dommain = self.lib.IsValidDomain
                 self.func_is_valid_dommain.argtypes = (ctypes.c_char_p,)
