@@ -16,7 +16,7 @@ from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.utils.log import logger, set_log_level
 from ms_service_profiler.constant import US_PER_SECOND, MSPROF_REPORTS_PATH
 from ms_service_profiler.exporters.utils import (
-    create_sqlite_db, check_input_path_valid, check_output_path_valid,
+    create_sqlite_db, check_input_dir_valid, check_output_path_valid,
     find_file_in_dir, delete_dir_safely, find_all_file_complete
 )
 

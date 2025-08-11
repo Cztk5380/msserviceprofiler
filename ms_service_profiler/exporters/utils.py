@@ -324,7 +324,7 @@ def is_empty_directory(directory):
         return len(list(entries)) == 0
 
 
-def check_input_path_valid(path):
+def check_input_dir_valid(path):
     try:
         # 首先校验传入路径是否为目录，并确保目录可遍历
         safe_path = traverse_dir_common_check(path)
@@ -399,9 +399,9 @@ def find_all_file_complete(directory, filename='all_file.complete'):
 def delete_dir_safely(path):
     # 删除文件安全校验
     try:
-        check_input_path_valid(path)
+        check_input_dir_valid(path)
     except Exception as e:
-        logger.error(f'check_input_path_valid {path} failed, due to {e}')
+        logger.error(f'check_input_dir_valid {path} failed, due to {e}')
         return
 
     try:
