@@ -108,7 +108,7 @@ def test_is_empty_directory_success(tmpdir):
     test_dir = tmpdir.mkdir("test_input")
     os.chmod(test_dir, 0o755)
     result = is_empty_directory(test_dir)
-    assert result == True
+    assert result
 
 
 def test_check_output_path_valid_success(tmpdir):
