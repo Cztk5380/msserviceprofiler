@@ -277,6 +277,7 @@ TEST_F(TestProfiler, AttrProfEnableResIDStr)
     auto prof = PROF(INFO, Attr("key", ResID("2")));
     EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:^2^,");
 }
+
 TEST_F(TestProfiler, AttrProfDisAbleResID)
 {
     auto prof = PROF(DETAILED, Attr("key", ResID(TEST_NUMER_2)));

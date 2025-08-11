@@ -90,7 +90,7 @@ namespace msServiceProfiler {
 
         void StartAclProf(std::string& profPath);
 
-        void RecordMemoryUsage(NpuMemoryUsage&);
+        void RecordMemoryUsage(NpuMemoryUsage& npuMemoryUsage);
 
     private:
         bool isMaster_ = true;

@@ -186,13 +186,15 @@ class MsprofDataSource(BaseDataSource):
                 logger.error(f"file {info_path} is not a json file. ")
                 data = {
                     "hostname": "",
-                    "hostUid": ""
+                    "hostUid": "",
+                    "pid": None
                 }
             host_name = data.get("hostname")
             host_uid = data.get("hostUid")
-
-        tx_data_df["hostname"] = host_name
-        tx_data_df["hostuid"] = host_uid
+        if tx_data_df is not None:
+            tx_data_df["hostname"] = host_name
+            tx_data_df["hostuid"] = host_uid
+        return data
 
     @classmethod
     def load_start_time(cls, start_info_path):
@@ -232,15 +234,19 @@ class MsprofDataSource(BaseDataSource):
         memory_data_df = cls.load_memory_data(filepaths.get("memory"))
         time_info = cls.load_time_info(filepaths)
         msprof_files = filepaths.get("msprof", [])
-        if tx_data_df is not None:
-            cls.load_host_name(tx_data_df, filepaths.get("info"))
+        
+        host_info = cls.load_host_name(tx_data_df, filepaths.get("info"))
+        if host_info is None:
+            host_info = {}
+        
+        host_info["msprof_files"] = msprof_files
 
         return dict(
             tx_data_df=tx_data_df,
             cpu_data_df=cpu_data_df,
             memory_data_df=memory_data_df,
             time_info=time_info,
-            msprof_data=msprof_files
+            msprof_data=host_info,
         )
 
     @classmethod
@@ -301,6 +307,6 @@ class MsprofDataSource(BaseDataSource):
         try:
             data = self.load_prof(filepaths)
         except Exception as ex:
-            raise LoadDataError(str(prof_path)) from ex
+            raise LoadDataError(str(prof_path), str(ex)) from ex
 
         return data

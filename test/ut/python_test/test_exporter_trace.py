@@ -37,7 +37,7 @@ def mock_data():
     msprof_data = []
     for profile, date_time in zip(profiles, date_times):
         file_path = f'{base_path}{profile}/mindstudio_profiler_output/msprof_{date_time}.json'
-        msprof_data.append(file_path)
+        msprof_data.append(dict(msprof_files=[file_path], pid=12))
 
     # 模拟输入的 DataFrame 数据
     return {
@@ -118,7 +118,7 @@ def test_load_single_prof_file_not_found():
     # 模拟 ms_open 在文件不存在时抛出 OpenException
     with patch("ms_service_profiler.exporters.exporter_trace.ms_open",
                side_effect=OpenException("No such file or directory")):
-        result = load_single_prof("nonexistent_path.json", [])
+        result, _ = load_single_prof("nonexistent_path.json", [])
         assert result == {"traceEvents": []}
 
 
@@ -127,7 +127,7 @@ def test_load_single_prof_invalid_json():
     mock_file.read.return_value = "invalid json"
 
     with patch("ms_service_profiler.exporters.exporter_trace.ms_open", return_value=mock_file) as mock_ms_open:
-        result = load_single_prof("invalid_path.json", [])
+        result, _ = load_single_prof("invalid_path.json", [])
         assert result == {"traceEvents": []}
         mock_ms_open.assert_called_once_with("invalid_path.json", "r", encoding='utf-8', max_size=-1)
 
@@ -164,8 +164,9 @@ def test_integration(mock_data):
     with patch("ms_service_profiler.exporters.exporter_trace.ms_open", return_value=mock_file) as mock_ms_open:
         trace_data = {"traceEvents": []}
         for pf in mock_data["msprof_data"]:
-            result = load_single_prof(pf, ["123"])
-            trace_data = merge_json_data(trace_data, [result])
+            for prof_path in pf.get("msprof_files"):
+                result, _ = load_single_prof(prof_path, ["123"])
+                trace_data = merge_json_data(trace_data, [result])
 
         # 验证 ms_open 被正确调用
         mock_ms_open.assert_called()

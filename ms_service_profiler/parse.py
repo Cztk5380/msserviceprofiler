@@ -1,13 +1,10 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 import os
 import argparse
-import subprocess
 from pathlib import Path
-import json
 import re
 import sqlite3
 from concurrent.futures import ProcessPoolExecutor
-from json import JSONDecodeError
 from collections import deque
 
 import pandas as pd
@@ -16,18 +13,12 @@ from ms_service_profiler.task.task import Task
 import ms_service_profiler.pipeline
 import ms_service_profiler.data_source
 from ms_service_profiler.exporters.factory import ExporterFactory
-from ms_service_profiler.constant import US_PER_SECOND, MSPROF_REPORTS_PATH
-from ms_service_profiler.plugins import (
-    builtin_plugins, custom_plugins, PluginMsptiProcess, PluginEpBalanceProcess, PluginMoeSlowRankProcess
-)
-from ms_service_profiler.plugins.sort_plugins import sort_plugins
+from ms_service_profiler.plugins import custom_plugins
 from ms_service_profiler.utils.log import logger, set_log_level
-from ms_service_profiler.utils.timer import timer, Timer
+from ms_service_profiler.utils.timer import Timer
 from ms_service_profiler.utils.error import ParseError, LoadDataError
 from ms_service_profiler.exporters.utils import (
-    create_sqlite_db, check_input_path_valid, check_output_path_valid,
-    find_file_in_dir, delete_dir_safely, find_all_file_complete
-)
+    create_sqlite_db, check_input_path_valid, check_output_path_valid)
 
 
 def get_mspti_db_filepaths(folder_path):
@@ -57,7 +48,7 @@ def read_mspti_db(input_path):
                 )
             )
         except Exception as ex:
-            raise LoadDataError(db_path) from ex
+            raise LoadDataError(db_path, str(ex)) from ex
     return data_list
 
 

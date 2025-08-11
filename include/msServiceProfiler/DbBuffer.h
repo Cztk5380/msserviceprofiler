@@ -42,7 +42,7 @@ public:
 template <typename T>
 class NodeMarkerDataPtr : public NodeMarkerData {
 public:
-    NodeMarkerDataPtr(std::unique_ptr<T> dataPtr) : ptr_(std::move(dataPtr))
+    explicit NodeMarkerDataPtr(std::unique_ptr<T> dataPtr) : ptr_(std::move(dataPtr))
     {}
     int constexpr GetType() override
     {
@@ -74,7 +74,7 @@ class DbBuffer {
 public:
     MS_SERVICE_INLINE_FLAG DbBuffer(){};
     ~DbBuffer();
-    std::unique_ptr<NodeMarkerData> Push(std::unique_ptr<NodeMarkerData> pMarker);
+    std::unique_ptr<NodeMarkerData> Push(std::unique_ptr<NodeMarkerData> pMarkerData);
     size_t Pop(size_t maxPopSize, std::unique_ptr<NodeMarkerData> *popDataArray);
     size_t Size();
 

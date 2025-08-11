@@ -17,6 +17,7 @@ class TestLibServiceProfiler(unittest.TestCase):
 
         # 初始化 service_profiler 属性
         self.service_profiler = LibServiceProfiler()
+        self.service_profiler.is_initialized = False
 
     @patch("ms_service_profiler.utils.file_open_check.get_valid_lib_path")
     @patch("ctypes.cdll.LoadLibrary")
@@ -28,6 +29,7 @@ class TestLibServiceProfiler(unittest.TestCase):
 
         # 初始化LibServiceProfiler
         profiler = LibServiceProfiler()
+        profiler.init()
 
         # 检查lib是否被正确加载
         self.assertIsNotNone(profiler.lib)
