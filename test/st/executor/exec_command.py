@@ -51,6 +51,7 @@ class CommandExecutor:
     def _monitor(self):
         is_get_output = False
         process = self.process
+        
         def read_instruction():
             if self.inst_in_queue.empty():
                 return False
@@ -65,6 +66,7 @@ class CommandExecutor:
                 return True
             else:
                 return False
+            return False
             
         while True:
             if read_instruction():
@@ -138,8 +140,8 @@ class CommandExecutor:
     def kill(self) -> None:
         """重置执行状态"""
         if self.process is not None:
-            subprocess.run(["pkill", "-P", f"{self.process.pid}"])
-            subprocess.run(["kill", "-9", f"{self.process.pid}"])
+            subprocess.run(["/usr/bin/pkill", "-P", f"{self.process.pid}"])
+            subprocess.run(["/usr/bin/kill", "-9", f"{self.process.pid}"])
         self.process = None
         self._exit_code = None
 
