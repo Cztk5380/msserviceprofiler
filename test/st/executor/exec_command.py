@@ -40,26 +40,35 @@ class CommandExecutor:
         )
         self.thread = threading.Thread(target=self._monitor, daemon=True)
         self.thread.start()
+    
+    def clean_msg_out_queue(self):
+        while not self.msg_out_queue.empty():
+            try:
+                self.msg_out_queue.get_nowait()
+            except self.msg_out_queue.Empty:
+                break
 
     def _monitor(self):
         is_get_output = False
         process = self.process
+        def read_instruction():
+            if self.inst_in_queue.empty():
+                return False
+            instruction = self.inst_in_queue.get()
+            if instruction == "get_output":
+                is_get_output = True
+            elif instruction == "not_get_output":
+                if is_get_output:
+                    self.clean_msg_out_queue()
+                is_get_output = False
+            elif instruction == "exit":
+                return True
+            else:
+                return False
+            
         while True:
-            if not self.inst_in_queue.empty():
-                instruction = self.inst_in_queue.get()
-                if instruction == "get_output":
-                    is_get_output = True
-                elif instruction == "not_get_output":
-                    if is_get_output:
-                        while not self.msg_out_queue.empty():
-                            try:
-                                self.msg_out_queue.get_nowait()
-                            except self.msg_out_queue.Empty:
-                                break
-                    is_get_output = False
-                elif instruction == "exit":
-                    break
-
+            if read_instruction():
+                break
             # 非阻塞检查管道
             reads = [process.stdout, process.stderr]
             ready, _, _ = select.select(reads, [], [], 0.1)
@@ -72,10 +81,11 @@ class CommandExecutor:
                 # 实时输出
                 if stream == process.stdout:
                     sys.stdout.write(line)
-                    if is_get_output:
-                        self.msg_out_queue.put(line)
                 else:
                     sys.stderr.write(line)
+
+                if is_get_output:
+                    self.msg_out_queue.put(line)
 
             if process.poll() is not None:
                 self.msg_out_queue.put(None)
@@ -113,10 +123,11 @@ class CommandExecutor:
                 output = self.msg_out_queue.get(timeout=1)
                 if output is None:
                     return self.msg_out_queue.get(), -1
+                elif target in output:
+                    self.inst_in_queue.put("not_get_output")
+                    return None, 0
                 else:
-                    if target in output:
-                        self.inst_in_queue.put("not_get_output")
-                        return None, 0
+                    pass
             except queue.Empty:
                 time.sleep(0.1)
 
@@ -127,8 +138,8 @@ class CommandExecutor:
     def kill(self) -> None:
         """重置执行状态"""
         if self.process is not None:
-            subprocess.run(f"pkill -P {self.process.pid}", shell=True)
-            subprocess.run(f"kill -9 {self.process.pid}", shell=True)
+            subprocess.run(["pkill", "-P", f"{self.process.pid}"])
+            subprocess.run(["kill", "-9", f"{self.process.pid}"])
         self.process = None
         self._exit_code = None
 
