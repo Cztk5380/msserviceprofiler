@@ -61,27 +61,45 @@ class PluginBatch(PluginBase):
 
     @classmethod
     def _add_blocks_for_batch(cls, batch_id, rid_list, blocks):
-        """统一处理blocks添加逻辑"""
+        def is_invalid_block(value):
+            """通用缺失值检测"""
+            try:
+                return pd.isna(value)
+            except TypeError:
+                # 处理非标准类型（如字符串、对象等）
+                return False
+
         if not batch_id or not rid_list or not blocks:
             return False
 
         try:
-            # 验证blocks数据有效性
-            if (blocks is None or
-                    pd.isna(blocks).any() or
-                    len(blocks) != len(rid_list)):
+            if blocks is None:
                 return False
 
-            # 添加所有block信息
-            for idx, rid in enumerate(rid_list):
-                cls.add_req_info(batch_id, rid, block=blocks[idx])
+            # 长度验证
+            if len(blocks) != len(rid_list):
+                return False
 
-            # 标记batch已分配block
-            if batch_id in cls.batch_req:
-                cls.batch_req[batch_id]["block"] = True
+            # 通用缺失值检测
+            has_nan = any(is_invalid_block(b) for b in blocks)
+            if has_nan:
+                return False
+
+            # 添加block信息
+            for rid, block in zip(rid_list, blocks):
+                # 类型安全转换
+                clean_block = float(block) if not pd.isna(block) else 0.0
+                cls.add_req_info(batch_id, rid, block=clean_block)
+
+            # 状态标记优化
+            cls.batch_req.get(batch_id, {}).update({"block_processed": True})
             return True
         except Exception as e:
-            logger.error(f"添加block信息失败: {str(e)}")
+            error_msg = f"Block addition failed: {type(e).__name__} - {str(e)}"
+            if isinstance(e, (TypeError, ValueError)):
+                logger.warning(f"Data validation error: {error_msg}")
+            else:
+                logger.error(f"System exception: {error_msg}", exc_info=True)
             return False
 
     @classmethod
@@ -101,7 +119,11 @@ class PluginBatch(PluginBase):
 
         # 新版逻辑：无rid_list时使用未分配batch
         else:
-            batch_id = unassigned_batches[0]["batch_id"] if unassigned_batches else 0
+            batch_id = (
+                unassigned_batches[0].get('batch_id', 0)
+                if unassigned_batches and isinstance(unassigned_batches[0], dict)
+                else 0
+            )
             cls.add_exec_info(batch_index, row.pid, row.name, row.start_time, row.end_time)
 
         if not batch_id:
