@@ -7,6 +7,7 @@ from pytest_check import check_functions, check
 
 pytest.assume = check_functions.is_true
 
+
 def pytest_addoption(parser):
     parser.addoption("--device", action="append", type=int, default=[], help="devices")
     parser.addoption(
