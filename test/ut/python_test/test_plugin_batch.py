@@ -106,24 +106,19 @@ class TestPluginBatch(unittest.TestCase):
         row.start_time = 1622534400
         row.end_time = 1622534405
         row.blocks = None
+        batch_index = 1
 
         last_preprocess = dict()
         self.plugin.batch_req = {
             (1, "req1"): {"batch_id": 1, "req_id": "req1"},
             (1, "req2"): {"batch_id": 1, "req_id": "req2"}
-        }  # 确保 batch_req 不为空，并且包含 batch_id 键
+        }
 
-        self.plugin.deal_with_preprocess_row(row, last_preprocess)
+        self.plugin.deal_with_preprocess_row(row, last_preprocess, batch_index)
 
         # 检查 last_preprocess 是否正确更新
         self.assertIn((1001, 2001, "host1"), last_preprocess)
-        self.assertEqual(last_preprocess[(1001, 2001, "host1")]["rid_list"], ["req1", "req2"])
-
-        # 检查 batch_req 是否正确更新
-        self.assertIn((1, "req1"), self.plugin.batch_req)
-        self.assertIn((1, "req2"), self.plugin.batch_req)
-        self.assertIsNone(self.plugin.batch_req[(1, "req1")].get("block"))
-        self.assertIsNone(self.plugin.batch_req[(1, "req2")].get("block"))
+        self.assertEqual(last_preprocess[(1001, 2001, "host1")]["batch_id"], 1)
 
     def test_deal_with_forward_row(self):
         # 测试 deal_with_forward_row 方法
@@ -134,10 +129,11 @@ class TestPluginBatch(unittest.TestCase):
         row.name = "forward"
         row.start_time = 1622534400
         row.end_time = 1622534405
+        batch_index = 1
 
         last_preprocess = {(1001, 2001, "host1"): {"rid_list": ["req1", "req2"]}}
         self.plugin.batch_list = {("req1", "req2"): {"id": 1, "time": 1622534410}}  # 修改 time 使其大于 row.end_time
-        self.plugin.deal_with_forward_row(row, last_preprocess)
+        self.plugin.deal_with_forward_row(row, last_preprocess, batch_index)
         self.assertIn((1, 1001, "forward"), self.plugin.batch_exec)
 
     def test_extract_batch_info(self):
