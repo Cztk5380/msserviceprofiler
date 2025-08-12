@@ -18,6 +18,7 @@ from jsonschema import validate, ValidationError
 from ms_service_profiler.exporters.utils import CURVE_VIEW_NAME_LIST
 from test.st.executor.exec_parse import ExecParse
 
+
 def check_kvcache_csv_content(output_path, csv_file_name):
     expected_csv_columns = [
         'domain', 'rid', 'timestamp(ms)',

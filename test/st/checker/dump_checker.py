@@ -35,4 +35,4 @@ def mindie_key_word_checker(dump_path):
         check.is_true(grep_in_directory(dump_path, f"\\^{key_name}\\^"), f"not found {key_name} in {dump_path}")
         
     for key_domain in key_domains:
-        check.is_true(grep_in_directory(dump_path,f"\\^{key_domain}\\^"), f"not found {key_domain} in {dump_path}")
+        check.is_true(grep_in_directory(dump_path, f"\\^{key_domain}\\^"), f"not found {key_domain} in {dump_path}")

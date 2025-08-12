@@ -50,8 +50,6 @@ def test_dynamic_example(devices, mindie_path, dataset_path, model_path, tmp_wor
         with db_connect(os.path.join(workspace_path, "prof_data_out", "profiler.db")) as conn:
             check_kvcache_table(conn)
             check_insight_tables(conn)
-
-        # check_chrome_tracing(os.path.join(workspace_path, "prof_data_out"))
     finally:
         if mindie_server:
             mindie_server.kill()

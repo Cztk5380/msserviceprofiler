@@ -114,6 +114,7 @@ class TestAnalyzeCmd(TestCase):
             assert os.path.exists(moe_analysis_png_path)
             assert os.path.isfile(moe_analysis_png_path)
 
+
 def test_parse_mspti(smoke_args, tmp_workspace):
     # 校验msserviceprofiler打点采集数据解析功能是否正常解析，校验输出文件及内容
     input_path = os.path.join(smoke_args.get("workspace"), "smokedata/analyze/ms_service_mspti")
