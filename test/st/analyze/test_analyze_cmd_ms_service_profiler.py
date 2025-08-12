@@ -10,14 +10,13 @@ import sqlite3
 from typing import Dict, List
 from collections import defaultdict
 import ast
-from unittest import TestCase
 import ast
 import pytest
+from pytest_check import check
 import pandas as pd
 from jsonschema import validate, ValidationError
-from ...st.utils import execute_cmd
 from ms_service_profiler.exporters.utils import CURVE_VIEW_NAME_LIST
-
+from test.st.executor.exec_parse import ExecParse
 
 def check_kvcache_csv_content(output_path, csv_file_name):
     expected_csv_columns = [
@@ -420,31 +419,16 @@ def process_database_messages(
     return counter, kvcache_count
 
 
-class TestAnalyzeCmd(TestCase):
-    ST_DATA_PATH = os.getenv("MS_SERVICE_PROFILER", "/data/ms_service_profiler")
-    INPUT_PATH = os.path.join(ST_DATA_PATH, "input/analyze/latest_PD_competition")
-    INPUT_PATH_PD_SEPARATE = os.path.join(ST_DATA_PATH, "input/analyze/latest_PD_split")
-    OUTPUT_PATH = os.path.join(ST_DATA_PATH, "output/analyze")
-    KVCACHE_CSV_FILE_NAME = "kvcache.csv"
-    DB_FILE_NAME = "profiler.db"
-    COMMAND_SUCCESS = 0
-    ANALYZE_PROFILER = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")),
-                                    "ms_service_profiler/parse.py")
-    FORMAT = ['csv', 'json', 'db']
+class TestAnalyzeCmd():
 
-    def setup_class(self):
-        os.makedirs(self.OUTPUT_PATH, mode=0o750, exist_ok=True)
-
-    def teardown_class(self):
-        shutil.rmtree(self.OUTPUT_PATH)
-
-    def check_batch_data_csv_integrity(self):
+    @staticmethod
+    def check_batch_data_csv_integrity(output_path):
         # 校验该路径下是否正确生成batch_data的csv文件，以及文件内容
-        csv_file_path = f"{self.OUTPUT_PATH}/batch.csv"
-        self.assertTrue(os.path.isfile(csv_file_path), f"File is not exist: {csv_file_path}")
+        csv_file_path = f"{output_path}/batch.csv"
+        assert os.path.isfile(csv_file_path), f"File is not exist: {csv_file_path}"
         df = pd.read_csv(csv_file_path)
         # 检查文件是否为空
-        self.assertNotEqual(len(df), 0, "The data of batch csv is empty.")
+        assert len(df) > 0, "The data of batch csv is empty."
         expected_header = ['name', 'res_list', 'start_time(ms)', 'end_time(ms)', 'batch_size', \
                            'batch_type', 'during_time(ms)']
 
@@ -464,15 +448,15 @@ class TestAnalyzeCmd(TestCase):
         # 检查数据框的第一行和最后一行的特定列
         rows_to_check = [0, -1]
         for row_index in rows_to_check:
-            self.assertTrue(is_valid_res_list(df.iloc[row_index]['res_list']),
-                f"Row {row_index}, column 'res_list': invalid format.")
+            assert is_valid_res_list(df.iloc[row_index]['res_list']), f"Row {row_index}, column 'res_list': invalid format."
 
-    def check_req_data_csv_integrity(self):
+    @staticmethod
+    def check_req_data_csv_integrity(output_path):
         # 校验该路径下是否正确生成req_data的csv文件，以及文件内容
-        csv_file_path = f"{self.OUTPUT_PATH}/request.csv"
-        self.assertTrue(os.path.isfile(csv_file_path), "File is not exist".format(csv_file_path))
+        csv_file_path = f"{output_path}/request.csv"
+        assert os.path.isfile(csv_file_path), "File is not exist".format(csv_file_path)
         df = pd.read_csv(csv_file_path)
-        self.assertNotEqual(len(df), 0, msg="The data of req csv is empty.")
+        assert len(df) > 0, "The data of req csv is empty."
 
         expected_header = ['http_rid', 'start_time(ms)', 'recv_token_size', 'reply_token_size', \
                            'execution_time(ms)', 'queue_wait_time(ms)']
@@ -500,68 +484,13 @@ class TestAnalyzeCmd(TestCase):
             for column in columns_to_check:
                 check_row(df, row_index, [column])
 
-    def test_prase_ms_service_profiler_data(self):
-        # 校验msserviceprofiler打点采集数据解析功能是否正常解析，校验输出文件及内容
-        cmd = ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH, "--output-path", self.OUTPUT_PATH,
-               "--format", *self.FORMAT]
-        if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
-            self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
-        # 新增数据库字段校验子测试
-        if not glob.glob(os.path.join(self.INPUT_PATH, "**ms_service_*.db"), recursive=True):
-            with self.subTest("Validate DB field consistency across PROF directories"):
-                self._validate_db_consistency()
-        # 校验输出文件是否存在
-        with self.subTest():
-            self.check_req_data_csv_integrity()
-        with self.subTest():
-            self.check_batch_data_csv_integrity()
-
-        # kvcache校验
-        with self.subTest("Check kvcache CSV content"):
-            check_kvcache_csv_content(self.OUTPUT_PATH, self.KVCACHE_CSV_FILE_NAME)
-        with self.subTest("Check kvcache DB content"):
-            check_kvcache_db_content(self.OUTPUT_PATH, self.DB_FILE_NAME)
-
-        # 校验时延数据生成
-        with self.subTest():
-            check_latency_data(self.OUTPUT_PATH)
-
-        # 校验Insight可视化数据生成
-        with self.subTest():
-            check_insight_table(self.OUTPUT_PATH)
-            check_insight_views(self.OUTPUT_PATH)
-
-        # 校验请求状态数的数据生成
-        with self.subTest():
-            check_req_status(self.OUTPUT_PATH)
-
-        # 校验chrome_tracing的数据格式
-        with self.subTest():
-            check_chrome_tracing_valid(self.OUTPUT_PATH)
-
-        # 校验chrome_tracing的数据内容
-        with self.subTest():
-            check_chrome_tracing_content_valid(self.OUTPUT_PATH)
-
-    def test_parse_data_in_pd_separate(self):
-        # 校验msserviceprofiler打点PD分离数据解析功能是否正常解析，校验输出文件及内容
-        cmd = ["python", self.ANALYZE_PROFILER, "--input-path", self.INPUT_PATH_PD_SEPARATE, \
-            "--output-path", self.OUTPUT_PATH, "--format", *self.FORMAT]
-        if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
-            self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
-
-        with self.subTest("Check pullkvcache csv content"):
-            check_pullkvcache_csv_content(os.path.join(self.OUTPUT_PATH, "pd_split_kvcache.csv"))
-
-        with self.subTest("Check pdSplitCommunication csv content"):
-            check_communication_csv_content(os.path.join(self.OUTPUT_PATH, "pd_split_communication.csv"))
-
-    def _validate_db_consistency(self):
+    @staticmethod
+    def _validate_db_consistency(input_path, output_path):
         """数据库与CSV总值一致性校验"""
 
         # 统计数据库总值
         db_stats = collect_db_stats(
-            root_dir=self.INPUT_PATH,
+            root_dir=input_path,
             fields=["modelExec", "BatchSchedule", "batchFrameworkProcessing", "KVCache"],
             table_name="MsprofTxEx",
         )
@@ -571,26 +500,26 @@ class TestAnalyzeCmd(TestCase):
             # batch.csv 校验
             {
                 "db_field": "modelExec",
-                "csv_path": os.path.join(self.OUTPUT_PATH, "batch.csv"),
+                "csv_path": os.path.join(output_path, "batch.csv"),
                 "csv_column": "name",
                 "match_value": "modelExec"
             },
             {
                 "db_field": "BatchSchedule",
-                "csv_path": os.path.join(self.OUTPUT_PATH, "batch.csv"),
+                "csv_path": os.path.join(output_path, "batch.csv"),
                 "csv_column": "name",
                 "match_value": "BatchSchedule"
             },
             {
                 "db_field": "batchFrameworkProcessing",
-                "csv_path": os.path.join(self.OUTPUT_PATH, "batch.csv"),
+                "csv_path": os.path.join(output_path, "batch.csv"),
                 "csv_column": "name",
                 "match_value": "batchFrameworkProcessing"
             },
             # kvcache.csv 校验
             {
                 "db_field": "KVCache",
-                "csv_path": os.path.join(self.OUTPUT_PATH, "kvcache.csv"),
+                "csv_path": os.path.join(output_path, "kvcache.csv"),
                 "csv_column": "device_kvcache_left",
                 "match_value": None # 统计行数
             }
@@ -600,7 +529,7 @@ class TestAnalyzeCmd(TestCase):
         failures = []
         for rule in validation_rules:
             db_count = db_total.get(rule["db_field"], 0)
-            csv_count = self._validate_csv_count(
+            csv_count = TestAnalyzeCmd._validate_csv_count(
                 csv_path=rule["csv_path"],
                 column=rule["csv_column"],
                 match_value=rule["match_value"]
@@ -610,21 +539,20 @@ class TestAnalyzeCmd(TestCase):
                 msg = f"Count mismatch for {rule['db_field']}: DB={db_count} vs CSV={csv_count}"
                 failures.append(msg)
 
-        if failures:
-            self.fail("\n".join(failures))
-        else:
-            self.assertTrue(True, "All data is consistent.")
+        check.is_false(failures, "\n".join(failures))
 
-    def _validate_csv_count(self, csv_path: str, column: str, match_value: str = None) -> int:
+
+    @staticmethod
+    def _validate_csv_count(csv_path: str, column: str, match_value: str = None) -> int:
         """通用CSV校验方法"""
-        self.assertTrue(
+        check.is_true(
             os.path.exists(csv_path),
             f"CSV file does not exist | path={csv_path}"
         )
 
         try:
             df = pd.read_csv(csv_path)
-            self.assertIn(
+            check.is_in(
                 column,
                 df.columns,
                 f"CSV file is missing column | path={csv_path} column={column}"
@@ -636,4 +564,67 @@ class TestAnalyzeCmd(TestCase):
             return len(df)
 
         except Exception as e:
-            raise self.failureException(f"Failed to read CSV file | path={csv_path} error={str(e)}")
+            pytest.fail(f"Failed to read CSV file | path={csv_path} error={str(e)}")
+
+
+def test_prase_ms_service_profiler_data(smoke_args, tmp_workspace):
+    # 校验msserviceprofiler打点采集数据解析功能是否正常解析，校验输出文件及内容
+    input_path = os.path.join(smoke_args.get("workspace"), "smokedata/analyze/latest_PD_competition")
+    output_path = tmp_workspace
+    parser = ExecParse()
+    parser.set_input_path(input_path)
+    parser.set_output_path(output_path)
+    assert parser.ready_go()
+    # 新增数据库字段校验子测试
+    if not glob.glob(os.path.join(input_path, "**ms_service_*.db"), recursive=True):
+        with check("Validate DB field consistency across PROF directories"):
+            TestAnalyzeCmd._validate_db_consistency(input_path, output_path)
+    # 校验输出文件是否存在
+    with check:
+        TestAnalyzeCmd.check_req_data_csv_integrity(output_path)
+    with check:
+        TestAnalyzeCmd.check_batch_data_csv_integrity(output_path)
+
+    # kvcache校验
+    with check("Check kvcache CSV content"):
+        check_kvcache_csv_content(output_path, "kvcache.csv")
+    with check("Check kvcache DB content"):
+        check_kvcache_db_content(output_path, "profiler.db")
+
+    # 校验时延数据生成
+    with check:
+        check_latency_data(output_path)
+
+    # 校验Insight可视化数据生成
+    with check:
+        check_insight_table(output_path)
+        check_insight_views(output_path)
+
+    # 校验请求状态数的数据生成
+    with check:
+        check_req_status(output_path)
+
+    # 校验chrome_tracing的数据格式
+    with check:
+        check_chrome_tracing_valid(output_path)
+
+    # 校验chrome_tracing的数据内容
+    with check:
+        check_chrome_tracing_content_valid(output_path)
+
+
+def test_parse_data_in_pd_separate(smoke_args, tmp_workspace):
+    # 校验msserviceprofiler打点PD分离数据解析功能是否正常解析，校验输出文件及内容
+    
+    input_path = os.path.join(smoke_args.get("workspace"), "smokedata//analyze/latest_PD_split")
+    output_path = tmp_workspace
+    parser = ExecParse()
+    parser.set_input_path(input_path)
+    parser.set_output_path(output_path)
+    assert parser.ready_go()
+    
+    with check("Check pullkvcache csv content"):
+        check_pullkvcache_csv_content(os.path.join(output_path, "pd_split_kvcache.csv"))
+
+    with check("Check pdSplitCommunication csv content"):
+        check_communication_csv_content(os.path.join(output_path, "pd_split_communication.csv"))
