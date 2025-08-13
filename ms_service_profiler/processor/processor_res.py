@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from ms_service_profiler.processor.processor_base import ProcessorBase
 from ms_service_profiler.plugins.plugin_vllm_helper import VllmHelper
+from ms_service_profiler.utils.log import logger
 
 
 class ProcessorRes(ProcessorBase):
@@ -128,7 +129,6 @@ class ProcessorRes(ProcessorBase):
                     continue
 
                 if "from" not in data_df or "to" not in data_df:
-                    logger.warning("Data Source is missing required fields: from, to.")
                     continue
 
                 rid_map = data_df[data_df['from'].notna()].set_index("to").to_dict(orient='dict')["from"]
@@ -154,6 +154,7 @@ class ProcessorRes(ProcessorBase):
                 rid_map = rid_map_of_process.get((hostname, ppid)) or next(
                     iter(rid_map_of_process.values()), {}
                 ) if rid_map_of_process is not None else {}
+
                 self.process_each_df(data_df, rid_map)
 
         return data
