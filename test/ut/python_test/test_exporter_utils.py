@@ -18,8 +18,9 @@ from ms_service_profiler.exporters.utils import (
     create_sqlite_db,
     add_table_into_visual_db,
     save_dataframe_to_csv,
-    check_input_path_valid,
+    check_input_dir_valid,
     check_output_path_valid,
+    is_empty_directory,
     visual_db_fp,
     db_write_lock,
 )
@@ -94,12 +95,20 @@ def test_save_dataframe_to_csv_none_output(sample_dataframe):
     # 无异常即为通过
 
 
-def test_check_input_path_valid_success(tmpdir):
+def test_check_input_dir_valid_success(tmpdir):
     """测试输入路径验证成功"""
     test_dir = tmpdir.mkdir("test_input")
     os.chmod(test_dir, 0o755)
-    result = check_input_path_valid(str(test_dir))
+    result = check_input_dir_valid(str(test_dir))
     assert result == str(test_dir)
+
+
+def test_is_empty_directory_success(tmpdir):
+    """测试输入路径为空"""
+    test_dir = tmpdir.mkdir("test_input")
+    os.chmod(test_dir, 0o755)
+    result = is_empty_directory(test_dir)
+    assert result
 
 
 def test_check_output_path_valid_success(tmpdir):
