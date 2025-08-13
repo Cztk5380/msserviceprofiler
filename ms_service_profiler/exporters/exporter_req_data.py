@@ -124,7 +124,8 @@ class ExporterReqData(ExporterBase):
 
         output = cls.args.output_path
 
-        df = df[df['domain'] != 'KVCache']
+        df = df[~df['domain'].isin(['KVCache', 'PullKVCache'])]
+        df = df[~df['name'].isin(['forward'])]
         ttft_df = data.get("req_ttft_df", pd.DataFrame())  # ttft的单位是微秒，需要转换为毫秒
         ttft_df.loc[:, 'ttft'] = ttft_df['ttft'].div(US_PER_MS)
 
