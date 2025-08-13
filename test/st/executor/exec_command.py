@@ -1,4 +1,5 @@
 import subprocess
+import os
 import sys
 import time
 from typing import Optional, Union, List
@@ -10,33 +11,33 @@ import select
 
 class CommandExecutor:
     def __init__(self):
-        self.command = None
         self.process = None
         self._exit_code = None
         self.msg_out_queue = Queue()
         self.inst_in_queue = Queue()
         self.thread = None
+        self.env = dict()
 
-    def set_command(self, command: Union[str, List[str]]) -> None:
-        """设置要执行的命令"""
-        self.command = command
-        self._reset()
-
-    def execute(self) -> None:
+    def execute(self, command, env=None) -> None:
         """执行已设置的命令"""
-        if self.command is None:
+        if command is None:
             raise ValueError("No command has been set. Use set_command() first.")
 
         self._reset()
 
-        print(self.command)
+        print(command)
+
+        sub_process_env = os.environ.copy()
+        if env:
+            sub_process_env.update(env)
 
         self.process = subprocess.Popen(
-            self.command,
+            command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            env=sub_process_env,
             universal_newlines=True,
-            shell=isinstance(self.command, str),
+            shell=isinstance(command, str),
         )
         self.thread = threading.Thread(target=self._monitor, daemon=True)
         self.thread.start()
@@ -45,7 +46,7 @@ class CommandExecutor:
         while not self.msg_out_queue.empty():
             try:
                 self.msg_out_queue.get_nowait()
-            except self.msg_out_queue.Empty:
+            except queue.Empty:
                 break
 
     def _monitor(self):
@@ -53,6 +54,7 @@ class CommandExecutor:
         process = self.process
         
         def read_instruction():
+            nonlocal is_get_output
             if self.inst_in_queue.empty():
                 return False
             instruction = self.inst_in_queue.get()
@@ -94,7 +96,7 @@ class CommandExecutor:
                 self.msg_out_queue.put(process.poll())
                 break
 
-    def wait(self, target: Optional[str] = None, timeout: Optional[float] = None) -> int:
+    def wait(self, target: Optional[str] = None, timeout: Optional[float] = None) -> tuple:
         """
         等待命令执行完成或输出中出现特定字符串
 

@@ -60,14 +60,12 @@ class ExecMindIEServer(CommandExecutor):
 
         # 执行
         daemon_file = os.path.join(self.mindie_path, "bin", "mindieservice_daemon")
-        self.set_command(
-            f"bash -c 'export SERVICE_PROF_CONFIG_PATH={self.prof_config_path} && \
-                export MINDIE_LOG_TO_STDOUT=1 && \
-                export MINDIE_LLM_LOG_TO_STDOUT=1 && env &&\
-                {daemon_file} --config-file {self.service_config_path}'"
-        )
 
-        self.execute()
+        self.execute(
+            [daemon_file, "--config-file", self.service_config_path], 
+            dict(SERVICE_PROF_CONFIG_PATH=self.prof_config_path, 
+                MINDIE_LOG_TO_STDOUT='1', 
+                MINDIE_LLM_LOG_TO_STDOUT='1'))
 
         exit_code, has_output = self.wait("Daemon start success!", timeout=600) # 等个10分钟，10分钟都起不来，怕不是卡死了
         
