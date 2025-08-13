@@ -112,39 +112,40 @@ class ExporterReqData(ExporterBase):
     @timer(logger.info)
     @key_except('domain', 'name', ignore=True, msg="ignoring current exporter by default.")
     def export(cls, data) -> None:
-        if 'csv' in cls.args.format or 'db' in cls.args.format:
-            df = data.get('tx_data_df')
-            if df is None:
-                logger.error("The data is empty, please check")
-                return
+        if 'csv' not in cls.args.format and 'db' not in cls.args.format:
+            return
+        df = data.get('tx_data_df')
+        if df is None:
+            logger.error("The data is empty, please check")
+            return
 
-            if check_domain_valid(df, ['Request'], 'request') is False:
-                return
+        if check_domain_valid(df, ['Request'], 'request') is False:
+            return
 
-            output = cls.args.output_path
+        output = cls.args.output_path
 
-            df = df[df['domain'] != 'KVCache']
-            ttft_df = data.get("req_ttft_df", pd.DataFrame())  # ttft的单位是微秒，需要转换为毫秒
-            ttft_df.loc[:, 'ttft'] = ttft_df['ttft'].div(US_PER_MS)
+        df = df[df['domain'] != 'KVCache']
+        ttft_df = data.get("req_ttft_df", pd.DataFrame())  # ttft的单位是微秒，需要转换为毫秒
+        ttft_df.loc[:, 'ttft'] = ttft_df['ttft'].div(US_PER_MS)
 
-            que_wait_df = data.get("req_que_wait_df", pd.DataFrame())   # que_wait_df的单位是微秒，需要转换为毫秒
-            que_wait_df.loc[:, 'que_wait_time'] = que_wait_df['que_wait_time'].div(US_PER_MS)
+        que_wait_df = data.get("req_que_wait_df", pd.DataFrame())   # que_wait_df的单位是微秒，需要转换为毫秒
+        que_wait_df.loc[:, 'que_wait_time'] = que_wait_df['que_wait_time'].div(US_PER_MS)
 
-            req_base = get_req_base_info(df)
-            req_base_info = safe_merge_ttft_que(req_base, ttft_df, que_wait_df)
+        req_base = get_req_base_info(df)
+        req_base_info = safe_merge_ttft_que(req_base, ttft_df, que_wait_df)
 
-            filtered_df = req_base_info[[
-                'rid', 'start_time', 'recvTokenSize=', 'replyTokenSize=',
-                'execution_time', 'que_wait_time', 'ttft'
-            ]]
+        filtered_df = req_base_info[[
+            'rid', 'start_time', 'recvTokenSize=', 'replyTokenSize=',
+            'execution_time', 'que_wait_time', 'ttft'
+        ]]
 
-            filtered_df = filtered_df.rename(columns={
-                'rid': 'http_rid',
-                'recvTokenSize=': 'recv_token_size',
-                'replyTokenSize=': 'reply_token_size',
-                'ttft': 'first_token_latency',
-                'que_wait_time': 'queue_wait_time'
-            })
+        check_columns = ['recvTokenSize=', 'replyTokenSize=', 'execution_time']
+
+        if filtered_df[check_columns].eq(0).all().all() or \
+            filtered_df[check_columns].isna().all().all() or \
+            filtered_df[check_columns].eq("").all().all():
+            logger.warning(f"The data is not complete for request.csv, please check.")
+            return
 
         if 'db' in cls.args.format:
             write_result_to_db(
@@ -158,6 +159,11 @@ class ExporterReqData(ExporterBase):
 
 
 REQUEST_DATA_RENAME_COLS = {
-    'start_time': 'start_time(ms)', 'execution_time': 'execution_time(ms)',
-    'queue_wait_time': 'queue_wait_time(ms)', 'first_token_latency': 'first_token_latency(ms)'
+    'rid': 'http_rid',
+    'recvTokenSize=': 'recv_token_size',
+    'replyTokenSize=': 'reply_token_size',
+    'start_time': 'start_time(ms)', 
+    'execution_time': 'execution_time(ms)',
+    'que_wait_time': 'queue_wait_time(ms)', 
+    'ttft': 'first_token_latency(ms)'
 }
