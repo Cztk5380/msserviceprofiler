@@ -18,7 +18,7 @@ from ms_service_profiler.utils.log import logger, set_log_level
 from ms_service_profiler.utils.timer import Timer
 from ms_service_profiler.utils.error import ParseError, LoadDataError
 from ms_service_profiler.exporters.utils import (
-    create_sqlite_db, check_input_path_valid, check_output_path_valid)
+    create_sqlite_db, check_input_dir_valid, check_output_path_valid)
 
 
 def get_mspti_db_filepaths(folder_path):
@@ -273,7 +273,7 @@ def main():
     parser.add_argument(
         '--input-path',
         required=True,
-        type=check_input_path_valid,
+        type=check_input_dir_valid,
         help='Path to the folder containing profile data.')
     parser.add_argument(
         '--output-path',
