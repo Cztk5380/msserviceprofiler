@@ -148,6 +148,14 @@ class ExporterReqData(ExporterBase):
             logger.warning(f"The data is not complete for request.csv, please check.")
             return
 
+        filtered_df = filtered_df.rename(columns={
+                'rid': 'http_rid',
+                'recvTokenSize=': 'recv_token_size',
+                'replyTokenSize=': 'reply_token_size',
+                'ttft': 'first_token_latency',
+                'que_wait_time': 'queue_wait_time'
+            })
+
         if 'db' in cls.args.format:
             write_result_to_db(
                 df_param_list=[[filtered_df, 'request']],
@@ -160,11 +168,6 @@ class ExporterReqData(ExporterBase):
 
 
 REQUEST_DATA_RENAME_COLS = {
-    'rid': 'http_rid',
-    'recvTokenSize=': 'recv_token_size',
-    'replyTokenSize=': 'reply_token_size',
-    'start_time': 'start_time(ms)', 
-    'execution_time': 'execution_time(ms)',
-    'que_wait_time': 'queue_wait_time(ms)', 
-    'ttft': 'first_token_latency(ms)'
+    'start_time': 'start_time(ms)', 'execution_time': 'execution_time(ms)',
+    'queue_wait_time': 'queue_wait_time(ms)', 'first_token_latency': 'first_token_latency(ms)'
 }
