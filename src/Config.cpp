@@ -165,7 +165,8 @@ uint32_t Config::ConvertStringToAclDataType(const std::string& configStr) const
         {"ACL_PROF_L2CACHE", ACL_PROF_L2CACHE},
         {"ACL_PROF_HCCL_TRACE", ACL_PROF_HCCL_TRACE},
         {"ACL_PROF_TRAINING_TRACE", ACL_PROF_TRAINING_TRACE},
-        {"ACL_PROF_RUNTIME_API", ACL_PROF_RUNTIME_API}
+        {"ACL_PROF_RUNTIME_API", ACL_PROF_RUNTIME_API},
+        {"ACL_PROF_MSPROFTX", ACL_PROF_MSPROFTX}
     };
     // LCOV_EXCL_STOP
 
@@ -230,7 +231,7 @@ aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& con
     if (it != metricMap.end()) {
         return it->second;
     }
-
+    PROF_LOGE("Unknown profiling flag: %s", configStr.c_str());  // LCOV_EXCL_LINE
     // 未找到匹配项
     return ACL_AICORE_NONE;
 }
