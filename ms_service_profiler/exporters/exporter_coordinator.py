@@ -3,6 +3,8 @@
 
 from datetime import datetime
 import pandas as pd
+from itertools import product
+from typing import List, Tuple
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.exporters.utils import (
@@ -326,46 +328,38 @@ class ExporterCoordinator(ExporterBase):
 
         # 3. 获取所有时间点（排序）
         all_times = sorted(df['time'].unique())
-
         if not all_times:
             return pd.DataFrame(columns=df.columns)
 
         # 4. 获取所有唯一的 (address, node_type) 组合
         node_groups = df[['address', 'node_type']].drop_duplicates()
+        if node_groups.empty:
+            return pd.DataFrame(columns=df.columns)
 
-        complete_rows = []
+        # 5. 构造笛卡尔积：所有 (time, address, node_type) 组合
+        time_addr_pairs = pd.DataFrame(
+            [(t, addr, ntype) for t, (addr, ntype) in product(all_times, node_groups.values)],
+            columns=['time', 'address', 'node_type']
+        )
 
-        # 5. 遍历每个节点组合
-        for _, group in node_groups.iterrows():
-            addr = group['address']
-            ntype = group['node_type']
-
-            # 获取该节点的所有数据
-            node_data = df[(df['address'] == addr) & (df['node_type'] == ntype)]
-            first_time = node_data['time'].min()
-            # 所有 >= first_time 的时间点
-            relevant_times = [t for t in all_times if t >= first_time]
-
-            for t in relevant_times:
-                existing = node_data[node_data['time'] == t]
-                if not existing.empty:
-                    record = existing.iloc[0].to_dict()
-                else:
-                    record = {
-                        'time': t,
-                        'address': addr,
-                        'node_type': ntype,
-                        'add_count': 0,
-                        'end_count': 0,
-                        'running_count': 0
-                    }
-                complete_rows.append(record)
-
-        # 6. 构造完整 DataFrame
-        completed_df = pd.DataFrame(complete_rows)
+        # 6. 左连接原始数据，缺失值补 0
+        completed_df = time_addr_pairs.merge(
+            df[['time', 'address', 'node_type', 'add_count', 'end_count', 'running_count']],
+            on=['time', 'address', 'node_type'],
+            how='left'
+        ).fillna({
+            'add_count': 0,
+            'end_count': 0,
+            'running_count': 0
+        })
 
         # 7. 排序
         completed_df = completed_df.sort_values(['time', 'address', 'node_type']).reset_index(drop=True)
+
+        # 8. 确保数值类型正确
+        completed_df['add_count'] = completed_df['add_count'].astype(int)
+        completed_df['end_count'] = completed_df['end_count'].astype(int)
+        completed_df['running_count'] = completed_df['running_count'].astype(int)
 
         return completed_df
 
