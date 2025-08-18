@@ -1,5 +1,6 @@
-# Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-import pandas as pd
+# Copyright (c) 2025-2026 Huawei Technologies Co., Ltd.
+
+
 from datetime import datetime
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
@@ -57,8 +58,12 @@ class ExporterCoordinator(ExporterBase):
         # 2.3. 补全时间线空缺
         stats_df = cls.complete_running_count_timeline(stats_df)
 
+        if stats_df.empty:
+            logger.debug("No statistics generated.")
+            return
+
         # 2.4. 最终输出（可选：只保留需要的列）
-        final_stats = stats_df[['time', 'Address', 'node_type', 'add_count', 'end_count', 'running_count']]
+        final_stats = stats_df[['time', 'address', 'node_type', 'add_count', 'end_count', 'running_count']]
 
         # Step 3: 导出结果
         cls.export_coordinator_data(final_stats)
@@ -115,7 +120,7 @@ class ExporterCoordinator(ExporterBase):
         def _create_timeline_record(base, address, timestamp, event_type):
             """辅助函数：创建一条带事件标记的记录"""
             record = copy(base)
-            record['Address'] = address
+            record['address'] = address
             record['start_datetime'] = timestamp
             # 所有可能的事件类型
             for key in ['prefillStart', 'decodeStart', 'prefillEnd', 'decodeEnd']:
@@ -171,7 +176,7 @@ class ExporterCoordinator(ExporterBase):
                     ))
 
             # === 3. decodeEnd: ReqFinish -> DecodeAddress ===
-            finish_row = group[group['name'].astype(str).str.lower() == 'reqfinsh']  # 兼容拼写错误
+            finish_row = group[group['name'].astype(str).str.lower() == 'Reqfinish']
             if not finish_row.empty and decode_address:
                 row = finish_row.iloc[0]
                 result_records.append(_create_timeline_record(
@@ -184,12 +189,12 @@ class ExporterCoordinator(ExporterBase):
         # 构造最终 DataFrame
         if not result_records:
             # 返回空 DataFrame，但列结构正确
-            columns = ['rid', 'Address', 'start_datetime', 'prefillStart', 'decodeStart', 'prefillEnd', 'decodeEnd']
+            columns = ['rid', 'address', 'start_datetime', 'prefillStart', 'decodeStart', 'prefillEnd', 'decodeEnd']
             return pd.DataFrame(columns=columns)
 
         result_df = pd.DataFrame(result_records)
         # 确保列顺序
-        final_columns = ['rid', 'Address', 'start_datetime', 'prefillStart', 'decodeStart', 'prefillEnd', 'decodeEnd']
+        final_columns = ['rid', 'address', 'start_datetime', 'prefillStart', 'decodeStart', 'prefillEnd', 'decodeEnd']
         return result_df.reindex(columns=[col for col in final_columns if col in result_df.columns])
 
     @classmethod
@@ -197,7 +202,6 @@ class ExporterCoordinator(ExporterBase):
         try:
             dt_str = str(dt).strip()
             parsed = datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S:%f')
-            seconds = parsed.second
             base_second = (parsed.second // interval) * interval
 
             # 构造新时间（清空秒以下，秒设为 base_second）
@@ -216,18 +220,18 @@ class ExporterCoordinator(ExporterBase):
 
         Args:
             timeline_df (pd.DataFrame): 来自 build_prefill_decode_timeline 的输出，
-                                       包含 ['Address', 'start_datetime', 'prefillStart', 'decodeStart', ...]
+                                       包含 ['address', 'start_datetime', 'prefillStart', 'decodeStart', ...]
             extract_minute_func (callable): 从 datetime 提取分钟级时间的函数，如 lambda dt: dt.floor('Min')
 
         Returns:
             pd.DataFrame: 包含以下列：
-                          ['time', 'Address', 'node_type', 'add_count', 'end_count', 'running_count']
+                          ['time', 'address', 'node_type', 'add_count', 'end_count', 'running_count']
                           若无有效数据，返回空 DataFrame
         """
 
         if timeline_df.empty:
             logger.debug("No data to generate statistics.")
-            return pd.DataFrame(columns=['time', 'Address', 'node_type', 'add_count', 'end_count', 'running_count'])
+            return pd.DataFrame(columns=['time', 'address', 'node_type', 'add_count', 'end_count', 'running_count'])
 
         # 添加分钟级时间列
         timeline_df = timeline_df.copy()
@@ -236,50 +240,50 @@ class ExporterCoordinator(ExporterBase):
 
         if valid_df.empty:
             logger.debug("No valid 'time' field for statistics.")
-            return pd.DataFrame(columns=['time', 'Address', 'node_type', 'add_count', 'end_count', 'running_count'])
+            return pd.DataFrame(columns=['time', 'address', 'node_type', 'add_count', 'end_count', 'running_count'])
 
         # 构建事件列表
         event_list = []
 
         for _, row in valid_df.iterrows():
-            addr = row['Address']
+            addr = row['address']
             time = row['time']
 
-            # 验证 Address 有效性
+            # 验证 address 有效性
             if not isinstance(addr, str) or not addr.strip():
                 continue
 
             # 收集所有有效事件
             if pd.notna(row.get('prefillStart')) and row['prefillStart'] is True:
-                event_list.append({'time': time, 'Address': addr, 'node_type': 'prefill', 'event': 'start'})
+                event_list.append({'time': time, 'address': addr, 'node_type': 'prefill', 'event': 'start'})
             if pd.notna(row.get('prefillEnd')) and row['prefillEnd'] is True:
-                event_list.append({'time': time, 'Address': addr, 'node_type': 'prefill', 'event': 'end'})
+                event_list.append({'time': time, 'address': addr, 'node_type': 'prefill', 'event': 'end'})
             if pd.notna(row.get('decodeStart')) and row['decodeStart'] is True:
-                event_list.append({'time': time, 'Address': addr, 'node_type': 'decode', 'event': 'start'})
+                event_list.append({'time': time, 'address': addr, 'node_type': 'decode', 'event': 'start'})
             if pd.notna(row.get('decodeEnd')) and row['decodeEnd'] is True:
-                event_list.append({'time': time, 'Address': addr, 'node_type': 'decode', 'event': 'end'})
+                event_list.append({'time': time, 'address': addr, 'node_type': 'decode', 'event': 'end'})
 
         if not event_list:
             logger.debug("No events generated for statistics.")
-            return pd.DataFrame(columns=['time', 'Address', 'node_type', 'add_count', 'end_count', 'running_count'])
+            return pd.DataFrame(columns=['time', 'address', 'node_type', 'add_count', 'end_count', 'running_count'])
 
         events_df = pd.DataFrame(event_list)
 
-        # 聚合：按 time, Address, node_type 统计 start/end 数量
-        stats = events_df.groupby(['time', 'Address', 'node_type'], as_index=False).agg(
+        # 聚合：按 time, address, node_type 统计 start/end 数量
+        stats = events_df.groupby(['time', 'address', 'node_type'], as_index=False).agg(
             add_count=('event', lambda x: (x == 'start').sum()),
             end_count=('event', lambda x: (x == 'end').sum())
         )
 
-        # 确保按 Address 和 node_type 排序，以便 running_count 累积正确
-        stats = stats.sort_values(['Address', 'node_type', 'time']).reset_index(drop=True)
+        # 确保按 address 和 node_type 排序，以便 running_count 累积正确
+        stats = stats.sort_values(['address', 'node_type', 'time']).reset_index(drop=True)
 
         # 计算 running_count（累积运行中请求数）
         current_counts = {}
         running_counts = []
 
         for _, row in stats.iterrows():
-            key = (row['Address'], row['node_type'])
+            key = (row['address'], row['node_type'])
             net_change = row['add_count'] - row['end_count']
             current_count = current_counts.get(key, 0) + net_change
             current_count = max(0, current_count)  # 防止负数
@@ -295,17 +299,17 @@ class ExporterCoordinator(ExporterBase):
         """
         补全运行中请求数时间线的缺失时间点。
 
-        对每个 (Address, node_type) 组合：
+        对每个 (address, node_type) 组合：
         - 从其首次出现的时间点（first_time）开始；
         - 到所有数据中最晚的时间点结束；
         - 确保每个时间片都有记录，缺失的补为 0。
 
         Args:
-            stats_df (pd.DataFrame): 包含 ['time', 'Address', 'node_type', 'add_count', 'end_count', 'running_count']
+            stats_df (pd.DataFrame): 包含 ['time', 'address', 'node_type', 'add_count', 'end_count', 'running_count']
                                      的统计结果，已按时间排序。
 
         Returns:
-            pd.DataFrame: 补全后的时间线数据，按 ['time', 'Address', 'node_type'] 排序。
+            pd.DataFrame: 补全后的时间线数据，按 ['time', 'address', 'node_type'] 排序。
                           若输入为空，返回空 DataFrame。
         """
 
@@ -314,11 +318,11 @@ class ExporterCoordinator(ExporterBase):
 
         # 1. 数据清洗
         df = stats_df.copy()
-        df['Address'] = df['Address'].astype(str).str.strip()
+        df['address'] = df['address'].astype(str).str.strip()
         df['node_type'] = df['node_type'].astype(str).str.strip()
 
-        # 2. 去重：确保 (time, Address, node_type) 唯一
-        df = df.drop_duplicates(subset=['time', 'Address', 'node_type'])
+        # 2. 去重：确保 (time, address, node_type) 唯一
+        df = df.drop_duplicates(subset=['time', 'address', 'node_type'])
 
         # 3. 获取所有时间点（排序）
         all_times = sorted(df['time'].unique())
@@ -326,18 +330,18 @@ class ExporterCoordinator(ExporterBase):
         if not all_times:
             return pd.DataFrame(columns=df.columns)
 
-        # 4. 获取所有唯一的 (Address, node_type) 组合
-        node_groups = df[['Address', 'node_type']].drop_duplicates()
+        # 4. 获取所有唯一的 (address, node_type) 组合
+        node_groups = df[['address', 'node_type']].drop_duplicates()
 
         complete_rows = []
 
         # 5. 遍历每个节点组合
         for _, group in node_groups.iterrows():
-            addr = group['Address']
+            addr = group['address']
             ntype = group['node_type']
 
             # 获取该节点的所有数据
-            node_data = df[(df['Address'] == addr) & (df['node_type'] == ntype)]
+            node_data = df[(df['address'] == addr) & (df['node_type'] == ntype)]
             first_time = node_data['time'].min()
             # 所有 >= first_time 的时间点
             relevant_times = [t for t in all_times if t >= first_time]
@@ -349,7 +353,7 @@ class ExporterCoordinator(ExporterBase):
                 else:
                     record = {
                         'time': t,
-                        'Address': addr,
+                        'address': addr,
                         'node_type': ntype,
                         'add_count': 0,
                         'end_count': 0,
@@ -361,26 +365,26 @@ class ExporterCoordinator(ExporterBase):
         completed_df = pd.DataFrame(complete_rows)
 
         # 7. 排序
-        completed_df = completed_df.sort_values(['time', 'Address', 'node_type']).reset_index(drop=True)
+        completed_df = completed_df.sort_values(['time', 'address', 'node_type']).reset_index(drop=True)
 
         return completed_df
 
     @classmethod
-    def generate_coordinator_view_sql(cls, stats, view_name="v_coordinator_running_curve"):
+    def generate_coordinator_view_sql(cls, stats, view_name="v_coordinator_add_curve"):
         """
         根据当前 stats 数据，动态生成 coordinator 曲线视图 SQL
         """
-        # 提取所有唯一的 (node_type, Address) 组合
-        nodes = stats[['node_type', 'Address']].drop_duplicates().sort_values(['node_type', 'Address'])
+        # 提取所有唯一的 (node_type, address) 组合
+        nodes = stats[['node_type', 'address']].drop_duplicates().sort_values(['node_type', 'address'])
 
         # 生成每个节点的 CASE WHEN 列
         columns = []
         for _, row in nodes.iterrows():
             node_type = row['node_type']
-            addr = row['Address']
+            addr = row['address']
             col_alias = f"{node_type} {addr}"
-            clause = f"""    MAX(CASE WHEN node_type = '{node_type}' AND Address = '{addr}' 
-            THEN running_count ELSE NULL END) AS "{col_alias}\""""
+            clause = f"""    MAX(CASE WHEN node_type = '{node_type}' AND address = '{addr}' 
+            THEN add_count ELSE NULL END) AS "{col_alias}\""""
             columns.append(clause)
 
         # 拼接 SQL

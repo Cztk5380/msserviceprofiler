@@ -18,12 +18,12 @@ from ms_service_profiler.exporters.exporter_coordinator import ExporterCoordinat
 class ExporterFactory:
     exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterReqData, ExporterBatchData, \
                     ExporterKVCacheData, ExporterLatency, ExporterPDComm, ExporterMspti, \
-                    ExporterEpBalance, ExporterMoe, ExporterForwardData,ExporterCoordinator]
+                    ExporterEpBalance, ExporterMoe, ExporterForwardData, ExporterCoordinator]
     @staticmethod
     def create_exporters(args):
         exporters = []
         enable_exporter = ['trace', 'req_status', 'req_data', 'batch_data', 'kvcache_data', 'latency', 'pd_comm',
-                           "ep_balance", "moe_analysis", "forward_data",'coordinator']
+                           "ep_balance", "moe_analysis", "forward_data", 'coordinator']
 
         for name in enable_exporter:
             exporters.append(ExporterFactory.create(name, args))

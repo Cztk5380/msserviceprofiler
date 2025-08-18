@@ -36,7 +36,7 @@ CURVE_VIEW_NAME_LIST = {
     'decode_gen_speed': 'Decode_Generate_Speed_Latency_curve',
     'first_token_latency': 'First_Token_Latency_curve',
     'request_status': 'Request_Status_curve',
-    'coordinator' : 'Pd_Separation_Requset_Quantity_curve'
+    'coordinator' : 'Coordinator_curve',
 }
 TABLE_DATA_VIEW_NAME_LIST = {
     # 需要以纯表显示的db中的表名: data_table中的视图名称
@@ -46,7 +46,8 @@ TABLE_DATA_VIEW_NAME_LIST = {
     'pd_split_communication': 'pd_communication_info',
     'request': 'request_data',
     'pd_split_kvcache': 'pd_split_pull_kvcache',
-    'forward': 'forward_info'
+    'forward': 'forward_info',
+    'coordinator' : 'coordinator_info',
 }
 
 
