@@ -302,47 +302,61 @@ class ExporterCoordinator(ExporterBase):
         补全运行中请求数时间线的缺失时间点。
 
         对每个 (address, node_type) 组合：
-        - 从其首次出现的时间点（first_time）开始；
-        - 到所有数据中最晚的时间点结束；
+        - 从所有数据的最早时间点开始；
+        - 到最晚时间点结束；
+        - 按照数据中出现的时间间隔（自动推断），补全中间缺失的时间点；
         - 确保每个时间片都有记录，缺失的补为 0。
 
         Args:
             stats_df (pd.DataFrame): 包含 ['time', 'address', 'node_type', 'add_count', 'end_count', 'running_count']
-                                     的统计结果，已按时间排序。
+                                     的统计结果。
 
         Returns:
             pd.DataFrame: 补全后的时间线数据，按 ['time', 'address', 'node_type'] 排序。
-                          若输入为空，返回空 DataFrame。
         """
-
         if stats_df.empty:
-            return stats_df  # 保持列结构
+            return stats_df
 
         # 1. 数据清洗
         df = stats_df.copy()
+        df['time'] = pd.to_datetime(df['time'])  # 确保 time 是 datetime
         df['address'] = df['address'].astype(str).str.strip()
         df['node_type'] = df['node_type'].astype(str).str.strip()
 
-        # 2. 去重：确保 (time, address, node_type) 唯一
+        # 2. 去重
         df = df.drop_duplicates(subset=['time', 'address', 'node_type'])
 
-        # 3. 获取所有时间点（排序）
+        # 3. 获取所有时间点
         all_times = sorted(df['time'].unique())
-        if not all_times:
-            return pd.DataFrame(columns=df.columns)
+        if len(all_times) < 2:
+            # 如果只有一个或没有时间点，无法推断频率
+            freq = '5S'  # 默认 5 秒
+        else:
+            # 推断时间间隔（取最小差值作为频率）
+            time_diffs = sorted([(all_times[i] - all_times[i-1]).total_seconds()
+                               for i in range(1, len(all_times))])
+            # 取最常见的间隔（避免异常点）
+            from collections import Counter
+            freq_sec = Counter(time_diffs).most_common(1)[0][0]
+            freq = f'{int(freq_sec)}S'
 
-        # 4. 获取所有唯一的 (address, node_type) 组合
+        # 4. 生成完整时间范围
+        full_time_range = pd.date_range(
+            start=all_times[0],
+            end=all_times[-1],
+            freq=freq
+        )
+
+        # 5. 获取所有 (address, node_type) 组合
         node_groups = df[['address', 'node_type']].drop_duplicates()
-        if node_groups.empty:
-            return pd.DataFrame(columns=df.columns)
 
-        # 5. 构造笛卡尔积：所有 (time, address, node_type) 组合
+        # 6. 构造笛卡尔积
         time_addr_pairs = pd.DataFrame(
-            [(t, addr, ntype) for t, (addr, ntype) in product(all_times, node_groups.values)],
+            [(t, addr, ntype) for t in full_time_range for addr, ntype in node_groups.values],
             columns=['time', 'address', 'node_type']
         )
 
-        # 6. 左连接原始数据，缺失值补 0
+        # 7. 左连接原始数据
         completed_df = time_addr_pairs.merge(
             df[['time', 'address', 'node_type', 'add_count', 'end_count', 'running_count']],
             on=['time', 'address', 'node_type'],
@@ -353,13 +367,10 @@ class ExporterCoordinator(ExporterBase):
             'running_count': 0
         })
 
-        # 7. 排序
+        # 8. 排序并确保类型
         completed_df = completed_df.sort_values(['time', 'address', 'node_type']).reset_index(drop=True)
-
-        # 8. 确保数值类型正确
-        completed_df['add_count'] = completed_df['add_count'].astype(int)
-        completed_df['end_count'] = completed_df['end_count'].astype(int)
-        completed_df['running_count'] = completed_df['running_count'].astype(int)
+        for col in ['add_count', 'end_count', 'running_count']:
+            completed_df[col] = completed_df[col].astype(int)
 
         return completed_df
 
