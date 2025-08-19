@@ -3,7 +3,6 @@
 
 from datetime import datetime
 import pandas as pd
-from itertools import product
 from typing import List, Tuple
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
@@ -114,7 +113,7 @@ class ExporterCoordinator(ExporterBase):
 
         Returns:
             pd.DataFrame: 时间线记录，列包括：
-                          ['rid', 'Address', 'start_datetime', 'prefillStart', 'decodeStart', 'prefillEnd', 'decodeEnd']
+                          ['rid', 'address', 'start_datetime', 'prefillStart', 'decodeStart', 'prefillEnd', 'decodeEnd']
                           若无数据，返回空 DataFrame（带正确列）
         """
         from copy import copy
@@ -178,7 +177,7 @@ class ExporterCoordinator(ExporterBase):
                     ))
 
             # === 3. decodeEnd: ReqFinish -> DecodeAddress ===
-            finish_row = group[group['name'].astype(str).str.lower() == 'Reqfinish']
+            finish_row = group[group['name'].str.strip().str.lower() == 'reqfinish']
             if not finish_row.empty and decode_address:
                 row = finish_row.iloc[0]
                 result_records.append(_create_timeline_record(
