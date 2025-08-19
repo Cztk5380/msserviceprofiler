@@ -1,6 +1,5 @@
 # Copyright (c) 2025-2026 Huawei Technologies Co., Ltd.
 
-
 from datetime import datetime
 import pandas as pd
 from typing import List, Tuple
