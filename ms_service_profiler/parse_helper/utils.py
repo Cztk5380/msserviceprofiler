@@ -20,14 +20,14 @@ def _convert_db_to_df(file_path):
         try:
             df = pd.read_sql_query(major_sql_query, conn)
         except Exception as e:
-            logger.warning("%s: %r", e, file_path)
+            logger.warning("cannot read prof data from %r, due to %s", file_path, e)
             return df
 
         cursor = conn.cursor()
         try:
             data = cursor.execute(minor_sql_query)
         except Exception as e:
-            logger.warning("%s: %r", e, file_path)
+            logger.warning("cannot read meta data from %r, due to %s", file_path, e)
             return df
 
     try:

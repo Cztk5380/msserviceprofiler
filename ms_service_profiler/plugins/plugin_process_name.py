@@ -11,7 +11,7 @@ class PluginProcessName(PluginBase):
     depends = ["plugin_common"]
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse(cls, data):
         tx_data_df: pd.DataFrame = data.get('tx_data_df')
         

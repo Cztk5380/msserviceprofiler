@@ -34,7 +34,7 @@ class PluginTimeStamp(PluginBase):
     helper = PluginTimeStampHelper()
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse(cls, data):
         res = []
         for data_single in data:

@@ -43,7 +43,7 @@ class ProcessorReq(ProcessorBase):
         else:
             return 1
 
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse_batch(self, data_df: pd.DataFrame):
         batch_event_df = pd.DataFrame(columns=["batch_id", "event", "start_time", "end_time"])
         batch_attr_df = pd.DataFrame(columns=["batch_id", "req_list", "req_id_list", "batch_size", "batch_type"])
@@ -95,7 +95,7 @@ class ProcessorReq(ProcessorBase):
 
         return batch_event_df, batch_attr_df
 
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse_req(self, data_df: pd.DataFrame, batch_event_df: pd.DataFrame, batch_attr_df: pd.DataFrame):
         req_event_df = pd.DataFrame(columns=["rid", "event", "iter", "start_time", "end_time", "batch_id"])
         req_attr_df = pd.DataFrame(columns=["rid", "recv_token", "reply_token", "ttft"])
@@ -167,7 +167,7 @@ class ProcessorReq(ProcessorBase):
         req_event_df = pd.concat([req_event_df, merged[["rid", "event", "iter", "start_time", "end_time", "batch_id"]]], ignore_index=True)
         return req_event_df, req_attr_df, req_queue_df
 
-    @timer(logger.info)
+    @timer(logger.debug)
     def calc_ttft(self, req_event_df: pd.DataFrame):
         req_ttft_df = pd.DataFrame(columns=["rid", "ttft", "start", "end"])
 
@@ -205,7 +205,7 @@ class ProcessorReq(ProcessorBase):
         req_ttft_df = req_ttft_df.drop(columns=['event_first', 'event_count'])
         return req_ttft_df
 
-    @timer(logger.info)
+    @timer(logger.debug)
     def calc_que_wait(self, req_queue_df: pd.DataFrame):
         """
         队列等待时长逻辑为按rid分组后，使用Dequeue的结束时间减去Enqueue的开始时间

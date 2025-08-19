@@ -32,7 +32,7 @@ class PluginReqStatus(PluginBase):
     depends = ["plugin_common"]
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse(cls, data):
         tx_data_df = data.get('tx_data_df')
         if tx_data_df is None:
@@ -59,7 +59,7 @@ class PluginReqStatus(PluginBase):
 
             if not valid_cols:
                 logger.warning(
-                    "No 'request status' is found in data base, if this is unexpected, please check 'msproftx.db'"
+                    "No 'request status' is found in prof data, if this is unexpected, please check"
                 )
                 return data
 

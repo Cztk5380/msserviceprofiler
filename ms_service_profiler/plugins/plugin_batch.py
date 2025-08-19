@@ -138,7 +138,7 @@ class PluginBatch(PluginBase):
         cls.add_exec_info(batch_index, row.pid, row.name, row.start_time, row.end_time)
 
         # 旧版特有：在preprocess中处理blocks
-        if row.rid_list and row.blocks:  # 旧版数据
+        if 'blocks' in row and row.rid_list and row.blocks:  # 旧版数据
             cls._add_blocks_for_batch(batch_id, row.rid_list, row.blocks)
 
     @classmethod
@@ -184,7 +184,7 @@ class PluginBatch(PluginBase):
                 cls.deal_with_forward_row(row, last_preprocess, batch_index)
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse(cls, data):
         with KeyExcept('name', 'hostname', 'pid', 'tid', 'start_time', ignore=True,
             msg="ignoring current process by default."):

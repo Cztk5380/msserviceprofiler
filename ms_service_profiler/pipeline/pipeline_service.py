@@ -21,7 +21,7 @@ class PipelineService(PipelineBase):
     def depends(cls):
         return ["pipeline:service_single_data"]
     
-    @timer(logger.info)
+    @timer(logger.debug)
     def run(self):
         data_list = self.get_depends_result("pipeline:service_single_data", [])
         if not data_list:

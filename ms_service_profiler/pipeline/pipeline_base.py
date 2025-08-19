@@ -14,7 +14,7 @@ class PipelineBase(Task):
         self.cur_step_id += 1
         try:
             data = processor.parse(data)
-            logger.info(f'[step {self.cur_step_id}] {name} success.')
+            logger.debug(f'[step {self.cur_step_id}] {name} success.')
         except Exception as ex:
             # 关键plugins失败，程序执行结束
             if is_key_step:

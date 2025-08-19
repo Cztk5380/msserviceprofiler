@@ -32,7 +32,7 @@ class ExporterTrace(TaskExporterBase):
         self.export(self.get_depends_result("pipeline:service"), self.get_depends_result("pipeline:mspti"))
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def export(cls, data, mspti) -> None:
         if 'db' not in cls.args.format and 'json' not in cls.args.format:
             return
@@ -97,10 +97,10 @@ class ExporterTrace(TaskExporterBase):
             save_trace_data_into_json(merged_data, output)
 
         if 'db' in cls.args.format:
-            logger.info('Start write trace data to db')
+            logger.debug('Start write trace data to db')
             create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
             save_trace_data_into_db(merged_data)
-            logger.info('Write trace data to db success')
+            logger.debug('Write trace data to db success')
 
 
 def prepare_domain_for_process(all_data_df):
@@ -143,16 +143,14 @@ def load_single_prof(pf, prof_id):
         with ms_open(pf, 'r', encoding='utf-8', max_size=-1) as file:
             trace_events = json.load(file)
     except OpenException as oe:
-        logger.warning(f"OpenException occurred {oe}")
+        logger.warning(f"cannot read file %r occurred {oe}", pf)
         return {"traceEvents": []}, set()
     except FileNotFoundError:
-        logger.warning("The msprof.json file was not found. Please check the file path.")
+        logger.warning("The %r file was not found. Please check the file path.", pf)
         return {"traceEvents": []}, set()
     except json.JSONDecodeError:
         logger.warning(
-            "%r is not in a valid JSON format, " \
-            "which might be normal and probably because this file stores 'mstx' data only",
-            pf
+            "%r is not in a valid JSON format, which might be normal.", pf
         )
         return {"traceEvents": []}, set()
 
@@ -200,7 +198,7 @@ def merge_json_data(trace_data, msprof_data_df):
     return trace_data
 
 
-@timer(logger.info)
+@timer(logger.debug)
 def write_trace_data_to_file(trace_data, output):
     def write_trace_data(range_index):
         start_index, end_index = range_index

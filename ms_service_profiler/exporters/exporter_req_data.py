@@ -109,14 +109,14 @@ class ExporterReqData(ExporterBase):
         cls.args = args
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     @key_except('domain', 'name', ignore=True, msg="ignoring current exporter by default.")
     def export(cls, data) -> None:
         if 'csv' not in cls.args.format and 'db' not in cls.args.format:
             return
         df = data.get('tx_data_df')
         if df is None:
-            logger.error("The data is empty, please check")
+            logger.error("cannot find service prof data, please check")
             return
 
         if check_domain_valid(df, ['Request'], 'request') is False:
@@ -145,7 +145,8 @@ class ExporterReqData(ExporterBase):
         if filtered_df[check_columns].eq(0).all().all() or \
             filtered_df[check_columns].isna().all().all() or \
             filtered_df[check_columns].eq("").all().all():
-            logger.warning(f"The data is not complete for request.csv, please check.")
+            logger.warning(f"The data is not complete for request.csv, " \
+                "prof data recv request or reply request was not captured. please check.")
             return
 
         filtered_df = filtered_df.rename(columns={

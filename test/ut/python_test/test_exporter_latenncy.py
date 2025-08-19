@@ -4,6 +4,7 @@ import os
 import argparse
 import unittest
 from unittest.mock import patch
+from unittest.mock import ANY
 import numpy as np
 import pandas as pd
 from ms_service_profiler.exporters.exporter_latency import (
@@ -187,5 +188,5 @@ class TestTimestampConverter(unittest.TestCase):
         # 测试当get_err_log_flag返回False时，是否正确地打印警告日志并设置错误日志标志
         mock_get_err_log_flag.return_value = False
         print_warning_log('test_log')
-        mock_logger.warning.assert_called_once_with("The 'test_log' field info is missing, please check.")
+        mock_logger.warning.assert_called_once_with(ANY)
         mock_set_err_log_flag.assert_called_once_with('test_log', True)

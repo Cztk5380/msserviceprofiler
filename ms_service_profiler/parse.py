@@ -151,10 +151,10 @@ def run_task(task, task_results):
     try:
         task_results[task.name] = task.run()
     except Exception as e:
-        logger.error(f"task {task.name} in failed, message: {e}")
+        logger.error(f"Error raise from task {task.name} , message: {e}")
         task_results[task.name] = e
     else:
-        logger.info(f'task {task.name} is done.')
+        logger.debug(f'task {task.name} is done.')
 
 
 def parse_run(input_path, exporters, args=None):
@@ -185,7 +185,7 @@ def parse_run(input_path, exporters, args=None):
             if prev_task_name in single_data_tasks_ordered or prev_task_name in data_source_tasks:
                 batch_data_tasks_depends.append(prev_task_name)
 
-    with Timer("single_prof_data_tasks", logger.info):
+    with Timer("single_prof_data_tasks", logger.debug):
         data = parallel_run_single_prof_data_tasks(data_source_tasks, single_data_tasks_ordered,
             batch_data_tasks_depends, input_path, args)
 

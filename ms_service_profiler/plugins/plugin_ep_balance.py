@@ -17,10 +17,10 @@ class PluginEpBalanceProcess(PluginBase):
     def parse(cls, data):
         kernel_df = data.get("kernel_df")
         if kernel_df is None:
-            logger.warning("kernel_df is None when processing ep_balance analysis.")
+            logger.warning("kernel data is None when processing ep_balance analysis.")
             return data
         if kernel_df.empty:
-            logger.warning("kernel_df is empty when processing ep_balance analysis.")
+            logger.warning("kernel data is empty when processing ep_balance analysis.")
             return data
 
         grouped_matmul_df = kernel_df[kernel_df["name"] == GROUPED_MATMUL_API_NAME]
@@ -37,7 +37,7 @@ class PluginEpBalanceProcess(PluginBase):
             duration_arr = end_time_arr - start_time_arr
 
             if len(duration_arr) % GMM_NUM_PER_LAYER != 0:
-                logger.warning("grouped matmul nums error")
+                logger.warning(f"grouped matmul nums error {len(duration_arr)}")
                 duration_arr = duration_arr[:-1]
 
             duration_arr = sum([duration_arr[i::GMM_NUM_PER_LAYER] for i in range(GMM_NUM_PER_LAYER)])
