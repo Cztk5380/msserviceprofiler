@@ -177,7 +177,7 @@ def trans_trace_meta_event(event, cursor):
         track_id, _ = TrackIdManager.get_track_id(pid, tid)
         cursor.execute(UPDATE_THREAD_SORTINDEX_SQL, (track_id, event_data.get('args_sort_index')))
     else:
-        logger.error(f'Trans trace M event to db failed due to event name {event_name}')
+        logger.warning(f'Trans trace M event to db failed due to unknown event name {event_name}')
 
 
 def write_to_process_thread_table(event_data, thread_sort_index, cursor):

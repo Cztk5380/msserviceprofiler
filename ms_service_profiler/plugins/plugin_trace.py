@@ -87,7 +87,7 @@ class PluginTrace(PluginBase):
         return tx_data_df
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse(cls, data):
         with KeyExcept('token_id_list', 'batch_type', 'rid_list', ignore=True,
                        msg="ignoring current process by default."):

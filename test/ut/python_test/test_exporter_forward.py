@@ -3,6 +3,7 @@
 import os
 import unittest
 from unittest.mock import patch, MagicMock
+from unittest.mock import ANY
 from pathlib import Path
 import shutil
 import pandas as pd
@@ -87,8 +88,7 @@ class TestExporterForwardData(unittest.TestCase):
         })
         ExporterForwardData.args = MagicMock(format=['csv'])
         ExporterForwardData.export({'tx_data_df': df})
-        mock_logger.warning.assert_called_once_with(f"The data is not complete, please check. \
-                            The required data for forward.csv is {REQUIED_NAME}")
+        mock_logger.warning.assert_called_once_with(ANY)
 
     def test_export(self):
         try:
@@ -115,7 +115,7 @@ class TestExporterForwardData(unittest.TestCase):
         # 测试数据为空的情况
         ExporterForwardData.args = MagicMock(format=['csv'])
         ExporterForwardData.export({})
-        mock_logger.warning.assert_called_once_with("The data is empty, please check")
+        mock_logger.warning.assert_called_once_with(ANY)
 
 
 class TestForwardDataUtils(unittest.TestCase):

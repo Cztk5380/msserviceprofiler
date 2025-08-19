@@ -28,14 +28,14 @@ class ExporterForwardData(ExporterBase):
         cls.args = args
     
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def export(cls, data) -> None:
         if "csv" not in cls.args.format and "db" not in cls.args.format:
             return
         
         df = data.get("tx_data_df")
         if df is None:
-            logger.warning("The data is empty, please check")
+            logger.warning("There is no service prof data, froward data will not be generated. please check")
             return
         output = cls.args.output_path
 
@@ -46,7 +46,7 @@ class ExporterForwardData(ExporterBase):
         REQUIED_NAME.add(batch_name)
         check_all = all(element in df["name"].unique() for element in REQUIED_NAME)
         if not check_all:
-            logger.warning(f"The data is not complete, please check. \
+            logger.warning(f"The data is not complete, froward data will not be generated. please check. \
                             The required data for forward.csv is {REQUIED_NAME}")
             return
 
@@ -62,11 +62,21 @@ class ExporterForwardData(ExporterBase):
         forward_df["forward_iter"] = forward_df.groupby("prof_id").cumcount() + 1
         forward_df = forward_df.sort_values(by=["start_time"]).reset_index(drop=True)
 
+        data_link_df = pd.DataFrame({
+            'source_name': ['rid'],
+            'target_table': ['request'],
+            'target_name': ['http_rid']
+        })
+
         if 'db' in cls.args.format:
             write_result_to_db(
                 df_param_list=[[forward_df, "forward"]],
                 table_name="forward",
                 rename_cols=REMAME_COLUMNS
+            )
+            write_result_to_db(
+                df_param_list=[[data_link_df, "data_link"]],
+                table_name="data_link"
             )
 
         if 'csv' in cls.args.format:

@@ -41,10 +41,10 @@ class ExporterMspti(TaskExporterBase):
             save_trace_data_into_json(merged_data, output)
 
         if 'db' in cls.args.format:
-            logger.info('Start write trace data to db')
+            logger.debug('Start write trace data to db')
             create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
             save_trace_data_into_db(merged_data)
-            logger.info('Write trace data to db success')
+            logger.debug('Write trace data to db success')
 
     @classmethod
     def depends(cls):

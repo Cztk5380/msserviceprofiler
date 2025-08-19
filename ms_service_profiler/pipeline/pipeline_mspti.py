@@ -13,7 +13,7 @@ class PipelineMspti(PipelineBase):
     def depends(cls):
         return ["data_source:mspti"]
     
-    @timer(logger.info)
+    @timer(logger.debug)
     def run(self):
         data = self.get_depends_result("data_source:mspti", None)
         if data is None:

@@ -20,7 +20,7 @@ class ExporterReqStatus(ExporterBase):
         cls.args = args
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     @key_except(COLUMN_CONST.DOMAIN_COLUMN, COLUMN_CONST.NAME_COLUMN, \
         ignore=True, msg="ignoring current exporter by default.")
     def export(cls, data) -> None:
@@ -84,7 +84,7 @@ class ExporterReqStatus(ExporterBase):
     def valid_for_csv_output(cls, data):
         df = data.get("tx_data_df")
         if df is None:
-            logger.warning("The data is empty, please check")
+            logger.warning("There is no service prof data, request status data will not be generated. please check")
             return False
 
         need_columns = [COLUMN_CONST.HOSTUID_COLUMN, COLUMN_CONST.PID_COLUMN, COLUMN_CONST.START_TIME_COLUMN, \
@@ -100,7 +100,7 @@ class ExporterReqStatus(ExporterBase):
     def valid_for_db_output(cls, data):
         df = data.get("tx_data_df")
         if df is None:
-            logger.warning("The data is empty, please check")
+            logger.warning("There is no service prof data, request status data will not be generated. please check")
             return False
 
         if not check_domain_valid(df, ['Request'], 'request_status'):
@@ -108,7 +108,7 @@ class ExporterReqStatus(ExporterBase):
 
         metrics = data.get('metric_data_df')
         if metrics is None:
-            logger.warning("The metrics data is empty, please check")
+            logger.warning("The req status prof data is empty, no request status data will generated. please check")
             return False
         return True
 

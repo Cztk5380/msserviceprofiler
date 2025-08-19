@@ -22,8 +22,10 @@ class TaskExporterBase(Task):
         pass
 
     def run(self):
-        with Timer(self.name, logger.info):
+        with Timer(self.name, logger.debug):
+            logger.info(f"export [{self.name}] start. ")
             self.do_export()
+            logger.info(f"\033[92mexport [{self.name}] done. \033[0m")
 
 
 class ExporterBase(TaskExporterBase):
@@ -54,5 +56,7 @@ class ExporterBase(TaskExporterBase):
         if data is None:
             logger.debug(f"{self.name}: nothing to export")
             return
-        with Timer(self.name, logger.info):
+        with Timer(self.name, logger.debug):
+            logger.info(f"export [{self.name}] start. ")
             self.export(data)
+            logger.info(f"\033[92mexport [{self.name}] done. \033[0m")
