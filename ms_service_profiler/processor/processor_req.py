@@ -1,6 +1,9 @@
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
 
+import ast
 import pandas as pd
+import numpy as np
+from collections import defaultdict
 
 from ms_service_profiler.constant import US_PER_MS
 from ms_service_profiler.utils.log import logger
@@ -36,6 +39,8 @@ class ProcessorReq(ProcessorBase):
 
     @staticmethod
     def batch_token_iter_to_batch_type(token_iter_list):
+        if token_iter_list is None or len(token_iter_list) == 0:
+            return 1
         if all(token_iter_list):  # 全部大于 0
             return 2
         elif any(token_iter_list): # 存在0，也存在1 
@@ -45,7 +50,7 @@ class ProcessorReq(ProcessorBase):
 
     @timer(logger.info)
     def parse_batch(self, data_df: pd.DataFrame):
-        batch_event_df = pd.DataFrame(columns=["batch_id", "event", "start_time", "end_time"])
+        batch_event_df = pd.DataFrame(columns=["batch_id", "event", "start_time", "end_time", "pid", "blocks"])
         batch_attr_df = pd.DataFrame(columns=["batch_id", "req_list", "req_id_list", "batch_size", "batch_type"])
 
         if data_df is None or data_df.empty:
@@ -56,7 +61,9 @@ class ProcessorReq(ProcessorBase):
         role_dict = self.parse_node_role(data_df)
 
         # forward 之后补充
-        batch_data_df = data_df[data_df["name"].isin(["BatchSchedule", "modelExec", "batchFrameworkProcessing", "Execute"])]
+        batch_data_df = data_df[data_df["name"].isin(["BatchSchedule", "modelExec", "batchFrameworkProcessing",
+                                                      "Execute", "preprocess", "forward"])]
+
 
         # 先不考虑 batch_id 重复的情况
         batch_id_df = batch_data_df["res_list"].map(str)
@@ -76,10 +83,12 @@ class ProcessorReq(ProcessorBase):
         # 过滤后数据填充 data frame 返回
         batch_event_df["batch_id"] = batch_id_df[right_batch_type_mask]
         batch_event_df["event"] = batch_data_df["name"]
+        batch_event_df["pid"] = batch_data_df["pid"]
+        batch_event_df["blocks"] = batch_data_df["blocks"]
         batch_event_df["start_time"] = batch_data_df["start_time"]
         batch_event_df["end_time"] = batch_data_df["end_time"]
 
-        schedule_mask = batch_data_df["name"].isin(["BatchSchedule", "batchFrameworkProcessing", "Schedule"])
+        schedule_mask = batch_data_df["name"].isin(["BatchSchedule", "batchFrameworkProcessing"])
         schedule_data_df = batch_data_df[schedule_mask]
         # 创建过滤条件：所有三个列都非空列表
         schedule_data_df = schedule_data_df[
@@ -167,6 +176,274 @@ class ProcessorReq(ProcessorBase):
         req_event_df = pd.concat([req_event_df, merged[["rid", "event", "iter", "start_time", "end_time", "batch_id"]]], ignore_index=True)
         return req_event_df, req_attr_df, req_queue_df
 
+    # @timer(logger.info)
+    # def parse_req(self, data_df: pd.DataFrame, batch_event_df: pd.DataFrame, batch_attr_df: pd.DataFrame):
+    #     req_event_df = pd.DataFrame(columns=["rid", "event", "iter", "start_time", "end_time", "batch_id"])
+    #     req_attr_df = pd.DataFrame(columns=["rid", "recv_token", "reply_token", "ttft"])
+    #     req_queue_df = pd.DataFrame(columns=["rid", "start_time", "end_time", "event", "status"])
+    #
+    #     if data_df is None or data_df.empty:
+    #         return req_event_df, req_attr_df, req_queue_df
+    #
+    #     if "name" not in data_df or "res_list" not in data_df or "token_id_list" not in data_df or "rid_list" not in data_df:
+    #         return req_event_df, req_attr_df, req_queue_df
+    #
+    #     # 1. 取httpReq 和 httpRes
+    #     # 有问题，P 节点 和D 节点的 httpReq 和 http Res 需要区分开。需要修复 todo
+    #     http_event_df = data_df[data_df["name"].isin(["httpReq", "httpRes", "decode", "DecodeEnd", "sendResponse"])]
+    #     req_event_df["rid"] = http_event_df["rid"]
+    #     req_event_df["event"] = http_event_df["name"]
+    #     req_event_df["start_time"] = http_event_df["start_time"]
+    #     req_event_df["end_time"] = http_event_df["end_time"]
+    #     req_event_df["end_flag"] = http_event_df.get("endFlag", None)
+    #
+    #     rid_recv_token_map = dict()
+    #     rid_reply_token_map = dict()
+    #
+    #     if "recvTokenSize=" in data_df:
+    #         recv_token_df = data_df[data_df["recvTokenSize="].notna()]
+    #         rid_recv_token_map = recv_token_df.set_index('rid')['recvTokenSize='].to_dict()
+    #     if "replyTokenSize=" in data_df:
+    #         reply_token_df = data_df[data_df["replyTokenSize="].notna()]
+    #         rid_reply_token_map = reply_token_df.set_index('rid')['replyTokenSize='].to_dict()
+    #
+    #     req_attr_df = pd.DataFrame({'recv_token': rid_recv_token_map, 'reply_token': rid_reply_token_map})
+    #     req_attr_df['rid'] = req_attr_df.index
+    #
+    #     # 2. 构建请求队列用于后续计算队列等待时长
+    #     status_col = data_df.get('status')
+    #     if status_col is not None:
+    #         mask = data_df['name'].isin(['Dequeue', 'Enqueue']) & (data_df['status'] == 'waiting')
+    #     else:
+    #         # 处理列不存在的情况
+    #         mask = data_df['name'].isin(['Dequeue', 'Enqueue'])  # 或者其他逻辑
+    #
+    #     # loc 一次性赋值，不触发警告
+    #     tmp = data_df.loc[mask, :].copy(deep=False)  # 浅拷贝，内存开销小
+    #     tmp['rid'] = tmp['rid'].astype(str).str.strip().str.split(r'\s*,\s*')
+    #     # 在构造 req_queue_df 时
+    #     status_col = tmp.get('status')
+    #     selected_columns = ['rid', 'start_time', 'end_time', 'event']
+    #     if status_col is not None:
+    #         selected_columns.append('status')
+    #
+    #     req_queue_df = (
+    #         tmp
+    #         .explode('rid')
+    #         .query('rid.str.strip() != ""')
+    #         .rename(columns={'name': 'event'})
+    #         [selected_columns]
+    #     )
+    #
+    #     # 3. 拆解Batch
+    #     model_exec_df = batch_event_df[batch_event_df["event"].isin(["modelExec", "Execute"])]
+    #     # 根据 batch id 找到 req_id_list， 拆解开
+    #
+    #     batch_attr_explode_by_req_df = batch_attr_df.explode('req_list')
+    #     batch_attr_explode_by_req_df['rid'] = batch_attr_explode_by_req_df['req_list'].map(lambda x: x.get('rid'))
+    #     batch_attr_explode_by_req_df['iter'] = batch_attr_explode_by_req_df['req_list'].map(lambda x: x.get('iter'))
+    #
+    #     merged = batch_attr_explode_by_req_df.join(model_exec_df.set_index('batch_id'), on='batch_id')
+    #
+    #     req_event_df = pd.concat([req_event_df, merged[["rid", "event", "iter", "start_time", "end_time", "batch_id"]]],
+    #                              ignore_index=True)
+    #
+    #     # ✅ 调用新增函数
+    #     # batch_event_df.to_csv('/home/chepishuai/cann/8_3_RC1_B023/result/result_common/batch_event_df.csv')
+    #     batch_exec, batch_req = self._parse_batch_exec_req(batch_event_df, batch_attr_df)
+    #
+    #     return req_event_df, req_attr_df, req_queue_df, batch_exec, batch_req
+
+    # def _parse_batch_exec_req(self, batch_event_df: pd.DataFrame, batch_attr_df: pd.DataFrame):
+    #     """
+    #     保守版本 - 绝对确保不丢失任何有效数据
+    #     """
+    #     # 初始化
+    #     batch_exec = pd.DataFrame(columns=["batch_id", "name", "pid", "start", "end"])
+    #     batch_req = pd.DataFrame(columns=["batch_id", "req_id", "rid", "iter", "block"])
+    #
+    #     try:
+    #         # ===================================================================
+    #         # Step 1: batch_exec 保持原有逻辑（完全不变）
+    #         # ===================================================================
+    #         if batch_event_df is not None and not batch_event_df.empty:
+    #             # 重新计算 logical_batch_id（按原始顺序）
+    #             batch_event_df_sorted = batch_event_df.sort_values("start_time").reset_index(drop=True)
+    #             batch_event_df_sorted["logical_batch_id"] = (batch_event_df_sorted["event"] == "BatchSchedule").cumsum()
+    #
+    #             # 为每个 logical_batch_id 分配 batch_id
+    #             all_logical_batch_ids = sorted(batch_event_df_sorted["logical_batch_id"].unique())
+    #             logical_batch_to_batch_id = {
+    #                 lbid: idx + 1 for idx, lbid in enumerate(all_logical_batch_ids)
+    #             }
+    #
+    #             # 为所有事件分配 batch_id
+    #             batch_event_df_sorted["batch_id"] = batch_event_df_sorted["logical_batch_id"].map(
+    #                 logical_batch_to_batch_id)
+    #
+    #             # 构建 batch_exec（按 batch_id, event, pid 分组）
+    #             batch_exec = batch_event_df_sorted.groupby(["batch_id", "event", "pid"]).agg({
+    #                 "start_time": "min",
+    #                 "end_time": "max"
+    #             }).reset_index()
+    #
+    #             # 重命名列
+    #             batch_exec = batch_exec.rename(columns={
+    #                 "start_time": "start",
+    #                 "end_time": "end"
+    #             })
+    #
+    #             # 按 batch_id 和 start 排序
+    #             batch_exec = batch_exec.sort_values(["batch_id", "start"]).reset_index(drop=True)
+    #
+    #         # ===================================================================
+    #         # Step 2: batch_req 保守处理 - 绝对不丢失数据
+    #         # ===================================================================
+    #         if batch_event_df is not None and not batch_event_df.empty:
+    #             schedule_events = batch_event_df[batch_event_df["event"] == "BatchSchedule"]
+    #
+    #             if not schedule_events.empty:
+    #                 def safe_literal_eval(x):
+    #                     if pd.isna(x) or x is None:
+    #                         return []
+    #                     if isinstance(x, str):
+    #                         try:
+    #                             return ast.literal_eval(x)
+    #                         except:
+    #                             return []
+    #                     return x if isinstance(x, list) else []
+    #
+    #                 # 处理 schedule 数据
+    #                 schedule_events = schedule_events.copy()
+    #
+    #                 # 展开数据
+    #                 all_data = []
+    #                 for i in range(len(schedule_events)):
+    #                     items = safe_literal_eval(schedule_events["batch_id"].iloc[i])
+    #                     sched_time = schedule_events["start_time"].iloc[i]
+    #                     if isinstance(items, list):
+    #                         for item in items:
+    #                             if isinstance(item, dict):
+    #                                 rid = item.get("rid")
+    #                                 all_data.append({
+    #                                     "req_id": item.get("req_id") or rid,
+    #                                     "rid": rid,
+    #                                     "iter": item.get("iter", 0),
+    #                                     "schedule_time": sched_time
+    #                                 })
+    #
+    #                 if all_data:
+    #                     df = pd.DataFrame(all_data)
+    #
+    #                     # 排序
+    #                     sort_indices = np.lexsort((
+    #                         df["iter"].values,
+    #                         pd.Series(df["req_id"]).fillna("").values
+    #                     ))
+    #                     df = df.iloc[sort_indices].reset_index(drop=True)
+    #                     df["batch_id"] = range(1, len(df) + 1)
+    #
+    #                     # block 处理 - 保守方案
+    #                     df["block"] = None
+    #
+    #                     if "blocks" in batch_event_df.columns:
+    #                         # 收集所有 forward 事件 - 完全保留
+    #                         forward_events = batch_event_df[batch_event_df["event"] == "forward"]
+    #                         if not forward_events.empty:
+    #                             # 创建完整的数据结构
+    #                             forward_mapping = {}  # rid -> [所有包含该 rid 的 forward 信息]
+    #
+    #                             # 完全展开所有信息
+    #                             for i in range(len(forward_events)):
+    #                                 items = safe_literal_eval(forward_events["batch_id"].iloc[i])
+    #                                 blocks = forward_events["blocks"].iloc[
+    #                                     i] if "blocks" in forward_events.columns else []
+    #                                 fwd_time = float(forward_events["start_time"].iloc[i])
+    #
+    #                                 # 确保 blocks 是列表
+    #                                 if not isinstance(blocks, list):
+    #                                     blocks = []
+    #
+    #                                 if isinstance(items, list):
+    #                                     for item in items:
+    #                                         if isinstance(item, dict) and "rid" in item:
+    #                                             rid = str(item["rid"])
+    #                                             if rid not in forward_mapping:
+    #                                                 forward_mapping[rid] = []
+    #                                             forward_mapping[rid].append({
+    #                                                 "time": fwd_time,
+    #                                                 "blocks": blocks,
+    #                                                 "index": i
+    #                                             })
+    #
+    #                             # 为每个 rid 的记录按时间排序
+    #                             for rid in forward_mapping:
+    #                                 forward_mapping[rid].sort(key=lambda x: x["time"])
+    #
+    #                             # 最保守的 block 查找 - 不丢失任何可能的数据
+    #                             def find_block_conservative(rid, iter_num, sched_time):
+    #                                 """
+    #                                 最保守的查找策略：
+    #                                 1. 尝试严格时间匹配
+    #                                 2. 尝试宽松时间匹配
+    #                                 3. 如果都找不到，返回任何可用的数据
+    #                                 """
+    #                                 if rid is None:
+    #                                     return None
+    #
+    #                                 rid_str = str(rid)
+    #                                 if rid_str not in forward_mapping:
+    #                                     return None
+    #
+    #                                 records = forward_mapping[rid_str]
+    #
+    #                                 # 策略1: 时间 >= schedule_time 的记录
+    #                                 for record in records:
+    #                                     if record["time"] >= sched_time:
+    #                                         blocks = record["blocks"]
+    #                                         if isinstance(blocks, list) and len(blocks) > 0:
+    #                                             # 返回可用的数据，即使 iter 超出范围
+    #                                             if iter_num < len(blocks):
+    #                                                 return blocks[iter_num]
+    #                                             else:
+    #                                                 # iter 超出范围时返回最后一个
+    #                                                 return blocks[-1]
+    #
+    #                                 # 策略2: 时间 < schedule_time 的记录（最近的）
+    #                                 for record in reversed(records):  # 从最新的开始
+    #                                     if record["time"] < sched_time:
+    #                                         blocks = record["blocks"]
+    #                                         if isinstance(blocks, list) and len(blocks) > 0:
+    #                                             if iter_num < len(blocks):
+    #                                                 return blocks[iter_num]
+    #                                             else:
+    #                                                 return blocks[-1]
+    #
+    #                                 # 策略3: 任何记录（最后的 fallback）
+    #                                 if records:
+    #                                     last_record = records[-1]
+    #                                     blocks = last_record["blocks"]
+    #                                     if isinstance(blocks, list) and len(blocks) > 0:
+    #                                         if iter_num < len(blocks):
+    #                                             return blocks[iter_num]
+    #                                         else:
+    #                                             return blocks[-1]
+    #
+    #                                 return None
+    #
+    #                             # 应用查找
+    #                             df["block"] = [
+    #                                 find_block_conservative(row["rid"], row["iter"], row["schedule_time"])
+    #                                 for _, row in df.iterrows()
+    #                             ]
+    #
+    #                     batch_req = df[["batch_id", "req_id", "rid", "iter", "block"]]
+    #
+    #     except Exception as e:
+    #         logger.error(f"_parse_batch_exec_req error: {e}", exc_info=True)
+    #
+    #     return batch_exec, batch_req
+
     @timer(logger.info)
     def calc_ttft(self, req_event_df: pd.DataFrame):
         req_ttft_df = pd.DataFrame(columns=["rid", "ttft", "start", "end"])
@@ -234,9 +511,297 @@ class ProcessorReq(ProcessorBase):
 
         return req_que_wait_df
 
+    @timer(logger.info)
+    def parse_batch_exec_req(self, batch_event_df: pd.DataFrame):
+        """
+        解析 batch 执行和请求数据
+
+        Args:
+            batch_event_df: 包含 batch 事件的 DataFrame
+
+        Returns:
+            tuple: (batch_exec, batch_req) 两个 DataFrame
+        """
+
+        # 初始化
+        batch_exec = pd.DataFrame(columns=["batch_id", "name", "pid", "start", "end"])
+        batch_req = pd.DataFrame(columns=["batch_id", "req_id", "rid", "iter", "block"])
+
+        try:
+            if batch_event_df is None or batch_event_df.empty:
+                return batch_exec, batch_req
+
+            # 构建 batch_exec
+            batch_exec = self.build_batch_exec(batch_event_df)
+
+            # 构建 batch_req
+            batch_req = self.build_batch_req(batch_event_df)
+
+        except Exception as e:
+            logger.error(f"parse_batch_exec_req error: {e}", exc_info=True)
+
+        return batch_exec, batch_req
+
+    @staticmethod
+    def safe_literal_eval(x):
+        """安全的字面量求值"""
+        if pd.isna(x) or x is None:
+            return []
+        if isinstance(x, str):
+            try:
+                return ast.literal_eval(x)
+            except (ValueError, SyntaxError):
+                return []
+        return x if isinstance(x, list) else []
+
+    def build_batch_exec(self, batch_event_df):
+        """构建 batch_exec 数据"""
+        batch_event_df_sorted = batch_event_df.sort_values("start_time").reset_index(drop=True)
+        batch_event_df_sorted["logical_batch_id"] = (batch_event_df_sorted["event"] == "BatchSchedule").cumsum()
+
+        all_logical_batch_ids = sorted(batch_event_df_sorted["logical_batch_id"].unique())
+        logical_batch_to_batch_id = {
+            lbid: idx + 1 for idx, lbid in enumerate(all_logical_batch_ids)
+        }
+
+        batch_event_df_sorted["batch_id"] = batch_event_df_sorted["logical_batch_id"].map(logical_batch_to_batch_id)
+
+        batch_exec = batch_event_df_sorted.groupby(["batch_id", "event", "pid"]).agg({
+            "start_time": "min",
+            "end_time": "max"
+        }).reset_index()
+
+        batch_exec = batch_exec.rename(columns={
+            "start_time": "start",
+            "end_time": "end"
+        })
+
+        return batch_exec.sort_values(["batch_id", "start"]).reset_index(drop=True)
+
+    def build_batch_req(self, batch_event_df):
+        """构建 batch_req 数据"""
+        schedule_events = batch_event_df[batch_event_df["event"] == "BatchSchedule"]
+
+        if schedule_events.empty:
+            return pd.DataFrame(columns=["batch_id", "req_id", "rid", "iter", "block"])
+
+        # 提取 schedule 数据
+        schedule_data = self.extract_schedule_data(schedule_events)
+
+        if schedule_data.empty:
+            return pd.DataFrame(columns=["batch_id", "req_id", "rid", "iter", "block"])
+
+        # 排序
+        sorted_data = self.sort_schedule_data(schedule_data)
+
+        # 添加 batch_id
+        sorted_data["batch_id"] = range(1, len(sorted_data) + 1)
+
+        # 处理 block 信息
+        sorted_data["block"] = None
+        if "blocks" in batch_event_df.columns:
+            forward_mapping = self.build_forward_mapping(batch_event_df)
+            sorted_data["block"] = self.assign_blocks_vectorized(sorted_data, forward_mapping)
+
+        return sorted_data[["batch_id", "req_id", "rid", "iter", "block"]]
+
+    def extract_schedule_data(self, schedule_events):
+        """提取 schedule 事件数据"""
+        all_data = []
+        batch_id_values = schedule_events["batch_id"].values
+        start_time_values = schedule_events["start_time"].values
+
+        for i in range(len(schedule_events)):
+            items = self.safe_literal_eval(batch_id_values[i])
+            sched_time = start_time_values[i]
+            item_data = self.extract_schedule_items(items, sched_time)
+            all_data.extend(item_data)
+
+        return pd.DataFrame(all_data) if all_data else pd.DataFrame()
+
+    @classmethod
+    def extract_schedule_items(cls, items, sched_time):
+        """提取单个 schedule 事件中的 items"""
+        if not isinstance(items, list):
+            return []
+
+        item_data = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+
+            rid = item.get("rid")
+            if rid is None:
+                continue
+
+            item_data.append({
+                "req_id": item.get("req_id") or rid,
+                "rid": rid,
+                "iter": item.get("iter", 0),
+                "schedule_time": sched_time
+            })
+
+        return item_data
+
+    @staticmethod
+    def sort_schedule_data(schedule_data):
+        """排序 schedule 数据"""
+
+        if schedule_data.empty:
+            return schedule_data
+
+        sort_indices = np.lexsort((
+            schedule_data["iter"].values,
+            pd.Series(schedule_data["req_id"]).fillna("").values
+        ))
+        return schedule_data.iloc[sort_indices].reset_index(drop=True)
+
+    def build_forward_mapping(self, batch_event_df):
+        """构建 forward 事件映射"""
+
+        forward_events = batch_event_df[batch_event_df["event"] == "forward"]
+        if forward_events.empty:
+            return {}
+
+        # 创建完整的映射结构
+        forward_mapping = defaultdict(list)
+
+        batch_id_values = forward_events["batch_id"].values
+        blocks_values = forward_events.get("blocks", pd.Series([[]] * len(forward_events))).values
+        start_time_values = forward_events["start_time"].values
+
+        for i in range(len(forward_events)):
+            items = self.safe_literal_eval(batch_id_values[i])
+            blocks = blocks_values[i] if i < len(blocks_values) else []
+            fwd_time = float(start_time_values[i])
+
+            forward_records = self.create_forward_records(items, blocks, fwd_time)
+            for record in forward_records:
+                forward_mapping[record["rid"]].append({
+                    "time": record["time"],
+                    "blocks": record["blocks"]
+                })
+
+        # 为每个 rid 的记录按时间排序
+        for rid in forward_mapping:
+            forward_mapping[rid].sort(key=lambda x: x["time"])
+
+        return forward_mapping
+
+    @classmethod
+    def create_forward_records(cls, items, blocks, fwd_time):
+        """创建 forward 记录"""
+        if not isinstance(items, list):
+            return []
+
+        records = []
+        for item in items:
+            if not isinstance(item, dict) or "rid" not in item:
+                continue
+
+            rid = str(item["rid"])
+            records.append({
+                "rid": rid,
+                "time": fwd_time,
+                "blocks": blocks if isinstance(blocks, list) else []
+            })
+
+        return records
+
+    def assign_blocks_vectorized(self, schedule_data, forward_mapping):
+        """高性能向量化 block 分配"""
+        if schedule_data.empty:
+            return []
+
+        # 预先转换数据类型，避免重复转换
+        rids = schedule_data["rid"].astype(str).values
+        iters = schedule_data["iter"].values.astype(int)
+        sched_times = schedule_data["schedule_time"].values.astype(float)
+
+        blocks_result = [None] * len(schedule_data)
+
+        # 批量处理
+        for i in range(len(schedule_data)):
+            rid = rids[i]
+            iter_num = iters[i]
+            sched_time = sched_times[i]
+
+            if rid is None or rid not in forward_mapping:
+                continue
+
+            records = forward_mapping[rid]
+            if not records:
+                continue
+
+            # 策略1: 时间 >= schedule_time
+            block_value = self.find_block_in_future(records, iter_num, sched_time)
+
+            # 策略2: 时间 < schedule_time
+            if block_value is None:
+                block_value = self.find_block_in_past(records, iter_num, sched_time)
+
+            # 策略3: fallback
+            if block_value is None:
+                block_value = self.find_block_fallback(records, iter_num)
+
+            blocks_result[i] = block_value
+
+        return blocks_result
+
+    @classmethod
+    def find_block_in_future(cls, records, iter_num, sched_time):
+        """查找时间 >= schedule_time 的记录"""
+        for record in records:
+            if record["time"] < sched_time:
+                continue
+
+            blocks = record["blocks"]
+            if not isinstance(blocks, list) or not blocks:
+                continue
+
+            return blocks[min(iter_num, len(blocks) - 1)]
+
+        return None
+
+    @classmethod
+    def find_block_in_past(cls, records, iter_num, sched_time):
+        """查找时间 < schedule_time 的记录（最近的）"""
+        for record in reversed(records):
+            if record["time"] >= sched_time:
+                continue
+
+            blocks = record["blocks"]
+            if not isinstance(blocks, list) or not blocks:
+                continue
+
+            return blocks[min(iter_num, len(blocks) - 1)]
+
+        return None
+
+    @classmethod
+    def find_block_fallback(cls, records, iter_num):
+        """fallback 策略：使用最后一条记录"""
+        if not records:
+            return None
+
+        last_record = records[-1]
+        blocks = last_record["blocks"]
+
+        if not isinstance(blocks, list) or not blocks:
+            return None
+
+        return blocks[min(iter_num, len(blocks) - 1)]
+
     def parse(self, data_df: pd.DataFrame):
         batch_event_df, batch_attr_df = self.parse_batch(data_df)
-        req_event_df, req_attr_df, req_queue_df = self.parse_req(data_df, batch_event_df, batch_attr_df)
+        req_event_df, req_attr_df, req_queue_df = (
+            self.parse_req(data_df, batch_event_df, batch_attr_df)
+        )
+        # 补充计算 batch_exec和batch_req
+        batch_exec_df, batch_req_df = self.parse_batch_exec_req(batch_event_df)
+        batch_exec_df.to_csv('/home/chepishuai/cann/8_3_RC1_B023/result/result_common/batch_exec_df_last_last.csv')
+        batch_req_df.to_csv('/home/chepishuai/cann/8_3_RC1_B023/result/result_common/batch_req_df_last_last.csv')
+
         req_ttft_df = self.calc_ttft(req_event_df)
         req_queue_wait_time_df = self.calc_que_wait(req_queue_df)
         req_attr_df["ttft"] = req_ttft_df["ttft"]
@@ -248,6 +813,8 @@ class ProcessorReq(ProcessorBase):
             "req_attr_df": req_attr_df,
             "batch_event_df": batch_event_df, 
             "batch_attr_df": batch_attr_df,
+            "batch_exec_df": batch_exec_df,
+            "batch_req_df": batch_req_df,
             "req_ttft_df": req_ttft_df,
             "req_que_wait_df": req_queue_wait_time_df
         }
