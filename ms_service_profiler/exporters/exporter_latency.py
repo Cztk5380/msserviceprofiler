@@ -17,7 +17,7 @@ def is_contained_vaild_iter_info(rid_list, token_id_list):
 
 def print_warning_log(log_name):
     if not ExporterLatency.get_err_log_flag(log_name):
-        logger.warning(f"The '{log_name}' field info is missing, please check.")
+        logger.warning(f"The '{log_name}' field info is missing in prof data, please check.")
         ExporterLatency.set_err_log_flag(log_name, True)
 
 
@@ -217,12 +217,12 @@ class ExporterLatency(ExporterBase):
         return percentile_views
 
     @staticmethod
-    @timer(log_func=logger.info)
+    @timer(log_func=logger.debug)
     def gen_exporter_first_token_latency_views(req_ttft_df):
         return ExporterLatency.gen_exporter_percentile_of_df(req_ttft_df, 'end_time', 'ttft')
 
     @staticmethod
-    @timer(log_func=logger.info)
+    @timer(log_func=logger.debug)
     def gen_exporter_req_latency_views(req_event_df):
         calc_df = req_event_df[req_event_df["event"].isin(["httpReq", "httpRes", "DecodeEnd"])]
 
@@ -238,7 +238,7 @@ class ExporterLatency(ExporterBase):
         return ExporterLatency.gen_exporter_percentile_of_df(req_latency_df, 'end_time', 'req_latency')
 
     @staticmethod
-    @timer(log_func=logger.info)
+    @timer(log_func=logger.debug)
     def gen_exporter_decode_gen_speed_views(req_event_df):
         calc_df = req_event_df[req_event_df["event"].isin(["modelExec", "Execute"])]
 
@@ -258,7 +258,7 @@ class ExporterLatency(ExporterBase):
         return ExporterLatency.gen_exporter_percentile_of_df(decode_gen_speed_df, 'end_time', 'decode_gen_speed')
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def export(cls, data) -> None:
         if 'db' not in cls.args.format:
             return

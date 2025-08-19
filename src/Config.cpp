@@ -165,7 +165,8 @@ uint32_t Config::ConvertStringToAclDataType(const std::string& configStr) const
         {"ACL_PROF_L2CACHE", ACL_PROF_L2CACHE},
         {"ACL_PROF_HCCL_TRACE", ACL_PROF_HCCL_TRACE},
         {"ACL_PROF_TRAINING_TRACE", ACL_PROF_TRAINING_TRACE},
-        {"ACL_PROF_RUNTIME_API", ACL_PROF_RUNTIME_API}
+        {"ACL_PROF_RUNTIME_API", ACL_PROF_RUNTIME_API},
+        {"ACL_PROF_MSPROFTX", ACL_PROF_MSPROFTX}
     };
     // LCOV_EXCL_STOP
 
@@ -230,7 +231,7 @@ aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& con
     if (it != metricMap.end()) {
         return it->second;
     }
-
+    PROF_LOGE("Unknown profiling flag: %s", configStr.c_str());  // LCOV_EXCL_LINE
     // 未找到匹配项
     return ACL_AICORE_NONE;
 }
@@ -277,7 +278,7 @@ void Config::ParseTimeLimit(const Json& config)
                 timeLimit_ = 0;
             } else if (config["timelimit"] > 0 && config["timelimit"] <= MAX_TIME_LIMIT) {
                 timeLimit_ = config["timelimit"];
-                PROF_LOGI("profile timeLimit_: %u", timeLimit_);  // LCOV_EXCL_LINE
+                PROF_LOGD("profile timeLimit_: %u", timeLimit_);  // LCOV_EXCL_LINE
             } else {
                 timeLimit_ = MAX_TIME_LIMIT;
                 // LCOV_EXCL_LINE
@@ -381,8 +382,8 @@ void Config::ParseAclTaskTime(const Json &config)
             PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");  // LCOV_EXCL_LINE
         }
     }
-    PROF_LOGI("profile enableAclTaskTime_: %s", enableAclTaskTime_ ? "true" : "false");  // LCOV_EXCL_LINE
-    PROF_LOGI("profile msptiEnable_: %s", msptiEnable_ ? "true" : "false");  // LCOV_EXCL_LINE
+    PROF_LOGD("profile enableAclTaskTime_: %s", enableAclTaskTime_ ? "true" : "false");  // LCOV_EXCL_LINE
+    PROF_LOGD("profile msptiEnable_: %s", msptiEnable_ ? "true" : "false");  // LCOV_EXCL_LINE
 
     if (config.contains("acl_prof_task_time_level")) {
         auto aclProfTaskTimeLevel = MsUtils::SplitStr(config["acl_prof_task_time_level"], ';');
@@ -395,7 +396,7 @@ void Config::ParseAclTaskTime(const Json &config)
             aclProfTaskTimeLevel.first = "L0";
         }
         aclTaskTimeLevel_ = aclProfTaskTimeLevel.first;
-        PROF_LOGI("profile aclTaskTimeLevel: %s", aclTaskTimeLevel_.c_str());  // LCOV_EXCL_LINE
+        PROF_LOGD("profile aclTaskTimeLevel: %s", aclTaskTimeLevel_.c_str());  // LCOV_EXCL_LINE
         // parser aclTaskTimeDuration
         if (aclProfTaskTimeLevel.second == "") {
             PROF_LOGD("Not set aclTaskTimeDuration value");  // LCOV_EXCL_LINE
@@ -417,7 +418,7 @@ void Config::ParseAclTaskTime(const Json &config)
             PROF_LOGW("aclTaskTimeDuration value should between 1 ~ 999, now it is %d",  // LCOV_EXCL_LINE
                       aclTaskTimeDuration_);  // LCOV_EXCL_LINE
         }
-        PROF_LOGI("profile aclTaskTimeDuration: %d", aclTaskTimeDuration_);  // LCOV_EXCL_LINE
+        PROF_LOGD("profile aclTaskTimeDuration: %d", aclTaskTimeDuration_);  // LCOV_EXCL_LINE
     }
 }
 
@@ -487,7 +488,7 @@ std::vector<std::string> Config::SplitAndTrimString(const std::string& str, char
 
 void Config::LogDomainInfo() const
 {
-    PROF_LOGI("profile enableDomainFilter_: %s", enableDomainFilter_ ? "true" : "false");  // LCOV_EXCL_LINE
+    PROF_LOGD("profile enableDomainFilter_: %s", enableDomainFilter_ ? "true" : "false");  // LCOV_EXCL_LINE
     std::string combined;
     for (const auto& domain : validDomain_) {
         if (!combined.empty()) {
@@ -496,7 +497,7 @@ void Config::LogDomainInfo() const
         combined += domain;
     }
     if (!combined.empty()) {
-        PROF_LOGI("profiler validDomain_: %s", combined.c_str());  // LCOV_EXCL_LINE
+        PROF_LOGD("profiler validDomain_: %s", combined.c_str());  // LCOV_EXCL_LINE
     }
 }
 
@@ -728,7 +729,7 @@ void Config::SaveConfigToJsonFile() const
             remove(realTempPath);
             return;
         }
-        PROF_LOGI("Successfully saved profiler configuration to: %s", configPath.c_str());  // LCOV_EXCL_LINE
+        PROF_LOGD("Successfully saved profiler configuration to: %s", configPath.c_str());  // LCOV_EXCL_LINE
     } catch (const std::exception& e) {  // LCOV_EXCL_LINE
         PROF_LOGE("Failed to save config to JSON file: %s", e.what());  // LCOV_EXCL_LINE
     }

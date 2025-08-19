@@ -13,7 +13,7 @@ class PluginCommon(PluginBase):
     depends = ["plugin_concat"]
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse(cls, data):
         if "tx_data_df" not in data:
             raise DataFrameMissingError("tx_data_df")

@@ -40,13 +40,13 @@ class ExporterBatchData(ExporterBase):
         cls.args = args
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     @key_except('domain', 'name', ignore=True, msg="ignoring current exporter by default.")
     def export(cls, data) -> None:
         if 'csv' in cls.args.format or 'db' in cls.args.format:
             df = data.get('tx_data_df')
             if df is None:
-                logger.warning("The data is empty, please check")
+                logger.warning("There is no service prof data, batch.csv will not be generated. Please check. ")
                 return
             output = cls.args.output_path
 
@@ -60,9 +60,9 @@ class ExporterBatchData(ExporterBase):
                 batch_name = 'batchFrameworkProcessing'
             else:
                 batch_name = 'Schedule'
-            batch_df = df[df['name'].isin([batch_name, 'modelExec'])]
+            batch_df = df[df['name'].isin([batch_name, 'modelExec'])].copy()
             if batch_df.empty:
-                logger.warning("No batch data found. Please check msproftx.db.")
+                logger.warning("No batch data found. batch.csv will not be generated. Please check ")
                 return
             # 筛选显示
             batch_df = filter_batch_df(batch_name, batch_df)

@@ -128,7 +128,7 @@ class MsprofDataSource(BaseDataSource):
             if cpu_frequency != "":
                 return float(cpu_frequency) * US_PER_SECOND
 
-        logger.warning("Missing 'Frequency' value in 'CPU' data.")
+        logger.warning("Missing 'Frequency' value in 'CPU' data. The time display will be incorrect. ")
         return 0
 
     @classmethod
@@ -268,9 +268,9 @@ class MsprofDataSource(BaseDataSource):
         try:
             subprocess.run(command_list, stdout=subprocess.DEVNULL, check=True)
         except subprocess.CalledProcessError as e:
-            logger.error(f"msprof error: {e}")
+            logger.error("parse msprof data failed using command %r, error is: %r", command, str(e))
         except Exception as e:
-            logger.error(f"msprof error occurred: {e}")
+            logger.error("parse msprof data failed using command %r, error is: %r", command, str(e))
 
     @classmethod
     def clear_last_msprof_output(cls, full_path):
