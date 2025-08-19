@@ -15,6 +15,10 @@ from ms_service_profiler.utils.error import LoadDataError
 class DBDataSource(BaseDataSource):
 
     @classmethod
+    def outputs(cls):
+        return ["data_source:service"]
+
+    @classmethod
     def handle_exact_match(cls, folder_path, reverse_d):
         filepaths = {}
         for fp in Path(folder_path).rglob('*'):

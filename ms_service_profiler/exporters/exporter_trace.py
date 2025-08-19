@@ -29,7 +29,10 @@ class ExporterTrace(TaskExporterBase):
         return ["pipeline:service", "pipeline:mspti"]
 
     def do_export(self):
-        self.export(self.get_depends_result("pipeline:service"), self.get_depends_result("pipeline:mspti"))
+        data, mspti = self.get_depends_result("pipeline:service", None), self.get_depends_result("pipeline:mspti", None)
+        if data is None and mspti is None:
+            return
+        self.export(data, mspti)
 
     @classmethod
     @timer(logger.info)

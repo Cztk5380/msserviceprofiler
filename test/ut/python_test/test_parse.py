@@ -17,7 +17,9 @@ import stat
 from ms_service_profiler.parse import Task
 from ms_service_profiler.parse import (
     build_task_dag,
-    main,
+    main
+)
+from ms_service_profiler.data_source.mspti_data_source import (
     load_ops_db
 )
 

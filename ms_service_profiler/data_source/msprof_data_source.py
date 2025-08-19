@@ -25,6 +25,10 @@ from ms_service_profiler.exporters.utils import (
 class MsprofDataSource(BaseDataSource):
 
     @classmethod
+    def outputs(cls):
+        return ["data_source:service"]
+
+    @classmethod
     def get_prof_paths(cls, input_path: str):
         filepaths = []
         for dp in Path(input_path).glob("**/PROF_*"):

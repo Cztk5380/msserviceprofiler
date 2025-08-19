@@ -22,8 +22,7 @@ class TaskExporterBase(Task):
         pass
 
     def run(self):
-        with Timer(self.name, logger.info):
-            self.do_export()
+        self.do_export()
 
 
 class ExporterBase(TaskExporterBase):
@@ -52,7 +51,6 @@ class ExporterBase(TaskExporterBase):
             self.initialize(self._args)
         data = self.get_depends_result("pipeline:service")
         if data is None:
-            logger.debug(f"{self.name}: nothing to export")
             return
-        with Timer(self.name, logger.info):
+        with Timer(f"{self.name}-{self.task_index}", logger.info):
             self.export(data)

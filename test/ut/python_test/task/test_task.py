@@ -39,11 +39,6 @@ def test_task_class(mock_get_retister_by_name):
     assert isinstance(result, list)
     assert result == ["depend_task1", "depend_task2"]
 
-    # 测试is_deal_single_data方法
-    result = Task.is_deal_single_data()
-    assert isinstance(result, bool)
-    assert not result
-
     # 测试set_depends_result和get_depends_result方法
     task = Task({"task_name": "test_task"})
     task.set_depends_result("depend_task1", {"data": "dummy_data"})
