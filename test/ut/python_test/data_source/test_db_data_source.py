@@ -84,12 +84,12 @@ def setup_test_db_directory(tmp_path):
 
 def test_process_normal():
     # 模拟convert_db_to_df的返回值
-    mock_df = pd.DataFrame({
+    mock_df = (pd.DataFrame({
         'timestamp': [1623456789000, 1623456889000],
         'endTimestamp': [1623456799000, 1623456899000],
         'message': ['{"key1":"value1"}', '{"key2":"value2"}'],
         'hostname': ['host1', 'host2']
-    })
+    }), None)
 
     # 模拟json_normalize的返回值
     mock_json_normalize = MagicMock()

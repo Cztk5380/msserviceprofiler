@@ -52,7 +52,10 @@ class ProcessorRes(ProcessorBase):
 
     def get_mapping_rid(self, rid, rid_map):
         format_rid = self.convert_to_format_str(rid)
-        return rid_map.get(format_rid, format_rid)
+        if rid_map is None:
+            return format_rid
+        else:
+            return rid_map.get(format_rid, format_rid)
 
     def mapping_rid(self, rid, rid_map):
         if isinstance(rid, list):
@@ -112,49 +115,26 @@ class ProcessorRes(ProcessorBase):
             extract_df.tolist(), index=data_df.index
         )
 
-    def parse(self, data):
-        process_list = list()
-        rid_map_of_process = dict()
+    def parse(self, data, meta_data, meta_data_list):
+        data_df = data.get("tx_data_df")
+        if data_df is None:
+            return data
+        
+        rid_map = dict()
+        if meta_data.get("is_forward", False) is False:
+            rid_map = meta_data.get("rid_map")
 
-        for index, one_msporf_data in enumerate(data):
-            data_df: pd.DataFrame = one_msporf_data.get("tx_data_df")
-            process_list.append(self.parse_process_info(data_df, index))
-
-        # 处理 调度 进程， 获取 rid map
-        for process_info in process_list:
-            if process_info.get("is_forward", False) is False:
-                data_df = process_info.get("df")
-                index = process_info.get("index")
-                if data_df is None:
-                    continue
-
-                if "from" not in data_df or "to" not in data_df:
-                    continue
-
-                rid_map = data_df[data_df['from'].notna()].set_index("to").to_dict(orient='dict')["from"]
-                rid_map = (
-                    {self.convert_to_format_str(k): self.convert_to_format_str(v) for k, v in rid_map.items()}
-                )
-
-                hostname = process_info.get("hostname")
-                pid = process_info.get("pid")
-                rid_map_of_process.setdefault((hostname, pid), dict())
-                rid_map_of_process[(hostname, pid)].update(rid_map)
-
-                self.process_each_df(data_df, rid_map)
-                # 删除from to
-                data[index]["tx_data_df"] = data_df[data_df['from'].isna()]
-
-        # 处理 forward 进程
-        for process_info in process_list:
-            if process_info.get("is_forward", False) is True:
-                data_df = process_info.get("df")
-                hostname = process_info.get("hostname")
-                ppid = process_info.get("ppid")
-                rid_map = rid_map_of_process.get((hostname, ppid)) or next(
-                    iter(rid_map_of_process.values()), {}
-                ) if rid_map_of_process is not None else {}
-
-                self.process_each_df(data_df, rid_map)
+            self.process_each_df(data_df, rid_map)
+            # 删除from to
+            if "from" in data_df:
+                data["tx_data_df"] = data_df[data_df['from'].isna()]
+        else:
+            hostname = meta_data.get("hostname")
+            ppid = meta_data.get("ppid")
+            for meta_data_process in meta_data_list:
+                if meta_data_process.get("hostname") == hostname and meta_data_process.get("pid") == ppid:
+                    rid_map = meta_data_process.get("rid_map")
+          
+            self.process_each_df(data_df, rid_map)
 
         return data

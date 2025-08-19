@@ -8,6 +8,7 @@ from ms_service_profiler.task.task_register import filter_dag
 from ms_service_profiler.task.task_register import TaskDag
 from ms_service_profiler.task.task import Task
 from ms_service_profiler.utils.timer import timer
+from ms_service_profiler.utils.log import logger
 
 
 class DefaultValue(Enum):
@@ -121,6 +122,7 @@ class Taskmanger:
     def set_task_finished(self, finished_task_name, next_task_set):
         task_manager_info = self.init_task(finished_task_name)
         task_manager_info["state"] = "finished"
+        logger.info(f"{finished_task_name} finished")
         # 将这个进程信息转移到下一个task中去
         for pool_index, next_task_name in next_task_set:
             self.pool_owner[pool_index] = next_task_name
@@ -147,6 +149,7 @@ class Taskmanger:
             queue.put((msg, param))
 
     def send_go(self, task_name):
+        logger.info(f"{task_name} start")
         for index in range(self.get_task_process_cnt(task_name)):
             self.send_msg_to_one_process(task_name, index, "go", index)
     
@@ -187,7 +190,7 @@ class Taskmanger:
                 if gather_data is not None:
                     self.send_msg_to_one_process(who_task_name, dst, msg, gather_data)
             elif msg == "all_gather":
-                dst, data = param
+                data = param
                 gather_data = self.fill_gater_data(who_task_name, who_index, data)
                 if gather_data is not None:
                     self.send_msg_to_one_task(who_task_name, msg, gather_data)
