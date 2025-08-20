@@ -8,7 +8,7 @@ from ms_service_profiler.task.task_register import filter_dag
 from ms_service_profiler.task.task_register import TaskDag
 from ms_service_profiler.task.task import Task
 from ms_service_profiler.utils.timer import timer
-from ms_service_profiler.utils.log import logger
+from ms_service_profiler.utils.log import logger, Color
 
 
 class DefaultValue(Enum):
@@ -122,7 +122,8 @@ class Taskmanger:
     def set_task_finished(self, finished_task_name, next_task_set):
         task_manager_info = self.init_task(finished_task_name)
         task_manager_info["state"] = "finished"
-        logger.info(f"{finished_task_name} finished")
+        
+        logger.info(f"{Color.BRIGHT_GREEN}task [{finished_task_name}] finished.{Color.RESET}")
         # 将这个进程信息转移到下一个task中去
         for pool_index, next_task_name in next_task_set:
             self.pool_owner[pool_index] = next_task_name
@@ -149,7 +150,7 @@ class Taskmanger:
             queue.put((msg, param))
 
     def send_go(self, task_name):
-        logger.info(f"{task_name} start")
+        logger.info(f"{Color.BRIGHT_BLUE}task [{task_name}] start. {Color.RESET}")
         for index in range(self.get_task_process_cnt(task_name)):
             self.send_msg_to_one_process(task_name, index, "go", index)
     

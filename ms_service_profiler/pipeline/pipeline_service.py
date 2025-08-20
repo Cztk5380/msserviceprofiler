@@ -45,7 +45,6 @@ class PipelineService(PipelineBase):
             return None
         
         data = self.run_step(PluginConcat, PluginConcat.name, data_list)
-        data = self.run_step(PluginBatch, PluginBatch.name, data, is_key_step=False)
         req_dict = self.run_step(ProcessorReq(self), "ProcessorReq", data.get("tx_data_df"))
 
         data.update(req_dict)
