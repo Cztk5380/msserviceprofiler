@@ -81,6 +81,9 @@ class ProcessorReq(ProcessorBase):
         right_batch_type_mask = right_role_batch_type | right_iter_batch_type | right_decode_batch_type
         batch_data_df = batch_data_df[right_batch_type_mask]
 
+        # 如果blocks字段未采集到，则默认补0
+        if "blocks" not in batch_data_df:
+            batch_data_df["blocks"] = 0
         # 过滤后数据填充 data frame 返回
         batch_event_df["batch_id"] = batch_id_df[right_batch_type_mask]
         batch_event_df["event"] = batch_data_df["name"]
