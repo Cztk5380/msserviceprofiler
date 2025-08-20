@@ -197,7 +197,10 @@ class Taskmanger:
                     self.send_msg_to_one_task(who_task_name, msg, gather_data)
             elif msg == "broadcast":
                 data = param
-                self.send_msg_to_one_task(who_task_name, dst, msg, data)
+                self.send_msg_to_one_task(who_task_name, msg, data)
+            elif msg == "send_to":
+                dst, data = param
+                self.send_msg_to_one_process(who_task_name, dst, 'p2p', data)
             else:
                 pass
 

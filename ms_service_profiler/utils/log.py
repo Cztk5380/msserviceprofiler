@@ -55,6 +55,9 @@ class Color(Enum):
     
     # 重置
     RESET = "\033[0m"
+    
+    def __str__(self):
+        return self.value
 
 def set_log_level(level="info"):
     if level.lower() in LOG_LEVELS:

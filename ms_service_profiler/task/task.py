@@ -8,6 +8,7 @@ from ms_service_profiler.task.task_register import register
 
 class DefaultValue(Enum):
     UNDEFINED = auto()
+    SEND_FINISHED = auto()
 
 
 class Task():
@@ -42,7 +43,6 @@ class Task():
         self.send_queue.put((self.task_name, self.task_index, "gather", (dst, data)))
         if dst == self.task_index:
             msg, gather_data = self.recv_queue.get()
-            assert msg == "gather"
             return gather_data
         else:
             return None
@@ -50,17 +50,36 @@ class Task():
     def all_gather(self, data):
         # 所有都会等待
         self.send_queue.put((self.task_name, self.task_index, "all_gather", data))
-        msg, gather_data = self.recv_queue.get()
-        assert msg == "all_gather"
+        _, gather_data = self.recv_queue.get()
         return gather_data
+    
+    def all_gather_async(self, data):
+        # 所有都会等待
+        self.send_queue.put((self.task_name, self.task_index, "all_gather", data))
     
     def broadcast(self, src=0, data=None):
         # 所有都会等待, 发送会虽然有自己的数据，但是还是等待
         if self.task_index == src:
             self.send_queue.put((self.task_name, self.task_index, "broadcast", data))
-        msg, broadcast_data = self.recv_queue.get()
-        assert msg == "broadcast"
+        _, broadcast_data = self.recv_queue.get()
         return broadcast_data
+    
+    def send(self, data=None, dst=0):
+        # 所有都会等待, 发送会虽然有自己的数据，但是还是等待
+        self.send_queue.put((self.task_name, self.task_index, "send_to", (dst, data)))
+        
+    def send_finish(self):
+        # 所有进程都会等待全部FINISHED
+        return self.all_gather(DefaultValue.SEND_FINISHED)
+    
+    def recv_until_finish(self):
+        # 一直收数据，直到结束
+        self.all_gather_async(DefaultValue.SEND_FINISHED)
+        msg = 'p2p'
+        while msg== 'p2p':
+            msg, recv_data = self.recv_queue.get()
+            _, data = recv_data
+            yield data
     
     @abstractmethod
     def run(self):
