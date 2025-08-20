@@ -149,9 +149,9 @@ class TestProcessorRes(unittest.TestCase):
 
     def test_parse_empty_data(self):
         # 测试空的输入数据
-        data = []
-        result = self.processor.parse(data)
-        self.assertEqual(result, [])
+        data = dict()
+        result = self.processor.parse(data, dict(), list())
+        self.assertEqual(result, dict())
 
     def test_parse_normal(self):
         # 测试正常的输入数据
@@ -179,9 +179,8 @@ class TestProcessorRes(unittest.TestCase):
                 })
             }
         ]
-        result = self.processor.parse(data)
+        result = self.processor.parse(data[1], dict(), list())
         self.assertIsNotNone(result)
-        self.assertEqual(len(result), 2)
 
     def test_parse_missing_columns(self):
         # 测试缺少某些列的输入数据
@@ -194,9 +193,8 @@ class TestProcessorRes(unittest.TestCase):
                 })
             }
         ]
-        result = self.processor.parse(data)
+        result = self.processor.parse(data[0], dict(), list())
         self.assertIsNotNone(result)
-        self.assertEqual(len(result), 1)
 
     def test_parse_with_non_forward_process(self):
         # 测试包含非 forward 进程的情况
@@ -227,20 +225,19 @@ class TestProcessorRes(unittest.TestCase):
             }
         ]
 
-        result = self.processor.parse(data)
-
+        result = self.processor.parse(data[0], dict(), list())
         # 检查结果
         self.assertIsNotNone(result)
-        self.assertEqual(len(result), 2)
 
         # 检查第一个进程（非 forward 进程）
-        first_process = result[0]
+        first_process = result
         self.assertIn("tx_data_df", first_process)
         first_df = first_process["tx_data_df"]
         self.assertTrue(first_df.empty)  # from 列不为空的数据被移除
 
+        result = self.processor.parse(data[1], dict(), list())
         # 检查第二个进程（forward 进程）
-        second_process = result[1]
+        second_process = result
         self.assertIn("tx_data_df", second_process)
         second_df = second_process["tx_data_df"]
         self.assertEqual(second_df.iloc[0]["rid"], '20')  # rid 应该被正确映射
@@ -265,19 +262,17 @@ class TestProcessorRes(unittest.TestCase):
             }
         ]
 
-        result = self.processor.parse(data)
-
-        # 检查结果
+        result = self.processor.parse(data[0], dict(), list())
         self.assertIsNotNone(result)
-        self.assertEqual(len(result), 2)
-
         # 检查第一个进程（非 forward 进程）
-        first_process = result[0]
+        first_process = result
         self.assertIn("tx_data_df", first_process)
         self.assertIsNone(first_process["tx_data_df"])  # 空的 DataFrame 应该保持为空
 
+        result = self.processor.parse(data[1], dict(), list())
+        self.assertIsNotNone(result)
         # 检查第二个进程（forward 进程）
-        second_process = result[1]
+        second_process = result
         self.assertIn("tx_data_df", second_process)
         second_df = second_process["tx_data_df"]
         self.assertEqual(second_df.iloc[0]["rid"], '20')  # rid 应该被正确映射
@@ -309,19 +304,21 @@ class TestProcessorRes(unittest.TestCase):
             }
         ]
 
-        result = self.processor.parse(data)
+        result = self.processor.parse(data[0], dict(), list())
 
         # 检查结果
         self.assertIsNotNone(result)
-        self.assertEqual(len(result), 2)
-
         # 检查第一个进程（非 forward 进程）
-        first_process = result[0]
+        first_process = result
         self.assertIn("tx_data_df", first_process)
         self.assertTrue(first_process["tx_data_df"].equals(data[0]["tx_data_df"]))  # DataFrame 应该保持不变
 
+        result = self.processor.parse(data[1], dict(), list())
+
+        # 检查结果
+        self.assertIsNotNone(result)
         # 检查第二个进程（forward 进程）
-        second_process = result[1]
+        second_process = result
         self.assertIn("tx_data_df", second_process)
         second_df = second_process["tx_data_df"]
         self.assertEqual(second_df.iloc[0]["rid"], '20')  # rid 应该被正确映射

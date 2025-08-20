@@ -16,11 +16,12 @@ import stat
 
 from ms_service_profiler.parse import Task
 from ms_service_profiler.parse import (
-    build_task_dag,
     main
 )
+
+from ms_service_profiler.task.task_register import get_dag, TaskDag, regist_map, TaskRegisterInfo
 from ms_service_profiler.data_source.mspti_data_source import (
-    load_ops_db
+    MsptiDataSource
 )
 
 # 配置日志
@@ -115,43 +116,46 @@ class MockTask2(Task):
         return []
 
 
-@patch('ms_service_profiler.parse.Task.get_retister_by_name')
-def test_build_task_dag(mock_get_retister_by_name):
-    # 设置get_retister_by_name方法的返回值
-    def get_task(name):
-        if name == "mock_task":
-            return MockTask
-        elif name == "mock_task2":
-            return MockTask2
-        else:
-            return Task  # 返回一个默认的Task类，以避免返回None
-    mock_get_retister_by_name.side_effect = get_task
+def test_build_task_dag():
+    regist_map.update(dict(mock_task=TaskRegisterInfo(task_cls="mock_task", name="mock_task",
+                            data_depends=["depend_task1", "depend_task2"], 
+                            data_outputs=["mock_task"]), 
+                      mock_task2=TaskRegisterInfo(task_cls="mock_task2", name="mock_task2",
+                            data_depends=["prof_path"], data_outputs=["mock_task2"]), 
+                      depend_task1= TaskRegisterInfo(task_cls="depend_task1", name='depend_task1',
+                            data_depends=["prof_path"], data_outputs=['depend_task1']), 
+                      depend_task2=TaskRegisterInfo(task_cls="depend_task2", name='depend_task2',
+                            data_depends=["prof_path"], data_outputs=['depend_task2'])))
 
     # 调用build_task_dag函数
-    result = build_task_dag(["mock_task", "mock_task2"])
+    result = get_dag(["mock_task", "mock_task2"])
 
     # 断言结果是一个元组
     assert isinstance(result, tuple)
-    assert len(result) == 3
-    next_tasks, prev_tasks, head_tasks = result
+    assert len(result) == 2
+    dag, head_tasks = result
 
     # 断言next_tasks是一个字典
-    assert isinstance(next_tasks, dict)
-    assert len(next_tasks) == 2
-    assert next_tasks["depend_task1"] == set(["mock_task"])
-    assert next_tasks["depend_task2"] == set(["mock_task"])
+    assert isinstance(dag, TaskDag)
+    print("##################", dag)
+    print("##################", dag.dag_data_flow)
+    print("##################", dag.dag_task_flow)
+    print("##################", dag.head_tasks_name)
+    print("##################", dag.ordered_tasks_name)
+    
+    assert dag.get_next_task_names("depend_task1") == ["mock_task"]
+    assert dag.get_next_task_names("depend_task2") == ["mock_task"]
 
     # 断言prev_tasks是一个字典
-    assert isinstance(prev_tasks, dict)
-    assert len(prev_tasks) == 1
-    assert prev_tasks["mock_task"] == ["depend_task1", "depend_task2"]
-    assert "mock_task2" not in prev_tasks
+    assert dag.get_prev_task_names("mock_task") == ["depend_task1", "depend_task2"]
+    assert dag.get_prev_task_names("mock_task2") == []
 
     # 断言head_tasks是一个集合
     assert len(head_tasks) == 3
-    assert "mock_task2" in head_tasks
-    assert "depend_task1" in head_tasks
-    assert "depend_task2" in head_tasks
+    assert "mock_task2" in [x.name for x in head_tasks]
+    assert "depend_task1" in [x.name for x in head_tasks]
+    assert "depend_task2" in [x.name for x in head_tasks]
+    regist_map.clear()
 
 
 def test_timestamp_conversion_and_duration_calculation(setup_test_directory):
@@ -350,7 +354,7 @@ def test_load_ops_db_with_valid_db_path(setup_test_directory):
     conn.commit()
     conn.close()
 
-    api_df, kernel_df, communication_df = load_ops_db(str(db_path), 1)
+    api_df, kernel_df, communication_df = MsptiDataSource.load_ops_db(str(db_path), 1)
 
     assert api_df.shape[0] == 1
     assert api_df["db_id"].iloc[0] == 1

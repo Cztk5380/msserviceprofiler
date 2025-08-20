@@ -30,10 +30,10 @@ class PipelineService(PipelineBase):
         data = self.run_step(PluginTimeStampHelper, PluginTimeStampHelper.name, data)
         
 
-        meta_data = self.run_step(ProcessorMeta(self), "ProcessorMeta", data)
+        meta_data = self.run_step(ProcessorMeta(), "ProcessorMeta", data)
         meta_data_list = self.all_gather(meta_data)
         
-        data = self.run_step(ProcessorRes(self), "ProcessorRes", data, meta_data, meta_data_list)
+        data = self.run_step(ProcessorRes(), "ProcessorRes", data, meta_data, meta_data_list)
         data = self.run_step(PluginCommon, PluginCommon.name, data, is_key_step=False)
         data = self.run_step(PluginReqStatus, PluginReqStatus.name, data, is_key_step=False)
         data = self.run_step(PluginMetric, PluginMetric.name, data, is_key_step=False)  # 新增数据 metric_data_df
@@ -45,7 +45,7 @@ class PipelineService(PipelineBase):
             return None
         
         data = self.run_step(PluginConcat, PluginConcat.name, data_list)
-        req_dict = self.run_step(ProcessorReq(self), "ProcessorReq", data.get("tx_data_df"))
+        req_dict = self.run_step(ProcessorReq(), "ProcessorReq", data.get("tx_data_df"))
 
         data.update(req_dict)
         return data

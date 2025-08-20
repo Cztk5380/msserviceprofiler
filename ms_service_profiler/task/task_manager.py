@@ -244,17 +244,19 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
 def tasks_run(data_source_tasks, task_dag, input_path, args):
     task_manager = Taskmanger(task_dag)
     
+    has_tasks = False
     for data_source_task in data_source_tasks:
         single_data_list = data_source_task.task_cls.get_prof_paths(input_path)
         # 如果没有数据，直接返回
         if len(single_data_list) == 0:
             task_manager.set_no_source_data(data_source_task.name)
             continue
-        
+        has_tasks = True
         # 创建进程池
         src_dag = filter_dag(task_dag, data_source_task.name)
         
         task_manager.create_pool(data_source_task, single_data_list, src_dag, args)
 
     # 所有都开始
-    task_manager.start()
+    if has_tasks:
+        task_manager.start()

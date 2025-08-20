@@ -39,20 +39,20 @@ class TaskDag:
         return self.dag_data_flow.get(data_name, {}).get("to_task_name", [])
     
     def get_depends_data_names(self, task_name):
-        return get_retister_by_name(task_name).data_depends
+        return get_register_by_name(task_name).data_depends
     
     def get_outputs_data_names(self, task_name):
-        return get_retister_by_name(task_name).data_outputs
+        return get_register_by_name(task_name).data_outputs
     
     def get_task_reg_info(self, task_name):
-        return get_retister_by_name(task_name)
+        return get_register_by_name(task_name)
     
     def get_ordered_task_names(self):
         return ((self.ordered_tasks_name[i], self.ordered_tasks_name[i + 1] if i + 1 < len(self.ordered_tasks_name) else None) 
             for i in range(len(self.ordered_tasks_name)))
 
 
-def get_retister_by_name(name: str):
+def get_register_by_name(name: str):
     return regist_map.get(name, None)
 
 
@@ -101,7 +101,7 @@ def get_data_dag():
     while walking_index < len(tasks):
         walking_task_name = tasks[walking_index]
         walking_index += 1
-        walking_task = get_retister_by_name(walking_task_name)
+        walking_task = get_register_by_name(walking_task_name)
  
         walking_task_output_data_names = walking_task.get("data_outputs", [])
         for output_data_name in walking_task_output_data_names:
@@ -131,7 +131,7 @@ def get_dag(exporter_names):
     while walking_index < len(tasks):
         walking_task_name = tasks[walking_index]
         walking_index += 1
-        walking_task = get_retister_by_name(walking_task_name)
+        walking_task = get_register_by_name(walking_task_name)
         dag_task_flow.setdefault(walking_task_name, dict(prev_task_name=[], next_task_name=[]))
  
         walking_task_depends_data_names = walking_task.get("data_depends", [])

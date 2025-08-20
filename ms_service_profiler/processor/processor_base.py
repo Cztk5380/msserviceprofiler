@@ -2,5 +2,4 @@
 
 
 class ProcessorBase():
-    def __init__(self, task) -> None:
-        self.task = task
+    pass
