@@ -128,13 +128,12 @@ class ProcessorRes(ProcessorBase):
                 if data_df is None:
                     continue
 
-                if "from" not in data_df or "to" not in data_df:
-                    continue
-
-                rid_map = data_df[data_df['from'].notna()].set_index("to").to_dict(orient='dict')["from"]
-                rid_map = (
-                    {self.convert_to_format_str(k): self.convert_to_format_str(v) for k, v in rid_map.items()}
-                )
+                rid_map = {}
+                if "from" in data_df and "to" in data_df:
+                    rid_map = data_df[data_df['from'].notna()].set_index("to").to_dict(orient='dict')["from"]
+                    rid_map = (
+                        {self.convert_to_format_str(k): self.convert_to_format_str(v) for k, v in rid_map.items()}
+                    )
 
                 hostname = process_info.get("hostname")
                 pid = process_info.get("pid")
@@ -143,7 +142,8 @@ class ProcessorRes(ProcessorBase):
 
                 self.process_each_df(data_df, rid_map)
                 # 删除from to
-                data[index]["tx_data_df"] = data_df[data_df['from'].isna()]
+                if "from" in data_df:
+                    data[index]["tx_data_df"] = data_df[data_df['from'].isna()]
 
         # 处理 forward 进程
         for process_info in process_list:
