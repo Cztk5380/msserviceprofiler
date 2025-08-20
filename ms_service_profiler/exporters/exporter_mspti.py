@@ -7,6 +7,7 @@ from ms_service_profiler.utils.log import logger
 from ms_service_profiler.exporters.base import TaskExporterBase
 from ms_service_profiler.exporters.exporter_trace import save_trace_data_into_json, save_trace_data_into_db
 from ms_service_profiler.exporters.utils import create_sqlite_tables
+from ms_service_profiler.utils.timer import Timer
 
 
 class ExporterMspti(TaskExporterBase):
@@ -52,7 +53,10 @@ class ExporterMspti(TaskExporterBase):
 
     def do_export(self) -> None:
         data: Dict = self.get_depends_result("pipeline:mspti")
-        self.export(data)
+        if data is None:
+            return
+        with Timer(self.name):
+            self.export(data)
 
 
 def export_event_from_df(df, channel_name, tid):

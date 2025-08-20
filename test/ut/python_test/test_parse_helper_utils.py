@@ -9,7 +9,7 @@ import logging
 from concurrent.futures import ProcessPoolExecutor
 import pandas as pd
 
-from ms_service_profiler.parse_helper.utils import _convert_db_to_df, convert_db_to_df, convert_timestamp
+from ms_service_profiler.parse_helper.utils import convert_db_to_df, convert_timestamp
 from ms_service_profiler.parse_helper.constant import MAJOR_TABLE_COLS, \
     MAJOR_TABLE_NAME, MINOR_TABLE_COLS, MINOR_TABLE_NAME
 
@@ -30,7 +30,7 @@ class TestDBConversion(unittest.TestCase):
         mock_cursor.execute.return_value = [('col2', [3, 4])]
 
         file_path = 'test.db'
-        result = _convert_db_to_df(file_path)
+        result, _  = convert_db_to_df(file_path)
 
         self.assertIsNotNone(result)
         self.assertIn('markId', result.columns)
@@ -50,7 +50,7 @@ class TestDBConversion(unittest.TestCase):
         mock_logger = MagicMock()
         with patch('ms_service_profiler.parse_helper.utils.logger', mock_logger):
             file_path = 'test.db'
-            result = _convert_db_to_df(file_path)
+            result, _  = convert_db_to_df(file_path)
 
             self.assertTrue(result.empty)
             mock_logger.warning.assert_called_once()
@@ -65,7 +65,7 @@ class TestDBConversion(unittest.TestCase):
         mock_logger = MagicMock()
         with patch('ms_service_profiler.parse_helper.utils.logger', mock_logger):
             file_path = 'test.db'
-            result = _convert_db_to_df(file_path)
+            result, _ = convert_db_to_df(file_path)
 
             self.assertTrue(result.empty)
             mock_logger.warning.assert_called_once()
@@ -97,7 +97,7 @@ class TestDBConversion(unittest.TestCase):
         mock_logger = MagicMock()
         with patch('ms_service_profiler.parse_helper.utils.logger', mock_logger):
             file_path = 'test.db'
-            result = _convert_db_to_df(file_path)
+            result, _  = convert_db_to_df(file_path)
 
             self.assertTrue(result.empty)  # 确保返回的 DataFrame 是空的
             mock_logger.warning.assert_called_once()  # 确保 logger.warning 被调用了一次
@@ -112,7 +112,7 @@ class TestDBConversion(unittest.TestCase):
         mock_logger = MagicMock()
         with patch('ms_service_profiler.parse_helper.utils.logger', mock_logger):
             file_path = 'test.db'
-            result = _convert_db_to_df(file_path)
+            result, _  = convert_db_to_df(file_path)
 
             self.assertTrue(result.empty)  # 确保返回的 DataFrame 是空的
             mock_logger.warning.assert_called_once()  # 确保 logger.warning 被调用了一次

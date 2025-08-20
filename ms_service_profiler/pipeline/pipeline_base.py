@@ -3,6 +3,7 @@
 from ms_service_profiler.task.task import Task
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import ParseError
+from ms_service_profiler.utils.timer import Timer
 
 
 class PipelineBase(Task):
@@ -10,17 +11,20 @@ class PipelineBase(Task):
         super().__init__(args)
         self.cur_step_id = 0
 
-    def run_step(self, processor, name, data, is_key_step=True):
+    def run_step(self, processor, name, data, *more_params, is_key_step=True):
         self.cur_step_id += 1
-        try:
-            data = processor.parse(data)
-            logger.debug(f'[step {self.cur_step_id}] {name} success.')
-        except Exception as ex:
-            # 关键plugins失败，程序执行结束
-            if is_key_step:
-                logger.exception(f'{name} failure. Program stopped.')
-                raise ParseError(f'{name} failure. Program stopped.') from ex
-            else:
-                # 非关键plugins失败，程序继续执行
-                logger.exception(f'{name} failure. Skip it.')
-        return data
+        with Timer(f'[{self.task_name}] [step {self.cur_step_id}] {name}', log_enter=True) as timer:
+            try:
+                data = processor.parse(data, *more_params)
+                timer.set_done_state("success")
+            except Exception as ex:
+                # 关键plugins失败，程序执行结束
+                if is_key_step:
+                    logger.exception(f'{name} failure. Program stopped.')
+                    timer.set_done_state("failure")
+                    raise ParseError(f'{name} failure. Program stopped.') from ex
+                else:
+                    # 非关键plugins失败，程序继续执行
+                    logger.exception(f'{name} failure. Skip it.')
+                    timer.set_done_state("failure")
+            return data
