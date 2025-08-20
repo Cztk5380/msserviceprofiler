@@ -328,7 +328,7 @@ class ExporterCoordinator(ExporterBase):
         all_times = sorted(df['time'].unique())
         if len(all_times) < 2:
             # 如果只有一个或没有时间点，无法推断频率
-            freq = '5S'  # 默认 5 秒
+            freq = '5s'  # 默认 5 秒
         else:
             # 推断时间间隔（取最小差值作为频率）
             time_diffs = sorted([(all_times[i] - all_times[i-1]).total_seconds()
@@ -336,7 +336,7 @@ class ExporterCoordinator(ExporterBase):
             # 取最常见的间隔（避免异常点）
             from collections import Counter
             freq_sec = Counter(time_diffs).most_common(1)[0][0]
-            freq = f'{int(freq_sec)}S'
+            freq = f'{int(freq_sec)}s'
 
         # 4. 生成完整时间范围
         full_time_range = pd.date_range(
