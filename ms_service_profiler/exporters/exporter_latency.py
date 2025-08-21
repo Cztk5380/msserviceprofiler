@@ -197,23 +197,39 @@ class ExporterLatency(ExporterBase):
         return cls.err_log[index]
     
     @staticmethod
-    def gen_exporter_percentile_of_df(df, order_col_name, value_col_name):
+    def gen_exporter_percentile_of_df(df, order_col_name, value_col_name, max_points=100):
         if df.empty or order_col_name not in df.columns or value_col_name not in df.columns:
             return []
         sorted_series = df.groupby(order_col_name)[value_col_name].agg(list).sort_index()
+        all_items = list(sorted_series.items())
 
         percentile_views = []
-        ordered_array = np.array([], dtype=float)
-        for end_time, ttft_list in sorted_series.items():
-            ordered_array = np.append(ordered_array, ttft_list)
-            ordered_array.sort()
+        all_data = []  # 收集所有数据
 
-            p50, p90, p99 = np.round(np.percentile(ordered_array, [50, 90, 99]), 2)
-            avg = round(np.average(ordered_array), 2)
+        # 先收集所有数据
+        for end_time, ttft_list in all_items:
+            all_data.extend(ttft_list)
 
-            percentile_views.append({'timestamp': end_time, 
-                        'avg': avg, 'p99': p99, 'p90': p90, 'p50': p50})
-            
+        # 转换为numpy数组
+        all_data = np.array(all_data)
+
+        # 计算累积统计
+        current_count = 0
+        calculation_interval = max(len(all_items) // max_points, 1)  # 根据max_points控制计算频率
+
+        for index, (end_time, ttft_list) in enumerate(all_items):
+            current_count += len(ttft_list)
+            # 当时间点数量 <= max_points时：每个时间点都会计算（calculation_interval=1）
+            # 当时间点数量 > max_points时：均匀分布地选择约max_points个时间点进行计算
+            if (index + 1) % calculation_interval == 0 or index == len(all_items) - 1:
+                # 获取到当前为止的所有数据
+                current_data = all_data[:current_count]
+                p50, p90, p99 = np.round(np.percentile(current_data, [50, 90, 99]), 2)
+                avg = round(np.average(current_data), 2)
+
+                percentile_views.append({'timestamp': end_time,
+                                         'avg': avg, 'p99': p99, 'p90': p90, 'p50': p50})
+
         return percentile_views
 
     @staticmethod
