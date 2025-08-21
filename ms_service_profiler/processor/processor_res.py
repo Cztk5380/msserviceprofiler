@@ -131,10 +131,16 @@ class ProcessorRes(ProcessorBase):
         else:
             hostname = meta_data.get("hostname")
             ppid = meta_data.get("ppid")
+
+            rid_map_all = {}
+            for meta_data_process in meta_data_list:
+                rid_map_all.update(meta_data_process)
+
             for meta_data_process in meta_data_list:
                 if meta_data_process.get("hostname") == hostname and meta_data_process.get("pid") == ppid:
                     rid_map = meta_data_process.get("rid_map")
-          
+                else:
+                    rid_map = rid_map_all.get("rid_map")
             self.process_each_df(data_df, rid_map)
 
         return data
