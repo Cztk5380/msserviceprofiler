@@ -9,6 +9,7 @@ from ms_service_profiler.task.task_register import TaskDag
 from ms_service_profiler.task.task import Task
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger, Color
+from ms_service_profiler.utils.error import OtherTaskError
 
 
 class DefaultValue(Enum):
@@ -105,19 +106,26 @@ class Taskmanger:
         return len(task_manager_info.get("queues", []))
     
     def is_all_finished(self):
-        return all((x is None for x in self.pool_owner))
+        return all((x is None or x == 'error' for x in self.pool_owner))
     
     def is_all_prev_finished(self, task_name):
         # 前置task 全部完成
+        error_flag = False
         for prev_task_name in self.task_dag.get_prev_task_names(task_name):
-            if self.get_task_state(prev_task_name) not in ["finished", "no_source_data"]:
-                return False
+            if self.get_task_state(prev_task_name)  == "error":
+                error_flag = True
+            if self.get_task_state(prev_task_name) not in ["finished", "no_source_data", "error"]:
+                return False, error_flag
+            
         # 且pool 都释放给当前task 啦~
         task_manager_info = self.init_task(task_name)
         for wait_pool_index in task_manager_info.get("wait_pool_index"):
-            if self.pool_owner[wait_pool_index] != task_name:
-                return False
-        return True
+            if self.pool_owner[wait_pool_index] == 'error':
+                error_flag = True
+            if self.pool_owner[wait_pool_index] != task_name or self.pool_owner[wait_pool_index] != 'error':
+                return False, error_flag
+            
+        return True, error_flag
 
     def set_task_finished(self, finished_task_name, next_task_set):
         task_manager_info = self.init_task(finished_task_name)
@@ -135,8 +143,25 @@ class Taskmanger:
             next_task_manager_info.get("queues", []).extend(self.pool[pool_index].get_queues())
         
             # 判断前置流程是否全部完成
-            if self.is_all_prev_finished(next_task_name):
+            all_finished, has_err = self.is_all_prev_finished(next_task_name)
+            if has_err:
+                self.send_go(next_task_name, "error")
+            elif all_finished:
                 self.send_go(next_task_name)
+            else:
+                pass
+
+    def set_task_error(self, error_task_name, next_task_name, err_msg):
+        task_manager_info = self.init_task(error_task_name)
+        task_manager_info["state"] = "error"
+        
+        if err_msg:
+            logger.error(f"{Color.BRIGHT_RED}task [{error_task_name}] error. due to {err_msg} {Color.RESET}")
+        # 将当前task 所有pool 都置为 error 状态
+        for wait_pool_index in task_manager_info.get("wait_pool_index"):
+            self.pool_owner[wait_pool_index] = 'error'
+        # 直接调用后面的task，让它知道前面已经崩溃了
+        self.send_go(next_task_name, "error")
 
     def send_msg_to_one_process(self, task_name, task_index, msg, param):
         task_manager_info = self.init_task(task_name)
@@ -149,10 +174,10 @@ class Taskmanger:
         for queue in task_manager_info.get("queues", []):
             queue.put((msg, param))
 
-    def send_go(self, task_name):
+    def send_go(self, task_name, go_msg="go"):
         logger.info(f"{Color.BRIGHT_BLUE}task [{task_name}] start. {Color.RESET}")
         for index in range(self.get_task_process_cnt(task_name)):
-            self.send_msg_to_one_process(task_name, index, "go", index)
+            self.send_msg_to_one_process(task_name, index, go_msg, index)
     
     def fill_gater_data(self, task_name, task_index, data):
         task_manager_info = self.init_task(task_name)
@@ -185,6 +210,12 @@ class Taskmanger:
                 self.set_task_finished(who_task_name, next_task_set)
                 if self.is_all_finished():
                     break
+            elif msg == "error":
+                next_task_name, err_msg = param
+                self.set_task_error(who_task_name, next_task_name, err_msg)
+                self.send_msg_to_one_task(who_task_name, msg, f"task {who_index} occur error. due to {err_msg}")
+                if self.is_all_finished():
+                    break
             elif msg == "gather":
                 dst, data = param
                 gather_data = self.fill_gater_data(who_task_name, who_index, data)
@@ -212,31 +243,42 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
         
     def finished(task_name, task_index, next_task_set):
         send_queue.put((task_name, task_index, "finished", next_task_set))
+    def error(task_name, task_index, next_task_name, err_msg=None):
+        send_queue.put((task_name, task_index, "error", (next_task_name, err_msg)))
     
     for task_name, next_task_name in src_dag.get_ordered_task_names():
         msg, task_index  = recv_queue.get()
-        assert msg == 'go'
+        if msg == 'error':
+            error(task_name, task_index, next_task_name)
+            continue
         
-        task_info = src_dag.get_task_reg_info(task_name)
-        if isinstance(task_info.task_cls, Task):
-            task_ins = task_info.task_cls
-        else:
-            task_ins = task_info.task_cls(args)
-        
-        task_ins.init(task_name, task_index, recv_queue, send_queue)
-        
-        for depends_name in src_dag.get_depends_data_names(task_name):
-            if depends_name in run_res_data:
-                task_ins.set_depends_result(depends_name, run_res_data.get(depends_name, None))
-        task_res = task_ins.run()
-        
-        for output_name in src_dag.get_outputs_data_names(task_name):
-            run_res_data.setdefault(output_name, task_res)
-        
-        # 等所有进程全部结束
-        gather_data = task_ins.gather((pool_index, next_task_name))
-        if gather_data is not None:
-            finished(task_name, task_index, set(gather_data))
+        try:
+            task_info = src_dag.get_task_reg_info(task_name)
+            if isinstance(task_info.task_cls, Task):
+                task_ins = task_info.task_cls
+            else:
+                task_ins = task_info.task_cls(args)
+            
+            task_ins.init(task_name, task_index, recv_queue, send_queue)
+            
+            for depends_name in src_dag.get_depends_data_names(task_name):
+                if depends_name in run_res_data:
+                    task_ins.set_depends_result(depends_name, run_res_data.get(depends_name, None))
+            task_res = task_ins.run()
+            
+            for output_name in src_dag.get_outputs_data_names(task_name):
+                run_res_data.setdefault(output_name, task_res)
+            
+            # 等所有进程全部结束
+            gather_data = task_ins.gather((pool_index, next_task_name))
+            if gather_data is not None:
+                finished(task_name, task_index, set(gather_data))
+        except OtherTaskError as e:
+            error(task_name, task_index, next_task_name)
+            raise
+        except Exception as e:
+            error(task_name, task_index, next_task_name, str(e))
+            raise
 
 
 # main process

@@ -22,6 +22,16 @@ class ParseError(Exception):
         return f"ParseError: {self.message}"
 
 
+class OtherTaskError(Exception):
+    def __init__(self, message):
+        super().__init__(message) 
+        self.message = message
+
+    def __str__(self):
+        return f"other task failed: {self.message}"
+
+
+
 class MessageError(ParseError):
     pass
 

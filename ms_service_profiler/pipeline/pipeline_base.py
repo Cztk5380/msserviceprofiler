@@ -13,7 +13,7 @@ class PipelineBase(Task):
 
     def run_step(self, processor, name, data, *more_params, is_key_step=True):
         self.cur_step_id += 1
-        with Timer(f'[{self.task_name}] [step {self.cur_step_id}] {name}', log_enter=True) as timer:
+        with Timer(f'[{self.task_name} {self.task_index}] [step {self.cur_step_id}] {name}', log_enter=True) as timer:
             try:
                 data = processor.parse(data, *more_params)
                 timer.set_done_state("success")

@@ -2,7 +2,7 @@
 
 from abc import abstractmethod
 from enum import Enum, auto
-from ms_service_profiler.utils.error import ParseError
+from ms_service_profiler.utils.error import ParseError, OtherTaskError
 from ms_service_profiler.task.task_register import register
 
 
@@ -43,6 +43,8 @@ class Task():
         self.send_queue.put((self.task_name, self.task_index, "gather", (dst, data)))
         if dst == self.task_index:
             msg, gather_data = self.recv_queue.get()
+            if msg == 'error':
+                raise OtherTaskError(gather_data)
             return gather_data
         else:
             return None
@@ -50,7 +52,9 @@ class Task():
     def all_gather(self, data):
         # 所有都会等待
         self.send_queue.put((self.task_name, self.task_index, "all_gather", data))
-        _, gather_data = self.recv_queue.get()
+        msg, gather_data = self.recv_queue.get()
+        if msg == 'error':
+            raise OtherTaskError(gather_data)
         return gather_data
     
     def all_gather_async(self, data):
@@ -61,7 +65,9 @@ class Task():
         # 所有都会等待, 发送会虽然有自己的数据，但是还是等待
         if self.task_index == src:
             self.send_queue.put((self.task_name, self.task_index, "broadcast", data))
-        _, broadcast_data = self.recv_queue.get()
+        msg, broadcast_data = self.recv_queue.get()
+        if msg == 'error':
+            raise OtherTaskError(broadcast_data)
         return broadcast_data
     
     def send(self, data=None, dst=0):
@@ -78,6 +84,8 @@ class Task():
         msg = 'p2p'
         while msg== 'p2p':
             msg, recv_data = self.recv_queue.get()
+            if msg == 'error':
+                raise OtherTaskError(recv_data)
             _, data = recv_data
             yield data
     
