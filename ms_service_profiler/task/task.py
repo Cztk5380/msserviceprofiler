@@ -49,12 +49,16 @@ class Task():
         else:
             return None
     
-    def all_gather(self, data):
+    def all_gather(self, data, ignore_error=False):
         # 所有都会等待
         self.send_queue.put((self.task_name, self.task_index, "all_gather", data))
-        msg, gather_data = self.recv_queue.get()
-        if msg == 'error':
-            raise OtherTaskError(gather_data)
+        msg = "error"
+        while msg== 'error':
+            msg, gather_data = self.recv_queue.get()
+            if msg != 'error':
+                break
+            if not ignore_error:
+                raise OtherTaskError(gather_data)
         return gather_data
     
     def all_gather_async(self, data):
