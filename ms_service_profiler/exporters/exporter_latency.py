@@ -201,27 +201,34 @@ class ExporterLatency(ExporterBase):
         if df.empty or order_col_name not in df.columns or value_col_name not in df.columns:
             return []
         sorted_series = df.groupby(order_col_name)[value_col_name].agg(list).sort_index()
+        all_items = list(sorted_series.items())
 
         percentile_views = []
-        ordered_array = np.array([], dtype=float)
+        all_data = []  # 收集所有数据
 
-        # 如果数据点超过max_points，则只取等间距的点
-        total_points = len(sorted_series)
-        if total_points > max_points > 0:
-            # 计算采样间隔
-            step = total_points // max_points
-            selected_indices = range(0, total_points, step)[:max_points]
-            selected_items = [list(sorted_series.items())[i] for i in selected_indices]
-        else:
-            selected_items = list(sorted_series.items())
+        # 先收集所有数据
+        for end_time, ttft_list in all_items:
+            all_data.extend(ttft_list)
 
-        for end_time, ttft_list in selected_items:
-            ordered_array = np.append(ordered_array, ttft_list)
-            p50, p90, p99 = np.round(np.percentile(ordered_array, [50, 90, 99]), 2)
-            avg = round(np.average(ordered_array), 2)
+        # 转换为numpy数组
+        all_data = np.array(all_data)
 
-            percentile_views.append({'timestamp': end_time,
-                                     'avg': avg, 'p99': p99, 'p90': p90, 'p50': p50})
+        # 计算累积统计
+        current_count = 0
+        calculation_interval = max(len(all_items) // max_points, 1)  # 计算100个点
+
+        for index, (end_time, ttft_list) in enumerate(all_items):
+            current_count += len(ttft_list)
+
+            # 每1%的进度计算一次
+            if (index + 1) % calculation_interval == 0 or index == len(all_items) - 1:
+                # 获取到当前为止的所有数据
+                current_data = all_data[:current_count]
+                p50, p90, p99 = np.round(np.percentile(current_data, [50, 90, 99]), 2)
+                avg = round(np.average(current_data), 2)
+
+                percentile_views.append({'timestamp': end_time,
+                                         'avg': avg, 'p99': p99, 'p90': p90, 'p50': p50})
 
         return percentile_views
 
