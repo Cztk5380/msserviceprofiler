@@ -18,6 +18,11 @@
 #define SERVICEPROFILERDBWRITER_H
 
 #include <cstdint>
+#include <memory>
+#include <string>
+#include <map>
+#include <iostream>
+#include <fstream>
 
 namespace msServiceProfiler {
 
@@ -26,7 +31,7 @@ enum class ActivityFlag {
     ACTIVITY_FLAG_MARKER_SPAN = 2,
 };
 
-using DbActivityMarker = struct PACKED_ALIGNMENT_DB {
+using DbActivityMarker = struct PACKED_MARKER_DB {
     ActivityFlag flag;
     uint64_t timestamp;
     uint64_t endTimestamp;
@@ -36,9 +41,16 @@ using DbActivityMarker = struct PACKED_ALIGNMENT_DB {
     std::string message;
 };
 
-using DbActivityMarkerPtr = DbActivityMarker*;
+using DbActivityMeta = struct PACKED_META_DB {
+    std::string metaKey;
+    std::string metaValue;
+};
 
-void InsertTxData2Writer(DbActivityMarker *activity);
+using DbActivityMarkerPtr = std::unique_ptr<DbActivityMarker>;
+using DbActivityMetaPtr = std::unique_ptr<DbActivityMeta>;
+
+void InsertTxData2Writer(std::unique_ptr<DbActivityMarker> activity);
+void InsertTxData2Writer(std::unique_ptr<DbActivityMeta> activity);
 void CloseTxData2Writer();
 void StartTxData2Writer(const std::string &outputPath);
 std::string GetHostName();

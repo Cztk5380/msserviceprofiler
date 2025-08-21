@@ -2,8 +2,9 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
  */
 #include "securec.h"
-#include "msServiceProfiler/DbBuffer.h"
+
 #include "msServiceProfiler/Log.h"
+#include "msServiceProfiler/DbBuffer.h"
 
 namespace msServiceProfiler {
 
@@ -30,11 +31,10 @@ size_t DbBuffer::SizeSub()
 NodeDbActivityMarker *DbBuffer::NewBuffer(NodeDbActivityMarker *pThis, NodeDbActivityMarker *pNext)
 {
     auto bufferSize = PTR_ARRAY_PRE_SIZE * sizeof(NodeDbActivityMarker);
-    auto *pNodeArray = (NodeDbActivityMarker *)malloc(bufferSize);
+    auto *pNodeArray = new NodeDbActivityMarker[PTR_ARRAY_PRE_SIZE];
     if (pNodeArray == nullptr) {
         return nullptr;
     }
-    memset_s(pNodeArray, bufferSize, 0, bufferSize);
 
     if (pNext == nullptr) {
         pNodeArray[PTR_ARRAY_PRE_SIZE - 1].pNext = pNodeArray;
@@ -61,13 +61,13 @@ NodeDbActivityMarker *DbBuffer::GetNext(NodeDbActivityMarker *pNode)
     return pNext;
 }
 
-bool DbBuffer::Push(DbActivityMarker *pMarker)
+std::unique_ptr<NodeMarkerData> DbBuffer::Push(std::unique_ptr<NodeMarkerData> pMarkerData)
 {
 #ifdef ENABLE_SERVICE_PROF_UNIT_TEST
     pushCount_++;
 #endif
-    if (pMarker == nullptr) {
-        return false;
+    if (pMarkerData == nullptr || pMarkerData->IsNull()) {
+        return pMarkerData;
     }
     auto size = Size();
 
@@ -76,25 +76,32 @@ bool DbBuffer::Push(DbActivityMarker *pMarker)
     if (size + 1 >= BufferSize()) {  // +1 是因为不要影响到 pTail_， 离开一点距离
         if (bufferIndex_ > PTR_ARRAY_SIZE - 1) {
             LOG_ONCE_E("no more new buffer. max size is: %lu", size);  // LCOV_EXCL_LINE
-            return false;
+            return pMarkerData;
         }
         auto *pBuffer = NewBuffer(pHead_, pNext);
         if (pBuffer != nullptr) {
             pHead_ = pBuffer;
         } else {
             LOG_ONCE_E("no more new buffer. now size is: %lu", size);  // LCOV_EXCL_LINE
-            return false;
+            return pMarkerData;
         }
     } else {
         pHead_ = pNext;
     }
 
-    pHead_->pMarker = pMarker;
-    SizeAdd();
-    return true;
+    // 检查 pHead_ 是否为空
+    if (pHead_ != nullptr) {
+        pHead_->pMarkerData = std::move(pMarkerData);
+        SizeAdd();
+    } else {
+        LOG_ONCE_E("pHead_ is null, cannot proceed."); // LCOV_EXCL_LINE
+        return nullptr;
+    }
+
+    return nullptr;
 }
 
-size_t DbBuffer::Pop(size_t maxPopSize, DbActivityMarkerPtr *popBuffer)
+size_t DbBuffer::Pop(size_t maxPopSize, std::unique_ptr<NodeMarkerData> *popDataArray)
 {
     auto size = Size();
     if (size == 0) {
@@ -108,9 +115,7 @@ size_t DbBuffer::Pop(size_t maxPopSize, DbActivityMarkerPtr *popBuffer)
         } else {
             pTail_ = GetNext(pTail_);
         }
-        auto *pMarker = pTail_->pMarker;
-        pTail_->pMarker = nullptr;
-        popBuffer[popCntThisTime] = pMarker;
+        popDataArray[popCntThisTime] = std::move(pTail_->pMarkerData);
         popCntThisTime++;
         SizeSub();
     }
@@ -125,21 +130,9 @@ size_t DbBuffer::Pop(size_t maxPopSize, DbActivityMarkerPtr *popBuffer)
 
 DbBuffer::~DbBuffer()
 {
-    constexpr size_t MAX_POP_SIZE = 2000;
-    DbActivityMarkerPtr pMarkers[MAX_POP_SIZE] = {nullptr};
-    size_t popSize = 0;
-    do {
-        size_t popSize = Pop(MAX_POP_SIZE, pMarkers);
-        for (size_t i = 0; i < popSize; ++i) {
-            if (pMarkers[i] != nullptr) {
-                delete pMarkers[i];
-                pMarkers[i] = nullptr;
-            }
-        }
-    } while (popSize > 0);
     for (long long unsigned int i = 0; i < PTR_ARRAY_SIZE; ++i) {
         if (markerArray_[i] != nullptr) {
-            free(markerArray_[i]);
+            delete[] markerArray_[i];
             markerArray_[i] = nullptr;
         }
     }

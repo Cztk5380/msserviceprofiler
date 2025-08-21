@@ -13,10 +13,17 @@ class MarkType(int, Enum):
 
 
 class Level(int, Enum):
-    ERROR = 10
-    INFO = 20
-    DETAILED = 30
-    VERBOSE = 40
+    ERROR = 10                  # 20260630 日落
+    INFO = 20                   # 20260630 日落
+    DETAILED = 30               # 20260630 日落
+    VERBOSE = 40                # 20260630 日落
+    LEVEL_CORE_TRACE = 10       # 最核心的数据，请求关键事件，比如请求到达，请求返回，batch 大小，forward 时长
+    LEVEL_OUTLIER_ENENT = 10    # 异常、关键事件。比如发生了Swap，或者发生了重计算
+    LEVEL_NORMAL_TRACE = 20     # 普通 Trace 数据
+    LEVEL_DETAILED_TRACE = 30   # 包含更多，更大量的详细信息
+    L0 = 10
+    L1 = 20
+    L2 = 30
 
 
 class Profiler:
@@ -24,6 +31,10 @@ class Profiler:
         self._enable = service_profiler.is_enable(profiler_level)
         self._attr = dict()
         self._span_handle = None
+
+    @property
+    def enable(self):
+        return self._enable
 
     def __enter__(self):
         return self
@@ -59,7 +70,7 @@ class Profiler:
             service_profiler.mark_event(self.get_msg())
 
     def get_msg(self):
-        return json.dumps(self._attr).replace("\"", "^")
+        return json.dumps(self._attr)
 
     def link(self, from_rid, to_rid):
         if self._enable:
@@ -81,3 +92,7 @@ class Profiler:
         if self._enable:
             service_profiler.mark_span_attr(self.get_msg(), self._span_handle)
             service_profiler.end_span(self._span_handle)
+    
+    def add_meta_info(self, meta_key, meta_data):
+        if self._enable:
+            service_profiler.add_meta_info(meta_key, json.dumps(meta_data))

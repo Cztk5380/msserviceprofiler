@@ -13,111 +13,17 @@ from ms_service_profiler.exporters.utils import (
 )
 
 
-def update_name(row):
-    if row['RUNNING+'] == 1:
-        row['name'] = 'RUNNING'
-    elif row['PENDING+'] == 1:
-        row['name'] = 'PENDING'
-    return row
-
-
-def process_data(req_en_queue_df, req_running_df, pending_df):
-    """
-    处理数据，计算等待时间和执行时间。
-
-    参数:
-    req_en_queue_df (pd.DataFrame): 请求队列的数据
-    req_running_df (pd.DataFrame): 正在运行的请求的数据
-    pending_df (pd.DataFrame): 等待中的请求的数据
-
-    返回:
-    wait_df (pd.DataFrame): 包含等待时间和执行时间的DataFrame
-    """
-    # 分组并取第一个
-    decode_first_df = req_en_queue_df.groupby('rid').head(1)
-    running_first_df = req_running_df.groupby('rid').head(1)
-
-
-    # 计算prefill阶段的等待时间
-    if decode_first_df.shape[0] != running_first_df.shape[0]:
-        logger.warning("The number of 'Enqueue' is different from 'RUNNING' in the prefill phase, please check")
-    prefill_df = pd.merge(decode_first_df, running_first_df, on=['rid'], how='left', suffixes=('_enque', '_running'))
-    prefill_df['waiting_time'] = prefill_df["start_time_running"] - prefill_df["end_time_enque"]
-
-    # 计算decode阶段的等待时间
-    decode_running_df = req_running_df.groupby('rid').apply(lambda x: x.iloc[1:]).reset_index(drop=True)
-    pending_df = pending_df.reset_index(drop=True)
-    pending_df = pending_df[['start_time', 'end_time', 'rid']]
-    decode_running_df = decode_running_df[['start_time', 'end_time', 'rid']]
-
-    pending_df = pending_df.groupby('rid').agg({'start_time': ["sum", "count"]}).reset_index()
-    pending_df = pending_df.sort_values("rid")
-    pending_df = pd.merge(pending_df["start_time"], pending_df["rid"], left_index=True, right_index=True)
-    pending_df.columns = ['start_time', 'count', 'rid']
- 
-    decode_running_df = decode_running_df.groupby('rid').agg({'start_time': ["sum", "count"]}).reset_index()
-    decode_running_df = decode_running_df.sort_values("rid")
-    decode_running_df = pd.merge(decode_running_df["start_time"], decode_running_df["rid"], \
-        left_index=True, right_index=True)
-    decode_running_df.columns = ['start_time', 'count', 'rid']
-
-    rows_pending = pending_df.shape[0]
-    rows_running = decode_running_df.shape[0]
-    if rows_pending != rows_running:
-        logger.warning("The number of 'PENDING' is different from 'RUNNING' in the decode phase , please check")
-    decode_merge = pd.concat([pending_df, decode_running_df], ignore_index=True, axis=1)
-
-    decode_merge.columns = ['start_time_pending', 'end_time_pending', 'rid', 'start_time_running', \
-        'end_time_running', 'rid_running']
-    decode_merge["pending_time"] = decode_merge['start_time_running'] - decode_merge['start_time_pending']
-
-    decode_merge = decode_merge.drop(columns=['start_time_running', 'end_time_running'])
-    pending_time_sum = decode_merge.groupby('rid')['pending_time'].sum().reset_index()
-
-    # 计算总的等待时间
-    if prefill_df.shape[0] != pending_time_sum.shape[0]:
-        logger.warning("The waiting time length in the prefill phase is different from that in the decode phase.")
-
-    pending_time_sum.set_index('rid', inplace=True)
-    wait_df = pd.merge(prefill_df, pending_time_sum, on='rid', how='left')
-
-    wait_df['queue_wait_time'] = wait_df['waiting_time'] + wait_df['pending_time']
-    wait_df['rid'] = wait_df['rid'].apply(str)
-    wait_df = wait_df[['rid', 'queue_wait_time']]
-    return wait_df
-
-
-def get_wait_df(df):
-    req_en_queue_df = df[df['name'] == 'Enqueue']
-    req_running_df = df[df['name'] == 'RUNNING']
-    pending_df = df[df['name'] == 'PENDING']
-    if pending_df.empty:
-        # vllm采集不到PENDING，用WAITING替代
-        pending_df = df[df['name'] == 'WAITING']
-    wait_df = process_data(req_en_queue_df, req_running_df, pending_df)
-    return wait_df
-
-
 def is_invaild_rid(rid):
     return ',' in rid or '{' in rid or ':' in rid
 
 
 def get_req_base_info(df):
-    # 计算首 Token 时延
-    latency_df = calculate_first_token_latency(df)
-
     # 原有分组逻辑
     req_group_df = df.groupby('rid')
     req_base_info = []
     for rid, pre_req_data in req_group_df:
         rid = str(rid)
         if rid == "" or is_invaild_rid(rid):
-            continue
-
-        current_rids = [r.strip() for r in rid.split(',')]
-        total_latency = latency_df[latency_df['rid'].isin(current_rids)]['first_token_latency'].sum()
-
-        if total_latency <= 0:
             continue
 
         # 构造请求信息
@@ -127,8 +33,7 @@ def get_req_base_info(df):
             'end_time': '',
             'recvTokenSize=': '',
             'replyTokenSize=': '',
-            'execution_time': '',
-            'first_token_latency': (total_latency / US_PER_MS) if not pd.isna(total_latency) else 0
+            'execution_time': ''
         }
 
         # 获取httpReq
@@ -139,7 +44,8 @@ def get_req_base_info(df):
 
         # 获取 httpRes
         # 由于存在httpRes提前被调用，导致请求结束时间过早的情况，所以当前取httpRes和DecodeEnd中最晚一个点作为请求结束时间
-        http_res_df = pre_req_data[pre_req_data['name'].isin(['httpRes', 'DecodeEnd'])]
+        # mindIE重构后，取最后一个sendResponse的结束时间
+        http_res_df = pre_req_data[pre_req_data['name'].isin(['httpRes', 'DecodeEnd', 'sendResponse'])]
         if not http_res_df.empty:
             last_row = http_res_df.iloc[-1]
             new_req['end_time'] = last_row.get("end_time", 0)
@@ -158,49 +64,41 @@ def get_req_base_info(df):
         if new_req['start_time'] != '' and new_req['end_time'] != '':
             new_req['end_time'] = new_req['end_time'] // US_PER_MS
             new_req['start_time'] = new_req['start_time'] // US_PER_MS
-            new_req['execution_time'] = (new_req['end_time'] - new_req['start_time']) / US_PER_MS
+            new_req['execution_time'] = (new_req['end_time'] - new_req['start_time'])
 
         req_base_info.append(new_req)
     return pd.DataFrame(req_base_info)
 
 
-def calculate_first_token_latency(df):
-    latency_df = df.copy()
+def safe_merge_ttft_que(req_base_info: pd.DataFrame,
+                        ttft_df: pd.DataFrame,
+                        que_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    无 copy 合并 rid、ttft、que_wait_time
+    """
+    # 1.ttft
+    ttft_part = (ttft_df[['rid', 'ttft']]
+                 .drop_duplicates('rid') if not ttft_df.empty and 'ttft' in ttft_df.columns
+                 else pd.DataFrame(columns=['rid', 'ttft']))
 
-    latency_df['rid_list'] = latency_df['rid_list'].apply(
-        lambda x: list(map(str, x)) if isinstance(x, list) else str(x).split(',')
+    # 2.que_wait_time
+    que_part = (que_df[['rid', 'que_wait_time']]
+                .drop_duplicates('rid') if not que_df.empty and 'que_wait_time' in que_df.columns
+                else pd.DataFrame(columns=['rid', 'que_wait_time']))
+
+    # 3.合并ttft+que
+    metrics = ttft_part.merge(que_part, on='rid', how='outer')
+
+    # 4.与req_base_info合并
+    return (
+        req_base_info
+        .assign(rid=lambda d: d['rid'].astype(str))
+        .merge(metrics, on='rid', how='left')
+        .assign(
+            ttft=lambda d: d['ttft'].fillna(0),
+            que_wait_time=lambda d: d['que_wait_time'].fillna(0)
+        )
     )
-
-    def safe_convert_token_ids(token_ids):
-        valid_ids = []
-        raw_ids = token_ids if isinstance(token_ids, list) else str(token_ids).split(',')
-        for tid in raw_ids:
-            if tid is None:
-                continue
-            try:
-                valid_ids.append(int(tid))
-            except ValueError:
-                continue
-        return valid_ids
-
-    latency_df['token_id_list'] = latency_df['token_id_list'].apply(safe_convert_token_ids)
-
-    mask = latency_df.apply(
-        lambda row: len(row['rid_list']) == len(row['token_id_list']),
-        axis=1
-    )
-    latency_df = latency_df[mask]
-
-    latency_df = latency_df.explode(['rid_list', 'token_id_list'])
-    latency_df['rid_list'] = latency_df['rid_list'].astype(str)  # 确保 rid 为字符串
-    latency_df['token_id_list'] = latency_df['token_id_list'].astype(int)  # 确保 token_id 为整数
-
-    latency_df = latency_df[latency_df['token_id_list'] == 0]
-
-    latency_df = latency_df.groupby('rid_list')['during_time'].sum().reset_index()
-    latency_df.columns = ['rid', 'first_token_latency']
-
-    return latency_df
 
 
 class ExporterReqData(ExporterBase):
@@ -211,45 +109,52 @@ class ExporterReqData(ExporterBase):
         cls.args = args
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     @key_except('domain', 'name', ignore=True, msg="ignoring current exporter by default.")
     def export(cls, data) -> None:
-        if 'csv' in cls.args.format or 'db' in cls.args.format:
-            df = data.get('tx_data_df')
-            if df is None:
-                logger.error("The data is empty, please check")
-                return
+        if 'csv' not in cls.args.format and 'db' not in cls.args.format:
+            return
+        df = data.get('tx_data_df')
+        if df is None:
+            logger.error("cannot find service prof data, please check")
+            return
 
-            if check_domain_valid(df, ['Request'], 'request') is False:
-                return
+        if check_domain_valid(df, ['Request'], 'request') is False:
+            return
 
-            output = cls.args.output_path
+        output = cls.args.output_path
 
-            df = df[df['domain'] != 'KVCache']
-            req_base_info = get_req_base_info(df)
-            try:
-                df = df.rename(columns={"RUNNING+": "RUNNING", "PENDING+": "PENDING"})
-                wait_df = get_wait_df(df)
-            except Exception as e:
-                logger.error(f"An error occurred: {e}")
-                return
+        df = df[~df['domain'].isin(['KVCache', 'PullKVCache'])]
+        df = df[~df['name'].isin(['forward'])]
+        ttft_df = data.get("req_ttft_df", pd.DataFrame())  # ttft的单位是微秒，需要转换为毫秒
+        ttft_df.loc[:, 'ttft'] = ttft_df['ttft'].div(US_PER_MS)
 
-            # 使用merge操作将req_base_info和wait_df的数据进行匹配
-            if req_base_info.shape[0] != wait_df.shape[0]:
-                logger.warning("The shape of 'req_base_info' is different from 'wait_df', please check.")
+        que_wait_df = data.get("req_que_wait_df", pd.DataFrame())   # que_wait_df的单位是微秒，需要转换为毫秒
+        que_wait_df.loc[:, 'que_wait_time'] = que_wait_df['que_wait_time'].div(US_PER_MS)
 
-            df_merged = pd.merge(req_base_info, wait_df, on='rid', how='outer', indicator=True)
-            df_merged.drop(columns=['_merge'], inplace=True)
+        req_base = get_req_base_info(df)
+        req_base_info = safe_merge_ttft_que(req_base, ttft_df, que_wait_df)
 
-            filtered_df = df_merged[[
-                'rid', 'start_time', 'recvTokenSize=', 'replyTokenSize=',
-                'execution_time', 'queue_wait_time', 'first_token_latency'
-            ]]
+        filtered_df = req_base_info[[
+            'rid', 'start_time', 'recvTokenSize=', 'replyTokenSize=',
+            'execution_time', 'que_wait_time', 'ttft'
+        ]]
 
-            filtered_df = filtered_df.rename(columns={
+        check_columns = ['recvTokenSize=', 'replyTokenSize=', 'execution_time']
+
+        if filtered_df[check_columns].eq(0).all().all() or \
+            filtered_df[check_columns].isna().all().all() or \
+            filtered_df[check_columns].eq("").all().all():
+            logger.warning(f"The data is not complete for request.csv, " \
+                "prof data recv request or reply request was not captured. please check.")
+            return
+
+        filtered_df = filtered_df.rename(columns={
                 'rid': 'http_rid',
                 'recvTokenSize=': 'recv_token_size',
-                'replyTokenSize=': 'reply_token_size'
+                'replyTokenSize=': 'reply_token_size',
+                'ttft': 'first_token_latency',
+                'que_wait_time': 'queue_wait_time'
             })
 
         if 'db' in cls.args.format:

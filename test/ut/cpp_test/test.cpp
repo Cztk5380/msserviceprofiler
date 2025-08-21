@@ -97,6 +97,12 @@ void TestLinker()
     PROF(INFO, Domain(__func__).Link(TEST_VALUE_56, "str56"));
 }
 
+void TestMetaData()
+{
+    PROF(INFO, Domain(__func__).AddMetaInfo("meta", TEST_VALUE_66));
+    PROF(INFO, Domain(__func__).AddMetaInfo("meta2", "str1234"));
+}
+
 void TestNpuMemoryUsage()
 {
     NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
@@ -157,6 +163,7 @@ void SmokeTest()
     TestSmoke("TestEvent", TestEvent);
     TestSmoke("TestLinker", TestLinker);
     TestSmoke("TestNpuMemoryUsage", TestNpuMemoryUsage);
+    TestSmoke("TestMetaData", TestMetaData);
 }
 
 static uint64_t GetCurrentTimeInNanoseconds()
@@ -241,26 +248,6 @@ void ViolentSpeedTest()
 int main()
 {
     msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallStartServerProfiler();
-    aclrtContext context_;
-    aclrtStream stream_;
-
-    auto ret = aclrtSetDevice(0);
-    if (ret != ACL_ERROR_NONE) {
-        std::cout << "acl prof init failed, ret = " << ret << std::endl;
-        return -1;
-    }
-
-    ret = aclrtCreateContext(&context_, 0);
-    if (ret != ACL_ERROR_NONE) {
-        std::cout << "acl prof init failed, ret = " << ret << std::endl;
-        return -1;
-    }
-
-    ret = aclrtCreateStream(&stream_);
-    if (ret != ACL_ERROR_NONE) {
-        std::cout << "acl prof init failed, ret = " << ret << std::endl;
-        return -1;
-    }
 
     SmokeTest();
     SpeedTest();

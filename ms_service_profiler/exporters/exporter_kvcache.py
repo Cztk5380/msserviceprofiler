@@ -128,7 +128,8 @@ def export_pull_kvcache(df, output, args_format):
             'start_datetime', 'end_datetime', 'start_time', 'end_time',
         ]]
     except KeyError as e:
-        logger.warning(f"Field '{e.args[0]}' not found in PullKVCache.")
+        logger.warning(f"Field '{e.args[0]}' attr not found in porf data named PullKVCache." \
+            "pd split kvcache data will not be generated. please check")
 
     pull_kvcache_df['start_time'] = pull_kvcache_df['start_time'] // US_PER_MS
     pull_kvcache_df['end_time'] = pull_kvcache_df['end_time'] // US_PER_MS
@@ -156,11 +157,11 @@ class ExporterKVCacheData(ExporterBase):
         cls.args = args
  
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def export(cls, data) -> None:
         df = data.get('tx_data_df')
         if df is None:
-            logger.error("The data is empty, please check")
+            logger.error("cannot find service prof data, please check")
             return
         output = cls.args.output_path
 
@@ -169,10 +170,7 @@ class ExporterKVCacheData(ExporterBase):
                 return
 
             if not df['domain'].str.casefold().str.contains(r'kvcache', regex=True).any():
-                logger.warning(
-                    "No 'KVCache' related fields found in data base. If this is unexpected, please check the "
-                    "'msproftx.db'"
-                )
+                logger.warning("No 'KVCache' related fields found in porf data. If this is unexpected, please check")
                 return
 
             try:
@@ -182,7 +180,8 @@ class ExporterKVCacheData(ExporterBase):
                                         'deviceBlock=', 'start_datetime']]
                 kvcache_df['start_time'] = kvcache_df['start_time'] // US_PER_MS
             except KeyError as e:
-                logger.warning(f"Field '{e.args[0]}' not found in msproftx.db.")
+                logger.warning(f"Field '{e.args[0]}' attribute not found in porf data named KVCache")
+        
 
         if 'db' in cls.args.format:
             kvcache_usuage_df = kvcache_usage_rate_calculator(kvcache_df)

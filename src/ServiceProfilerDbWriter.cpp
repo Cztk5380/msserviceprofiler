@@ -34,8 +34,8 @@
 #include "msServiceProfiler/Profiler.h"
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
-#include "msServiceProfiler/ServiceProfilerDbWriter.h"
 #include "msServiceProfiler/DbBuffer.h"
+#include "msServiceProfiler/ServiceProfilerDbWriter.h"
 
 namespace {
 constexpr int ALIGN_SIZE = 8;
@@ -53,7 +53,7 @@ std::string GetHostName()
 {
     char hostname[HOST_NAME_MAX + 1] = {'\0'};  // 分配足够大的缓冲区
     if (gethostname(hostname, sizeof(hostname)) != 0) {
-        PROF_LOGE("get hostname failed"); // LCOV_EXCL_LINE
+        PROF_LOGE("get hostname failed");  // LCOV_EXCL_LINE
     }
     return std::string(hostname);
 }
@@ -66,47 +66,94 @@ public:
         return manager;
     };
 
-    void InsertMstxData(msServiceProfiler::DbActivityMarker *activity, bool enableTransAction = true) const
+    void InsertMstxData(const msServiceProfiler::DbActivityMarker *activity) const
     {
         if (!inited || !activity || !stmtMstx_) {
             return;
         }
 
-        if (enableTransAction) {
-            // 开始事务
-            StartTransAction();
-        }
-
         // 绑定参数
-        int bindIndex = 1;
-        sqlite3_bind_text(stmtMstx_, bindIndex++, activity->message.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_int64(stmtMstx_, bindIndex++, static_cast<int64_t>(activity->flag));
-        sqlite3_bind_int64(stmtMstx_, bindIndex++, static_cast<int64_t>(activity->id));
-        sqlite3_bind_int64(stmtMstx_, bindIndex++, static_cast<int64_t>(activity->timestamp));
-        sqlite3_bind_int64(stmtMstx_, bindIndex++, static_cast<int64_t>(activity->endTimestamp));
-        sqlite3_bind_int64(stmtMstx_, bindIndex++, activity->processId);
-        sqlite3_bind_int64(stmtMstx_, bindIndex++, activity->threadId);
+        int bindIndex = 0;
+        if (sqlite3_bind_text(stmtMstx_, ++bindIndex, activity->message.c_str(), -1, SQLITE_STATIC) != SQLITE_OK) {
+            PROF_LOGE("bind failed:%d %s", bindIndex, sqlite3_errmsg(db_));  // LCOV_EXCL_LINE
+            sqlite3_reset(stmtMstx_);
+            return;
+        }
+        if (sqlite3_bind_int64(stmtMstx_, ++bindIndex, static_cast<int64_t>(activity->flag)) != SQLITE_OK) {
+            PROF_LOGE("bind failed:%d %s", bindIndex, sqlite3_errmsg(db_));  // LCOV_EXCL_LINE
+            sqlite3_reset(stmtMstx_);
+            return;
+        }
+        if (sqlite3_bind_int64(stmtMstx_, ++bindIndex, static_cast<int64_t>(activity->id)) != SQLITE_OK) {
+            PROF_LOGE("bind failed:%d %s", bindIndex, sqlite3_errmsg(db_));  // LCOV_EXCL_LINE
+            sqlite3_reset(stmtMstx_);
+            return;
+        }
+        if (sqlite3_bind_int64(stmtMstx_, ++bindIndex, static_cast<int64_t>(activity->timestamp)) != SQLITE_OK) {
+            PROF_LOGE("bind failed:%d %s", bindIndex, sqlite3_errmsg(db_));  // LCOV_EXCL_LINE
+            sqlite3_reset(stmtMstx_);
+            return;
+        }
+        if (sqlite3_bind_int64(stmtMstx_, ++bindIndex, static_cast<int64_t>(activity->endTimestamp)) != SQLITE_OK) {
+            PROF_LOGE("bind failed:%d %s", bindIndex, sqlite3_errmsg(db_));  // LCOV_EXCL_LINE
+            sqlite3_reset(stmtMstx_);
+            return;
+        }
+        if (sqlite3_bind_int64(stmtMstx_, ++bindIndex, activity->processId) != SQLITE_OK) {
+            PROF_LOGE("bind failed:%d %s", bindIndex, sqlite3_errmsg(db_));  // LCOV_EXCL_LINE
+            sqlite3_reset(stmtMstx_);
+            return;
+        }
+        if (sqlite3_bind_int64(stmtMstx_, ++bindIndex, activity->threadId) != SQLITE_OK) {
+            PROF_LOGE("bind failed:%d %s", bindIndex, sqlite3_errmsg(db_));  // LCOV_EXCL_LINE
+            sqlite3_reset(stmtMstx_);
+            return;
+        }
 
         // 执行插入
         if (sqlite3_step(stmtMstx_) != SQLITE_DONE) {
-            PROF_LOGE("Execution failed: %s", sqlite3_errmsg(db_)); // LCOV_EXCL_LINE
+            PROF_LOGE("Execution failed: %s", sqlite3_errmsg(db_));  // LCOV_EXCL_LINE
         }
         sqlite3_reset(stmtMstx_);
-
-        if (enableTransAction) {
-            // 提交最终事务
-            Flash();
-        }
     }
+
+    void InsertMetaData(const DbActivityMeta &metaData, bool cache = true)
+    {
+        if (cache) {
+            cachedMetaData.emplace(metaData.metaKey, metaData.metaValue);
+        }
+        if (!inited || !stmtMeta_) {
+            return;
+        }
+
+        // 绑定参数
+        int bindIndex = 0;
+        if (sqlite3_bind_text(stmtMeta_, ++bindIndex, metaData.metaKey.c_str(), -1, SQLITE_STATIC) != SQLITE_OK) {
+            PROF_LOGE("bind failed:%d %s", bindIndex, sqlite3_errmsg(db_));  // LCOV_EXCL_LINE
+            sqlite3_reset(stmtMeta_);
+            return;
+        }
+        if (sqlite3_bind_text(stmtMeta_, ++bindIndex, metaData.metaValue.c_str(), -1, SQLITE_STATIC) != SQLITE_OK) {
+            PROF_LOGE("bind failed:%d %s", bindIndex, sqlite3_errmsg(db_));  // LCOV_EXCL_LINE
+            sqlite3_reset(stmtMeta_);
+            return;
+        }
+        // 执行插入
+        if (sqlite3_step(stmtMeta_) != SQLITE_DONE) {
+            PROF_LOGE("Execution failed: %s", sqlite3_errmsg(db_));  // LCOV_EXCL_LINE
+        }
+        sqlite3_reset(stmtMeta_);
+    }
+
     void StartTransAction() const
     {
         // 开始事务
-        if (db_ == nullptr || inited == false) {
+        if (db_ == nullptr || !inited) {
             return;
         }
         char *errMsg = nullptr;
         if (sqlite3_exec(db_, "BEGIN TRANSACTION", nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            PROF_LOGE(" begin transaction error: %s", errMsg); // LCOV_EXCL_LINE
+            PROF_LOGE(" begin transaction error: %s", errMsg);  // LCOV_EXCL_LINE
             sqlite3_free(errMsg);
         }
     }
@@ -115,31 +162,13 @@ public:
     {
         // 提交最终事务
         char *errMsg = nullptr;
-        if (db_ == nullptr || inited == false) {
+        if (db_ == nullptr || !inited) {
             return;
         }
         if (sqlite3_exec(db_, "COMMIT", nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            PROF_LOGE(" commit error: %s", errMsg); // LCOV_EXCL_LINE
+            PROF_LOGE(" commit error: %s", errMsg);  // LCOV_EXCL_LINE
             sqlite3_free(errMsg);
         }
-    }
-
-    void InsertMetaData(const std::string &name, const std::string &value) const
-    {
-        if (!inited || !stmtMeta_) {
-            return;
-        }
-
-        // 绑定参数
-        int bindIndex = 1;
-        sqlite3_bind_text(stmtMeta_, bindIndex++, name.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(stmtMeta_, bindIndex++, value.c_str(), -1, SQLITE_STATIC);
-
-        // 执行插入
-        if (sqlite3_step(stmtMeta_) != SQLITE_DONE) {
-            PROF_LOGE("Execution failed: %s", sqlite3_errmsg(db_)); // LCOV_EXCL_LINE
-        }
-        sqlite3_reset(stmtMeta_);
     }
 
     void Init(const std::string &outputPath)
@@ -148,6 +177,7 @@ public:
             return;
         }
         auto hostName = GetHostName();
+        cachedMetaData.emplace("hostname", hostName);
         uint32_t tid = GetTid();  // 每个线程有自己的副本
         std::string dbPath =
             outputPath + "ms_service_" + hostName + "-" + std::to_string(getpid()) + "-" + std::to_string(tid) + ".db";
@@ -155,13 +185,15 @@ public:
         // 打开数据库连接
         int rc = sqlite3_open(dbPath.c_str(), &db_);
         if (rc != SQLITE_OK) {
-            PROF_LOGE("Execution failed: %s", sqlite3_errmsg(db_)); // LCOV_EXCL_LINE
+            PROF_LOGE("Execution failed: %s, %s", sqlite3_errmsg(db_), dbPath.c_str());  // LCOV_EXCL_LINE
             return;
         }
         CreateTable();
         ApplyOptimizations();
         inited = true;
-        InsertMetaData("hostname", hostName);
+        for (const auto &pair : cachedMetaData) {
+            InsertMetaData(DbActivityMeta{pair.first, pair.second}, false);
+        }
     }
 
     void CreateTable()
@@ -180,11 +212,11 @@ public:
                                         "VALUES (?, ?, ?, ?, ?, ?, ?);";
 
         if (sqlite3_exec(db_, sqlCreateKindMstx, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            PROF_LOGE(" sqlCreateKindMstx SQL error: %s", errMsg); // LCOV_EXCL_LINE
+            PROF_LOGE(" sqlCreateKindMstx SQL error: %s", errMsg);  // LCOV_EXCL_LINE
             sqlite3_free(errMsg);
         }
         if (sqlite3_prepare_v2(db_, sqlInsertKindMstx, -1, &stmtMstx_, nullptr) != SQLITE_OK) {
-            PROF_LOGE(" sqlInsertKindMstx SQL error"); // LCOV_EXCL_LINE
+            PROF_LOGE(" sqlInsertKindMstx SQL error");  // LCOV_EXCL_LINE
         }
 
         const char *sqlCreateKindMeta = "CREATE TABLE IF NOT EXISTS Meta ("
@@ -193,11 +225,11 @@ public:
         const char *sqlInsertKindMeta = "INSERT INTO Meta (name, value) VALUES (?, ?);";
 
         if (sqlite3_exec(db_, sqlCreateKindMeta, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            PROF_LOGE(" sqlCreateKindMeta SQL error: %s", errMsg); // LCOV_EXCL_LINE
+            PROF_LOGE(" sqlCreateKindMeta SQL error: %s", errMsg);  // LCOV_EXCL_LINE
             sqlite3_free(errMsg);
         }
         if (sqlite3_prepare_v2(db_, sqlInsertKindMeta, -1, &stmtMeta_, nullptr) != SQLITE_OK) {
-            PROF_LOGE(" sqlInsertKindMeta SQL error"); // LCOV_EXCL_LINE
+            PROF_LOGE(" sqlInsertKindMeta SQL error");  // LCOV_EXCL_LINE
         }
     }
 
@@ -230,7 +262,7 @@ public:
     {
         char *errMsg = nullptr;
         if (sqlite3_exec(db_, sql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-            PROF_LOGE(" Execution SQL error: %s", errMsg); // LCOV_EXCL_LINE
+            PROF_LOGE(" Execution SQL error: %s", errMsg);  // LCOV_EXCL_LINE
             sqlite3_free(errMsg);
         }
     }
@@ -252,14 +284,25 @@ public:
 
     ServiceProfilerDbWriter() : inited(false), db_(nullptr), stmtMstx_(nullptr), stmtMeta_(nullptr)
     {
-        Init(msServiceProfiler::ServiceProfilerManager::GetInstance().GetProfPath());
+        if (ServiceProfilerManager::GetInstance().IsEnable(Level::L2)) {
+            Init(ServiceProfilerManager::GetInstance().GetProfPath());
+        }
+    }
+    ~ServiceProfilerDbWriter()
+    {
+        Close();
+        if (db_) {
+            sqlite3_close(db_);
+            db_ = nullptr;
+        }
     }
 
 private:
     bool inited = false;
-    sqlite3 *db_;
+    sqlite3 *db_ = nullptr;
     sqlite3_stmt *stmtMstx_ = nullptr;
     sqlite3_stmt *stmtMeta_ = nullptr;
+    std::map<std::string, std::string> cachedMetaData;
 };
 class ServiceProfilerThreadWriter;
 class ServiceProfilerWriterManager {
@@ -270,10 +313,10 @@ public:
         return manager;
     };
 
-    DbBuffer *Register(ServiceProfilerThreadWriter *pThreadIns)
+    std::shared_ptr<DbBuffer> Register(ServiceProfilerThreadWriter *pThreadIns)
     {
         std::lock_guard<std::mutex> lock(mtx_);
-        auto *pBuffer = new DbBuffer();
+        auto pBuffer = std::make_shared<DbBuffer>();
         mapBuffer_[pThreadIns] = pBuffer;
         workingDbBuffers_.push_back(pBuffer);
         return pBuffer;
@@ -283,7 +326,7 @@ public:
     {
         std::lock_guard<std::mutex> lock(mtx_);
         if (mapBuffer_.find(pThreadIns) != mapBuffer_.end()) {
-            auto *pBuffer = mapBuffer_.at(pThreadIns);
+            auto pBuffer = mapBuffer_.at(pThreadIns);
             mapBuffer_.erase(pThreadIns);
             disableDbBuffers_.insert(pBuffer);
         }
@@ -308,9 +351,9 @@ public:
         constexpr int MAX_WAIT_US = 50000;  // 50ms
         constexpr int MIN_WAIT_US = 50;     // 50us
         int waitUs = MIN_WAIT_US;
-        std::set<DbBuffer *> disableDbBuffers;
-        std::vector<DbBuffer *> workingDbBuffers;
-        while (threadExitFlag_ == false) {
+        std::set<std::shared_ptr<DbBuffer>> disableDbBuffers;
+        std::vector<std::shared_ptr<DbBuffer>> workingDbBuffers;
+        while (!threadExitFlag_) {
             std::this_thread::sleep_for(std::chrono::microseconds(waitUs));
             {
                 // 获取锁，并且看下列表是否有变化，有的话同步到函数变量中，处理的时候就可以释放锁
@@ -338,10 +381,11 @@ public:
                 std::lock_guard<std::mutex> lock(mtx_);
 
                 for (auto *pBuffer : freeDbBuffers) {
-                    workingDbBuffers_.erase(std::remove(workingDbBuffers_.begin(), workingDbBuffers_.end(), pBuffer),
+                    std::shared_ptr<DbBuffer> pTempBuffer(pBuffer, [](DbBuffer *) {});
+                    workingDbBuffers_.erase(
+                        std::remove(workingDbBuffers_.begin(), workingDbBuffers_.end(), pTempBuffer),
                         workingDbBuffers_.end());
-                    disableDbBuffers_.erase(pBuffer);
-                    delete pBuffer;
+                    disableDbBuffers_.erase(pTempBuffer);
                 }
                 workingDbBuffers = workingDbBuffers_;
                 disableDbBuffers = disableDbBuffers_;
@@ -368,36 +412,42 @@ private:
             this->thread_.join();
         }
         std::lock_guard<std::mutex> lock(mtx_);
-
-        for (auto *pBuffer : workingDbBuffers_) {
-            delete pBuffer;
-        }
         workingDbBuffers_.clear();
         disableDbBuffers_.clear();
     }
 
-    int PopAndInsert2DB(std::vector<DbBuffer *> &workingDbBuffers, std::set<DbBuffer *> &disableDbBuffers,
-        std::vector<DbBuffer *> &freeDbBuffers)
+    int PopAndInsert2DB(std::vector<std::shared_ptr<DbBuffer>> &workingDbBuffers,
+        std::set<std::shared_ptr<DbBuffer>> &disableDbBuffers, std::vector<DbBuffer *> &freeDbBuffers)
     {
         constexpr size_t MAX_POP_SIZE = 2000;
         int popCount = 0;
         ServiceProfilerDbWriter::GetInstance().StartTransAction();
-        for (DbBuffer *pbuffer : workingDbBuffers) {
-            DbActivityMarkerPtr pMarkers[MAX_POP_SIZE] = {nullptr};
+        for (auto pbuffer : workingDbBuffers) {
+            std::unique_ptr<NodeMarkerData> pMarkers[MAX_POP_SIZE] = {nullptr};
 
             size_t popSize = pbuffer->Pop(MAX_POP_SIZE, pMarkers);
             for (size_t i = 0; i < popSize; ++i) {
                 if (pMarkers[i] == nullptr) {
                     continue;
                 }
-                ServiceProfilerDbWriter::GetInstance().InsertMstxData(pMarkers[i], false);
-                delete pMarkers[i];
+                auto dataType = pMarkers[i]->GetType();
+                constexpr auto dataTypeMarker = GetTypeIndex<DbActivityMarker>();
+                constexpr auto dataTypeMeta = GetTypeIndex<DbActivityMeta>();
+                if (dataType == dataTypeMarker) {
+                    auto pMarker = (static_cast<NodeMarkerDataPtr<DbActivityMarker> *>(pMarkers[i].get()))->MovePtr();
+                    ServiceProfilerDbWriter::GetInstance().InsertMstxData(pMarker.get());
+                } else if (dataType == dataTypeMeta) {
+                    auto pMarker = (static_cast<NodeMarkerDataPtr<DbActivityMeta> *>(pMarkers[i].get()))->MovePtr();
+                    ServiceProfilerDbWriter::GetInstance().InsertMetaData(*pMarker);
+                } else {
+                    // pass
+                }
                 pMarkers[i] = nullptr;
             }
             popCount += popSize;
 
             if (popSize == 0 && disableDbBuffers.find(pbuffer) != disableDbBuffers.end()) {
-                freeDbBuffers.push_back(pbuffer);
+                freeDbBuffers.push_back(pbuffer.get());
             }
         }
         ServiceProfilerDbWriter::GetInstance().Flash();
@@ -406,14 +456,17 @@ private:
 
 private:
     std::mutex mtx_;
-    std::map<ServiceProfilerThreadWriter *, DbBuffer *> mapBuffer_;
+    std::map<ServiceProfilerThreadWriter *, std::shared_ptr<DbBuffer>> mapBuffer_;
     std::thread thread_;
-    std::set<DbBuffer *> disableDbBuffers_;
-    std::vector<DbBuffer *> workingDbBuffers_;
-    bool closeFlag_ = false;
+    std::set<std::shared_ptr<DbBuffer>> disableDbBuffers_;
+    std::vector<std::shared_ptr<DbBuffer>> workingDbBuffers_;
+    bool closeFlag_ = true;
     bool threadExitFlag_ = false;
     std::string profPath_;
+    static ServiceProfilerWriterManager &ins;
 };
+
+ServiceProfilerWriterManager &ServiceProfilerWriterManager::ins = ServiceProfilerWriterManager::GetInstance();
 
 class ServiceProfilerThreadWriter {
 public:
@@ -421,18 +474,24 @@ public:
     {
         pBuffer = ServiceProfilerWriterManager::GetInstance().Register(this);
     }
+
     ~ServiceProfilerThreadWriter()
     {
         ServiceProfilerWriterManager::GetInstance().Unregister(this);
     }
-    void Insert(msServiceProfiler::DbActivityMarker *activity)
+
+    template <typename T>
+    void Insert(std::unique_ptr<T> activity)
     {
         if (pBuffer) {
-            if (!pBuffer->Push(activity) && activity) {
-                delete activity;
-            }
-
+            std::unique_ptr<NodeMarkerData> pPushData =
+                std::make_unique<msServiceProfiler::NodeMarkerDataPtr<T>>(std::move(activity));
+            auto pRetData = pBuffer->Push(std::move(pPushData));
+            // pRetData 有值的话。表示存不进去了，目前不做什么处理，让他自动delete 好了
 #ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+            if (pRetData != nullptr) {
+                thisThreadPushFailedCnt_++;
+            }
             thisThreadPushCnt_++;
 #endif
         }
@@ -444,8 +503,10 @@ public:
         while (pBuffer->Size() > 0) {
             std::this_thread::sleep_for(std::chrono::nanoseconds(100));
         }
-        PROF_LOGI("buffer i push: %lu, pop cnt: %lu, push cnt: %lu, max cnt: %lu, diff: %lu", // LCOV_EXCL_LINE
+        PROF_LOGI(
+            "buffer push: %lu, failed: %lu, pop cnt: %lu, push cnt: %lu, max cnt: %lu, diff: %lu",  // LCOV_EXCL_LINE
             thisThreadPushCnt_,
+            thisThreadPushFailedCnt_,
             pBuffer->PopCnt(),
             pBuffer->PushCnt(),
             pBuffer->MaxCntInBuffer(),
@@ -454,9 +515,10 @@ public:
 #endif
 
 private:
-    DbBuffer *pBuffer = nullptr;
+    std::shared_ptr<DbBuffer> pBuffer = nullptr;
 #ifdef ENABLE_SERVICE_PROF_UNIT_TEST
     size_t thisThreadPushCnt_ = 0;
+    size_t thisThreadPushFailedCnt_ = 0;
 #endif
 };
 
@@ -466,9 +528,14 @@ ServiceProfilerThreadWriter &GetWriter()
     return writer;
 }
 
-void InsertTxData2Writer(msServiceProfiler::DbActivityMarker *activity)
+void InsertTxData2Writer(std::unique_ptr<DbActivityMarker> activity)
 {
-    GetWriter().Insert(activity);
+    GetWriter().Insert(std::move(activity));
+}
+
+void InsertTxData2Writer(std::unique_ptr<DbActivityMeta> activity)
+{
+    GetWriter().Insert(std::move(activity));
 }
 
 #ifdef ENABLE_SERVICE_PROF_UNIT_TEST

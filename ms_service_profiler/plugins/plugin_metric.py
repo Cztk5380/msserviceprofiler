@@ -16,7 +16,7 @@ class PluginMetric(PluginBase):
     depends = ["plugin_common", "plugin_req_status"]
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse(cls, data):
         with KeyExcept('name', 'start_time', 'start_datetime', ignore=True, msg="ignoring current process by default."):
             tx_data_df = data.get('tx_data_df')

@@ -29,10 +29,13 @@ class ExporterTrace(TaskExporterBase):
         return ["pipeline:service", "pipeline:mspti"]
 
     def do_export(self):
-        self.export(self.get_depends_result("pipeline:service"), self.get_depends_result("pipeline:mspti"))
+        data, mspti = self.get_depends_result("pipeline:service", None), self.get_depends_result("pipeline:mspti", None)
+        if data is None and mspti is None:
+            return
+        self.export(data, mspti)
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def export(cls, data, mspti) -> None:
         if 'db' not in cls.args.format and 'json' not in cls.args.format:
             return
@@ -41,15 +44,34 @@ class ExporterTrace(TaskExporterBase):
 
         if data is not None:
             all_data_df = data.get('tx_data_df', pd.DataFrame(columns=["name", "domain"])).copy()
+
+            # 对domain进行预处理，以便相同domain的数据在同一个泳道中显示
+            prepare_domain_for_process(all_data_df)
+
             if 'pid_label_map' in data:
                 pid_label_map = data['pid_label_map']
             else:
                 pid_label_map = None
-            all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
+
             msprof_data_df = data.get('msprof_data', pd.DataFrame())
 
-            cann_data = [load_single_prof(pf, index) for index, pf in enumerate(msprof_data_df)]
-            trace_data = create_trace_events(all_data_df, pid_label_map)
+            cann_data = []
+            pid_ppid_map = []
+            for index, pf in enumerate(msprof_data_df):
+                msprof_data_ppid = pf.get("pid")
+                msprof_data_pids = set()
+                for prof_path in pf.get("msprof_files"):
+                    cann_prof_data, msprof_data_pids = load_single_prof(prof_path, index)
+                    cann_data.append(cann_prof_data)
+                for msprof_data_pid in msprof_data_pids:
+                    pid_ppid_map.append((msprof_data_pid, msprof_data_ppid))
+            
+            if "ppid" in all_data_df and "pid" in all_data_df:
+                pid_ppid_map.extend(set(zip(all_data_df['pid'], all_data_df['ppid'])))
+
+            pid_ppid_map = [(str(pid), ppid, pid) for pid, ppid in pid_ppid_map]
+            
+            trace_data = create_trace_events(all_data_df, pid_label_map, pid_ppid_map)
             merged_data = merge_json_data(trace_data, cann_data)
         else:
             merged_data = {"traceEvents": []}
@@ -78,20 +100,45 @@ class ExporterTrace(TaskExporterBase):
             save_trace_data_into_json(merged_data, output)
 
         if 'db' in cls.args.format:
-            logger.info('Start write trace data to db')
+            logger.debug('Start write trace data to db')
             create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
             save_trace_data_into_db(merged_data)
-            logger.info('Write trace data to db success')
+            logger.debug('Write trace data to db success')
+
+
+def prepare_domain_for_process(all_data_df):
+    # 如果只采集到了python数据而没有采集到cpp数据，则直接认为name为domain，确保domain列存在
+    if 'domain' not in all_data_df.columns:
+        all_data_df['domain'] = all_data_df['name']  # 直接添加新列
+
+    # 过滤显示数据, Meta不显示
+    meta_mask = all_data_df['domain'].isin(['Meta'])
+    all_data_df.drop(all_data_df[meta_mask].index, inplace=True)
+    
+    # 对于非Request, RequestState, KVCache泳道区分tid显示
+    mask = ~all_data_df['domain'].isin(['Request', 'RequestState', 'KVCache'])
+    all_data_df.loc[mask, 'domain'] = (
+        all_data_df.loc[mask, 'domain'].astype(str) 
+        + '(' 
+        + all_data_df.loc[mask, 'tid'].astype(str)
+        + ')'
+    )
+
+    all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
 
 
 def process_prof_trace_events(events, index):
+    pid_list = set()
     for event in events:
+        pid_list.add(event.get('pid'))
         event_id = event.get('id')
         event_ph = event.get('ph')
         if event_id is not None and event_ph in ['s', 'f']:
             # 将 event_id 和 index 转换为字符串并拼接，保证不会重复
             event['id'] = str(event_id) + '_' + str(index)
-    return events
+
+    pid_list.discard(None)
+    return [x for x in events if x.get("name") != 'process_sort_index'], pid_list
 
 
 def load_single_prof(pf, prof_id):
@@ -99,22 +146,20 @@ def load_single_prof(pf, prof_id):
         with ms_open(pf, 'r', encoding='utf-8', max_size=-1) as file:
             trace_events = json.load(file)
     except OpenException as oe:
-        logger.warning(f"OpenException occurred {oe}")
-        return {"traceEvents": []}
+        logger.warning(f"cannot read file %r occurred {oe}", pf)
+        return {"traceEvents": []}, set()
     except FileNotFoundError:
-        logger.warning("The msprof.json file was not found. Please check the file path.")
-        return {"traceEvents": []}
+        logger.warning("The %r file was not found. Please check the file path.", pf)
+        return {"traceEvents": []}, set()
     except json.JSONDecodeError:
         logger.warning(
-            "%r is not in a valid JSON format, " \
-            "which might be normal and probably because this file stores 'mstx' data only",
-            pf
+            "%r is not in a valid JSON format, which might be normal.", pf
         )
-        return {"traceEvents": []}
+        return {"traceEvents": []}, set()
 
-    trace_events = process_prof_trace_events(trace_events, prof_id)
+    trace_events, pid_list = process_prof_trace_events(trace_events, prof_id)
 
-    return {"traceEvents": trace_events}
+    return {"traceEvents": trace_events}, pid_list
 
 
 def find_cann_pid(trace_events):
@@ -143,7 +188,7 @@ def save_trace_data_into_db(trace_data):
         conn.commit()
     except Exception as ex:
         conn.rollback()  # 失败时回滚
-        raise DatabaseError("Cannot update sqlite database when create trace table.") from ex
+        raise DatabaseError(f"Cannot update sqlite database when create trace table due to {ex}") from ex
     finally:
         if conn:
             conn.close()
@@ -156,7 +201,7 @@ def merge_json_data(trace_data, msprof_data_df):
     return trace_data
 
 
-@timer(logger.info)
+@timer(logger.debug)
 def write_trace_data_to_file(trace_data, output):
     def write_trace_data(range_index):
         start_index, end_index = range_index
@@ -219,7 +264,7 @@ def add_flow_event(flow_event_df):
     return flow_trace_events
 
 
-def create_trace_events(all_data_df, pid_label_map=None):
+def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
     metric_event = ['npu', 'KVCache', 'PullKVCache']
 
     # 普通事件
@@ -242,40 +287,75 @@ def create_trace_events(all_data_df, pid_label_map=None):
         trace_events.extend(flow_trace_events)
         
     trace_events = sort_trace_events_by_tid(trace_events)
-    if pid_label_map is not None:
-        trace_events.extend(sort_trace_events_by_pid(pid_label_map))
+
+    coordinator_pid = None
+    for event in trace_events:
+        tid = event.get("tid", "")
+        if isinstance(tid, str) and "Coordinator" in tid:
+            coordinator_pid = event["pid"]
+            break  # 找到第一个就退出
+
+
+    if pid_label_map is not None or pid_ppid_map is not None:
+        trace_events.extend(sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid))
 
     trace_data = {"traceEvents": trace_events}
     return trace_data
 
 
-def sort_trace_events_by_pid(pid_label_map):
+def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None):
     pid_sorting_meta = []
-    pid_sorting = []
-    for pid, item in pid_label_map.items():
-        host_name = item.get("hostname", "")
-        dp = item.get("dp", -1)
-        pid_sorting.append((pid, host_name, dp))
     
-    pid_sorting.sort(key=lambda x: (x[2], x[1]))
+    process_tree = {}
+    for pid, ppid, _ in pid_ppid_map:
+        process_tree[pid] = ppid
+    
+    process_prefix = {}
+    
+    def build_prcess_prefix(pid):
+        if pid in process_prefix:
+            return process_prefix[pid]
+        ppid = process_tree.get(pid)
+        if ppid is None:
+            return ""
+        
+        ppid_prefix = build_prcess_prefix(ppid)
+        pid_prefix = f"{ppid_prefix}.{pid}"
+        process_prefix[pid] = pid_prefix
+        return pid_prefix
+    
+    process_prefix_list = [(ori_pid, build_prcess_prefix(pid)) for pid, _, ori_pid in pid_ppid_map]
+    
+    process_prefix_list.sort(key=lambda x: x[1])
 
-    for index, item in enumerate(pid_sorting):
-        pid, host_name, dp = item
+    def sort_key(item):
+        pid, prefix = item
+        return (0, "") if pid == coordinator_pid else (1, prefix)
+
+    process_prefix_list.sort(key=sort_key)
+
+    for index, item in enumerate(process_prefix_list):
+        pid, _ = item
         pid_sorting_meta.append(dict(
             name="process_sort_index",
             ph="M",
             pid=pid,
             args=dict(sort_index=index))
         )
-        if dp == -1:
-            labels = [host_name]
-        else:
-            labels = [host_name, f"dp{int(dp)}"]
-        pid_sorting_meta.append(dict(
-            name="process_labels",
-            ph="M",
-            pid=pid,
-            args=dict(labels=','.join(labels)))
+        labels = []
+        if pid_label_map is not None and "host_name" in pid_label_map.get(pid, []): 
+            labels.append(pid_label_map.get(pid).get("host_name"))
+        if pid_label_map is not None and "dp" in pid_label_map.get(pid, []): 
+            labels.append(f"dp{pid_label_map.get(pid).get('dp')}")
+        elif pid_label_map is not None and "dp_rank" in pid_label_map.get(pid, []): 
+            labels.append(f"dp{pid_label_map.get(pid).get('dp_rank')}")
+
+        if labels:
+            pid_sorting_meta.append(dict(
+                name="process_labels",
+                ph="M",
+                pid=pid,
+                args=dict(labels=','.join(labels)))
         )
     
     return pid_sorting_meta
@@ -333,10 +413,9 @@ def add_trace_events(valid_name_df):
             'tid': tid
         })
         if batch_size is not None:
-            args_dict.update({
-                'batch_type': batch_type,
-                'batch_size': batch_size,
-            })
+            args_dict.update({'batch_size': batch_size})
+        if batch_type is not None:
+            args_dict.update({'batch_type': batch_type})
         if res_list is not None:
             args_dict.update({"res_list": res_list})
         if batch_size is None and rid != res_list:

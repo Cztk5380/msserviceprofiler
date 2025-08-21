@@ -24,6 +24,7 @@ class ReqStatus(Enum):
     WAITING_PULL = 12 # Decode do H2H pull
     PULLING = 13      # Executing H2H pull
     PULLED = 14       # H2H pull is done and ready for H2D
+    D2D_PULLING = 15  # Decode doing D2D pulling
 
 
 class PluginReqStatus(PluginBase):
@@ -31,11 +32,15 @@ class PluginReqStatus(PluginBase):
     depends = ["plugin_common"]
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse(cls, data):
         tx_data_df = data.get('tx_data_df')
         if tx_data_df is None:
             raise ValueError("tx_data_df is None")
+
+        # mindIE 重构后，不再使用数字映射状态码的方式，直接从status列中可取得状态，如waiting、running、swapped
+        if 'status' in tx_data_df.columns:
+            return data
 
         tx_data_df['message'] = tx_data_df['message'].apply(parse_message_state_name)
         rename_mapping = {
@@ -54,7 +59,7 @@ class PluginReqStatus(PluginBase):
 
             if not valid_cols:
                 logger.warning(
-                    "No 'request status' is found in data base, if this is unexpected, please check 'msproftx.db'"
+                    "No 'request status' is found in prof data, if this is unexpected, please check"
                 )
                 return data
 
@@ -111,4 +116,7 @@ def rename_req_status(tx_data_df, req_status):
     # 使用这个索引来更新'name'列
     tx_data_df.loc[indexer, 'name'] = real_status.idxmax(axis=1).where(real_status.any(axis=1), \
         tx_data_df.loc[indexer, 'name'])
+
+    #将所有原始name为'ReqState'的行的domain列设置为"RequestState"，以便在trace图中作为一个单独的泳道
+    tx_data_df.loc[indexer, 'domain'] = "RequestState"
     return tx_data_df
