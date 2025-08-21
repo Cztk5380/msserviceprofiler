@@ -31,7 +31,6 @@ class OtherTaskError(Exception):
         return f"other task failed: {self.message}"
 
 
-
 class MessageError(ParseError):
     pass
 

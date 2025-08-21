@@ -112,7 +112,7 @@ class Taskmanger:
         # 前置task 全部完成
         error_flag = False
         for prev_task_name in self.task_dag.get_prev_task_names(task_name):
-            if self.get_task_state(prev_task_name)  == "error":
+            if self.get_task_state(prev_task_name) == "error":
                 error_flag = True
             if self.get_task_state(prev_task_name) not in ["finished", "no_source_data", "error"]:
                 return False, error_flag
