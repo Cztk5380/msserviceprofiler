@@ -31,9 +31,6 @@ class PluginMetric(PluginBase):
 
             metric_data_df = tx_data_df[['start_time', 'start_datetime'] + metric_cols].copy()
 
-            if 'FINISHED+' not in metric_data_df.columns:
-                metric_data_df.loc[tx_data_df['name'] == 'httpReq', 'WAITING+'] = 1.0
-
             if (tx_data_df['name'] == 'decodeReq').any():
                 metric_data_df.loc[tx_data_df['name'] == 'decodeReq', 'WAITING+'] = 1.0
 

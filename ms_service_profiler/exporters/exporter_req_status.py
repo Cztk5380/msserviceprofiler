@@ -151,7 +151,7 @@ class ExporterReqStatus(ExporterBase):
     @classmethod
     def _prepare_metrics_df(cls, df, metrics):
         req_status_cols = [col for col in metrics.columns if col in ReqStatus.__members__]
-        df = metrics[req_status_cols].astype(int)
+        df = metrics[req_status_cols].fillna(0).astype(int)
         df.insert(0, 'timestamp', metrics['start_datetime'])
 
         # 默认会从db文件中筛选下述列进行展示，如不存在该列需要补齐
