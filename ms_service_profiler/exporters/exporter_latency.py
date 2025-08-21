@@ -215,12 +215,12 @@ class ExporterLatency(ExporterBase):
 
         # 计算累积统计
         current_count = 0
-        calculation_interval = max(len(all_items) // max_points, 1)  # 计算100个点
+        calculation_interval = max(len(all_items) // max_points, 1)  # 根据max_points控制计算频率
 
         for index, (end_time, ttft_list) in enumerate(all_items):
             current_count += len(ttft_list)
-
-            # 每1%的进度计算一次
+            # 当时间点数量 <= max_points时：每个时间点都会计算（calculation_interval=1）
+            # 当时间点数量 > max_points时：均匀分布地选择约max_points个时间点进行计算
             if (index + 1) % calculation_interval == 0 or index == len(all_items) - 1:
                 # 获取到当前为止的所有数据
                 current_data = all_data[:current_count]
