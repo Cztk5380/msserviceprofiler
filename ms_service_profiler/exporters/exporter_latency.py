@@ -197,23 +197,32 @@ class ExporterLatency(ExporterBase):
         return cls.err_log[index]
     
     @staticmethod
-    def gen_exporter_percentile_of_df(df, order_col_name, value_col_name):
+    def gen_exporter_percentile_of_df(df, order_col_name, value_col_name, max_points=100):
         if df.empty or order_col_name not in df.columns or value_col_name not in df.columns:
             return []
         sorted_series = df.groupby(order_col_name)[value_col_name].agg(list).sort_index()
 
         percentile_views = []
         ordered_array = np.array([], dtype=float)
-        for end_time, ttft_list in sorted_series.items():
-            ordered_array = np.append(ordered_array, ttft_list)
-            ordered_array.sort()
 
+        # 如果数据点超过max_points，则只取等间距的点
+        total_points = len(sorted_series)
+        if total_points > max_points > 0:
+            # 计算采样间隔
+            step = total_points // max_points
+            selected_indices = range(0, total_points, step)[:max_points]
+            selected_items = [list(sorted_series.items())[i] for i in selected_indices]
+        else:
+            selected_items = list(sorted_series.items())
+
+        for end_time, ttft_list in selected_items:
+            ordered_array = np.append(ordered_array, ttft_list)
             p50, p90, p99 = np.round(np.percentile(ordered_array, [50, 90, 99]), 2)
             avg = round(np.average(ordered_array), 2)
 
-            percentile_views.append({'timestamp': end_time, 
-                        'avg': avg, 'p99': p99, 'p90': p90, 'p50': p50})
-            
+            percentile_views.append({'timestamp': end_time,
+                                     'avg': avg, 'p99': p99, 'p90': p90, 'p50': p50})
+
         return percentile_views
 
     @staticmethod
