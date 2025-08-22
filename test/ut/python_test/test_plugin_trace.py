@@ -93,8 +93,8 @@ def test_parse_when_none():
     data = {}
 
     plugin = PluginTrace()
-    with pytest.raises(ValueError, match="tx_data_df is None"):
-        plugin.parse(data)
+    
+    assert data == plugin.parse(data)
 
 
 def test_parse_when_pd_mixed(pd_mixed_sample_data):

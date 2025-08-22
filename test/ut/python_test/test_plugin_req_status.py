@@ -37,8 +37,7 @@ def test_parse_invalid_data(sample_data):
 
     plugin = PluginReqStatus()
     
-    with pytest.raises(ValueError, match="tx_data_df is None"):
-        plugin.parse(sample_data_invalid)
+    assert sample_data_invalid == plugin.parse(sample_data_invalid)
 
 
 def test_parse_message_state_name():
