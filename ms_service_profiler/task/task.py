@@ -32,33 +32,25 @@ class Task():
     def register(cls, name=None):
         return register(name)
     
-    def init(self, task_name, task_index, recv_queue, send_queue):
+    def init(self, task_name, task_index, recv_msg, send_queue):
         self.task_name = task_name
         self.task_index = task_index
-        self.recv_queue = recv_queue
+        self.recv_msg = recv_msg
         self.send_queue = send_queue
         
     def gather(self, data, dst=0):
         # 只有dst 会等待
         self.send_queue.put((self.task_name, self.task_index, "gather", (dst, data)))
         if dst == self.task_index:
-            msg, gather_data = self.recv_queue.get()
-            if msg == 'error':
-                raise OtherTaskError(gather_data)
+            _, gather_data = self.recv_msg()
             return gather_data
         else:
             return None
     
-    def all_gather(self, data, ignore_error=False):
+    def all_gather(self, data):
         # 所有都会等待
         self.send_queue.put((self.task_name, self.task_index, "all_gather", data))
-        msg = "error"
-        while msg== 'error':
-            msg, gather_data = self.recv_queue.get()
-            if msg != 'error':
-                break
-            if not ignore_error:
-                raise OtherTaskError(gather_data)
+        _, gather_data = self.recv_msg()
         return gather_data
     
     def all_gather_async(self, data):
@@ -69,9 +61,7 @@ class Task():
         # 所有都会等待, 发送会虽然有自己的数据，但是还是等待
         if self.task_index == src:
             self.send_queue.put((self.task_name, self.task_index, "broadcast", data))
-        msg, broadcast_data = self.recv_queue.get()
-        if msg == 'error':
-            raise OtherTaskError(broadcast_data)
+        _, broadcast_data = self.recv_msg()
         return broadcast_data
     
     def send(self, data=None, dst=0):
@@ -87,9 +77,7 @@ class Task():
         self.all_gather_async(DefaultValue.SEND_FINISHED)
         msg = 'p2p'
         while msg== 'p2p':
-            msg, recv_data = self.recv_queue.get()
-            if msg == 'error':
-                raise OtherTaskError(recv_data)
+            msg, recv_data = self.recv_msg()
             _, data = recv_data
             yield data
     
