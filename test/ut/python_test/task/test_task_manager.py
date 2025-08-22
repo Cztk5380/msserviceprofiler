@@ -135,7 +135,21 @@ class TestTaskmanger(unittest.TestCase):
         
         # 验证任务状态是否更新为 'finished'
         self.assertEqual(self.task_manager.get_task_state(task_name), 'finished')
-        
+
+    def test_start_error_branch(self):
+        # 创建 Taskmanger 实例
+        mock_task_dag = Mock()
+        task_manager = Taskmanger(mock_task_dag)
+
+        # 模拟 manager_recv_queue 获取到 error 消息
+        task_manager.manager_recv_queue.get = Mock(return_value=('task1', 0, 'error', 'Some error message'))
+
+        # 模拟相关方法
+        task_manager.send_msg_to_one_task = Mock()
+        task_manager.set_task_error = Mock(return_value='gathered error data')
+
+        # 调用 start 方法
+        task_manager.start()
 
 
 class TestTaskRun(unittest.TestCase):
