@@ -60,7 +60,7 @@ class TestTaskmanger(unittest.TestCase):
         
         # 验证后续任务是否被正确启动
         self.assertEqual(self.task_manager.pool_owner[0], next_task_name)
-        self.assertEqual(self.task_manager.get_task_state(next_task_name), 'unstart')  # 由于 send_go 未被调用，状态应仍为 'unstart'
+        self.assertEqual(self.task_manager.get_task_state(next_task_name), 'started')
 
     def test_fill_gater_data(self):
         task_name = 'task1'
@@ -113,7 +113,7 @@ class TestTaskmanger(unittest.TestCase):
         # 初始化任务和进程
         task_name = 'task1'
         task_index = 0
-        next_task_set = [(0, None)]
+        next_task_set = (0, None)
         
         # 初始化任务信息
         self.task_manager.init_task(task_name)
@@ -124,8 +124,11 @@ class TestTaskmanger(unittest.TestCase):
         mock_process.return_value = Mock()
         mock_process.return_value.start = Mock()
         
+        task_manager_info = self.task_manager.init_task(task_name)
+        task_manager_info.get("queues").append(Queue())
+        
         # 模拟消息循环
-        self.task_manager.manager_recv_queue.put((task_name, task_index, 'finished', next_task_set))
+        self.task_manager.manager_recv_queue.put((task_name, task_index, 'finished', (next_task_set, False)))
         
         # 调用 start 方法
         self.task_manager.start()

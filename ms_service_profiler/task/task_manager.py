@@ -313,12 +313,12 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
         except OtherTaskError as e:
             error_sync(task_name, task_index, None)
             finished_sync(task_name, task_index, next_task_name, after_error=True)
-            if args.log_level == 'debug':
+            if args.log_level == 'verbose':
                 break
         except Exception as e:
             error_sync(task_name, task_index, str(e))
             finished_sync(task_name, task_index, next_task_name, after_error=True)
-            if args.log_level == 'debug':
+            if args.log_level == 'verbose':
                 crash(task_name, task_index)
                 raise
 
