@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 from multiprocessing import Queue
 from ms_service_profiler.task.task_register import TaskDag, TaskRegisterInfo
 from ms_service_profiler.task.task_manager import SubprocessInfo, Taskmanger
-from ms_service_profiler.task.task_manager import Color, task_run
+from ms_service_profiler.task.task_manager import Color, task_run, tasks_run
 
 
 class TestSubprocessInfo(unittest.TestCase):
@@ -173,12 +173,36 @@ class TestTaskRun(unittest.TestCase):
 
 
 class TestTasksRun(unittest.TestCase):
-    @patch('ms_service_profiler.task.task_manager.Taskmanger')
-    def test_tasks_run(self, mock_task_manager):
-        # Mock the necessary objects and methods
-        # Call tasks_run with the mocked objects
-        # Assert the expected behavior
-        pass
+    
+    @patch('ms_service_profiler.task.task_manager.filter_dag')  # 替换为实际模块路径
+    @patch('ms_service_profiler.task.task_manager.Taskmanger')  # 替换为实际模块路径
+    def test_tasks_run_no_data(self, mock_task_manager, mock_filter_dag):
+        # 模拟没有数据的情况
+        mock_data_source_task = Mock()
+        mock_data_source_task.task_cls.get_prof_paths.return_value = []
+        mock_task_dag = Mock(spec=TaskDag)
+        mock_args = Mock()
+
+        tasks_run([mock_data_source_task], mock_task_dag, '/fake/path', mock_args)
+
+        # 验证 set_no_source_data 被调用
+        mock_task_manager.return_value.set_no_source_data.assert_called_once_with(mock_data_source_task.name)
+
+    @patch('ms_service_profiler.task.task_manager.filter_dag')  # 替换为实际模块路径
+    @patch('ms_service_profiler.task.task_manager.Taskmanger')  # 替换为实际模块路径
+    def test_tasks_run_with_data(self, mock_task_manager, mock_filter_dag):
+        # 模拟有数据的情况
+        mock_data_source_task = Mock()
+        mock_data_source_task.task_cls.get_prof_paths.return_value = ['data1', 'data2']
+        mock_data_source_task.name = 'task1'
+        mock_task_dag = Mock(spec=TaskDag)
+        mock_args = Mock()
+
+        tasks_run([mock_data_source_task], mock_task_dag, '/fake/path', mock_args)
+
+        # 验证 create_pool 被调用
+        mock_task_manager.return_value.create_pool.assert_called()
+        mock_task_manager.return_value.start.assert_called()
 
 if __name__ == '__main__':
     unittest.main()
