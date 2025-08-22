@@ -20,11 +20,11 @@ class PipelineBase(Task):
             except Exception as ex:
                 # 关键plugins失败，程序执行结束
                 if is_key_step:
-                    logger.exception(f'{name} failure. Program stopped.')
+                    logger.exception(f'{name}-{self.task_index} failure. Program stopped.')
                     timer.set_done_state("failure")
-                    raise ParseError(f'{name} failure. Program stopped.') from ex
+                    raise ParseError(f'{name}-{self.task_index} failure. Program stopped.') from ex
                 else:
                     # 非关键plugins失败，程序继续执行
-                    logger.exception(f'{name} failure. Skip it.')
+                    logger.exception(f'{name}-{self.task_index} failure. Skip it.')
                     timer.set_done_state("failure")
             return data
