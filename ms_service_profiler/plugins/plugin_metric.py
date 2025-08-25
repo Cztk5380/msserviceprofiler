@@ -21,7 +21,7 @@ class PluginMetric(PluginBase):
         with KeyExcept('name', 'start_time', 'start_datetime', ignore=True, msg="ignoring current process by default."):
             tx_data_df = data.get('tx_data_df')
             if tx_data_df is None:
-                raise DataFrameMissingError(key="tx_data_df")
+                return data
 
             metric_cols = [col for col in tx_data_df.columns if is_metric(col)]
 

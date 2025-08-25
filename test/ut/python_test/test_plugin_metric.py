@@ -69,8 +69,7 @@ def test_count(sample_data):
 
 def test_no_tx_data_df(empty_data):
     plugin = PluginMetric()
-    with pytest.raises(DataFrameMissingError):
-        plugin.parse(empty_data)
+    empty_data == plugin.parse(empty_data)
 
 
 def test_no_start_datetime(sample_data_without_start_datetime, capsys):
@@ -105,9 +104,7 @@ def test_normal_processing(valid_tx_data):
 
 
 def test_missing_tx_data():
-    with pytest.raises(DataFrameMissingError) as exc_info:
-        PluginMetric.parse({})
-    assert "tx_data_df" in str(exc_info.value)
+    assert {} == PluginMetric.parse({})
 
 
 def test_missing_required_columns(valid_tx_data):

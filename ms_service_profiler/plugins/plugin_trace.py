@@ -93,7 +93,7 @@ class PluginTrace(PluginBase):
                        msg="ignoring current process by default."):
             tx_data_df = data.get('tx_data_df')
             if tx_data_df is None:
-                raise ValueError("tx_data_df is None")
+                return data
 
             # 解析batch，vllm数据解析modelexec自带batch_type字段
             if 'batch_type' not in tx_data_df.columns:

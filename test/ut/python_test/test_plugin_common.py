@@ -17,5 +17,4 @@ def test_parse_with_invalid_rid():
     assert result["tx_data_df"].iloc[2]["rid"] == None
 
 def test_parse_with_missing_df():
-    with pytest.raises(DataFrameMissingError):
-        PluginCommon.parse({})
+    assert {} == PluginCommon.parse({})

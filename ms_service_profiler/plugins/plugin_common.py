@@ -15,8 +15,8 @@ class PluginCommon(PluginBase):
     @classmethod
     @timer(logger.debug)
     def parse(cls, data):
-        if "tx_data_df" not in data:
-            raise DataFrameMissingError("tx_data_df")
+        if data.get("tx_data_df") is None:
+            return data
 
         data["tx_data_df"] = data["tx_data_df"].replace(to_replace=np.nan, value=None)
         return data

@@ -288,10 +288,10 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
         send_queue.put((task_name, task_index, "crash", None))
     
     for task_name, next_task_name in src_dag.get_ordered_task_names():
-        msg, task_index  = recv()
-        assert msg == 'go'
-        
         try:
+            msg, task_index  = recv()
+            assert msg == 'go'
+        
             task_info = src_dag.get_task_reg_info(task_name)
             if isinstance(task_info.task_cls, Task):
                 task_ins = task_info.task_cls

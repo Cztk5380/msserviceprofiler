@@ -13,6 +13,9 @@ class PluginProcessName(PluginBase):
     @classmethod
     @timer(logger.debug)
     def parse(cls, data):
+        if data.get("tx_data_df") is None:
+            return data
+
         tx_data_df: pd.DataFrame = data.get('tx_data_df')
         
         if 'scope#dp' not in tx_data_df or 'rid' not in tx_data_df:
