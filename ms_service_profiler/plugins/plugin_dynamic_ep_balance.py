@@ -65,10 +65,10 @@ class PluginDyEpBalance(PluginBase):
                 data["expert_hot"] = {key: transpose_eplb_iteration(value) for key, value in expert_hot_by_host.items()}
                 return data
 
-            expert_map_by_instance, transposed_expert_hot = \
+            expert_map, transposed_expert_hot = \
                 cls.mapping_expert_hot(expert_hot_by_host, instance_pod_map, expert_routing)
 
-            data["expert_map"] = expert_map_by_instance  # layer * total_expert_num
+            data["expert_map"] = expert_map  # ["instance_name][eplb_period][layer][total_expert_num]
             data["expert_hot"] = transposed_expert_hot
 
             return data
@@ -76,7 +76,7 @@ class PluginDyEpBalance(PluginBase):
     @classmethod
     def mapping_expert_hot(cls, expert_hot_by_host, instance_pod_map, expert_routing):
         # 每个instance读音的专家映射表是一致的 根据各卡的路由表 生成专家映射表
-        expert_map_by_instance = {}
+        expert_map = {}
         transposed_expert_hot = {}
         for instance_name, pod_name_list in instance_pod_map.items():
             pod_name = pod_name_list[0]
@@ -101,11 +101,11 @@ class PluginDyEpBalance(PluginBase):
                 for rank, routing_list in expert_routing[pod_name].items():
                     instance_expert_map = update_expert_map(instance_expert_map, routing_list)
 
-                expert_map_by_instance[instance_name] = instance_expert_map
+                expert_map[instance_name] = instance_expert_map
 
             transposed_expert_hot[instance_name] = \
                 transpose_eplb_iteration(expert_hot_by_host[instance_name], eplb_iteration_num)
-        return expert_map_by_instance, transposed_expert_hot
+        return expert_map, transposed_expert_hot
 
     @classmethod
     def process_expert_hot(cls, df_by_pid):
@@ -121,6 +121,9 @@ class PluginDyEpBalance(PluginBase):
         else:
             # 动态负载均衡
             mark_id_list = expert_routing_by_pid["markId"].values.tolist()
+            for item in mark_id_list:
+                if not isinstance(item, int):
+                    raise ValueError("Illegal markId type, please check profiling input.")
             mark_id_list.append(len(df_by_pid) - 1)
             mark_id_list.append(0)
             mark_id_list = list(set(mark_id_list))
