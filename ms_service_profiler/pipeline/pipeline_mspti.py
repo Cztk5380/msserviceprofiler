@@ -18,6 +18,9 @@ class PipelineMspti(PipelineBase):
         if data is None:
             return None
 
+        data = self.gather(data, dst=0)
+        if data is None:
+            return None
         with Timer(f"{self.name}-{self.task_index}"):
             data = self.run_step(PluginMsptiProcess, PluginMsptiProcess.name, data)
             data = self.run_step(PluginEpBalanceProcess, PluginEpBalanceProcess.name, data)

@@ -109,7 +109,7 @@ class Taskmanger:
         return len(task_manager_info.get("queues", []))
     
     def is_all_finished(self):
-        return all((x is None or x == 'error' for x in self.pool_owner)) or all((not x.is_alive() for x in self.pool))
+        return all((x is None for x in self.pool_owner)) or all((not x.is_alive() for x in self.pool))
     
     def is_all_prev_finished(self, task_name):
         # 前置task 全部完成
@@ -318,6 +318,7 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
         except Exception as e:
             error_sync(task_name, task_index, str(e))
             finished_sync(task_name, task_index, next_task_name, after_error=True)
+            logger.exception(f'{task_name}-{task_index} error. {str(e)}')
             if args.log_level == 'verbose':
                 crash(task_name, task_index)
                 raise
