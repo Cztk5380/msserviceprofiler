@@ -43,9 +43,6 @@ class ExporterDyEpBalance(TaskExporterBase):
 
         expert_hot = data[NAME]  # ["instance_name"][eplb_period][rank][iteration][layer][expert_per_rank]
 
-        # 开启静态负载均衡场景
-        if data.get(EXPERT_MAP) is not None:
-            pass
         for instance_name, expert_hot_per_instance in expert_hot.items():
             for eplb_iteration, expert_hot_per_eplb in enumerate(expert_hot_per_instance):
                 summed_hot_rank_output_path = \
@@ -69,33 +66,6 @@ class ExporterDyEpBalance(TaskExporterBase):
                                       y_label="Decoder layers",
                                       x_label="Experts from 0 to N",
                                       output_path=summed_hot_expert_output_path)
-
-        # 开启动态负载均衡场景
-        if data.get(DYNAMIC_EXPERT_MAP) is not None:
-            pass
-
-        # # 没有开启负载均衡场景
-        # for instance_name, expert_hot_per_instance in expert_hot.items():
-        #     expert_hot_per_instance = np.array(expert_hot_per_instance)
-        #
-        #     summed_hot_rank_output_path = os.path.join(output, SUMMED_OUTPUT_NAME_RANK.format(instance_name))
-        #     expert_hot_summed_rank = expert_hot_per_instance.sum(axis=-1).sum(axis=-1)  # shape: rank * layer
-        #     draw_hot_map_from_arr(expert_hot_summed_rank,
-        #                           title=f"{instance_name} Summed Hot Map By Rank",
-        #                           y_label="Decoder layers",
-        #                           x_label="Rank_0 to Rank_N",
-        #                           output_path=summed_hot_rank_output_path)
-        #
-        #     expert_hot_summed_expert = \
-        #         expert_hot_per_instance.sum(axis=2).transpose([0, 2, 1])  # shape: rank * expert_per_rank * layer
-        #     expert_hot_summed_expert = \
-        #         expert_hot_per_instance.reshape(-1, expert_hot_summed_expert.shape[-1])  # shape: total_expert * layer
-        #     summed_hot_expert_output_path = os.path.join(output, SUMMED_OUTPUT_NAME_EXPERT.format(instance_name))
-        #     draw_hot_map_from_arr(expert_hot_summed_expert,
-        #                           title=f"{instance_name} Summed Hot Map By Expert",
-        #                           y_label="Decoder layers",
-        #                           x_label="Experts from 0 to N",
-        #                           output_path=summed_hot_expert_output_path)
 
     @classmethod
     def depends(cls):

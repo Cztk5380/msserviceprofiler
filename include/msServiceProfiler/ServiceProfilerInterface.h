@@ -24,17 +24,79 @@ using SpanHandle = uint64_t;
 #endif
 
 extern "C" {
+/**
+    * @brief 记录一个性能监测区间（Span）的开始节点
+    * @return 一个性能监测区间（Span）的唯一句柄标识
+*/
 MS_SERVICE_PROFILER_API SpanHandle StartSpan();
+
+/**
+    * @brief 记录一个性能监测区间（Span）的开始节点
+    * @param name [in] 该性能监测区间（Span）过程名
+    * @return 一个性能监测区间（Span）的唯一句柄标识
+*/
 MS_SERVICE_PROFILER_API SpanHandle StartSpanWithName(const char *name);
+
+/**
+    * @brief 为指定性能监测区间（Span）添加标记属性
+    * @param msg [in] 标记属性内容
+    * @param spanHandle [in] 目标span区间的唯一句柄标识
+*/
 MS_SERVICE_PROFILER_API void MarkSpanAttr(const char *msg, SpanHandle spanHandle);
+
+/**
+    * @brief 性能监测区间（Span）结束
+    * @param spanHandle [in] span区间的唯一句柄标识
+*/
 MS_SERVICE_PROFILER_API void EndSpan(SpanHandle spanHandle);
+
+/**
+    * @brief 记录一个独立事件
+    * @param msg [in] 事件描述内容
+*/
 MS_SERVICE_PROFILER_API void MarkEvent(const char *msg);
+
+/**
+    * @brief 启动profiling数据采集
+*/
 MS_SERVICE_PROFILER_API void StartServerProfiler();
+
+/**
+    * @brief 关闭profiling数据采集
+*/
 MS_SERVICE_PROFILER_API void StopServerProfiler();
+
+/**
+    * @brief 检查指定级别的profiling功能是否启用
+    * @param level [in] profiling数据采集级别
+    * @return true : 该级别profiling功能已开启，false: 未开启
+*/
 MS_SERVICE_PROFILER_API bool IsEnable(uint32_t level);
+
+/**
+    * @brief 检查指定域名数据是否允许落盘
+    * @param domainName [in] 待检查域名
+    * @return true : 该域名有效/允许相关数据落盘，false: 该域名无效/不允许相关数据落盘
+*/
 MS_SERVICE_PROFILER_API bool IsValidDomain(const char *domainName);
+
+/**
+    * @brief 查询是否启用了域名过滤功能
+    * @return true : 域名过滤已启用（仅允许指定域名），false: 域名过滤未启用（允许所有域名）
+*/
 MS_SERVICE_PROFILER_API bool GetEnableDomainFilter();                  // 20260630 日落
+
+/**
+    * @brief 获取当前允许落盘的域名集合
+    * @return 当前允许落盘的域名集合，若集合为空表示当前未启用域名过滤功能
+*/
 MS_SERVICE_PROFILER_API const std::set<std::string> &GetValidDomain(); // 20260630 日落
+
+/**
+    * @brief 添加全局元数据信息（键值对形式）
+    * @param key [in] 元数据键
+    * @param value [in] 元数据值
+*/
 MS_SERVICE_PROFILER_API void AddMetaInfo(const char *key, const char *value);
 }
 

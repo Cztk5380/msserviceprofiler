@@ -18,6 +18,11 @@
 #define SERVICEPROFILERDBWRITER_H
 
 #include <cstdint>
+#include <memory>
+#include <string>
+#include <map>
+#include <iostream>
+#include <fstream>
 
 namespace msServiceProfiler {
 

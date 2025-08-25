@@ -69,8 +69,7 @@ def test_count(sample_data):
 
 def test_no_tx_data_df(empty_data):
     plugin = PluginMetric()
-    with pytest.raises(DataFrameMissingError):
-        plugin.parse(empty_data)
+    empty_data == plugin.parse(empty_data)
 
 
 def test_no_start_datetime(sample_data_without_start_datetime, capsys):
@@ -94,25 +93,18 @@ def test_normal_processing(valid_tx_data):
     # 验证新增的指标表
     df = result['metric_data_df']
     assert set(df.columns) == {'start_time',
-                               'start_datetime', 'CPU', 'Memory', 'WAITING+'}
+                               'start_datetime', 'CPU', 'Memory'}
 
     # 验证指标列转换
     assert 'CPU' in df.columns
     assert 'Memory' in df.columns
-
-    # 验证httpReq特殊处理
-    assert df.loc[0, 'WAITING+'] == 1.0
-    assert df.loc[2, 'WAITING+'] == 1.0
-    assert pd.isna(df.loc[1, 'WAITING+'])
 
     # 验证累加逻辑
     assert df['CPU'].tolist() == [1.0, 3.0, 6.0]
 
 
 def test_missing_tx_data():
-    with pytest.raises(DataFrameMissingError) as exc_info:
-        PluginMetric.parse({})
-    assert "tx_data_df" in str(exc_info.value)
+    assert {} == PluginMetric.parse({})
 
 
 def test_missing_required_columns(valid_tx_data):

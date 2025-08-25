@@ -54,14 +54,14 @@ int NpuMemoryUsage::DcmiInit() const
     return ret;
 }
 
-int NpuMemoryUsage::DcmiGetCardList(int *cardNum, int *cardList, int listLen) const
+int NpuMemoryUsage::DcmiGetCardList(int *paramCardNum, int *paramCardList, int listLength) const
 {
     using DcmiGetCardListFunc = int (*)(int *, int *, int);
     if (handleDcmi == nullptr) {
         return EXITCODE_EMPTY_DCMI_HANDLER;
     }
     DcmiGetCardListFunc dcmiGetCardList = (DcmiGetCardListFunc)dlsym(handleDcmi, "dcmi_get_card_list");
-    int ret = dcmiGetCardList(cardNum, cardList, listLen);
+    int ret = dcmiGetCardList(paramCardNum, paramCardList, listLength);
     return ret;
 }
 

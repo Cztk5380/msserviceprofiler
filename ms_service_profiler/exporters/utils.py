@@ -35,7 +35,8 @@ CURVE_VIEW_NAME_LIST = {
     'req_latency': 'Request_Latency_curve',
     'decode_gen_speed': 'Decode_Generate_Speed_Latency_curve',
     'first_token_latency': 'First_Token_Latency_curve',
-    'request_status': 'Request_Status_curve'
+    'request_status': 'Request_Status_curve',
+    'coordinator' : 'Coordinator_curve',
 }
 TABLE_DATA_VIEW_NAME_LIST = {
     # 需要以纯表显示的db中的表名: data_table中的视图名称
@@ -44,8 +45,22 @@ TABLE_DATA_VIEW_NAME_LIST = {
     'kvcache': 'kvcache_usage',
     'pd_split_communication': 'pd_communication_info',
     'request': 'request_data',
-    'pd_split_kvcache': 'pd_split_pull_kvcache'
+    'pd_split_kvcache': 'pd_split_pull_kvcache',
+    'forward': 'forward_info',
+    'coordinator' : 'coordinator_info',
 }
+
+
+class COLUMN_CONST:
+    HOSTUID_COLUMN = 'hostuid'
+    PID_COLUMN = 'pid'
+    START_TIME_COLUMN = 'start_time'
+    TIMESTAMP_MS_COLUMN = 'timestamp(ms)'
+    RELATIVE_TIMESTAMP_MS_COLUMN = 'relative_timestamp(ms)'
+    DOMAIN_COLUMN = 'domain'
+    NAME_COLUMN = 'name'
+    STATUS_COLUMN = 'status'
+    QUEUESIZE_COLUMN = 'QueueSize='
 
 
 def write_result_to_db(df_param_list, create_view_sql=None, table_name="", rename_cols=None):
@@ -58,10 +73,12 @@ def write_result_to_db(df_param_list, create_view_sql=None, table_name="", renam
     try:
         create_view_sql = create_view_sql or []
         rename_cols = rename_cols or []
+        table_add_success = True
         for df, df_name in df_param_list:
-            add_table_into_visual_db(df, df_name)
+            table_add_success = add_table_into_visual_db(df, df_name) and table_add_success
 
-        create_sqlite_views(table_name, create_view_sql, rename_cols)
+        if table_add_success:
+            create_sqlite_views(table_name, create_view_sql, rename_cols)
 
     except Exception as error:
         logger.warning(f"{table_name} write to db table failed due to {error}")
@@ -76,7 +93,7 @@ def create_view_with_renamed_column(cursor, table_name, view_name, rename_cols):
     # 获取所有列名
     cursor.execute(f"PRAGMA table_info({table_name})")
     columns = [column[1] for column in cursor.fetchall()]  # 第2个元素是列名
-    
+
     # 构建SELECT部分，重命名指定列
     select_parts = []
     for col in columns:
@@ -84,12 +101,12 @@ def create_view_with_renamed_column(cursor, table_name, view_name, rename_cols):
             select_parts.append(f'"{col}" AS "{rename_cols[col]}"')
         else:
             select_parts.append(col)
-    
+
     select_clause = ", ".join(select_parts)
 
     # 创建视图
     create_view_sql = f"""
-    CREATE VIEW {view_name} AS
+    CREATE VIEW IF NOT EXISTS {view_name} AS
     SELECT {select_clause}
     FROM {table_name}
     """
@@ -166,7 +183,7 @@ def create_sqlite_views(table_name, create_view_sql, rename_cols):
                 conn.close()
             except Exception as ex:
                 conn.rollback()  # 失败时回滚
-                raise DatabaseError(f"Cannot update sqlite {table_name} views.") from ex
+                raise DatabaseError(f"Cannot update sqlite {table_name} views. due to {ex}") from ex
 
 
 def handle_sqlite_table_list(table_list, cursor):
@@ -201,10 +218,12 @@ def add_record_to_data_table(table_name, conn):
         cursor.execute(UPDATA_DATA_TABLE_SQL, (view_name, view_name))
 
 
-def add_table_into_visual_db(df, table_name):
+def add_table_into_visual_db(df, table_name, allow_empty=False):
     if df is None or not isinstance(df, pd.DataFrame) or df.empty or len(df.columns) == 0:
-        logger.warning("Writing table %r failed due to invalid dataframe:\n\t%s", table_name, df)
-        return
+        logger.debug("nothing to write to table %r. due to dataframe is:%s", table_name, df)
+        if not allow_empty:
+            logger.warning("nothing to write to table %r.", table_name)
+        return False
 
     for col in df:
         if df[col].dtype == 'object':
@@ -225,19 +244,22 @@ def add_table_into_visual_db(df, table_name):
             except Exception as ex:
                 conn.rollback()  # 失败时回滚
                 raise DatabaseError(f"Cannot update {table_name} sqlite database.") from ex
+    return True
 
 
-def save_dataframe_to_csv(filtered_df, output, file_name, check_columns=None):
+def save_dataframe_to_csv(filtered_df, output, file_name, check_columns=None, allow_empty=False):
     if filtered_df is None or not isinstance(filtered_df, pd.DataFrame) or filtered_df.empty or output is None:
-        logger.warning("Writing csv %r failed due to invalid dataframe:\n\t%s", file_name, filtered_df)
+        logger.debug("nothing to write to %r due to empty data : %s", file_name, filtered_df)
+        if not allow_empty:
+            logger.warning("nothing to write to %r .", file_name)
         return
-    
+
     # check column names
     for col in filtered_df.columns:
         if not _check_csv_value_is_valid(col):
-            logger.error(f"Column name {col} contains malicious value.")
+            logger.error(f"Column name [{col}] contains malicious value.")
             return
-    
+
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     file_path = output_path / file_name
@@ -246,7 +268,7 @@ def save_dataframe_to_csv(filtered_df, output, file_name, check_columns=None):
     if not _preprocess_dataframe(filtered_df, check_columns):
         logger.warning(f"DataFrame contains invalid values. Aborting write to {file_name}.")
         return
-    
+
     with ms_open(file_path, "w") as f:
         filtered_df.to_csv(f, index=False)
         logger.info(f"Write to {file_name} success.")
@@ -255,7 +277,7 @@ def save_dataframe_to_csv(filtered_df, output, file_name, check_columns=None):
 def _preprocess_dataframe(df, check_columns=None):
     if not check_columns:
         return True
-    
+
     # 校验单元格是否合法
     for col in check_columns:
         if col in df.columns:
@@ -263,7 +285,7 @@ def _preprocess_dataframe(df, check_columns=None):
             if has_invalid_value:
                 logger.warning(f"Column {col} contains malicious values")
                 return False
-    
+
     return True
 
 
@@ -306,10 +328,19 @@ def _check_file(file_path, iteration_count):
         raise argparse.ArgumentTypeError("File is NOT safe") from e
 
 
-def check_input_path_valid(path):
+def is_empty_directory(directory):
+    with os.scandir(directory) as entries:
+        return len(list(entries)) == 0
+
+
+def check_input_dir_valid(path):
     try:
         # 首先校验传入路径是否为目录，并确保目录可遍历
         safe_path = traverse_dir_common_check(path)
+
+        # 对空文件夹进行校验
+        if is_empty_directory(safe_path):
+            logger.error(f"Input path is empty.: {safe_path!r}")
 
         # 初始化计数器
         iteration_count = 0
@@ -346,7 +377,7 @@ def check_output_path_valid(path):
 def find_file_in_dir(directory, filename):
     count = 0
     max_iter = MAX_ITERATIONS
- 
+
     for _, _, files in os.walk(directory):
         count += len(files)
         if count > max_iter:
@@ -360,7 +391,7 @@ def find_all_file_complete(directory, filename='all_file.complete'):
     count = 0
     data_count = 0
     data_with_file_count = 0
- 
+
     for root, _, files in os.walk(directory):
         count += len(files)
         if count > MAX_ITERATIONS:
@@ -377,16 +408,16 @@ def find_all_file_complete(directory, filename='all_file.complete'):
 def delete_dir_safely(path):
     # 删除文件安全校验
     try:
-        check_input_path_valid(path)
+        check_input_dir_valid(path)
     except Exception as e:
-        logger.error(f'check_input_path_valid {path} failed, due to {e}')
+        logger.error(f'check input dir_valid {path} failed, due to {e}')
         return
 
     try:
         shutil.rmtree(path)
-        logger.warning(f"Delete {path}")
+        logger.debug(f"Delete {path}")
     except Exception as e:
-        logger.error(f"Delete failed: {path}, error: {e}")
+        logger.error(f"Delete {path} failed, due to : {e}")
 
 
 def truncate_timestamp_np(s: pd.Series) -> pd.Series:
@@ -402,6 +433,17 @@ def check_domain_valid(df, domain_list, exporter_name):
     missing_domains = [domain for domain in domain_list if domain not in current_domains]
 
     if missing_domains:
-        logger.warning(f"Exporter {exporter_name} - missing domains: {missing_domains}")
+        logger.warning(f"Exporter {exporter_name} will skip, the prof data of domain {missing_domains} is missing")
 
+    return True
+
+
+def check_columns_valid(df, column_list, exporter_name):
+    current_columns = set(df.columns)
+
+    missing_columns = [column for column in column_list if column not in current_columns]
+
+    if missing_columns:
+        logger.warning(f"Exporter {exporter_name} will skip. the attribute {missing_columns} in prof data is missing")
+        return False
     return True

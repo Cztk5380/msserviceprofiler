@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
+from decimal import Decimal
 from collections import defaultdict
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.file_open_check import safe_json_dump
@@ -69,7 +70,7 @@ UPDATA_SQL_TEMPLATES = {
 
 
 def convert_ts_to_ns(ts):
-    return float(ts) * NS_PER_US
+    return int((Decimal(str(ts)) * NS_PER_US))
 
 
 # M类型: thread, process
@@ -176,7 +177,7 @@ def trans_trace_meta_event(event, cursor):
         track_id, _ = TrackIdManager.get_track_id(pid, tid)
         cursor.execute(UPDATE_THREAD_SORTINDEX_SQL, (track_id, event_data.get('args_sort_index')))
     else:
-        logger.error(f'Trans trace M event to db failed due to event name {event_name}')
+        logger.warning(f'Trans trace M event to db failed due to unknown event name {event_name}')
 
 
 def write_to_process_thread_table(event_data, thread_sort_index, cursor):

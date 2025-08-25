@@ -434,6 +434,7 @@ namespace msServiceProfiler {
         
         if (buffer) {
             free(buffer);
+            buffer = nullptr;
         }
         ServiceProfilerMspti::GetInstance().PopWorkingThreadNum();
     }

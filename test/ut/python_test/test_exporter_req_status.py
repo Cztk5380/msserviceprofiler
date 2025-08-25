@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import pytest
 import pandas as pd
+import numpy as np
 from ms_service_profiler.exporters.exporter_req_status import ExporterReqStatus
 from ms_service_profiler.exporters.utils import create_sqlite_db, visual_db_fp
 
@@ -63,4 +64,41 @@ def test_parse_valid_data(tmpdir, sample_data):
         # 清理
         shutil.rmtree(test_path)
 
-    
+
+def test_export_with_csv_format():
+    # 创建测试数据
+    data = {
+        'tx_data_df': pd.DataFrame({
+            'hostuid': [1, 2, 3],
+            'pid': [101, 101, 102],
+            'start_time': [1000, 1010, 1020],
+            'domain': ['Schedule', 'Schedule', 'Schedule'],
+            'name': ['Queue', 'Queue', 'Queue'],
+            'status': ['waiting', 'running', 'swapped'],
+            'QueueSize=': [10, 15, 20],
+        })
+    }
+
+    # 初始化 ExporterReqStatus
+    args = type('Args', (object,), {'format': ['csv'], 'output_path': 'output_path'})()
+    ExporterReqStatus.initialize(args)
+
+    # 调用 export 方法
+    with mock.patch('ms_service_profiler.exporters.exporter_req_status.save_dataframe_to_csv') \
+        as mock_save_dataframe_to_csv:
+        ExporterReqStatus.export(data)
+
+        # 验证 save_dataframe_to_csv 被正确调用
+        expected_df = pd.DataFrame({
+            'hostuid': [1, 2, 3],
+            'pid': [101, 101, 102],
+            'timestamp(ms)': [1.0, 1.01, 1.02],
+            'relative_timestamp(ms)': [0, 0.01, 0],
+            'waiting': np.array([10, None, None]),
+            'running': np.array([None, 15, None]),
+            'swapped': np.array([None, None, 20])
+        })
+        print(mock_save_dataframe_to_csv.call_args[0][0]['relative_timestamp(ms)'])
+        pd.testing.assert_frame_equal(mock_save_dataframe_to_csv.call_args[0][0], expected_df)
+        assert mock_save_dataframe_to_csv.call_args[0][1] == 'output_path'
+        assert mock_save_dataframe_to_csv.call_args[0][2] == 'request_status.csv'

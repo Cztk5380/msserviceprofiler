@@ -44,14 +44,14 @@ class ExporterPDComm(ExporterBase):
         cls.args = args
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def export(cls, data) -> None:
         if 'csv' in cls.args.format or 'db' in cls.args.format:
             all_data_df = data['tx_data_df']
             output = cls.args.output_path
 
             if all_data_df is None:
-                logger.warning("The tx_data_df is empty, please check")
+                logger.warning("There is no service prof data, communication data will not be generated. please check")
                 return
 
             if check_domain_valid(all_data_df, ['Communication'], 'pd_split_communication') is False:

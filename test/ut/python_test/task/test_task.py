@@ -2,6 +2,7 @@
 from unittest.mock import patch, MagicMock
 import pytest
 from ms_service_profiler.task.task import Task, DefaultValue, ParseError
+from ms_service_profiler.task.task_register import regist_map, get_register_by_name
 
 
 class MockTask(Task):
@@ -15,34 +16,29 @@ class MockTask(Task):
         pass
 
 
-@patch('ms_service_profiler.task.task.Task.get_retister_by_name')
-def test_task_class(mock_get_retister_by_name):
+@patch('ms_service_profiler.task.task_register.get_register_by_name')
+def test_task_class(mock_get_register_by_name):
     # 使用Task.register装饰器注册TestTask类
     @Task.register("test_task")
     class TestTask(Task):
         def run(self):
             pass
 
-    # 设置get_retister_by_name方法的返回值为注册的TestTask类
-    mock_get_retister_by_name.return_value = TestTask
+    # 设置get_register_by_name方法的返回值为注册的TestTask类
+    mock_get_register_by_name.return_value = TestTask
 
     # 测试register方法
     assert TestTask.name == "test_task"
-    assert Task.regist_map["test_task"] == TestTask
+    assert regist_map["test_task"].task_cls == TestTask
 
-    # 测试get_retister_by_name方法
-    result = Task.get_retister_by_name("test_task")
-    assert result == TestTask
+    # 测试get_register_by_name方法
+    result = get_register_by_name("test_task")
+    assert result.task_cls == TestTask
 
     # 测试depends方法
     result = MockTask.depends()
     assert isinstance(result, list)
     assert result == ["depend_task1", "depend_task2"]
-
-    # 测试is_deal_single_data方法
-    result = Task.is_deal_single_data()
-    assert isinstance(result, bool)
-    assert not result
 
     # 测试set_depends_result和get_depends_result方法
     task = Task({"task_name": "test_task"})

@@ -32,11 +32,15 @@ class PluginReqStatus(PluginBase):
     depends = ["plugin_common"]
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse(cls, data):
         tx_data_df = data.get('tx_data_df')
         if tx_data_df is None:
-            raise ValueError("tx_data_df is None")
+            return data
+
+        # mindIE 重构后，不再使用数字映射状态码的方式，直接从status列中可取得状态，如waiting、running、swapped
+        if 'status' in tx_data_df.columns:
+            return data
 
         tx_data_df['message'] = tx_data_df['message'].apply(parse_message_state_name)
         rename_mapping = {
@@ -55,7 +59,7 @@ class PluginReqStatus(PluginBase):
 
             if not valid_cols:
                 logger.warning(
-                    "No 'request status' is found in data base, if this is unexpected, please check 'msproftx.db'"
+                    "No 'request status' is found in prof data, if this is unexpected, please check"
                 )
                 return data
 

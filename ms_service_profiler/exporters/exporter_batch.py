@@ -40,24 +40,29 @@ class ExporterBatchData(ExporterBase):
         cls.args = args
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     @key_except('domain', 'name', ignore=True, msg="ignoring current exporter by default.")
     def export(cls, data) -> None:
         if 'csv' in cls.args.format or 'db' in cls.args.format:
             df = data.get('tx_data_df')
             if df is None:
-                logger.warning("The data is empty, please check")
+                logger.warning("There is no service prof data, batch.csv will not be generated. Please check. ")
                 return
             output = cls.args.output_path
 
-            if check_domain_valid(df, ['ModelExecute', 'BatchSchedule'], 'batch') is False:
+            if check_domain_valid(df, ['ModelExecute', 'BatchSchedule', 'Schedule'], 'batch') is False:
                 return
 
             # 获取组batch字段名称，旧版本为BatchScheduler，新版本为batchFrameworkProcessing
-            batch_name = 'BatchSchedule' if (df['name'] == 'BatchSchedule').any() else 'batchFrameworkProcessing'
-            batch_df = df[df['name'].isin([batch_name, 'modelExec'])]
+            if (df['name'] == 'BatchSchedule').any():
+                batch_name = 'BatchSchedule'
+            elif (df['name'] == 'batchFrameworkProcessing').any():
+                batch_name = 'batchFrameworkProcessing'
+            else:
+                batch_name = 'Schedule'
+            batch_df = df[df['name'].isin([batch_name, 'modelExec'])].copy()
             if batch_df.empty:
-                logger.warning("No batch data found. Please check msproftx.db.")
+                logger.warning("No batch data found. batch.csv will not be generated. Please check ")
                 return
             # 筛选显示
             batch_df = filter_batch_df(batch_name, batch_df)

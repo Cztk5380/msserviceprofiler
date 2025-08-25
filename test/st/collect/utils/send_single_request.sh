@@ -1,22 +1,16 @@
 send_single_request() {
     local ip_address=$1
 
-    curl -H "Accept: application/json" -H "Content-type: application/json"  -X POST -d '{
-    "inputs": "My name is Olivier and I",
-    "stream": true,
-    "parameters": {
-    "temperature": 0.5,
-    "top_k": 10,
-    "top_p": 0.95,
-    "max_new_tokens": 120,
-    "do_sample": true,
-    "seed": null,
-    "repetition_penalty": 1.03,
-    "details": true,
-    "typical_p": 0.5,
-    "watermark": false
-    }
-    }' "$ip_address"
+    curl -X POST -d '{
+    "model":"Qwen2.5",
+    "messages": [{
+        "role": "system",
+        "content": "你是谁？"
+    }],
+    "max_tokens": 20,
+"stream": false
+}' "$ip_address"
+
 }
 
 # 检查参数数量

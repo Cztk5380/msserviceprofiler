@@ -16,17 +16,17 @@ class PluginMoeSlowRankProcess(PluginBase):
     def parse(cls, data):
         communication_df = data.get("communication_df")
         if communication_df is None:
-            logger.warning("communication_df is None when processing moe slow_rank analysis.")
+            logger.warning("communication data is None when processing moe slow_rank analysis.")
             return data
         if communication_df.empty:
-            logger.warning("communication_df is empty when processing moe slow_rank analysis.")
+            logger.warning("communication data is empty when processing moe slow_rank analysis.")
             return data
 
         distribute_df = communication_df[(communication_df["name"] == MOE_DISTRIBUTED_COMBINE) | (
                     communication_df["name"] == MOE_DISTRIBUTED_DISPATCH)]
 
         if distribute_df.empty:
-            logger.warning(f"no {MOE_DISTRIBUTED_DISPATCH} or {MOE_DISTRIBUTED_COMBINE} found in communication_df.")
+            logger.warning(f"no {MOE_DISTRIBUTED_DISPATCH} or {MOE_DISTRIBUTED_COMBINE} found in communication data.")
             return data
 
         confidence_intervals = []
