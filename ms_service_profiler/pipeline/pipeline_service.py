@@ -13,6 +13,7 @@ from ms_service_profiler.plugins.plugin_concat import PluginConcat
 from ms_service_profiler.plugins.plugin_trace import PluginTrace
 from ms_service_profiler.plugins.plugin_process_name import PluginProcessName
 from ms_service_profiler.plugins.plugin_batch import PluginBatch
+from ms_service_profiler.plugins.plugin_dynamic_ep_balance import PluginDyEpBalance
 
 
 @Task.register("pipeline:service")
@@ -35,6 +36,7 @@ class PipelineService(PipelineBase):
         data = self.run_step(PluginTrace, PluginTrace.name, data, False)
         data = self.run_step(PluginProcessName, PluginProcessName.name, data, False)
         data = self.run_step(PluginBatch, PluginBatch.name, data, False)
+        data = self.run_step(PluginDyEpBalance, PluginDyEpBalance.name, data, False)
         req_dict = ProcessorReq().parse(data.get("tx_data_df"))
  
         data.update(req_dict)
