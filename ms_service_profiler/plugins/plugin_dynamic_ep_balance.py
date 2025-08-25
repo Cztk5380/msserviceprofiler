@@ -41,49 +41,16 @@ class PluginDyEpBalance(PluginBase):
                 expert_routing_per_pod = defaultdict(list)
 
                 for _, df_by_pid in df_by_host.groupby("pid"):
-                    expert_routing_by_pid = df_by_pid.loc[df_by_pid[EXPERT_ROUTING_NAME].dropna().index]
-                    if len(expert_routing_by_pid) == 0:
-                        # 没开负载均衡
-                        split_expert_hot = [df_by_pid]
-                    if len(expert_routing_by_pid) == 1:
-                        # static eplb
-                        expert_routing_by_pid = df_by_pid[EXPERT_ROUTING_NAME].dropna().values.tolist()  # eplb_perid * layer * total_model_expert_num
-                    if len(expert_routing_by_pid) > 1:
-                        # dynamic eplb
-                        mark_id_list = expert_routing_by_pid["markId"].values.tolist()
-                        mark_id_list.append(len(df_by_pid) - 1)
-                        mark_id_list.append(0)
-                        mark_id_list = list(set(mark_id_list))
-                        mark_id_list.sort()
-                        split_expert_hot = []
-                        for i in range(len(mark_id_list) - 1):
-                            up_mark_id = mark_id_list[i]
-                            down_mark_id = mark_id_list[i + 1]
-                            split_expert_hot.append(
-                                df_by_pid[(df_by_pid["markId"] > up_mark_id) & (df_by_pid["markId"] < down_mark_id)])
-
-                    if len(expert_routing_by_pid) > 0:
-                        expert_routing_by_pid = expert_routing_by_pid[EXPERT_ROUTING_NAME].values.tolist()
-
-                    # 检查rank的格式
-                    rank_list = list(set(df_by_pid["rank"].values.tolist()))
-                    if len(rank_list) != 1 or not isinstance(rank_list[0], int):
-                        raise ValueError("Expert hot map format illegal. Value rank in one file not same.")
-
-                    # eplb_period * iteration * layer * expert_per_rank
-                    expert_hot = transfer_hot_df_to_list(split_expert_hot)
-
-                    rank = rank_list[0]
-
-                    expert_hot_by_host[pod_name][rank] = expert_hot
-
+                    expert_hot_per_pid, rank, expert_routing_by_pid = cls.process_expert_hot(df_by_pid)
+                    expert_hot_by_host[pod_name][rank] = expert_hot_per_pid
                     if len(expert_routing_by_pid) > 0:
                         expert_routing_per_pod[rank] = expert_routing_by_pid
+
                 if expert_routing_per_pod:
                     expert_routing[pod_name] = expert_routing_per_pod
 
-            # expert_hot_by_host = ["pod_name"][rank][eplb_period][iteration][layer][expert_per_rank]
-            # expert_routing = ["pod_name"][rank][eplb_period][layer][total_expert_num]
+            # expert_hot_by_host shape: ["pod_name"][rank][eplb_period][iteration][layer][expert_per_rank]
+            # expert_routing shape: ["pod_name"][rank][eplb_period][layer][total_expert_num]
 
             # 获得实例instance-节点pod的映射
             instance_pod_map = grouping_host_name(list(expert_hot_by_host.keys()))
@@ -98,41 +65,87 @@ class PluginDyEpBalance(PluginBase):
                 data["expert_hot"] = {key: transpose_eplb_iteration(value) for key, value in expert_hot_by_host.items()}
                 return data
 
-            # 每个instance读音的专家映射表是一致的 根据各卡的路由表 生成专家映射表
-            expert_map_by_instance = {}
-            transposed_expert_hot = {}
-            for instance_name, pod_name_list in instance_pod_map.items():
-                pod_name = pod_name_list[0]
-                instance_expert_num = \
-                    len(pod_name_list) * \
-                    len(expert_hot_by_host[pod_name]) * \
-                    len(expert_hot_by_host[pod_name][0][0][0][0])
-                routing_expert_num = len(expert_routing[pod_name][0][0][0])
-                if instance_expert_num != routing_expert_num:
-                    raise ValueError("Expert_nums in expert_hot and expert_routing are not same.")
-
-                layer_num = len(list(expert_routing[pod_name].values())[0][0])
-
-                eplb_iteration_num = len(expert_routing[pod_name][rank])
-
-                instance_expert_map = []
-
-                for eplb_iter in range(eplb_iteration_num):
-                    instance_expert_map.append(-np.ones([layer_num, instance_expert_num], dtype=np.int32))
-
-                for pod_name in pod_name_list:
-                    for rank, routing_list in expert_routing[pod_name].items():
-                        instance_expert_map = update_expert_map(instance_expert_map, routing_list)
-
-                    expert_map_by_instance[instance_name] = instance_expert_map
-
-                transposed_expert_hot[instance_name] = \
-                    transpose_eplb_iteration(expert_hot_by_host[instance_name], eplb_iteration_num)
+            expert_map_by_instance, transposed_expert_hot = \
+                cls.mapping_expert_hot(expert_hot_by_host, instance_pod_map, expert_routing)
 
             data["expert_map"] = expert_map_by_instance  # layer * total_expert_num
             data["expert_hot"] = transposed_expert_hot
 
             return data
+
+    @classmethod
+    def mapping_expert_hot(cls, expert_hot_by_host, instance_pod_map, expert_routing):
+        # 每个instance读音的专家映射表是一致的 根据各卡的路由表 生成专家映射表
+        expert_map_by_instance = {}
+        transposed_expert_hot = {}
+        for instance_name, pod_name_list in instance_pod_map.items():
+            pod_name = pod_name_list[0]
+            instance_expert_num = \
+                len(pod_name_list) * \
+                len(expert_hot_by_host[pod_name]) * \
+                len(expert_hot_by_host[pod_name][0][0][0][0])
+            routing_expert_num = len(expert_routing[pod_name][0][0][0])
+            if instance_expert_num != routing_expert_num:
+                raise ValueError("Expert_nums in expert_hot and expert_routing are not same.")
+
+            layer_num = len(list(expert_routing[pod_name].values())[0][0])
+
+            eplb_iteration_num = len(expert_routing[pod_name][rank])
+
+            instance_expert_map = []
+
+            for eplb_iter in range(eplb_iteration_num):
+                instance_expert_map.append(-np.ones([layer_num, instance_expert_num], dtype=np.int32))
+
+            for pod_name in pod_name_list:
+                for rank, routing_list in expert_routing[pod_name].items():
+                    instance_expert_map = update_expert_map(instance_expert_map, routing_list)
+
+                expert_map_by_instance[instance_name] = instance_expert_map
+
+            transposed_expert_hot[instance_name] = \
+                transpose_eplb_iteration(expert_hot_by_host[instance_name], eplb_iteration_num)
+        return expert_map_by_instance, transposed_expert_hot
+
+    @classmethod
+    def process_expert_hot(cls, df_by_pid):
+        expert_routing_by_pid = df_by_pid.loc[df_by_pid[EXPERT_ROUTING_NAME].dropna().index]
+        if len(expert_routing_by_pid) == 0:
+            # 没开负载均衡
+            split_expert_hot = [df_by_pid]
+        elif len(expert_routing_by_pid) == 1:
+            # 静态负载均衡
+            # shape: eplb_perid * layer * total_model_expert_num
+            expert_routing_by_pid = df_by_pid[EXPERT_ROUTING_NAME].dropna().values.tolist()
+            split_expert_hot = [expert_routing_by_pid]
+        else:
+            # 动态负载均衡
+            mark_id_list = expert_routing_by_pid["markId"].values.tolist()
+            mark_id_list.append(len(df_by_pid) - 1)
+            mark_id_list.append(0)
+            mark_id_list = list(set(mark_id_list))
+            mark_id_list.sort()
+            split_expert_hot = []
+            for i in range(len(mark_id_list) - 1):
+                up_mark_id = mark_id_list[i]
+                down_mark_id = mark_id_list[i + 1]
+                split_expert_hot.append(
+                    df_by_pid[(df_by_pid["markId"] > up_mark_id) & (df_by_pid["markId"] < down_mark_id)])
+
+        if len(expert_routing_by_pid) > 0:
+            expert_routing_by_pid = expert_routing_by_pid[EXPERT_ROUTING_NAME].values.tolist()
+
+        # 检查rank的格式
+        rank_list = list(set(df_by_pid["rank"].values.tolist()))
+        if len(rank_list) != 1 or not isinstance(rank_list[0], int):
+            raise ValueError("Expert hot map format illegal. Value rank in one file not same.")
+
+        # shape: eplb_period * iteration * layer * expert_per_rank
+        expert_hot = transfer_hot_df_to_list(split_expert_hot)
+
+        rank = rank_list[0]
+
+        return expert_hot, rank, expert_routing_by_pid
 
 
 def transfer_hot_df_to_list(dataframe_list):
