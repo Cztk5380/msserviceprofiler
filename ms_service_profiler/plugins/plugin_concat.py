@@ -26,7 +26,7 @@ class PluginConcat(PluginBase):
         return msprof_merged
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse(cls, data):
         merged_data = defaultdict(pd.DataFrame)
         merge_list = defaultdict(list)

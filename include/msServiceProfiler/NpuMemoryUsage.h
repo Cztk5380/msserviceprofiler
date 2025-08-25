@@ -69,7 +69,7 @@ private:
     std::vector<CardDevice> cardDevices;
 
     int DcmiInit() const;
-    int DcmiGetCardList(int *cardNum, int *cardList, int listLen) const;
+    int DcmiGetCardList(int *paramCardNum, int *paramCardList, int paramListLen) const;
     int DcmiGetDeviceIdInCard(int cardId, int *deviceIdMax) const;
     int DcmiGetDeviceMemoryInfoV3(
         int cardId, int deviceId, struct dcmi_get_memory_info_stru *memoryInfo) const;

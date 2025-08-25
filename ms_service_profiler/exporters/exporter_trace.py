@@ -29,10 +29,13 @@ class ExporterTrace(TaskExporterBase):
         return ["pipeline:service", "pipeline:mspti"]
 
     def do_export(self):
-        self.export(self.get_depends_result("pipeline:service"), self.get_depends_result("pipeline:mspti"))
+        data, mspti = self.get_depends_result("pipeline:service", None), self.get_depends_result("pipeline:mspti", None)
+        if data is None and mspti is None:
+            return
+        self.export(data, mspti)
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def export(cls, data, mspti) -> None:
         if 'db' not in cls.args.format and 'json' not in cls.args.format:
             return
@@ -97,10 +100,10 @@ class ExporterTrace(TaskExporterBase):
             save_trace_data_into_json(merged_data, output)
 
         if 'db' in cls.args.format:
-            logger.info('Start write trace data to db')
+            logger.debug('Start write trace data to db')
             create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
             save_trace_data_into_db(merged_data)
-            logger.info('Write trace data to db success')
+            logger.debug('Write trace data to db success')
 
 
 def prepare_domain_for_process(all_data_df):
@@ -143,16 +146,14 @@ def load_single_prof(pf, prof_id):
         with ms_open(pf, 'r', encoding='utf-8', max_size=-1) as file:
             trace_events = json.load(file)
     except OpenException as oe:
-        logger.warning(f"OpenException occurred {oe}")
+        logger.warning(f"cannot read file %r occurred {oe}", pf)
         return {"traceEvents": []}, set()
     except FileNotFoundError:
-        logger.warning("The msprof.json file was not found. Please check the file path.")
+        logger.warning("The %r file was not found. Please check the file path.", pf)
         return {"traceEvents": []}, set()
     except json.JSONDecodeError:
         logger.warning(
-            "%r is not in a valid JSON format, " \
-            "which might be normal and probably because this file stores 'mstx' data only",
-            pf
+            "%r is not in a valid JSON format, which might be normal.", pf
         )
         return {"traceEvents": []}, set()
 
@@ -200,7 +201,7 @@ def merge_json_data(trace_data, msprof_data_df):
     return trace_data
 
 
-@timer(logger.info)
+@timer(logger.debug)
 def write_trace_data_to_file(trace_data, output):
     def write_trace_data(range_index):
         start_index, end_index = range_index
@@ -286,14 +287,23 @@ def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
         trace_events.extend(flow_trace_events)
         
     trace_events = sort_trace_events_by_tid(trace_events)
+
+    coordinator_pid = None
+    for event in trace_events:
+        tid = event.get("tid", "")
+        if isinstance(tid, str) and "Coordinator" in tid:
+            coordinator_pid = event["pid"]
+            break  # 找到第一个就退出
+
+
     if pid_label_map is not None or pid_ppid_map is not None:
-        trace_events.extend(sort_trace_events_by_pid(pid_label_map, pid_ppid_map))
+        trace_events.extend(sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid))
 
     trace_data = {"traceEvents": trace_events}
     return trace_data
 
 
-def sort_trace_events_by_pid(pid_label_map, pid_ppid_map):
+def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None):
     pid_sorting_meta = []
     
     process_tree = {}
@@ -317,6 +327,12 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map):
     process_prefix_list = [(ori_pid, build_prcess_prefix(pid)) for pid, _, ori_pid in pid_ppid_map]
     
     process_prefix_list.sort(key=lambda x: x[1])
+
+    def sort_key(item):
+        pid, prefix = item
+        return (0, "") if pid == coordinator_pid else (1, prefix)
+
+    process_prefix_list.sort(key=sort_key)
 
     for index, item in enumerate(process_prefix_list):
         pid, _ = item

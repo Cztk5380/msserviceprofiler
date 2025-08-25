@@ -6,6 +6,7 @@ from typing import Dict
 from ms_service_profiler.exporters.base import TaskExporterBase
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv, add_table_into_visual_db
 from ms_service_profiler.utils.file_open_check import UmaskWrapper
+from ms_service_profiler.utils.timer import Timer
 
 
 OUTPUT_CSV_NAME = "moe_analysis.csv"
@@ -48,7 +49,10 @@ class ExporterMoe(TaskExporterBase):
  
     def do_export(self) -> None:
         data: Dict = self.get_depends_result("pipeline:mspti")
-        self.export(data)
+        if data is None:
+            return
+        with Timer(self.name):
+            self.export(data)
 
 
 def plot_confidence_interval(ci_df, output_path):

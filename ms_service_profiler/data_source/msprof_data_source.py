@@ -16,13 +16,17 @@ from ms_service_profiler.utils.file_open_check import ms_open
 from ms_service_profiler.utils.log import logger, set_log_level
 from ms_service_profiler.constant import US_PER_SECOND, MSPROF_REPORTS_PATH
 from ms_service_profiler.exporters.utils import (
-    create_sqlite_db, check_input_path_valid, check_output_path_valid,
+    create_sqlite_db, check_input_dir_valid, check_output_path_valid,
     find_file_in_dir, delete_dir_safely, find_all_file_complete
 )
 
 
 @Task.register("data_source:msprof")
 class MsprofDataSource(BaseDataSource):
+
+    @classmethod
+    def outputs(cls):
+        return ["data_source:service"]
 
     @classmethod
     def get_prof_paths(cls, input_path: str):
@@ -124,7 +128,7 @@ class MsprofDataSource(BaseDataSource):
             if cpu_frequency != "":
                 return float(cpu_frequency) * US_PER_SECOND
 
-        logger.warning("Missing 'Frequency' value in 'CPU' data.")
+        logger.warning("Missing 'Frequency' value in 'CPU' data. The time display will be incorrect. ")
         return 0
 
     @classmethod
@@ -264,9 +268,9 @@ class MsprofDataSource(BaseDataSource):
         try:
             subprocess.run(command_list, stdout=subprocess.DEVNULL, check=True)
         except subprocess.CalledProcessError as e:
-            logger.error(f"msprof error: {e}")
+            logger.error("parse msprof data failed using command %r, error is: %r", command, str(e))
         except Exception as e:
-            logger.error(f"msprof error occurred: {e}")
+            logger.error("parse msprof data failed using command %r, error is: %r", command, str(e))
 
     @classmethod
     def clear_last_msprof_output(cls, full_path):

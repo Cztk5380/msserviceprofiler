@@ -87,13 +87,13 @@ class PluginTrace(PluginBase):
         return tx_data_df
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse(cls, data):
         with KeyExcept('token_id_list', 'batch_type', 'rid_list', ignore=True,
                        msg="ignoring current process by default."):
             tx_data_df = data.get('tx_data_df')
             if tx_data_df is None:
-                raise ValueError("tx_data_df is None")
+                return data
 
             # 解析batch，vllm数据解析modelexec自带batch_type字段
             if 'batch_type' not in tx_data_df.columns:

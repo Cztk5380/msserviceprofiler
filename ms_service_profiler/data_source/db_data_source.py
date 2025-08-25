@@ -15,6 +15,10 @@ from ms_service_profiler.utils.error import LoadDataError
 class DBDataSource(BaseDataSource):
 
     @classmethod
+    def outputs(cls):
+        return ["data_source:service"]
+
+    @classmethod
     def handle_exact_match(cls, folder_path, reverse_d):
         filepaths = {}
         for fp in Path(folder_path).rglob('*'):
@@ -87,13 +91,11 @@ class DBDataSource(BaseDataSource):
         filepaths = cls.get_filepath(input_path, file_filter)
 
         db_files = filepaths.get("service", [])
-        if db_files:
-            db_files = [db_files]
 
         return db_files
 
     @classmethod
-    def process(cls, files):
+    def process(cls, file):
         """
         处理一组文件，将文件内容转换为DataFrame格式，并进行数据处理和转换。
         添加hostname列到DataFrame的最前面，并将其重命名为hostuid。
@@ -104,7 +106,7 @@ class DBDataSource(BaseDataSource):
         from ms_service_profiler.parse_helper.utils import convert_db_to_df
 
         # 将文件内容转换为DataFrame
-        df = convert_db_to_df(files)
+        df, meta = convert_db_to_df(file)
         if df.empty:
             return dict(
                 tx_data_df=pd.DataFrame(),  # 事务数据，包含hostuid列
@@ -159,7 +161,8 @@ class DBDataSource(BaseDataSource):
             memory_data_df=None,  # 内存数据（暂无）
             time_info=None,  # 时间信息（暂无）
             msprof_data=[],  # msprof算子数据，是个包含路径的列表，msprof_xxxx.json
-            msprof_data_df=[]  # msprof数据（DataFrame格式，暂无）
+            msprof_data_df=[],  # msprof数据（DataFrame格式，暂无）
+            meta=meta,
         )
 
     def load(self, prof_path):

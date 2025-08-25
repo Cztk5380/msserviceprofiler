@@ -16,12 +16,12 @@ class PluginMetric(PluginBase):
     depends = ["plugin_common", "plugin_req_status"]
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse(cls, data):
         with KeyExcept('name', 'start_time', 'start_datetime', ignore=True, msg="ignoring current process by default."):
             tx_data_df = data.get('tx_data_df')
             if tx_data_df is None:
-                raise DataFrameMissingError(key="tx_data_df")
+                return data
 
             metric_cols = [col for col in tx_data_df.columns if is_metric(col)]
 
@@ -30,9 +30,6 @@ class PluginMetric(PluginBase):
                 raise KeyError(*missing_col)
 
             metric_data_df = tx_data_df[['start_time', 'start_datetime'] + metric_cols].copy()
-
-            if 'FINISHED+' not in metric_data_df.columns:
-                metric_data_df.loc[tx_data_df['name'] == 'httpReq', 'WAITING+'] = 1.0
 
             if (tx_data_df['name'] == 'decodeReq').any():
                 metric_data_df.loc[tx_data_df['name'] == 'decodeReq', 'WAITING+'] = 1.0
