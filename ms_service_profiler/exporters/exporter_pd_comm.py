@@ -12,7 +12,7 @@ def process_each_req_group(req_group_df):
     request_send_time = 0
     request_send_succ_time = 0
     prefill_res_time = 0
-    requset_end_time = 0
+    request_end_time = 0
 
     for _, record in req_group_df.iterrows():
         name = record.get('name')
@@ -31,8 +31,8 @@ def process_each_req_group(req_group_df):
         elif name == 'prefillRes':
             prefill_res_time = event_time
         elif name == 'decodeRes':
-            requset_end_time = event_time
-    return http_req_time, request_send_time, request_send_succ_time, prefill_res_time, requset_end_time
+            request_end_time = event_time
+    return http_req_time, request_send_time, request_send_succ_time, prefill_res_time, request_end_time
 
 
 class ExporterPDComm(ExporterBase):
@@ -69,7 +69,7 @@ class ExporterPDComm(ExporterBase):
                 requset_end = process_each_req_group(pre_req_data)
                 cls.req_result_list.append({'rid': rid, 'http_req_time': http_req,
                 'send_request_time': request_send, 'send_request_succ_time': request_send_succ,
-                'prefill_res_time': prefill_res, 'requset_end_time': requset_end})
+                'prefill_res_time': prefill_res, 'request_end_time': requset_end})
 
         if not cls.req_result_list:
             return
@@ -89,5 +89,5 @@ class ExporterPDComm(ExporterBase):
 PD_SPLIT_COMM_RENAME_COLS = {
     'http_req_time': 'http_req_time(ms)', 'send_request_time': 'send_request_time(ms)',
     'send_request_succ_time': 'send_request_succ_time(ms)', 'prefill_res_time': 'prefill_res_time(ms)',
-    'requset_end_time': 'requset_end_time(ms)'
+    'request_end_time': 'request_end_time(ms)'
 }

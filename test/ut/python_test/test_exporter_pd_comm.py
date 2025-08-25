@@ -37,7 +37,7 @@ class TestExporterPDComm(unittest.TestCase):
             self.assertEqual(ExporterPDComm.req_result_list, [
                 {'rid': 1, 'http_req_time': '2023-01-01 00:00:00', 'send_request_time': '2023-01-01 00:00:01',
                 'send_request_succ_time': '2023-01-01 00:00:02', 'prefill_res_time': '2023-01-01 00:00:03',
-                'requset_end_time': '2023-01-01 00:00:04'}
+                'request_end_time': '2023-01-01 00:00:04'}
             ])
             
             

@@ -98,7 +98,7 @@ def check_pullkvcache_csv_content(csv_file):
 def check_communication_csv_content(csv_file):
     expected_csv_columns = [
         'rid', 'http_req_time(ms)', 'send_request_time(ms)', 'send_request_succ_time(ms)', \
-        'prefill_res_time(ms)', 'requset_end_time(ms)'
+        'prefill_res_time(ms)', 'request_end_time(ms)'
     ]
     # 检查文件是否存在
     assert os.path.exists(csv_file)

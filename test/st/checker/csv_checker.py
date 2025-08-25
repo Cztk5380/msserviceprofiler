@@ -31,7 +31,7 @@ def check_req_csv(output_path, complete_req_cnt=0):
         check_df_has_no_empty_line(df)
 
         # 完整的请求数量
-        if complete_req_cnt:
+        if complete_req_cnt > 0:
             assert df.size == complete_req_cnt, f"request count not match. expected {complete_req_cnt}"
             # recv_token_size和 reply_token_size 是否有值
             check_df_col_has_no_nan_value(df, "recv_token_size")
@@ -163,7 +163,7 @@ def check_pd_split_communication_csv(output_path, complete_req_cnt=0):
             "send_request_time(ms)",
             "send_request_succ_time(ms)",
             "prefill_res_time(ms)",
-            "requset_end_time(ms)",
+            "request_end_time(ms)",
         ]
 
         # 表头

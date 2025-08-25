@@ -10,6 +10,8 @@ from test.st.checker.checker_utils import check_df_has_no_empty_line, check_df_e
 
 @contextmanager
 def sqlite_cursor(conn):
+    if conn is None:
+        raise ValueError("Connection is None")
     cursor = conn.cursor()
     try:
         yield cursor
