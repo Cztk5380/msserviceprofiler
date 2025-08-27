@@ -49,6 +49,19 @@ class ProcessorReq(ProcessorBase):
         else:
             return 1
 
+    @staticmethod
+    def safe_process_row(row):
+        try:
+            if isinstance(row, np.ndarray):
+                row = row.tolist()
+            if row is not None and str(row).lower() != 'nan':
+                return ProcessorReq.batch_token_iter_to_batch_type(row)
+            else:
+                return ProcessorReq.batch_token_iter_to_batch_type(None)
+        except Exception as e:
+            logger.warning(f"Warning: Skipping invalid row {row} due to {type(e).__name__}: {e}")
+            return ProcessorReq.batch_token_iter_to_batch_type(None)
+
     @timer(logger.debug)
     def parse_batch(self, data_df: pd.DataFrame):
         batch_event_df = pd.DataFrame(columns=["batch_id", "event", "start_time", "end_time", "pid", "blocks"])
@@ -71,7 +84,7 @@ class ProcessorReq(ProcessorBase):
 
         # 过滤掉PD分离场景，batch type 判断错误的数据
         role_batch_type = batch_data_df['pid'].map(role_dict)
-        iter_batch_type = batch_data_df["token_id_list"].map(lambda row: self.batch_token_iter_to_batch_type(row))
+        iter_batch_type = batch_data_df["token_id_list"].map(ProcessorReq.safe_process_row)
 
         right_role_batch_type = role_batch_type.isna()  # 没有PD分离的数据
         right_iter_batch_type = iter_batch_type == role_batch_type  # 判断正确的数据
@@ -172,8 +185,12 @@ class ProcessorReq(ProcessorBase):
         # 根据 batch id 找到 req_id_list， 拆解开
 
         batch_attr_explode_by_req_df = batch_attr_df.explode('req_list')
-        batch_attr_explode_by_req_df['rid'] = batch_attr_explode_by_req_df['req_list'].map(lambda x: x.get('rid'))
-        batch_attr_explode_by_req_df['iter'] = batch_attr_explode_by_req_df['req_list'].map(lambda x: x.get('iter'))
+        batch_attr_explode_by_req_df['rid'] = batch_attr_explode_by_req_df['req_list'].map(
+            lambda x: x.get('rid') if x is not None and hasattr(x, 'get') else None
+        )
+        batch_attr_explode_by_req_df['iter'] = batch_attr_explode_by_req_df['req_list'].map(
+            lambda x: x.get('iter') if x is not None and hasattr(x, 'get') else None
+        )
 
         merged = batch_attr_explode_by_req_df.join(model_exec_df.set_index('batch_id'), on='batch_id')
 

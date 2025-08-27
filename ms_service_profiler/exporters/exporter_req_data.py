@@ -92,7 +92,7 @@ def safe_merge_ttft_que(req_base_info: pd.DataFrame,
     # 4.与req_base_info合并
     return (
         req_base_info
-        .assign(rid=lambda d: d['rid'].astype(str))
+        .assign(rid=lambda d: d['rid'].astype(str) if 'rid' in d.columns else 'unknown')
         .merge(metrics, on='rid', how='left')
         .assign(
             ttft=lambda d: d['ttft'].fillna(0),
