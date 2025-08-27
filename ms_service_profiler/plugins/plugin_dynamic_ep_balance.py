@@ -90,6 +90,8 @@ class PluginDyEpBalance(PluginBase):
 
             layer_num = len(list(expert_routing[pod_name].values())[0][0])
 
+            rank = list(expert_routing[pod_name].keys())[0]
+
             eplb_iteration_num = len(expert_routing[pod_name][rank])
 
             instance_expert_map = []
