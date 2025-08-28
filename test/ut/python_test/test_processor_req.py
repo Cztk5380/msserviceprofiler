@@ -692,111 +692,97 @@ class TestProcessorReq:
         assert batch_event_df.empty
         assert batch_attr_df.empty
 
-    def test_batch_data_filtering(self, processor, sample_batch_event_df, mocker):
+    def test_batch_data_filtering(self, processor, sample_batch_event_df):
         """测试 batch 数据过滤"""
-        mock_role_dict = {1001: 1, 1002: 2}
-        mocker.patch.object(processor, 'parse_node_role', return_value=mock_role_dict)
-        mocker.patch.object(ProcessorReq, 'safe_process_row', return_value=1)
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
+                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
+            batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
-        batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
+            # 验证只处理指定的事件类型
+            allowed_events = ["BatchSchedule", "modelExec", "batchFrameworkProcessing", "Execute", "preprocess",
+                              "forward"]
+            if not batch_event_df.empty:
+                assert all(event in allowed_events for event in batch_event_df["event"].unique())
 
-        # 验证只处理指定的事件类型
-        allowed_events = ["BatchSchedule", "modelExec", "batchFrameworkProcessing", "Execute", "preprocess", "forward"]
-        if not batch_event_df.empty:
-            assert all(event in allowed_events for event in batch_event_df["event"].unique())
-
-    def test_blocks_column_handling(self, processor, sample_batch_event_df, mocker):
+    def test_blocks_column_handling(self, processor, sample_batch_event_df):
         """测试 blocks 列处理"""
-        mock_role_dict = {1001: 1, 1002: 2}
-        mocker.patch.object(processor, 'parse_node_role', return_value=mock_role_dict)
-        mocker.patch.object(ProcessorReq, 'safe_process_row', return_value=1)
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
+                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
+            # 确保输入数据有 blocks 列
+            test_df = sample_batch_event_df.copy()
+            if 'blocks' not in test_df.columns:
+                test_df['blocks'] = None
 
-        # 确保输入数据有 blocks 列
-        test_df = sample_batch_event_df.copy()
-        if 'blocks' not in test_df.columns:
-            test_df['blocks'] = None
+            batch_event_df, batch_attr_df = processor.parse_batch(test_df)
 
-        batch_event_df, batch_attr_df = processor.parse_batch(test_df)
+            # 验证 blocks 列存在
+            assert 'blocks' in batch_event_df.columns
 
-        # 验证 blocks 列存在
-        assert 'blocks' in batch_event_df.columns
-
-    def test_schedule_data_filtering(self, processor, sample_batch_event_df, mocker):
+    def test_schedule_data_filtering(self, processor, sample_batch_event_df):
         """测试 schedule 数据过滤"""
-        mock_role_dict = {1001: 1, 1002: 2}
-        mocker.patch.object(processor, 'parse_node_role', return_value=mock_role_dict)
-        mocker.patch.object(ProcessorReq, 'safe_process_row', return_value=1)
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
+                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
+            batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
-        batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
+            # 验证 schedule 相关事件被正确处理
+            schedule_events = ["BatchSchedule", "batchFrameworkProcessing"]
+            schedule_mask = batch_event_df["event"].isin(schedule_events)
 
-        # 验证 schedule 相关事件被正确处理
-        schedule_events = ["BatchSchedule", "batchFrameworkProcessing"]
-        schedule_mask = batch_event_df["event"].isin(schedule_events)
+            # 如果有 schedule 数据，验证相关列被填充
+            if schedule_mask.any():
+                schedule_batch_attr = batch_attr_df[batch_attr_df["batch_id"].isin(
+                    batch_event_df[schedule_mask]["batch_id"]
+                )]
+                assert not schedule_batch_attr.empty
 
-        # 如果有 schedule 数据，验证相关列被填充
-        if schedule_mask.any():
-            schedule_batch_attr = batch_attr_df[batch_attr_df["batch_id"].isin(
-                batch_event_df[schedule_mask]["batch_id"]
-            )]
-            assert not schedule_batch_attr.empty
-
-    def test_batch_type_logic(self, processor, sample_batch_event_df, mocker):
+    def test_batch_type_logic(self, processor, sample_batch_event_df):
         """测试 batch type 逻辑"""
-        mock_role_dict = {1001: 1, 1002: 2}
-        mocker.patch.object(processor, 'parse_node_role', return_value=mock_role_dict)
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
+                patch.object(ProcessorReq, 'safe_process_row', side_effect=[1, 2, 1, 1, 2]) as mock_process:
+            batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
-        # mock 不同的返回值来测试 batch type 逻辑
-        mocker.patch.object(ProcessorReq, 'safe_process_row', side_effect=[1, 2, 1, 1, 2])
+            # 验证 batch_type 列存在
+            if not batch_attr_df.empty:
+                assert 'batch_type' in batch_attr_df.columns
 
-        batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
-
-        # 验证 batch_type 列存在
-        if not batch_attr_df.empty:
-            assert 'batch_type' in batch_attr_df.columns
-
-    def test_empty_after_filtering(self, processor, sample_batch_event_df, mocker):
+    def test_empty_after_filtering(self, processor, sample_batch_event_df):
         """测试过滤后数据为空的情况"""
         # mock 返回空的 role_dict，导致所有数据被过滤
-        mocker.patch.object(processor, 'parse_node_role', return_value={})
-        mocker.patch.object(ProcessorReq, 'safe_process_row', return_value=None)
+        with patch.object(processor, 'parse_node_role', return_value={}) as mock_role, \
+                patch.object(ProcessorReq, 'safe_process_row', return_value=None) as mock_process:
+            batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
-        batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
+            # 即使输入不为空，过滤后也可能为空
+            assert isinstance(batch_event_df, pd.DataFrame)
+            assert isinstance(batch_attr_df, pd.DataFrame)
 
-        # 即使输入不为空，过滤后也可能为空
-        assert isinstance(batch_event_df, pd.DataFrame)
-        assert isinstance(batch_attr_df, pd.DataFrame)
-
-    def test_complex_batch_type_mask(self, processor, sample_batch_event_df_with_high_iter, mocker):
+    def test_complex_batch_type_mask(self, processor, sample_batch_event_df_with_high_iter):
         """测试复杂的 batch type mask 逻辑"""
-        mock_role_dict = {1001: 2}  # decode role
-        mocker.patch.object(processor, 'parse_node_role', return_value=mock_role_dict)
+        with patch.object(processor, 'parse_node_role', return_value={1001: 2}) as mock_role, \
+                patch.object(ProcessorReq, 'safe_process_row', side_effect=[1, 2]) as mock_process:  # P, D
 
-        # mock safe_process_row 返回不同的值来测试各种条件
-        mocker.patch.object(ProcessorReq, 'safe_process_row', side_effect=[1, 2])  # P, D
+            batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df_with_high_iter)
 
-        batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df_with_high_iter)
+            assert isinstance(batch_event_df, pd.DataFrame)
+            assert isinstance(batch_attr_df, pd.DataFrame)
 
-        assert isinstance(batch_event_df, pd.DataFrame)
-        assert isinstance(batch_attr_df, pd.DataFrame)
-
-    def test_res_list_rid_list_token_id_list_processing(self, processor, sample_batch_event_df, mocker):
+    def test_res_list_rid_list_token_id_list_processing(self, processor, sample_batch_event_df):
         """测试 res_list, rid_list, token_id_list 处理"""
-        mock_role_dict = {1001: 1, 1002: 2}
-        mocker.patch.object(processor, 'parse_node_role', return_value=mock_role_dict)
-        mocker.patch.object(ProcessorReq, 'safe_process_row', return_value=1)
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
+                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
 
-        batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
+            batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
-        # 验证关键列被正确处理
-        schedule_mask = batch_event_df["event"].isin(["BatchSchedule", "batchFrameworkProcessing"])
-        if schedule_mask.any():
-            schedule_data = batch_attr_df[batch_attr_df["batch_id"].isin(
-                batch_event_df[schedule_mask]["batch_id"]
-            )]
-            if not schedule_data.empty:
-                assert 'req_list' in schedule_data.columns
-                assert 'req_id_list' in schedule_data.columns
-                assert 'batch_size' in schedule_data.columns
+            # 验证关键列被正确处理
+            schedule_mask = batch_event_df["event"].isin(["BatchSchedule", "batchFrameworkProcessing"])
+            if schedule_mask.any():
+                schedule_data = batch_attr_df[batch_attr_df["batch_id"].isin(
+                    batch_event_df[schedule_mask]["batch_id"]
+                )]
+                if not schedule_data.empty:
+                    assert 'req_list' in schedule_data.columns
+                    assert 'req_id_list' in schedule_data.columns
+                    assert 'batch_size' in schedule_data.columns
 
     @pytest.mark.parametrize("test_case", [
         "normal",
@@ -805,87 +791,80 @@ class TestProcessorReq:
         "high_iter"
     ])
     def test_parametrized_cases(self, processor, sample_batch_event_df, sample_batch_event_df_with_high_iter,
-                                empty_batch_event_df, mocker, test_case):
+                                empty_batch_event_df, test_case):
         """参数化测试不同场景"""
-        mock_role_dict = {1001: 1, 1002: 2}
-        mocker.patch.object(processor, 'parse_node_role', return_value=mock_role_dict)
-        mocker.patch.object(ProcessorReq, 'safe_process_row', return_value=1)
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
+                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
 
-        if test_case == "normal":
-            df = sample_batch_event_df
-        elif test_case == "empty":
-            df = empty_batch_event_df
-        elif test_case == "missing_columns":
-            df = pd.DataFrame({'name': ['test']})
-            # 应该返回空结果
+            if test_case == "normal":
+                df = sample_batch_event_df
+            elif test_case == "empty":
+                df = empty_batch_event_df
+            elif test_case == "missing_columns":
+                df = pd.DataFrame({'name': ['test']})
+                # 应该返回空结果
+                batch_event_df, batch_attr_df = processor.parse_batch(df)
+                assert batch_event_df.empty
+                assert batch_attr_df.empty
+                return
+            elif test_case == "high_iter":
+                df = sample_batch_event_df_with_high_iter
+
             batch_event_df, batch_attr_df = processor.parse_batch(df)
-            assert batch_event_df.empty
-            assert batch_attr_df.empty
-            return
-        elif test_case == "high_iter":
-            df = sample_batch_event_df_with_high_iter
 
-        batch_event_df, batch_attr_df = processor.parse_batch(df)
+            # 验证返回类型正确
+            assert isinstance(batch_event_df, pd.DataFrame)
+            assert isinstance(batch_attr_df, pd.DataFrame)
 
-        # 验证返回类型正确
-        assert isinstance(batch_event_df, pd.DataFrame)
-        assert isinstance(batch_attr_df, pd.DataFrame)
-
-    def test_batch_size_calculation(self, processor, sample_batch_event_df, mocker):
+    def test_batch_size_calculation(self, processor, sample_batch_event_df):
         """测试 batch_size 计算"""
-        mock_role_dict = {1001: 1, 1002: 2}
-        mocker.patch.object(processor, 'parse_node_role', return_value=mock_role_dict)
-        mocker.patch.object(ProcessorReq, 'safe_process_row', return_value=1)
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
+                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
+            batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
-        batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
+            # 验证 batch_size 被正确计算
+            if not batch_attr_df.empty and 'batch_size' in batch_attr_df.columns:
+                # batch_size 应该是 rid_list 的长度
+                assert (batch_attr_df['batch_size'] >= 0).all()
 
-        # 验证 batch_size 被正确计算
-        if not batch_attr_df.empty and 'batch_size' in batch_attr_df.columns:
-            # batch_size 应该是 rid_list 的长度
-            assert (batch_attr_df['batch_size'] >= 0).all()
-
-    def test_dataframe_structure_preservation(self, processor, sample_batch_event_df, mocker):
+    def test_dataframe_structure_preservation(self, processor, sample_batch_event_df):
         """测试 DataFrame 结构保持"""
-        mock_role_dict = {1001: 1, 1002: 2}
-        mocker.patch.object(processor, 'parse_node_role', return_value=mock_role_dict)
-        mocker.patch.object(ProcessorReq, 'safe_process_row', return_value=1)
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
+                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
 
-        batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
+            batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
-        # 验证列结构
-        expected_event_cols = ["batch_id", "event", "start_time", "end_time", "pid", "blocks"]
-        expected_attr_cols = ["batch_id", "req_list", "req_id_list", "batch_size", "batch_type"]
+            # 验证列结构
+            expected_event_cols = ["batch_id", "event", "start_time", "end_time", "pid", "blocks"]
+            expected_attr_cols = ["batch_id", "req_list", "req_id_list", "batch_size", "batch_type"]
 
-        for col in expected_event_cols:
-            assert col in batch_event_df.columns or batch_event_df.empty
+            for col in expected_event_cols:
+                assert col in batch_event_df.columns or batch_event_df.empty
 
-        for col in expected_attr_cols:
-            assert col in batch_attr_df.columns or batch_attr_df.empty
+            for col in expected_attr_cols:
+                assert col in batch_attr_df.columns or batch_attr_df.empty
 
-    def test_error_handling_robustness(self, processor, sample_batch_event_df, mocker):
+    def test_error_handling_robustness(self, processor, sample_batch_event_df):
         """测试错误处理的健壮性"""
         # mock 可能抛出异常的方法
-        mocker.patch.object(processor, 'parse_node_role', side_effect=Exception("Test error"))
+        with patch.object(processor, 'parse_node_role', side_effect=Exception("Test error")) as mock_role:
+            batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
-        # 应该优雅地处理异常并返回空 DataFrame
-        batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
+            assert isinstance(batch_event_df, pd.DataFrame)
+            assert isinstance(batch_attr_df, pd.DataFrame)
 
-        assert isinstance(batch_event_df, pd.DataFrame)
-        assert isinstance(batch_attr_df, pd.DataFrame)
-
-    def test_normal_processing(self, processor, sample_parse_batch_df, mocker):
+    def test_normal_processing(self, processor, sample_parse_batch_df):
         """测试正常处理流程 - 使用字符串格式数据"""
 
         # mock
-        mocker.patch.object(processor, 'parse_node_role', return_value={1001: 1})
-        mocker.patch.object(ProcessorReq, 'safe_process_row', return_value=1)
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1}) as mock_role, \
+                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
 
-        # 这样就不会报错了，因为数据格式与生产环境一致
-        batch_event_df, batch_attr_df = processor.parse_batch(sample_parse_batch_df)
+            batch_event_df, batch_attr_df = processor.parse_batch(sample_parse_batch_df)
 
-        # 验证结果
-        assert isinstance(batch_event_df, pd.DataFrame)
-        assert isinstance(batch_attr_df, pd.DataFrame)
+            # 验证结果
+            assert isinstance(batch_event_df, pd.DataFrame)
+            assert isinstance(batch_attr_df, pd.DataFrame)
 
     @pytest.fixture
     def sample_http_data_df(self):
@@ -899,20 +878,6 @@ class TestProcessorReq:
             'replyTokenSize=': [None, 150, None, 250, 300],
             'endFlag': [None, True, None, True, None]
         })
-
-    # @pytest.fixture
-    # def sample_batch_attr_df_for_req(self):
-    #     """为 parse_req 创建合适的 batch_attr_df"""
-    #     return pd.DataFrame({
-    #         'batch_id': ['batch_1', 'batch_2'],
-    #         'req_list': [
-    #             [{'rid': 'req_1', 'iter': 0}, {'rid': 'req_2', 'iter': 1}],
-    #             [{'rid': 'req_3', 'iter': 0}]
-    #         ],
-    #         'req_id_list': [['req_1', 'req_2'], ['req_3']],
-    #         'batch_size': [2, 1],
-    #         'batch_type': [1, 2]
-    #     })
 
     @pytest.fixture
     def sample_batch_attr_df_for_req(self):
