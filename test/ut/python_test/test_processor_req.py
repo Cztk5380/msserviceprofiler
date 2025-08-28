@@ -1576,3 +1576,65 @@ class TestProcessorReq:
 
         for col in expected_queue_cols:
             assert col in req_que_wait_df.columns or req_que_wait_df.empty
+
+    def test_parse_req_full_coverage(self, processor):
+        """测试 parse_req 完整覆盖率"""
+
+        # 创建完整且格式正确的测试数据
+        test_data = pd.DataFrame({
+            'name': ['httpReq', 'httpRes', 'decode', 'DecodeEnd', 'sendResponse',
+                     'Enqueue', 'Dequeue', 'BatchSchedule'],
+            'res_list': ['[{"rid":"req_1"}]', '[{"rid":"req_1"}]', '[{"rid":"req_2"}]',
+                         '[{"rid":"req_2"}]', '[{"rid":"req_3"}]', '[{"rid":"req_4"}]',
+                         '[{"rid":"req_4"}]', '[{"rid":"req_5"}]'],
+            'token_id_list': ['[1,2]', '[1,2]', '[3,4]', '[3,4]', '[5,6]', '[7,8]', '[7,8]', '[9,10]'],
+            'rid_list': ['[req_1]', '[req_1]', '[req_2]', '[req_2]', '[req_3]',
+                         '[req_4]', '[req_4]', '[req_5]'],
+            'rid': ['req_1', 'req_1', 'req_2', 'req_2', 'req_3', 'req_4', 'req_4', 'req_5'],
+            'start_time': [100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0],
+            'end_time': [120.0, 170.0, 220.0, 270.0, 320.0, 370.0, 420.0, 470.0],
+            'recvTokenSize=': [100, None, None, None, None, None, None, None],
+            'replyTokenSize=': [None, 150, None, None, None, None, None, None],
+            'status': [None, None, None, None, None, 'waiting', 'waiting', None],
+            'endFlag': [None, True, None, None, None, None, None, None]
+        })
+
+        batch_event_df = pd.DataFrame({
+            'batch_id': ['batch_1'],
+            'event': ['modelExec'],
+            'start_time': [500.0],
+            'end_time': [550.0],
+            'pid': [1001]
+        })
+
+        batch_attr_df = pd.DataFrame({
+            'batch_id': ['batch_1'],
+            'req_list': [[{'rid': 'req_1', 'iter': 0}]],
+            'req_id_list': [['req_1']],
+            'batch_size': [1],
+            'batch_type': [1]
+        })
+
+        # 执行 parse_req
+        req_event_df, req_attr_df, req_queue_df = processor.parse_req(
+            test_data, batch_event_df, batch_attr_df
+        )
+
+        # 验证返回值类型正确
+        assert isinstance(req_event_df, pd.DataFrame)
+        assert isinstance(req_attr_df, pd.DataFrame)
+        assert isinstance(req_queue_df, pd.DataFrame)
+
+        # 验证基本结构
+        expected_event_cols = ["rid", "event", "iter", "start_time", "end_time", "batch_id"]
+        expected_attr_cols = ["rid", "recv_token", "reply_token"]
+        expected_queue_cols = ["rid", "start_time", "end_time", "event", "status"]
+
+        for col in expected_event_cols:
+            assert col in req_event_df.columns or req_event_df.empty
+
+        for col in expected_attr_cols:
+            assert col in req_attr_df.columns or req_attr_df.empty
+
+        for col in expected_queue_cols:
+            assert col in req_queue_df.columns or req_queue_df.empty
