@@ -243,7 +243,7 @@ class ProcessorReq(ProcessorBase):
         """
         req_que_wait_df = pd.DataFrame(columns=["rid", "que_wait_time"])
 
-        if req_que_wait_df is None or req_queue_df.empty:
+        if req_queue_df is None or req_queue_df.empty:
             return req_que_wait_df
 
         # 1. 把事件拆成两类
