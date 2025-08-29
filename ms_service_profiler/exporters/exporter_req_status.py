@@ -65,7 +65,7 @@ class ExporterReqStatus(ExporterBase):
             save_dataframe_to_csv(df, output, "request_status.csv")
             logger.info('Write request status data to csv success')
 
-        if 'db' in cls.args.format and  cls.valid_for_db_output(data):
+        if 'db' in cls.args.format and cls.valid_for_db_output(data):
             df = data.get('tx_data_df')
             metrics = data.get('metric_data_df')
 
