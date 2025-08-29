@@ -96,7 +96,6 @@ namespace msServiceProfiler {
         bool isMaster_ = true;
         bool started_ = false;
         bool npuFlag_ = false;
-        bool isAclInit_ = false;
         void *configHandle_ = nullptr;
         int lastUpdate_ = 0;
         std::chrono::high_resolution_clock::time_point initiate = std::chrono::high_resolution_clock::now();

@@ -54,7 +54,7 @@ class Task():
         return gather_data
     
     def all_gather_async(self, data):
-        # 所有都会等待
+        # 不会等待
         self.send_queue.put((self.task_name, self.task_index, "all_gather", data))
     
     def broadcast(self, src=0, data=None):
@@ -65,7 +65,7 @@ class Task():
         return broadcast_data
     
     def send(self, data=None, dst=0):
-        # 所有都会等待, 发送会虽然有自己的数据，但是还是等待
+        # 发送数据，异步，不等待
         self.send_queue.put((self.task_name, self.task_index, "send_to", (dst, data)))
         
     def send_finish(self):
@@ -73,7 +73,7 @@ class Task():
         return self.all_gather(DefaultValue.SEND_FINISHED)
     
     def recv_until_finish(self):
-        # 一直收数据，直到结束
+        # 一直收数据，直到收到FINISHED 消息
         self.all_gather_async(DefaultValue.SEND_FINISHED)
         msg = 'p2p'
         while msg== 'p2p':

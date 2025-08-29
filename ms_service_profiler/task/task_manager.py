@@ -40,12 +40,11 @@ class SubprocessInfo:
         return any((x.is_alive for x in self.processes))
 
 
-class Taskmanger:
+class TaskManager:
     def __init__(self, task_dag:TaskDag) -> None:
         self.task_dag = task_dag
         self.task_manager_info_dict = dict()
         self.manager_recv_queue = Queue()
-        self.queues = [Queue() for _ in range(100)]
         self.pool = []
         self.pool_owner = []
         
@@ -57,12 +56,6 @@ class Taskmanger:
                                                                gather_data=deque()))
         return self.task_manager_info_dict[task_name]
     
-    def new_queue(self):
-        queue = Queue()
-        index = len(self.queues)
-        self.queues.append(queue)
-        return queue, index
-
     def init_task_waiting_pool(self, src_dag, pool_index):
         for task_name, _ in src_dag.get_ordered_task_names():
             task_manager_info = self.init_task(task_name)
@@ -289,8 +282,7 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
     
     for task_name, next_task_name in src_dag.get_ordered_task_names():
         try:
-            msg, task_index  = recv()
-            assert msg == 'go'
+            _, task_index  = recv()
         
             task_info = src_dag.get_task_reg_info(task_name)
             if isinstance(task_info.task_cls, Task):
@@ -327,7 +319,7 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
 # main process
 @timer()
 def tasks_run(data_source_tasks, task_dag, input_path, args):
-    task_manager = Taskmanger(task_dag)
+    task_manager = TaskManager(task_dag)
     
     has_tasks = False
     for data_source_task in data_source_tasks:

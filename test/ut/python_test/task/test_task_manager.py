@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import Mock, patch
 from multiprocessing import Queue
 from ms_service_profiler.task.task_register import TaskDag, TaskRegisterInfo
-from ms_service_profiler.task.task_manager import SubprocessInfo, Taskmanger
+from ms_service_profiler.task.task_manager import SubprocessInfo, TaskManager
 from ms_service_profiler.task.task_manager import Color, task_run, tasks_run
 
 
@@ -25,10 +25,10 @@ class TestSubprocessInfo(unittest.TestCase):
         self.assertEqual(len(self.subprocess_info.get_queues()), 1)
         self.assertEqual(len(self.subprocess_info.processes), 1)
 
-class TestTaskmanger(unittest.TestCase):
+class TestTaskManager(unittest.TestCase):
     def setUp(self):
         self.task_dag = TaskDag(dict(), dict(), list(), list())
-        self.task_manager = Taskmanger(self.task_dag)
+        self.task_manager = TaskManager(self.task_dag)
 
     def test_init_task(self):
         task_name = 'task1'
@@ -36,10 +36,6 @@ class TestTaskmanger(unittest.TestCase):
         self.assertIn(task_name, self.task_manager.task_manager_info_dict)
         self.assertEqual(task_info['state'], 'unstart')
 
-    def test_new_queue(self):
-        _, index = self.task_manager.new_queue()
-        self.assertEqual(index, len(self.task_manager.queues) - 1)
-    
     def test_set_task_finished(self):
         # 初始化任务和后续任务
         finished_task_name = 'task1'
@@ -107,6 +103,35 @@ class TestTaskmanger(unittest.TestCase):
         # 验证 gather_data 是否被清空
         task_manager_info = self.task_manager.init_task(task_name)
         self.assertEqual(len(task_manager_info.get("gather_data")), 0)
+    
+    def test_set_no_source_data(self):
+        # 创建 Taskmanger 实例
+        mock_task_dag = Mock()
+        task_manager = TaskManager(mock_task_dag)
+
+        # 初始化任务信息
+        task_name = 'task1'
+        task_manager.init_task(task_name)
+
+        task_manager.task_dag.get_next_task_names.return_value = []
+        task_manager.task_dag.get_prev_task_names.return_value = []
+        # 调用 set_no_source_data 方法
+        task_manager.set_no_source_data(task_name)
+
+        # 验证任务状态被设置为 "no_source_data"
+        task_manager_info = task_manager.init_task(task_name)
+        self.assertEqual(task_manager_info["state"], "no_source_data")
+
+        # 验证下一个任务的状态也被设置为 "no_source_data"
+        next_task_name = 'task2'
+        task_manager.init_task(next_task_name)
+        task_manager.task_dag.get_next_task_names.side_effect  = [[next_task_name], []]
+        task_manager.task_dag.get_prev_task_names.side_effect  = [[task_name], []]
+
+        task_manager.set_no_source_data(task_name)
+
+        next_task_manager_info = task_manager.init_task(next_task_name)
+        self.assertEqual(next_task_manager_info["state"], "no_source_data")
 
     @patch('ms_service_profiler.task.task_manager.Process')
     def test_start(self, mock_process):
@@ -137,9 +162,9 @@ class TestTaskmanger(unittest.TestCase):
         self.assertEqual(self.task_manager.get_task_state(task_name), 'finished')
 
     def test_start_error_branch(self):
-        # 创建 Taskmanger 实例
+        # 创建 TaskManager 实例
         mock_task_dag = Mock()
-        task_manager = Taskmanger(mock_task_dag)
+        task_manager = TaskManager(mock_task_dag)
 
         # 模拟 manager_recv_queue 获取到 error 消息
         task_manager.manager_recv_queue.get = Mock(return_value=('task1', 0, 'error', 'Some error message'))
@@ -155,7 +180,7 @@ class TestTaskmanger(unittest.TestCase):
 class TestTaskRun(unittest.TestCase):
     def setUp(self):
         self.task_dag = TaskDag(dict(), dict(), list(), list())
-        self.task_manager = Taskmanger(self.task_dag)
+        self.task_manager = TaskManager(self.task_dag)
         
     @patch('ms_service_profiler.task.task_manager.Process')
     def test_task_run(self, mock_process):
@@ -189,7 +214,7 @@ class TestTaskRun(unittest.TestCase):
 class TestTasksRun(unittest.TestCase):
     
     @patch('ms_service_profiler.task.task_manager.filter_dag')  # 替换为实际模块路径
-    @patch('ms_service_profiler.task.task_manager.Taskmanger')  # 替换为实际模块路径
+    @patch('ms_service_profiler.task.task_manager.TaskManager')  # 替换为实际模块路径
     def test_tasks_run_no_data(self, mock_task_manager, mock_filter_dag):
         # 模拟没有数据的情况
         mock_data_source_task = Mock()
@@ -203,7 +228,7 @@ class TestTasksRun(unittest.TestCase):
         mock_task_manager.return_value.set_no_source_data.assert_called_once_with(mock_data_source_task.name)
 
     @patch('ms_service_profiler.task.task_manager.filter_dag')  # 替换为实际模块路径
-    @patch('ms_service_profiler.task.task_manager.Taskmanger')  # 替换为实际模块路径
+    @patch('ms_service_profiler.task.task_manager.TaskManager')  # 替换为实际模块路径
     def test_tasks_run_with_data(self, mock_task_manager, mock_filter_dag):
         # 模拟有数据的情况
         mock_data_source_task = Mock()
