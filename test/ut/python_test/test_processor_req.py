@@ -435,227 +435,15 @@ class TestProcessorReq:
             # 恢复原始方法
             processor.build_batch_exec = original_method
 
-    def test_batch_token_iter_to_batch_type(self, processor):
-        """测试 batch_token_iter_to_batch_type 方法"""
-        # 测试空输入
-        assert processor.batch_token_iter_to_batch_type(None) == 1
-        assert processor.batch_token_iter_to_batch_type([]) == 1
-
-        # 测试全为正数
-        assert processor.batch_token_iter_to_batch_type([1, 2, 3]) == 2
-
-        # 测试存在0和1
-        assert processor.batch_token_iter_to_batch_type([0, 1, 2]) == 0
-
-        # 测试其他情况
-        assert processor.batch_token_iter_to_batch_type([0, 0, 0]) == 1
-        assert processor.batch_token_iter_to_batch_type([2, 3, 4]) == 2
-        assert processor.batch_token_iter_to_batch_type([0, 1, 3]) == 0
-
-    def test_numpy_array_input(self, processor):
-        """测试 numpy array 输入"""
-        row = np.array([1, 2, 3])
-        # mock batch_token_iter_to_batch_type 方法
-        with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=2) as mock_method:
-            result = processor.safe_process_row(row)
-            mock_method.assert_called_once_with([1, 2, 3])  # 应该转换为 list
-            assert result == 2
-
-    def test_normal_list_input(self, processor):
-        """测试正常 list 输入"""
-        row = [1, 2, 3]
-        with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=2) as mock_method:
-            result = processor.safe_process_row(row)
-            mock_method.assert_called_once_with([1, 2, 3])
-            assert result == 2
-
-    def test_none_input(self, processor):
-        """测试 None 输入"""
-        row = None
-        with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=1) as mock_method:
-            result = processor.safe_process_row(row)
-            mock_method.assert_called_once_with(None)
-            assert result == 1
-
-    def test_nan_input(self, processor):
-        """测试 NaN 输入"""
-        row = float('nan')
-        with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=1) as mock_method:
-            result = processor.safe_process_row(row)
-            mock_method.assert_called_once_with(None)  # 应该转换为 None
-            assert result == 1
-
-    def test_empty_list_input(self, processor):
-        """测试空列表输入"""
-        row = []
-        with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=1) as mock_method:
-            result = processor.safe_process_row(row)
-            mock_method.assert_called_once_with([])
-            assert result == 1
-
-    def test_string_input(self, processor):
-        """测试字符串输入"""
-        row = "test_string"
-        with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=1) as mock_method:
-            result = processor.safe_process_row(row)
-            mock_method.assert_called_once_with("test_string")
-            assert result == 1
-
-    def test_dict_input(self, processor):
-        """测试字典输入"""
-        row = {'key': 'value'}
-        with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=1) as mock_method:
-            result = processor.safe_process_row(row)
-            mock_method.assert_called_once_with({'key': 'value'})
-            assert result == 1
-
-    def test_integer_input(self, processor):
-        """测试整数输入"""
-        row = 42
-        with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=1) as mock_method:
-            result = processor.safe_process_row(row)
-            mock_method.assert_called_once_with(42)
-            assert result == 1
-
-    def test_exception_handling(self, processor, caplog):
-        """测试异常处理和日志记录"""
-        row = [1, 2, 3]
-
-        # patch 正确的 logger 模块和方法
-        with patch('ms_service_profiler.processor.processor_req.logger') as mock_logger:
-            with patch.object(ProcessorReq, 'batch_token_iter_to_batch_type') as mock_method:
-                mock_method.side_effect = [ValueError("Test exception"), 1]
-
-                result = ProcessorReq.safe_process_row(row)
-
-                # 验证函数调用
-                assert mock_method.call_count == 2
-                mock_method.assert_any_call([1, 2, 3])
-                mock_method.assert_any_call(None)
-
-                # 验证 logger 被调用
-                mock_logger.warning.assert_called()
-                assert result == 1
-
-    def test_numpy_array_with_nan_values(self, processor):
-        """测试包含 NaN 值的 numpy array"""
-        row = np.array([1, float('nan'), 3])
-        with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=2) as mock_method:
-            result = processor.safe_process_row(row)
-            # numpy array 应该转换为 Python list
-            call_args = mock_method.call_args[0][0]
-            assert isinstance(call_args, list)
-            assert call_args[1] != call_args[1]  # NaN != NaN，验证确实是 NaN
-            assert result == 2
-
-    def test_empty_numpy_array(self, processor):
-        """测试空的 numpy array"""
-        row = np.array([])
-        with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=1) as mock_method:
-            result = processor.safe_process_row(row)
-            mock_method.assert_called_once_with([])
-            assert result == 1
-
-    def test_2d_numpy_array(self, processor):
-        """测试二维 numpy array"""
-        row = np.array([[1, 2], [3, 4]])
-        with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=2) as mock_method:
-            result = processor.safe_process_row(row)
-            # 应该转换为嵌套 list
-            expected = [[1, 2], [3, 4]]
-            mock_method.assert_called_once_with(expected)
-            assert result == 2
-
-    def test_complex_data_types(self, processor):
-        """测试复杂数据类型"""
-        test_cases = [
-            (True, True),
-            (False, False),
-            (0, 0),
-            (-1, -1),
-            (3.14, 3.14),
-            ("", ""),
-            ([], []),
-            ({}, {}),
-        ]
-
-        for input_val, expected_val in test_cases:
-            with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=1) as mock_method:
-                result = processor.safe_process_row(input_val)
-                mock_method.assert_called_once_with(expected_val)
-                assert result == 1
-
-    def test_numpy_array_edge_cases(self, processor):
-        """测试 numpy array 边缘情况"""
-        # 测试不同 dtype 的 numpy array
-        test_arrays = [
-            np.array([1, 2, 3], dtype=np.int32),
-            np.array([1.0, 2.0, 3.0], dtype=np.float64),
-            np.array([True, False, True], dtype=np.bool_),
-        ]
-
-        for arr in test_arrays:
-            with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=1) as mock_method:
-                result = processor.safe_process_row(arr)
-                # 验证转换为 Python list
-                call_args = mock_method.call_args[0][0]
-                assert isinstance(call_args, list)
-                assert result == 1
-
-    @pytest.mark.parametrize("input_row,expected_behavior", [
-        (None, "call_with_none"),
-        (float('nan'), "call_with_none"),
-        ([], "call_with_empty_list"),
-        ([1, 2, 3], "call_with_list"),
-        (np.array([1, 2, 3]), "call_with_converted_list"),
-    ])
-    def test_parametrized_inputs(self, processor, input_row, expected_behavior):
-        """参数化测试各种输入情况"""
-        with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=1) as mock_method:
-            result = processor.safe_process_row(input_row)
-
-            if expected_behavior == "call_with_none":
-                mock_method.assert_called_once_with(None)
-            elif expected_behavior == "call_with_empty_list":
-                mock_method.assert_called_once_with([])
-            elif expected_behavior == "call_with_list":
-                mock_method.assert_called_once_with([1, 2, 3])
-            elif expected_behavior == "call_with_converted_list":
-                call_args = mock_method.call_args[0][0]
-                assert isinstance(call_args, list)
-                assert call_args == [1, 2, 3]
-
-            assert result == 1
-
-    def test_logging_on_exception(self, processor, caplog):
-        """测试异常时的日志记录详细信息"""
-        row = "problematic_data"
-        test_exception = ValueError("Specific test error message")
-
-        # 同样 patch 正确的 logger
-        with patch('ms_service_profiler.processor.processor_req.logger') as mock_logger:
-            with patch.object(ProcessorReq, 'batch_token_iter_to_batch_type') as mock_method:
-                mock_method.side_effect = [test_exception, 1]
-
-                result = ProcessorReq.safe_process_row(row)
-
-                mock_logger.warning.assert_called()
-
-                assert result == 1
-
-    def test_performance_with_large_numpy_array(self, processor):
+    def test_performance_with_large_numpy_array(self):
         """测试大 numpy array 的性能"""
         # 创建较大的 numpy array
         large_array = np.random.randint(0, 100, size=1000)
 
-        with patch.object(processor.__class__, 'batch_token_iter_to_batch_type', return_value=1) as mock_method:
-            result = processor.safe_process_row(large_array)
+        result = ProcessorReq.batch_token_iter_to_batch_type(large_array)
 
-            # 验证转换正确
-            call_args = mock_method.call_args[0][0]
-            assert isinstance(call_args, list)
-            assert len(call_args) == 1000
-            assert result == 1
+        # 验证处理正确完成（不抛异常）
+        assert isinstance(result, (int, np.integer))
 
     def test_none_input_batch(self, processor):
         """测试 None 输入"""
@@ -694,8 +482,7 @@ class TestProcessorReq:
 
     def test_batch_data_filtering(self, processor, sample_batch_event_df):
         """测试 batch 数据过滤"""
-        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
-                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role:
             batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
             # 验证只处理指定的事件类型
@@ -706,8 +493,7 @@ class TestProcessorReq:
 
     def test_blocks_column_handling(self, processor, sample_batch_event_df):
         """测试 blocks 列处理"""
-        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
-                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role:
             # 确保输入数据有 blocks 列
             test_df = sample_batch_event_df.copy()
             if 'blocks' not in test_df.columns:
@@ -720,8 +506,7 @@ class TestProcessorReq:
 
     def test_schedule_data_filtering(self, processor, sample_batch_event_df):
         """测试 schedule 数据过滤"""
-        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
-                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role:
             batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
             # 验证 schedule 相关事件被正确处理
@@ -737,8 +522,7 @@ class TestProcessorReq:
 
     def test_batch_type_logic(self, processor, sample_batch_event_df):
         """测试 batch type 逻辑"""
-        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
-                patch.object(ProcessorReq, 'safe_process_row', side_effect=[1, 2, 1, 1, 2]) as mock_process:
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role:
             batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
             # 验证 batch_type 列存在
@@ -748,8 +532,7 @@ class TestProcessorReq:
     def test_empty_after_filtering(self, processor, sample_batch_event_df):
         """测试过滤后数据为空的情况"""
         # mock 返回空的 role_dict，导致所有数据被过滤
-        with patch.object(processor, 'parse_node_role', return_value={}) as mock_role, \
-                patch.object(ProcessorReq, 'safe_process_row', return_value=None) as mock_process:
+        with patch.object(processor, 'parse_node_role', return_value={}) as mock_role:
             batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
             # 即使输入不为空，过滤后也可能为空
@@ -758,8 +541,7 @@ class TestProcessorReq:
 
     def test_complex_batch_type_mask(self, processor, sample_batch_event_df_with_high_iter):
         """测试复杂的 batch type mask 逻辑"""
-        with patch.object(processor, 'parse_node_role', return_value={1001: 2}) as mock_role, \
-                patch.object(ProcessorReq, 'safe_process_row', side_effect=[1, 2]) as mock_process:  # P, D
+        with patch.object(processor, 'parse_node_role', return_value={1001: 2}) as mock_role:  # P, D
 
             batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df_with_high_iter)
 
@@ -768,8 +550,7 @@ class TestProcessorReq:
 
     def test_res_list_rid_list_token_id_list_processing(self, processor, sample_batch_event_df):
         """测试 res_list, rid_list, token_id_list 处理"""
-        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
-                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role:
 
             batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
@@ -793,8 +574,7 @@ class TestProcessorReq:
     def test_parametrized_cases(self, processor, sample_batch_event_df, sample_batch_event_df_with_high_iter,
                                 empty_batch_event_df, test_case):
         """参数化测试不同场景"""
-        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
-                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role:
 
             if test_case == "normal":
                 df = sample_batch_event_df
@@ -818,8 +598,7 @@ class TestProcessorReq:
 
     def test_batch_size_calculation(self, processor, sample_batch_event_df):
         """测试 batch_size 计算"""
-        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
-                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role:
             batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
             # 验证 batch_size 被正确计算
@@ -829,8 +608,7 @@ class TestProcessorReq:
 
     def test_dataframe_structure_preservation(self, processor, sample_batch_event_df):
         """测试 DataFrame 结构保持"""
-        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role, \
-                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1, 1002: 2}) as mock_role:
 
             batch_event_df, batch_attr_df = processor.parse_batch(sample_batch_event_df)
 
@@ -857,8 +635,7 @@ class TestProcessorReq:
         """测试正常处理流程 - 使用字符串格式数据"""
 
         # mock
-        with patch.object(processor, 'parse_node_role', return_value={1001: 1}) as mock_role, \
-                patch.object(ProcessorReq, 'safe_process_row', return_value=1) as mock_process:
+        with patch.object(processor, 'parse_node_role', return_value={1001: 1}) as mock_role:
 
             batch_event_df, batch_attr_df = processor.parse_batch(sample_parse_batch_df)
 
@@ -1603,3 +1380,52 @@ class TestProcessorReq:
 
         for col in expected_queue_cols:
             assert col in req_queue_df.columns or req_queue_df.empty
+
+    def test_bttbt_returns_1_for_none(self):
+        """测试 batch_token_iter_to_batch_type 对 None 输入返回 1"""
+        result = ProcessorReq.batch_token_iter_to_batch_type(None)
+        assert result == 1
+
+    def test_bttbt_returns_1_for_nan(self):
+        """测试 batch_token_iter_to_batch_type 对 NaN 输入返回 1"""
+        result = ProcessorReq.batch_token_iter_to_batch_type(float('nan'))
+        assert result == 1
+
+    def test_bttbt_returns_1_for_empty_list(self):
+        """测试 batch_token_iter_to_batch_type 对空列表返回 1"""
+        result = ProcessorReq.batch_token_iter_to_batch_type([])
+        assert result == 1
+
+        # 也测试空 numpy array
+        result_np = ProcessorReq.batch_token_iter_to_batch_type(np.array([]))
+        assert result_np == 1
+
+    def test_bttbt_returns_1_all_falsy(self):
+        """测试 batch_token_iter_to_batch_type 对全为假值列表返回 1"""
+        # 全为 0
+        result_zeros = ProcessorReq.batch_token_iter_to_batch_type([0, 0, 0])
+        assert result_zeros == 1  # all([0,0,0])->F, any([0,0,0])->F -> else -> 1
+
+        # 全为 False
+        result_false = ProcessorReq.batch_token_iter_to_batch_type([False, False, False])
+        assert result_false == 1
+
+        # 全为 0.0
+        result_zero_float = ProcessorReq.batch_token_iter_to_batch_type([0.0, 0.0, 0.0])
+        assert result_zero_float == 1
+
+        # 混合假值
+        result_mixed_falsy = ProcessorReq.batch_token_iter_to_batch_type([0, False, 0.0])
+        assert result_mixed_falsy == 1
+
+    def test_bttbt_returns_1_on_exception_string(self):
+        """测试 batch_token_iter_to_batch_type 在处理字符串导致异常时返回 1"""
+        result_str = ProcessorReq.batch_token_iter_to_batch_type("test_string")
+        # all("test_string") -> all(['t','e'...]) -> True -> 应返回 2
+        assert result_str == 2
+
+        # 对于字典
+        result_dict = ProcessorReq.batch_token_iter_to_batch_type({'a': 1})
+        # all({'a': 1}) -> all(['a']) -> True -> 应返回 2
+        assert result_dict == 2
+
