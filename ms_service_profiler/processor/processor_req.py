@@ -40,27 +40,29 @@ class ProcessorReq(ProcessorBase):
 
     @staticmethod
     def batch_token_iter_to_batch_type(token_iter_list):
-        if token_iter_list is None or len(token_iter_list) == 0:
-            return 1
-        if all(token_iter_list):  # 全部大于 0
-            return 2
-        elif any(token_iter_list): # 存在0，也存在1 
-            return 0
-        else:
-            return 1
-
-    @staticmethod
-    def safe_process_row(row):
+        """
+        根据 token 迭代列表的内容确定批次类型，并处理各种输入类型和异常情况。
+        """
         try:
-            if isinstance(row, np.ndarray):
-                row = row.tolist()
-            if row is not None and str(row).lower() != 'nan':
-                return ProcessorReq.batch_token_iter_to_batch_type(row)
+            if token_iter_list is None or pd.isna(token_iter_list):
+                return 1
+
+            if isinstance(token_iter_list, np.ndarray):
+                token_iter_list = token_iter_list.tolist()
+
+            if len(token_iter_list) == 0:
+                return 1
+
+            if all(token_iter_list):  # 全部大于 0
+                return 2
+            elif any(token_iter_list):  # 存在0，也存在1
+                return 0
             else:
-                return ProcessorReq.batch_token_iter_to_batch_type(None)
+                return 1
+
         except Exception as e:
-            logger.warning(f"Warning: Skipping invalid row {row} due to {type(e).__name__}: {e}")
-            return ProcessorReq.batch_token_iter_to_batch_type(None)
+            logger.warning(f"Warning: Skipping invalid row {token_iter_list} due to {type(e).__name__}: {e}")
+            return 1  # 返回默认值或错误值
 
     @timer(logger.debug)
     def parse_batch(self, data_df: pd.DataFrame):
@@ -84,7 +86,7 @@ class ProcessorReq(ProcessorBase):
 
         # 过滤掉PD分离场景，batch type 判断错误的数据
         role_batch_type = batch_data_df['pid'].map(role_dict)
-        iter_batch_type = batch_data_df["token_id_list"].map(ProcessorReq.safe_process_row)
+        iter_batch_type = batch_data_df["token_id_list"].map(lambda row: self.batch_token_iter_to_batch_type(row))
 
         right_role_batch_type = role_batch_type.isna()  # 没有PD分离的数据
         right_iter_batch_type = iter_batch_type == role_batch_type  # 判断正确的数据
@@ -186,10 +188,10 @@ class ProcessorReq(ProcessorBase):
 
         batch_attr_explode_by_req_df = batch_attr_df.explode('req_list')
         batch_attr_explode_by_req_df['rid'] = batch_attr_explode_by_req_df['req_list'].map(
-            lambda x: x.get('rid') if x is not None and hasattr(x, 'get') else None
+            lambda x: x.get("rid") if isinstance(x, dict) else None
         )
         batch_attr_explode_by_req_df['iter'] = batch_attr_explode_by_req_df['req_list'].map(
-            lambda x: x.get('iter') if x is not None and hasattr(x, 'get') else None
+            lambda x: x.get("iter") if isinstance(x, dict) else None
         )
 
         merged = batch_attr_explode_by_req_df.join(model_exec_df.set_index('batch_id'), on='batch_id')
