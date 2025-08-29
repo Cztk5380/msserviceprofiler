@@ -115,6 +115,7 @@ class ProcessorRes(ProcessorBase):
             extract_df.tolist(), index=data_df.index
         )
 
+
     def can_convert_to_int(self, x):
         try:
             int(x)
