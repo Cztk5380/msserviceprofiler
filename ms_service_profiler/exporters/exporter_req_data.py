@@ -77,6 +77,9 @@ def safe_merge_ttft_que(req_base_info: pd.DataFrame,
     无 copy 合并 rid、ttft、que_wait_time
     """
     # 1.ttft
+    if 'rid' not in req_base_info.columns:
+        req_base_info['rid'] = 'unknown'
+
     ttft_part = (ttft_df[['rid', 'ttft']]
                  .drop_duplicates('rid') if not ttft_df.empty and 'ttft' in ttft_df.columns
                  else pd.DataFrame(columns=['rid', 'ttft']))
@@ -92,7 +95,7 @@ def safe_merge_ttft_que(req_base_info: pd.DataFrame,
     # 4.与req_base_info合并
     return (
         req_base_info
-        .assign(rid=lambda d: d['rid'].astype(str) if 'rid' in d.columns else 'unknown')
+        .assign(rid=lambda d: d['rid'].astype(str))
         .merge(metrics, on='rid', how='left')
         .assign(
             ttft=lambda d: d['ttft'].fillna(0),

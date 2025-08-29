@@ -40,29 +40,28 @@ class ProcessorReq(ProcessorBase):
 
     @staticmethod
     def batch_token_iter_to_batch_type(token_iter_list):
-        """
-        根据 token 迭代列表的内容确定批次类型，并处理各种输入类型和异常情况。
-        """
-        try:
-            if token_iter_list is None or pd.isna(token_iter_list):
-                return 1
+        # 统一处理空值和非列表/元组类型
+        if (token_iter_list is None
+                or (np.isscalar(token_iter_list) and pd.isna(token_iter_list))
+                or not isinstance(token_iter_list, (list, tuple))):
+            logger.warning(f"Warning: Skipping invalid row type {type(token_iter_list)}: {token_iter_list}")
+            return 1
 
-            if isinstance(token_iter_list, np.ndarray):
-                token_iter_list = token_iter_list.tolist()
+        # 处理空列表
+        if not token_iter_list:
+            return 1
 
-            if len(token_iter_list) == 0:
-                return 1
+        # 处理含NaN的列表
+        if pd.isna(token_iter_list).any():
+            return 1
 
-            if all(token_iter_list):  # 全部大于 0
-                return 2
-            elif any(token_iter_list):  # 存在0，也存在1
-                return 0
-            else:
-                return 1
-
-        except Exception as e:
-            logger.warning(f"Warning: Skipping invalid row {token_iter_list} due to {type(e).__name__}: {e}")
-            return 1  # 返回默认值或错误值
+        # 有效列表的判断（无重复）
+        if all(token_iter_list):  # 全部大于0
+            return 2
+        elif any(token_iter_list):  # 存在0和非0
+            return 0
+        else:  # 全为0
+            return 1
 
     @timer(logger.debug)
     def parse_batch(self, data_df: pd.DataFrame):

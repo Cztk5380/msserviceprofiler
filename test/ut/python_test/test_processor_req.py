@@ -1421,11 +1421,9 @@ class TestProcessorReq:
     def test_bttbt_returns_1_on_exception_string(self):
         """测试 batch_token_iter_to_batch_type 在处理字符串导致异常时返回 1"""
         result_str = ProcessorReq.batch_token_iter_to_batch_type("test_string")
-        # all("test_string") -> all(['t','e'...]) -> True -> 应返回 2
-        assert result_str == 2
+        assert result_str == 1
 
         # 对于字典
         result_dict = ProcessorReq.batch_token_iter_to_batch_type({'a': 1})
-        # all({'a': 1}) -> all(['a']) -> True -> 应返回 2
-        assert result_dict == 2
+        assert result_dict == 1
 
