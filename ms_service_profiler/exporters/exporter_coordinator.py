@@ -325,7 +325,7 @@ class ExporterCoordinator(ExporterBase):
         df = df.drop_duplicates(subset=['time', 'address', 'node_type'])
 
         # 3. 获取所有时间点
-        all_times = sorted(df['time'].unique())
+        all_times = sorted(pd.to_datetime(df['time']).drop_duplicates().tolist()) # 安全地转换为 pandas 原生时间类型
         if len(all_times) < 2:
             # 如果只有一个或没有时间点，无法推断频率
             freq = '5s'  # 默认 5 秒
