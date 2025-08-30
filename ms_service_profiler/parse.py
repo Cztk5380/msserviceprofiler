@@ -22,7 +22,6 @@ from ms_service_profiler.exporters.utils import (
 from ms_service_profiler.task.task_register import get_dag
 from ms_service_profiler.task.task_manager import tasks_run
 from ms_service_profiler.task.task import register
-from ms_service_profiler.exporters.exporter_op_summary import ExporterOpSummaryCopier
 
 
 def parse(input_path, plugins, exporters, **kwargs):
@@ -47,7 +46,6 @@ def parse_run(input_path, exporters, args=None):
     task_dag, data_source_tasks = get_dag(exporter_names)
     
     tasks_run(data_source_tasks, task_dag, input_path, args)
-    ExporterOpSummaryCopier.export(args.input_path, args.output_path)
     logger.info('Exporter done.')
 
 
