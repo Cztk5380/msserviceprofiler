@@ -46,6 +46,7 @@ def parse_run(input_path, exporters, args=None):
     task_dag, data_source_tasks = get_dag(exporter_names)
     
     tasks_run(data_source_tasks, task_dag, input_path, args)
+    
     logger.info('Exporter done.')
 
 
