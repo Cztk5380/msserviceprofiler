@@ -1,3 +1,5 @@
+# Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
+
 import os
 import shutil
 import glob
@@ -17,11 +19,13 @@ class ExporterOpSummaryCopier(ExporterBase):
         cls.args = args
 
     @classmethod
-    def export(cls, source_root, target_root) -> None:
+    def export(cls, data) -> None:
         """
         Execute copy operation
         :param data: Dependency data (not used by this exporter)
         """
+        source_root = cls.args.input_path
+        target_root = cls.args.output_path
         try:
             # Find all PROF directories
             prof_dirs = glob.glob(os.path.join(source_root, "PROF_*"))
@@ -47,10 +51,10 @@ class ExporterOpSummaryCopier(ExporterBase):
                 # Perform file copy
                 copied_count = cls._copy_files(source_dir, target_dir)
                 if copied_count > 0:
-                    logger.info(f"Migrated folder: {prof_name}")
+                    logger.debug(f"copy folder: {prof_name}")
 
-        except Exception as e:
-            logger.error(f"Operation aborted due to error: {str(e)}", exc_info=True)
+        except (IOError, OSError) as e:
+            logger.error(f"Failed to copy files from {source_root}: {e}", exc_info=True)
             raise
 
     @classmethod
