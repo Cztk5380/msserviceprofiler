@@ -46,7 +46,7 @@ def parse_run(input_path, exporters, args=None):
     task_dag, data_source_tasks = get_dag(exporter_names)
     
     tasks_run(data_source_tasks, task_dag, input_path, args)
-    
+
     logger.info('Exporter done.')
 
 
@@ -56,7 +56,7 @@ def main():
     parser.add_argument(
         '--input-path',
         required=True,
-        # type=check_input_dir_valid,
+        type=check_input_dir_valid,
         help='Path to the folder containing profile data.')
     parser.add_argument(
         '--output-path',
