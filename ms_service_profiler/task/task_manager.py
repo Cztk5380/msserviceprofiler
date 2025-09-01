@@ -21,13 +21,13 @@ class SubprocessInfo:
         self.executor = None
         self.queues = []
         self.processes = []
-
+    
     def get_queues(self):
         return self.queues
-
+    
     def add_queue(self, queue):
         self.queues.append(queue)
-
+    
     def new_process(self, send_queue, args):
         recv_queue = Queue()
         args = args + (recv_queue, send_queue)
@@ -35,20 +35,19 @@ class SubprocessInfo:
         self.queues.append(recv_queue)
         self.processes.append(process)
         process.start()
-
+        
     def is_alive(self):
         return any((x.is_alive for x in self.processes))
 
 
-class Taskmanger:
+class TaskManager:
     def __init__(self, task_dag:TaskDag) -> None:
         self.task_dag = task_dag
         self.task_manager_info_dict = dict()
         self.manager_recv_queue = Queue()
-        self.queues = [Queue() for _ in range(100)]
         self.pool = []
         self.pool_owner = []
-
+        
     def init_task(self, task_name) -> None:
         self.task_manager_info_dict.setdefault(task_name, dict(process_pool_info=[],
                                                                wait_pool_index=[],
@@ -57,17 +56,11 @@ class Taskmanger:
                                                                gather_data=deque()))
         return self.task_manager_info_dict[task_name]
 
-    def new_queue(self):
-        queue = Queue()
-        index = len(self.queues)
-        self.queues.append(queue)
-        return queue, index
-
     def init_task_waiting_pool(self, src_dag, pool_index):
         for task_name, _ in src_dag.get_ordered_task_names():
             task_manager_info = self.init_task(task_name)
             task_manager_info.get("wait_pool_index").append(pool_index)
-
+    
     def create_pool(self, data_source_task, single_data_list, src_dag, args):
         task_manager_info = self.init_task(data_source_task.name)
         process_info = SubprocessInfo()
@@ -84,7 +77,7 @@ class Taskmanger:
         task_manager_info.get("queues").extend(queues)
 
         self.send_go(data_source_task.name)
-
+    
     def set_no_source_data(self, task_name):
         task_manager_info = self.init_task(task_name)
         task_manager_info["state"] = "no_source_data"
@@ -103,14 +96,14 @@ class Taskmanger:
     def get_task_state(self, task_name):
         task_manager_info = self.init_task(task_name)
         return task_manager_info.get("state", "unstart")
-
+    
     def get_task_process_cnt(self, task_name):
         task_manager_info = self.init_task(task_name)
         return len(task_manager_info.get("queues", []))
-
+    
     def is_all_finished(self):
         return all((x is None for x in self.pool_owner)) or all((not x.is_alive() for x in self.pool))
-
+    
     def is_all_prev_finished(self, task_name):
         # 前置task 全部完成
         error_flag = False
@@ -119,13 +112,13 @@ class Taskmanger:
                 error_flag = True
             if self.get_task_state(prev_task_name) not in ["finished", "no_source_data", "error"]:
                 return False, error_flag
-
+            
         # 且pool 都释放给当前task 啦~
         task_manager_info = self.init_task(task_name)
         for wait_pool_index in task_manager_info.get("wait_pool_index"):
             if self.pool_owner[wait_pool_index] != task_name:
                 return False, error_flag
-
+            
         return True, error_flag
 
     def set_task_finished(self, finished_task_name, next_task_set):
@@ -138,11 +131,11 @@ class Taskmanger:
             self.pool_owner[pool_index] = next_task_name
             if next_task_name is None:
                 continue
-
+        
             next_task_manager_info = self.init_task(next_task_name)
             next_task_manager_info.get("process_pool_info", []).append(self.pool[pool_index])
             next_task_manager_info.get("queues", []).extend(self.pool[pool_index].get_queues())
-
+        
             # 判断前置流程是否全部完成
             all_finished, has_err = self.is_all_prev_finished(next_task_name)
             if next_task_manager_info["state"] != "unstart":
@@ -173,7 +166,7 @@ class Taskmanger:
         task_manager_info = self.init_task(task_name)
         if task_index < len(task_manager_info.get("queues", [])): # 求检视
             task_manager_info.get("queues", [])[task_index].put((msg, param))
-
+    
     def send_msg_to_one_task(self, task_name, msg, param):
         task_manager_info = self.init_task(task_name)
 
@@ -184,7 +177,7 @@ class Taskmanger:
         logger.info(f"{Color.BRIGHT_BLUE}task [{task_name}] start. {Color.RESET}")
         for index in range(self.get_task_process_cnt(task_name)):
             self.send_msg_to_one_process(task_name, index, go_msg, index)
-
+    
     def fill_gater_data(self, task_name, task_index, data, ignore_error_state=False):
         task_manager_info = self.init_task(task_name)
         if task_manager_info.get('state') == 'error' and ignore_error_state is False:
@@ -206,7 +199,7 @@ class Taskmanger:
             list_item = [DefaultValue.UNFILLED] * cnt
             list_item[task_index] = data
             gather_data.append(list_item)
-
+        
         return None
 
     def start(self):
@@ -218,7 +211,7 @@ class Taskmanger:
                 if gather_data is not None:
                     self.send_msg_to_one_task(who_task_name, msg, None)
                     self.set_task_finished(who_task_name, set(gather_data))
-
+                
                 if self.is_all_finished():
                     break
             elif msg == "error":
@@ -258,56 +251,55 @@ class Taskmanger:
 def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
     task_index = None
     run_res_data = dict(prof_path=input_data)
-
+    
     def recv():
         msg, gather_data = recv_queue.get()
         if msg == 'error':
             raise OtherTaskError(gather_data)
         return msg, gather_data
-
+            
     def recv_ignore_error():
         msg = "error"
         while msg== 'error':
             msg, gather_data = recv_queue.get()
             if msg != 'error':
                 return msg, gather_data
-
+        
     def finished_sync(task_name, task_index, next_task_name, after_error=False):
         send_queue.put((task_name, task_index, "finished", ((pool_index, next_task_name), after_error)))
         msg, _ = recv()
         assert msg == 'finished'
-
+        
     def error_sync(task_name, task_index, err_msg=None):
         # 发送 error 到主进程
         send_queue.put((task_name, task_index, "error", err_msg))
         # 等待主进程同步到所有的其他进程，所有进程一起继续执行
         msg, gather_data = recv_ignore_error()
         return msg, gather_data
-
+        
     def crash(task_name, task_index):
         send_queue.put((task_name, task_index, "crash", None))
-
+    
     for task_name, next_task_name in src_dag.get_ordered_task_names():
         try:
-            msg, task_index  = recv()
-            assert msg == 'go'
-
+            _, task_index  = recv()
+        
             task_info = src_dag.get_task_reg_info(task_name)
             if isinstance(task_info.task_cls, Task):
                 task_ins = task_info.task_cls
             else:
                 task_ins = task_info.task_cls(args)
-
+            
             task_ins.init(task_name, task_index, recv, send_queue)
-
+            
             for depends_name in src_dag.get_depends_data_names(task_name):
                 if depends_name in run_res_data:
                     task_ins.set_depends_result(depends_name, run_res_data.get(depends_name, None))
             task_res = task_ins.run()
-
+            
             for output_name in src_dag.get_outputs_data_names(task_name):
                 run_res_data.setdefault(output_name, task_res)
-
+            
             # 等所有进程全部结束
             finished_sync(task_name, task_index, next_task_name)
         except OtherTaskError as e:
@@ -327,8 +319,8 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
 # main process
 @timer()
 def tasks_run(data_source_tasks, task_dag, input_path, args):
-    task_manager = Taskmanger(task_dag)
-
+    task_manager = TaskManager(task_dag)
+    
     has_tasks = False
     for data_source_task in data_source_tasks:
         single_data_list = data_source_task.task_cls.get_prof_paths(input_path)
@@ -339,7 +331,7 @@ def tasks_run(data_source_tasks, task_dag, input_path, args):
         has_tasks = True
         # 创建进程池
         src_dag = filter_dag(task_dag, data_source_task.name)
-
+        
         task_manager.create_pool(data_source_task, single_data_list, src_dag, args)
 
     # 所有都开始

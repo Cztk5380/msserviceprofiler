@@ -577,16 +577,6 @@ void ServiceProfilerManager::StartMsptiProf(std::string &profPath)
 
 void ServiceProfilerManager::StartAclProf(std::string &profPath)
 {
-    if (!isAclInit_) {
-        aclError retInit = aclInit(nullptr);
-        if (retInit == ACL_SUCCESS || retInit == ACL_ERROR_REPEAT_INITIALIZE) {
-            isAclInit_ = true;
-        } else {
-            PROF_LOGE("acl init failed, ret = %d", retInit);  // LCOV_EXCL_LINE
-            isAclInit_ = false;
-        }
-    }
-
     PROF_LOGD("StartAclProf device_id: %d", static_cast<int>(g_deviceID));  // LCOV_EXCL_LINE
     if (config_->IsAclProf()) {
         aclError ret = aclprofInit(profPath.c_str(), profPath.size());

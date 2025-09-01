@@ -7,17 +7,13 @@ import numpy as np
 from ms_service_profiler.exporters.base import TaskExporterBase
 from ms_service_profiler.utils.file_open_check import UmaskWrapper
 
-OUTPUT_CSV_NAME = "ep_balance.csv"
-OUTPUT_PNG_NAME = "ep_balance.png"
 SUMMED_OUTPUT_NAME_EXPERT = "{}_eplb_{}_summed_hot_map_by_expert.png"
 SUMMED_OUTPUT_NAME_RANK = "{}_eplb_{}_summed_hot_map_by_rank.png"
 SUMMED_OUTPUT_NAME_MODEL_EXPERT = "{}_eplb_{}_summed_hot_map_by_model_expert.png"
 NAME = "expert_hot"
 EXPERT_MAP = "expert_map"
-DYNAMIC_EXPERT_MAP = "dynamic_expert_map"
-INSTANCE_POD_MAP = "instance_pod_map"
 MAX_PLT_PIXEL = 256
-MIN_PLT_PIXEL = 32
+MIN_PLT_PIXEL = 8
 
 
 class ExporterEplbObserve(TaskExporterBase):
@@ -102,7 +98,6 @@ class ExporterEplbObserve(TaskExporterBase):
                                           y_label="Decoder layers",
                                           x_label="Experts from 0 to N",
                                           output_path=summed_hot_model_expert_output_path)
-
 
     @classmethod
     def depends(cls):

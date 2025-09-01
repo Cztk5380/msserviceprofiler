@@ -35,7 +35,7 @@ class ProcessorEplbObserve(ProcessorBase):
             logger.warning("No moe hot data found in profiling data, skip moe eplb analysis.")
             return None
 
-        logger.info("Find moe expert routing data in profiling data, launch moe hot analysis.")
+        logger.info("Find moe expert hot data in profiling data, launch eplb observing analysis.")
 
         # 按照节点区分数据，并将原始的专家路由信息从list(str)处理成list(list(int))
         expert_hot_by_host = defaultdict(dict)
@@ -116,10 +116,10 @@ class ProcessorEplbObserve(ProcessorBase):
     @staticmethod
     def process_expert_hot(df_by_pid):
         if EXPERT_ROUTING_NAME in df_by_pid.columns:
-            logger.info("profiling data with eplb.")
+            logger.debug("profiling data with eplb.")
             expert_routing_df_by_pid = df_by_pid.loc[df_by_pid[EXPERT_ROUTING_NAME].dropna().index]
         else:
-            logger.info("profiling data without eplb.")
+            logger.debug("profiling data without eplb.")
             expert_routing_df_by_pid = []
         if len(expert_routing_df_by_pid) == 0:
             # 没开负载均衡

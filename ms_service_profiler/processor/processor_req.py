@@ -40,13 +40,27 @@ class ProcessorReq(ProcessorBase):
 
     @staticmethod
     def batch_token_iter_to_batch_type(token_iter_list):
-        if token_iter_list is None or len(token_iter_list) == 0:
+        # 统一处理空值和非列表/元组类型
+        if (token_iter_list is None
+                or (np.isscalar(token_iter_list) and pd.isna(token_iter_list))
+                or not isinstance(token_iter_list, (list, tuple))):
+            logger.warning(f"Warning: Skipping invalid row type {type(token_iter_list)}: {token_iter_list}")
             return 1
-        if all(token_iter_list):  # 全部大于 0
+
+        # 处理空列表
+        if not token_iter_list:
+            return 1
+
+        # 处理含NaN的列表
+        if pd.isna(token_iter_list).any():
+            return 1
+
+        # 有效列表的判断（无重复）
+        if all(token_iter_list):  # 全部大于0
             return 2
-        elif any(token_iter_list): # 存在0，也存在1 
+        elif any(token_iter_list):  # 存在0和非0
             return 0
-        else:
+        else:  # 全为0
             return 1
 
     @timer(logger.debug)
@@ -172,8 +186,12 @@ class ProcessorReq(ProcessorBase):
         # 根据 batch id 找到 req_id_list， 拆解开
 
         batch_attr_explode_by_req_df = batch_attr_df.explode('req_list')
-        batch_attr_explode_by_req_df['rid'] = batch_attr_explode_by_req_df['req_list'].map(lambda x: x.get('rid'))
-        batch_attr_explode_by_req_df['iter'] = batch_attr_explode_by_req_df['req_list'].map(lambda x: x.get('iter'))
+        batch_attr_explode_by_req_df['rid'] = batch_attr_explode_by_req_df['req_list'].map(
+            lambda x: x.get("rid") if isinstance(x, dict) else None
+        )
+        batch_attr_explode_by_req_df['iter'] = batch_attr_explode_by_req_df['req_list'].map(
+            lambda x: x.get("iter") if isinstance(x, dict) else None
+        )
 
         merged = batch_attr_explode_by_req_df.join(model_exec_df.set_index('batch_id'), on='batch_id')
 
@@ -226,7 +244,7 @@ class ProcessorReq(ProcessorBase):
         """
         req_que_wait_df = pd.DataFrame(columns=["rid", "que_wait_time"])
 
-        if req_que_wait_df is None or req_queue_df.empty:
+        if req_queue_df is None or req_queue_df.empty:
             return req_que_wait_df
 
         # 1. 把事件拆成两类

@@ -27,7 +27,7 @@ class ExporterReqStatus(ExporterBase):
         if 'db' not in cls.args.format and 'csv' not in cls.args.format:
             return
 
-        if cls.valid_for_csv_output(data):
+        if 'csv' in cls.args.format and cls.valid_for_csv_output(data):
             df = data.get('tx_data_df')
             need_columns = [COLUMN_CONST.HOSTUID_COLUMN, COLUMN_CONST.PID_COLUMN, COLUMN_CONST.START_TIME_COLUMN, \
                 COLUMN_CONST.DOMAIN_COLUMN, COLUMN_CONST.NAME_COLUMN, COLUMN_CONST.STATUS_COLUMN, \
@@ -65,7 +65,7 @@ class ExporterReqStatus(ExporterBase):
             save_dataframe_to_csv(df, output, "request_status.csv")
             logger.info('Write request status data to csv success')
 
-        if cls.valid_for_db_output(data):
+        if 'db' in cls.args.format and cls.valid_for_db_output(data):
             df = data.get('tx_data_df')
             metrics = data.get('metric_data_df')
 

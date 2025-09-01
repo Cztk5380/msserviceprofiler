@@ -35,7 +35,7 @@ class PluginReqStatus(PluginBase):
     @timer(logger.debug)
     def parse(cls, data):
         tx_data_df = data.get('tx_data_df')
-        if tx_data_df is None:
+        if tx_data_df is None or tx_data_df.empty:
             return data
 
         # mindIE 重构后，不再使用数字映射状态码的方式，直接从status列中可取得状态，如waiting、running、swapped

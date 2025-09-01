@@ -115,6 +115,15 @@ class ProcessorRes(ProcessorBase):
             extract_df.tolist(), index=data_df.index
         )
 
+
+    def can_convert_to_int(self, x):
+        try:
+            int(x)
+            return True
+        except Exception as _:
+            return False
+
+
     def parse(self, data, meta_data, meta_data_list):
         data_df = data.get("tx_data_df")
         if data_df is None:
@@ -134,13 +143,18 @@ class ProcessorRes(ProcessorBase):
 
             rid_map_all = {}
             for meta_data_process in meta_data_list:
-                rid_map_all.update(meta_data_process)
+                rid_map_all.update(meta_data_process.get("rid_map") or {})
+
+            # 兼容最开始数值的 rid ,如果是数值，那么绝对会重复
+            if all(self.can_convert_to_int(x) for x in rid_map_all.keys()):
+                rid_map_all = {}
 
             for meta_data_process in meta_data_list:
                 if meta_data_process.get("hostname") == hostname and meta_data_process.get("pid") == ppid:
                     rid_map = meta_data_process.get("rid_map")
-                else:
-                    rid_map = rid_map_all.get("rid_map")
+                    break
+            else:
+                rid_map = rid_map_all
             self.process_each_df(data_df, rid_map)
 
         return data
