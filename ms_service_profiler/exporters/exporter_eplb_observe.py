@@ -76,20 +76,7 @@ class ExporterEplbObserve(TaskExporterBase):
                     expert_hot_summed_expert = \
                         expert_hot_summed_expert.reshape(-1, expert_hot_summed_expert.shape[-1]).transpose([1, 0])
 
-                    model_expert_num = np.max(expert_map_per_eplb) + 1
-                    remapped_expert_hot = np.zeros([expert_map_per_eplb.shape[0], model_expert_num])
-
-                    if expert_map_per_eplb.shape != expert_hot_summed_expert.shape:
-                        raise ValueError("Shape of expert_map and expert_hot are not equal, "
-                                         "please check profiling input.")
-
-                    for layer_index in range(expert_hot_summed_expert.shape[0]):
-                        for expert_index in range(expert_hot_summed_expert.shape[1]):
-                            model_expert_index = expert_map_per_eplb[layer_index][expert_index]
-                            if expert_index == 93 and layer_index == 53:
-                                print(model_expert_index)
-                            remapped_expert_hot[layer_index][model_expert_index] += \
-                                expert_hot_summed_expert[layer_index][expert_index]
+                    remapped_expert_hot = remap_expert_hot(expert_map_per_eplb, expert_hot_summed_expert)
 
                     summed_hot_model_expert_output_path = \
                         os.path.join(output, SUMMED_OUTPUT_NAME_MODEL_EXPERT.format(instance_name, eplb_iteration))
@@ -133,3 +120,20 @@ def draw_hot_map_from_arr(arr, title="", x_label="", y_label="", output_path="ho
         plt.savefig(output_path)
 
     plt.cla()
+
+
+def remap_expert_hot(expert_map_per_eplb, expert_hot_summed_expert):
+    model_expert_num = np.max(expert_map_per_eplb) + 1
+    remapped_expert_hot = np.zeros([expert_map_per_eplb.shape[0], model_expert_num])
+
+    if expert_map_per_eplb.shape != expert_hot_summed_expert.shape:
+        raise ValueError("Shape of expert_map and expert_hot are not equal, "
+                         "please check profiling input.")
+
+    for layer_index in range(expert_hot_summed_expert.shape[0]):
+        for expert_index in range(expert_hot_summed_expert.shape[1]):
+            model_expert_index = expert_map_per_eplb[layer_index][expert_index]
+            remapped_expert_hot[layer_index][model_expert_index] += \
+                expert_hot_summed_expert[layer_index][expert_index]
+
+    return remapped_expert_hot

@@ -120,16 +120,16 @@ class ProcessorEplbObserve(ProcessorBase):
             expert_routing_df_by_pid = df_by_pid.loc[df_by_pid[EXPERT_ROUTING_NAME].dropna().index]
         else:
             logger.debug("profiling data without eplb.")
-            expert_routing_df_by_pid = []
+            expert_routing_df_by_pid = pd.DataFrame()
+
         if len(expert_routing_df_by_pid) == 0:
             # 没开负载均衡
             split_expert_hot = [df_by_pid]
             expert_routing_by_pid = []
-        elif len(expert_routing_df_by_pid) > 0:
+        else:
             # 静态负载均衡 or 动态负载均衡
             # shape: eplb_perid * layer * total_model_expert_num
             expert_routing_by_pid = expert_routing_df_by_pid[EXPERT_ROUTING_NAME].values.tolist()
-            split_expert_hot = [expert_routing_by_pid]
 
             mark_id_list = expert_routing_df_by_pid["markId"].values.tolist()
             for item in mark_id_list:
