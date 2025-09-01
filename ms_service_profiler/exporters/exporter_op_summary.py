@@ -3,6 +3,7 @@
 import os
 import shutil
 import glob
+from pathlib import Path  # 添加Path导入
 
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
@@ -27,15 +28,15 @@ class ExporterOpSummaryCopier(ExporterBase):
         source_root = cls.args.input_path
         target_root = cls.args.output_path
         try:
-            # Find all PROF directories
-            prof_dirs = glob.glob(os.path.join(source_root, "PROF_*"))
+            prof_dirs = []
+            for path in Path(source_root).glob("**/PROF_*"):
+                if path.is_dir():
+                    prof_dirs.append(str(path))
+                    
             if not prof_dirs:
                 return
 
             for prof_dir in prof_dirs:
-                if not os.path.isdir(prof_dir):
-                    continue
-
                 prof_name = os.path.basename(prof_dir)
                 source_dir = os.path.join(prof_dir, "mindstudio_profiler_output")
                 target_dir = os.path.join(target_root, prof_name)
@@ -43,12 +44,12 @@ class ExporterOpSummaryCopier(ExporterBase):
                 if not os.path.exists(source_dir):
                     continue
 
-                # Check for op_summary files
+                # 检查op_summary文件
                 op_summary_files = glob.glob(os.path.join(source_dir, "op_summary*.csv"))
                 if not op_summary_files:
                     continue
 
-                # Perform file copy
+                # 执行文件复制
                 copied_count = cls._copy_files(source_dir, target_dir)
                 if copied_count > 0:
                     logger.debug(f"copy folder: {prof_name}")
