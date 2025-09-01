@@ -20,7 +20,7 @@ MAX_PLT_PIXEL = 256
 MIN_PLT_PIXEL = 32
 
 
-class ExporterDyEpBalance(TaskExporterBase):
+class ExporterEplbObserve(TaskExporterBase):
     name: str = NAME
 
     @classmethod
@@ -46,8 +46,8 @@ class ExporterDyEpBalance(TaskExporterBase):
                 summed_hot_rank_output_path = \
                     os.path.join(output, SUMMED_OUTPUT_NAME_RANK.format(instance_name, eplb_iteration))
                 # 将热度信息按照rank、expert_per_rank的维度进行累加
-                # shape:[rank][iteration][layer][expert_per_rank] -> [layer, expert_iteration]
-                expert_hot_summed_rank = expert_hot_per_eplb.sum(axis=(0, -1))
+                # shape:[rank][iteration][layer][expert_per_rank] -> [layer, rank]
+                expert_hot_summed_rank = np.array([item.sum(axis=(0, -1)) for item in expert_hot_per_eplb]).T
                 draw_hot_map_from_arr(expert_hot_summed_rank,
                                       title=f"{instance_name} EPLB_Period_{eplb_iteration} Summed Hot Map By Rank",
                                       y_label="Decoder layers",
@@ -55,10 +55,11 @@ class ExporterDyEpBalance(TaskExporterBase):
                                       output_path=summed_hot_rank_output_path)
 
                 # shape: rank * iteration * layer * expert_per_rank -> rank * expert_per_rank * layer
-                expert_hot_summed_expert = expert_hot_per_eplb.sum(axis=1).transpose([0, 2, 1])
+                expert_hot_per_eplb_arr = np.array(expert_hot_per_eplb)
+                expert_hot_summed_expert = expert_hot_per_eplb_arr.sum(axis=1).transpose([0, 2, 1])
                 # shape: rank * expert_per_rank * layer -> layer * total_expert
                 expert_hot_summed_expert = \
-                    expert_hot_per_instance.reshape(-1, expert_hot_summed_expert.shape[-1]).transpose([1, 0])
+                    expert_hot_summed_expert.reshape(-1, expert_hot_summed_expert.shape[-1]).transpose([1, 0])
                 summed_hot_expert_output_path = \
                     os.path.join(output, SUMMED_OUTPUT_NAME_EXPERT.format(instance_name, eplb_iteration))
                 draw_hot_map_from_arr(expert_hot_summed_expert,
@@ -74,11 +75,12 @@ class ExporterDyEpBalance(TaskExporterBase):
                 for eplb_iteration, expert_map_per_eplb in enumerate(expert_map_by_instance):
                     # expert_hot_per_eplb shape:[rank][iteration][layer][expert_per_rank]
                     expert_hot_per_eplb = expert_hot.get(instance_name)[eplb_iteration]
-                    expert_hot_summed_expert = expert_hot_per_eplb.sum(axis=1).transpose([0, 2, 1])
+                    expert_hot_per_eplb_arr = np.array(expert_hot_per_eplb)
+                    expert_hot_summed_expert = expert_hot_per_eplb_arr.sum(axis=1).transpose([0, 2, 1])
                     expert_hot_summed_expert = \
                         expert_hot_summed_expert.reshape(-1, expert_hot_summed_expert.shape[-1]).transpose([1, 0])
 
-                    model_expert_num = np.max(expert_map_per_eplb)
+                    model_expert_num = np.max(expert_map_per_eplb) + 1
                     remapped_expert_hot = np.zeros([expert_map_per_eplb.shape[0], model_expert_num])
 
                     if expert_map_per_eplb.shape != expert_hot_summed_expert.shape:
@@ -87,7 +89,9 @@ class ExporterDyEpBalance(TaskExporterBase):
 
                     for layer_index in range(expert_hot_summed_expert.shape[0]):
                         for expert_index in range(expert_hot_summed_expert.shape[1]):
-                            model_expert_index = expert_map_per_eplb[expert_index]
+                            model_expert_index = expert_map_per_eplb[layer_index][expert_index]
+                            if expert_index == 93 and layer_index == 53:
+                                print(model_expert_index)
                             remapped_expert_hot[layer_index][model_expert_index] += \
                                 expert_hot_summed_expert[layer_index][expert_index]
 
@@ -102,10 +106,10 @@ class ExporterDyEpBalance(TaskExporterBase):
 
     @classmethod
     def depends(cls):
-        return ["pipeline:service"]
+        return ["pipeline:eplb_observe"]
 
     def do_export(self) -> None:
-        data: Dict = self.get_depends_result("pipeline:service")
+        data: Dict = self.get_depends_result("pipeline:eplb_observe")
         self.export(data)
 
 
@@ -115,8 +119,8 @@ def draw_hot_map_from_arr(arr, title="", x_label="", y_label="", output_path="ho
     if len(arr.shape) != 2:
         raise ValueError("arr shape size != 2")
 
-    x_pixel = max(min(arr.shape[0] // 10, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
-    y_pixel = max(min(arr.shape[1] // 10, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
+    x_pixel = max(min(arr.shape[1] // 10, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
+    y_pixel = max(min(arr.shape[0] // 10, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
 
     plt.figure(figsize=(x_pixel, y_pixel))
     plt.imshow(arr)

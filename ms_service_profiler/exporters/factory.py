@@ -10,7 +10,7 @@ from ms_service_profiler.exporters.exporter_pd_comm import ExporterPDComm
 from ms_service_profiler.exporters.exporter_mspti import ExporterMspti
 from ms_service_profiler.exporters.exporter_ep_balance import ExporterEpBalance
 from ms_service_profiler.exporters.exporter_moe import ExporterMoe
-from ms_service_profiler.exporters.exporter_dynamic_ep_balance import ExporterDyEpBalance
+from ms_service_profiler.exporters.exporter_eplb_observe import ExporterEplbObserve
 from ms_service_profiler.exporters.exporter_forward import ExporterForwardData
 from ms_service_profiler.exporters.exporter_coordinator import ExporterCoordinator
 
@@ -19,7 +19,8 @@ from ms_service_profiler.exporters.exporter_coordinator import ExporterCoordinat
 class ExporterFactory:
     exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterReqData, ExporterBatchData, \
                     ExporterKVCacheData, ExporterLatency, ExporterPDComm, ExporterMspti, \
-                    ExporterEpBalance, ExporterMoe, ExporterForwardData, ExporterCoordinator, ExporterDyEpBalance]
+                    ExporterEpBalance, ExporterMoe, ExporterForwardData, ExporterCoordinator, ExporterEplbObserve]
+
     @staticmethod
     def create_exporters(args):
         exporters = []

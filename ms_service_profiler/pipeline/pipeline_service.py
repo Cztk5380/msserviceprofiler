@@ -8,13 +8,13 @@ from ms_service_profiler.plugins.plugin_timestamp import PluginTimeStampHelper
 from ms_service_profiler.processor.processor_meta import ProcessorMeta
 from ms_service_profiler.processor.processor_res import ProcessorRes
 from ms_service_profiler.processor.processor_req import ProcessorReq
+from ms_service_profiler.processor.processor_eplb_observe import ProcessorEplbObserve
 from ms_service_profiler.plugins.plugin_common import PluginCommon
 from ms_service_profiler.plugins.plugin_metric import PluginMetric
 from ms_service_profiler.plugins.plugin_req_status import PluginReqStatus
 from ms_service_profiler.plugins.plugin_concat import PluginConcat
 from ms_service_profiler.plugins.plugin_trace import PluginTrace
 from ms_service_profiler.plugins.plugin_process_name import PluginProcessName
-from ms_service_profiler.plugins.plugin_dynamic_ep_balance import PluginDyEpBalance
 
 
 @Task.register("pipeline:service")
@@ -24,6 +24,7 @@ class PipelineService(PipelineBase):
         return ["data_source:service"]
 
     def run(self):
+        return None
         data = self.get_depends_result("data_source:service", None)
         if not data:
             return None
@@ -35,12 +36,12 @@ class PipelineService(PipelineBase):
         meta_data_list = self.all_gather(meta_data)
 
         data = self.run_step(ProcessorRes(), "ProcessorRes", data, meta_data, meta_data_list)
+        data = self.run_step(ProcessorEplbObserve(), "ProcessorEplbObserve", data, is_key_step=False)
         data = self.run_step(PluginCommon, PluginCommon.name, data, is_key_step=False)
         data = self.run_step(PluginReqStatus, PluginReqStatus.name, data, is_key_step=False)
         data = self.run_step(PluginMetric, PluginMetric.name, data, is_key_step=False)  # 新增数据 metric_data_df
         data = self.run_step(PluginTrace, PluginTrace.name, data, is_key_step=False)
         data = self.run_step(PluginProcessName, PluginProcessName.name, data, is_key_step=False) # 新增数据 pid_label_map
-        data = self.run_step(PluginDyEpBalance, PluginDyEpBalance.name, data, is_key_step=False)
 
         data_list = self.gather(data, dst=0)
         if data_list is None:

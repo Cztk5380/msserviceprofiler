@@ -13,10 +13,9 @@ from ms_service_profiler.plugins.plugin_process_name import PluginProcessName
 from ms_service_profiler.plugins.plugin_mspit_process import PluginMsptiProcess
 from ms_service_profiler.plugins.plugin_ep_balance import PluginEpBalanceProcess
 from ms_service_profiler.plugins.plugin_moe import PluginMoeSlowRankProcess
-from ms_service_profiler.plugins.plugin_dynamic_ep_balance import PluginDyEpBalance
 
 builtin_plugins = [PluginTimeStamp, PluginConcat, PluginCommon, PluginMetric, PluginTrace,
-    PluginProcessName, PluginDyEpBalance]
+    PluginProcessName]
 
 custom_plugins = [PluginReqStatus]
 
