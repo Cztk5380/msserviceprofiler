@@ -55,7 +55,7 @@ class ExporterOpSummaryCopier(ExporterBase):
 
                 copied_count = cls._copy_files(source_dir, target_dir)
                 if copied_count > 0:
-                    logger.info(r"Copied %d files from %s", copied_count, prof_name) 
+                    logger.debug(r"Copied %d files from %s", copied_count, prof_name) 
 
         except (IOError, OSError) as e:
             logger.error(r"Failed to copy files from %s: %s", source_root, e, exc_info=True)
