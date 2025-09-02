@@ -12,18 +12,20 @@ from ms_service_profiler.exporters.exporter_ep_balance import ExporterEpBalance
 from ms_service_profiler.exporters.exporter_moe import ExporterMoe
 from ms_service_profiler.exporters.exporter_forward import ExporterForwardData
 from ms_service_profiler.exporters.exporter_coordinator import ExporterCoordinator
+from ms_service_profiler.exporters.exporter_op_summary import ExporterOpSummaryCopier
 
 
 # 插件工厂类
 class ExporterFactory:
     exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterReqData, ExporterBatchData, \
                     ExporterKVCacheData, ExporterLatency, ExporterPDComm, ExporterMspti, \
-                    ExporterEpBalance, ExporterMoe, ExporterForwardData, ExporterCoordinator]
+                    ExporterEpBalance, ExporterMoe, ExporterForwardData, ExporterCoordinator, \
+                    ExporterOpSummaryCopier]
     @staticmethod
     def create_exporters(args):
         exporters = []
         enable_exporter = ['trace', 'req_status', 'req_data', 'batch_data', 'kvcache_data', 'latency', 'pd_comm',
-                           "ep_balance", "moe_analysis", "forward_data", 'coordinator']
+                           "ep_balance", "moe_analysis", "forward_data", 'coordinator', 'op_summary_copier']
 
         for name in enable_exporter:
             exporters.append(ExporterFactory.create(name, args))
