@@ -391,36 +391,65 @@ def sort_trace_events_by_tid(trace_events):
 def add_trace_events(valid_name_df):
     trace_event_df = valid_name_df.copy()
 
-    # trace事件
     trace_event_df['ph'] = ['I' if during_time == 0 else 'X' for during_time in valid_name_df['during_time']]
     trace_event_df['ts'] = valid_name_df['start_time']
     trace_event_df['tid'] = valid_name_df['domain']
     trace_event_df['dur'] = valid_name_df['during_time']
+
+    required_columns = [
+        'start_datetime', 'end_datetime', 'batch_type', 'batch_size',
+        'res_list', 'rid', 'message', 'tid'
+    ]
+
+    column_defaults = {
+        'start_datetime': pd.NaT,
+        'end_datetime': pd.NaT,
+        'batch_type': '',
+        'batch_size': 0,
+        'res_list': [],
+        'rid': '',
+        'message': {},
+        'tid': 0
+    }
+
+    missing_columns = []
+    for col in required_columns:
+        if col not in valid_name_df.columns:
+            missing_columns.append(col)
+            if column_defaults[col] == []:
+                valid_name_df[col] = valid_name_df.apply(lambda _: [], axis=1)
+            else:
+                valid_name_df[col] = column_defaults[col]
+
+    if missing_columns:
+        logger.warning(f"Missing columns in trace event data, using defaults: {missing_columns}")
+
     args_list = []
-    for start, end, batch_type, batch_size, res_list, rid, message, tid, in zip(
-            valid_name_df['start_datetime'],
-            valid_name_df['end_datetime'],
-            valid_name_df['batch_type'],
-            valid_name_df['batch_size'],
-            valid_name_df['res_list'],
-            valid_name_df['rid'],
-            valid_name_df['message'],
-            valid_name_df['tid']
-    ):
-        args_dict = dict(**{k: v for k, v in message.items() if k not in ["domain", "name", "type", "rid"]}, **{
-            'start_datetime': start,
-            'end_datetime': end,
-            'tid': tid
-        })
-        if batch_size is not None:
-            args_dict.update({'batch_size': batch_size})
-        if batch_type is not None:
-            args_dict.update({'batch_type': batch_type})
-        if res_list is not None:
-            args_dict.update({"res_list": res_list})
-        if batch_size is None and rid != res_list:
-            args_dict.update({"rid": rid})
-        args_list.append(args_dict)
+    try:
+        selected_df = valid_name_df[required_columns]
+
+        for row in selected_df.itertuples(index=False, name='TraceRow'):
+            start, end, batch_type, batch_size, res_list, rid, message, tid = row
+
+            args_dict = dict(**{k: v for k, v in message.items() if k not in ["domain", "name", "type", "rid"]}, **{
+                'start_datetime': start,
+                'end_datetime': end,
+                'tid': tid
+            })
+            if batch_size is not None:
+                args_dict.update({'batch_size': batch_size})
+            if batch_type is not None:
+                args_dict.update({'batch_type': batch_type})
+            if res_list is not None:
+                args_dict.update({"res_list": res_list})
+            if batch_size is None and rid != res_list:
+                args_dict.update({"rid": rid})
+            args_list.append(args_dict)
+
+    except Exception as e:
+        logger.error(f"Error during trace event generation: {e}")
+        return []
+
     trace_event_df['args'] = args_list
     trace_events = trace_event_df[['name', 'ph', 'ts', 'dur', 'pid', 'tid', 'args']].to_dict(orient='records')
     return trace_events
