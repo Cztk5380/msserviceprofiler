@@ -14,7 +14,7 @@ class ExporterOpSummaryCopier(ExporterBase):
     """Operation summary file copier"""
     
     name = "op_summary_copier"
-    description = "Copy op_summary/op_statistic CSV files between PROF directories"
+    description = "Copy op_summary/op_statistic CSV files from PROF directories"
 
     @classmethod
     def initialize(cls, args):
