@@ -9,7 +9,7 @@ from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import KeyExcept
 from enum import IntEnum, auto
 
-MOE_HOT_DOMAIN_NAME = "expert_hot"
+MOE_HOT_DOMAIN_NAME = "eplb_observe"
 EXPERT_ROUTING_NAME = "expert_routing"
 
 
@@ -215,6 +215,4 @@ def transpose_eplb_iteration(expert_hot, eplb_iteration_num=1):
     for _, expert_hot_per_rank in enumerate(expert_hot):  # _ is rank
         for eplb_iteration in range(eplb_iteration_num):
             res[eplb_iteration].append(expert_hot_per_rank[eplb_iteration])
-
-    # shape: [eplb_iteration][]
     return res
