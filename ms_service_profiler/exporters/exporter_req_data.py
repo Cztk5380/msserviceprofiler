@@ -122,6 +122,10 @@ class ExporterReqData(ExporterBase):
             logger.error("cannot find service prof data, please check")
             return
 
+        if 'rid' not in df.columns:
+            logger.warning("Exporter request will skip, the columns rid is missing")
+            return
+
         if check_domain_valid(df, ['Request'], 'request') is False:
             return
 

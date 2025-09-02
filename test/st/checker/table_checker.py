@@ -125,7 +125,7 @@ def check_insight_tables(conn, complete_req_cnt=0):
         with check("batch"):
             check_and_get_df_from_table(conn, cursor, "batch", ["name", "res_list", "batch_size", "batch_type"], allow)
         with check("batch_exec"):
-            check_and_get_df_from_table(conn, cursor, "batch_exec", ["batch_id", "name", "pid", "start", "end"], allow)
+            check_and_get_df_from_table(conn, cursor, "batch_exec", ["batch_id", "event", "pid", "start", "end"], allow)
         with check("batch_req"):
             check_and_get_df_from_table(
                 conn, cursor, "batch_req", ["req_id", "iter", "rid", "block", "batch_id"], allow
