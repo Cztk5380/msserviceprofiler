@@ -267,8 +267,22 @@ def add_flow_event(flow_event_df):
 def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
     metric_event = ['npu', 'KVCache', 'PullKVCache']
 
+    # name 非空
+    name_notna_condition = all_data_df['name'].notna()
+
+    # 非metric数据
+    domain_not_in_metric_condition = ~all_data_df['domain'].isin(metric_event)
+
+    # 筛选掉domain为expert_hot开头的数据，不写入trace图
+    prefix_to_exclude = 'expert_hot'
+    domain_not_startswith_condition = ~all_data_df['domain'].str.startswith(prefix_to_exclude)
+
     # 普通事件
-    valid_name_df = all_data_df[all_data_df['name'].notna() & (~all_data_df['domain'].isin(metric_event))]
+    valid_name_df = all_data_df[
+        name_notna_condition &
+        domain_not_in_metric_condition &
+        domain_not_startswith_condition
+    ]
     trace_events = add_trace_events(valid_name_df)
 
     if not all_data_df.empty and "name" in all_data_df:
