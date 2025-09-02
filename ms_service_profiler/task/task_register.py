@@ -3,17 +3,19 @@
 from enum import Enum, auto
 from collections import deque
 
+
 class DefaultValue(Enum):
     UNDEFINED = auto()
 
 regist_map = dict()
 
+
 class TaskRegisterInfo:
     def __init__(self, name, task_cls, data_depends, data_outputs) -> None:
-        self.name=name
-        self.task_cls=task_cls
-        self.data_depends=data_depends
-        self.data_outputs=data_outputs
+        self.name = name
+        self.task_cls = task_cls
+        self.data_depends = data_depends
+        self.data_outputs = data_outputs
     
     def get(self, key, default_value):
         return getattr(self, key, default_value)
@@ -168,7 +170,7 @@ def filter_dag(dag, data_source_name):
                 filterd_tasks.add(next_task_name)
                 walk_tasks.append(next_task_name)
     
-    dag_task_flow = {k: v for k, v in dag_task_flow.items() if k  in filterd_tasks}
+    dag_task_flow = {k: v for k, v in dag_task_flow.items() if k in filterd_tasks}
     head_tasks_name = [data_source_name]
     ordered_tasks_name = [x for x in ordered_tasks_name if x in filterd_tasks]
     

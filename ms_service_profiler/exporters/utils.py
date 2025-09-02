@@ -47,7 +47,7 @@ TABLE_DATA_VIEW_NAME_LIST = {
     'request': 'request_data',
     'pd_split_kvcache': 'pd_split_pull_kvcache',
     'forward': 'forward_info',
-    'coordinator' : 'coordinator_info',
+    'coordinator': 'coordinator_info',
 }
 
 
