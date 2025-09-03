@@ -21,7 +21,7 @@ class ExporterCoordinator(ExporterBase):
         cls.args = args
 
     @classmethod
-    @timer(logger.info)
+    @timer(logger.debug)
     @key_except('domain', 'name', ignore=True, msg="ignoring current exporter by default.")
     def export(cls, data) -> None:
         if "csv" not in cls.args.format and "db" not in cls.args.format:

@@ -265,7 +265,7 @@ class ProcessorReq(ProcessorBase):
 
         return req_que_wait_df
 
-    @timer(logger.info)
+    @timer(logger.debug)
     def parse_batch_exec_req(self, batch_event_df: pd.DataFrame):
         """
         解析 batch 执行和请求数据
