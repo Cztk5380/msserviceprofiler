@@ -5,7 +5,7 @@ import random
 import pandas as pd
 
 from ms_service_profiler.processor.processor_eplb_observe import \
-    ProcessorEplbObserve, update_expert_map, transfer_hot_df_to_list, grouping_host_name, transpose_eplb_iteration, transfer_expert_hot
+    update_expert_map, transfer_hot_df_to_list, grouping_host_name, transpose_eplb_iteration, transfer_expert_hot
 
 
 expert_num = 16
@@ -79,12 +79,16 @@ class TestProcessorEplbObserve(unittest.TestCase):
 
         self.assertEqual(golden, real)
 
-    def test_multiple_iterations(self):
-        expert_hot = [[1, 2, 3], [4, 5, 6]]
-        eplb_iteration_num = 2
-        golden = [[1, 4], [2, 5]]
-        real = transpose_eplb_iteration(expert_hot, eplb_iteration_num)
-        self.assertEqual(real, golden)
+    def test_transpose_eplb_iteration(self):
+        expert_hot = np.array([[[1, 2, 3], [4, 5, 6]], [[7, 8, 9], [10, 11, 12]]])
+        real = transpose_eplb_iteration(expert_hot, eplb_iteration_num=2)
+        golden = [
+            [np.array([1, 1, 1]), np.array([7, 1, 1])],
+            [np.array([4, 1, 1]), np.array([10, 1, 1])]
+        ]
+        for i in range(2):
+            for j in range(2):
+                self.assertTrue(np.array_equal(golden[i][j], real[i][j]))
 
     def test_single_instance_multiple_pods(self):
         expert_hot = {
