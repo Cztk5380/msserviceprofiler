@@ -101,8 +101,8 @@ def draw_hot_map_from_arr(arr, title="", x_label="", y_label="", output_path="ho
     if len(arr.shape) != 2:
         raise ValueError("arr shape size != 2")
 
-    x_pixel = max(min(arr.shape[1] // 10, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
-    y_pixel = max(min(arr.shape[0] // 10, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
+    x_pixel = max(min(arr.shape[1] // 8, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
+    y_pixel = max(min(arr.shape[0] // 8, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
 
     plt.figure(figsize=(x_pixel, y_pixel))
     plt.imshow(arr)
@@ -115,6 +115,7 @@ def draw_hot_map_from_arr(arr, title="", x_label="", y_label="", output_path="ho
 
     plt.xticks(ticks=[i for i in range(arr.shape[1])], labels=list(range(arr.shape[1])), rotation=90)
     plt.yticks(ticks=[i for i in range(arr.shape[0])], labels=list(range(arr.shape[0])))
+    plt.colorbar()
     plt.tight_layout()
     with UmaskWrapper(umask=0o137):
         plt.savefig(output_path)
