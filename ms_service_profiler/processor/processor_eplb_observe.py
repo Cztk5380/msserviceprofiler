@@ -88,9 +88,6 @@ class ProcessorEplbObserve(ProcessorBase):
                 len(pod_name_list) * \
                 len(expert_hot_by_host[pod_name]) * \
                 len(expert_hot_by_host[pod_name][0][0][0][0])
-            routing_expert_num = max(expert_routing[pod_name][0][0][0]) + 1
-            if instance_expert_num != routing_expert_num:
-                raise ValueError("Expert_nums in expert_hot and expert_routing are not same.")
 
             layer_num = len(list(expert_routing[pod_name].values())[0][0])
 
@@ -192,9 +189,6 @@ def update_expert_map(expert_map_list, expert_routing_list):
         for layer_index, expert_routing_per_layer in enumerate(expert_routing_list[eplb_iter]):
             for expert_index, routing_index in enumerate(expert_routing_per_layer):
                 expert_map[layer_index][routing_index] = expert_index
-    for expert_map in expert_map_list:
-        if -1 in expert_map:
-            raise ValueError("Transfer expert_routing to expert_map failed, please check profiling data input.")
     return expert_map_list
 
 
