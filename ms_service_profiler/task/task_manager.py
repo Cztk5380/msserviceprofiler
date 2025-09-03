@@ -55,7 +55,7 @@ class TaskManager:
                                                                state="unstart",
                                                                gather_data=deque()))
         return self.task_manager_info_dict[task_name]
-    
+
     def init_task_waiting_pool(self, src_dag, pool_index):
         for task_name, _ in src_dag.get_ordered_task_names():
             task_manager_info = self.init_task(task_name)
@@ -185,10 +185,10 @@ class TaskManager:
         # 从前往后排查 task_index 是否有值，都没有就创建一个 list 插入 deque
         gather_data = task_manager_info.get("gather_data")
         for deque_index, list_item in enumerate(gather_data):
-            if list_item[task_index] != DefaultValue.UNFILLED:
+            if list_item[task_index] is not DefaultValue.UNFILLED:
                 continue
             list_item[task_index] = data
-            if deque_index == 0 and all((x != DefaultValue.UNFILLED for x in list_item)):
+            if deque_index == 0 and all((x is not DefaultValue.UNFILLED for x in list_item)):
                 return gather_data.popleft()
             break
         else:
