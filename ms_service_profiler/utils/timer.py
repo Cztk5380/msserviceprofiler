@@ -3,6 +3,7 @@ import time
 import functools
 from ms_service_profiler.utils.log import logger
 
+
 def print_execution_time(name, execution_time, log_func):
     minutes, seconds = divmod(execution_time, 60)
     if minutes != 0:

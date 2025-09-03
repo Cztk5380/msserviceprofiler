@@ -309,7 +309,8 @@ class ProcessorReq(ProcessorBase):
 
         all_logical_batch_ids = sorted(batch_event_df_sorted["logical_batch_id"].unique())
         logical_batch_to_batch_id = {
-            lbid: idx + 1 for idx, lbid in enumerate(all_logical_batch_ids)
+            lbid: idx + 1
+            for idx, lbid in enumerate(all_logical_batch_ids)
         }
 
         batch_event_df_sorted["batch_id"] = batch_event_df_sorted["logical_batch_id"].map(logical_batch_to_batch_id)

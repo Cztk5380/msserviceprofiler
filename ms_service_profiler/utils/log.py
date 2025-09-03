@@ -13,6 +13,7 @@ LOG_LEVELS = {
     "critical": logging.CRITICAL
 }
 
+
 class Color(Enum):
     # 基础颜色
     BLACK = "\033[30m"
@@ -58,6 +59,7 @@ class Color(Enum):
     
     def __str__(self):
         return self.value
+
 
 def set_log_level(level="info"):
     if level.lower() in LOG_LEVELS:

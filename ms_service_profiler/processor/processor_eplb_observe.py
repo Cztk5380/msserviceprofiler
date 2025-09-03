@@ -211,8 +211,14 @@ def transfer_expert_hot(expert_hot, instance_pod_map):
 
 
 def transpose_eplb_iteration(expert_hot, eplb_iteration_num=1):
+    def split_expert_hot(expert_hot):
+        if expert_hot.shape[0] == 1:
+            return expert_hot
+        expert_hot[1:] -= expert_hot[:-1].copy()
+        return expert_hot
+
     res = [[] for _ in range(eplb_iteration_num)]
     for _, expert_hot_per_rank in enumerate(expert_hot):  # _ is rank
         for eplb_iteration in range(eplb_iteration_num):
-            res[eplb_iteration].append(expert_hot_per_rank[eplb_iteration])
+            res[eplb_iteration].append(split_expert_hot(expert_hot_per_rank[eplb_iteration]))
     return res

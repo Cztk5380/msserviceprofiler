@@ -76,7 +76,7 @@ class Task():
         # 一直收数据，直到收到FINISHED 消息
         self.all_gather_async(DefaultValue.SEND_FINISHED)
         msg = 'p2p'
-        while msg== 'p2p':
+        while msg == 'p2p':
             msg, recv_data = self.recv_msg()
             _, data = recv_data
             yield data
