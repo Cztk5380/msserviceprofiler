@@ -21,6 +21,7 @@ class ExporterFactory:
                     ExporterKVCacheData, ExporterLatency, ExporterPDComm, ExporterMspti, \
                     ExporterEpBalance, ExporterMoe, ExporterForwardData, ExporterCoordinator, \
                     ExporterOpSummaryCopier]
+
     @staticmethod
     def create_exporters(args):
         exporters = []
