@@ -203,7 +203,7 @@ class TaskManager:
         return None
 
     def start(self):
-        while(True):
+        while (True):
             who_task_name, who_index, msg, param = self.manager_recv_queue.get()
             if msg == "finished":
                 data, after_error = param
@@ -260,7 +260,7 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
             
     def recv_ignore_error():
         msg = "error"
-        while msg== 'error':
+        while msg == 'error':
             msg, gather_data = recv_queue.get()
             if msg != 'error':
                 return msg, gather_data
@@ -282,7 +282,7 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
     
     for task_name, next_task_name in src_dag.get_ordered_task_names():
         try:
-            _, task_index  = recv()
+            _, task_index = recv()
         
             task_info = src_dag.get_task_reg_info(task_name)
             if isinstance(task_info.task_cls, Task):
