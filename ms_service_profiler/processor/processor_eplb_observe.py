@@ -58,14 +58,14 @@ class ProcessorEplbObserve(ProcessorBase):
         # 获得实例instance-节点pod的映射
         instance_pod_map = grouping_host_name(list(expert_hot_by_host.keys()))
 
-        # expert_hot_by_instance: ["instance_name"][rank][eplb_period][iteration][layer][expert_per_rank]
+        # expert_hot_by_instance shape: ["instance_name"][rank][eplb_period][iteration][layer][expert_per_rank]
         expert_hot_by_instance = transfer_expert_hot(expert_hot_by_host, instance_pod_map)
 
         res = {}
 
         # 不存在路由表则直接返回
         if not expert_routing:
-            # res: ["instance_name"][eplb_period][rank][iteration][layer][expert_per_rank]
+            # res shape: ["instance_name"][eplb_period][rank][iteration][layer][expert_per_rank]
             res["expert_hot"] = {key: transpose_eplb_iteration(value) for key, value in expert_hot_by_instance.items()}
             return res
 
@@ -125,7 +125,7 @@ class ProcessorEplbObserve(ProcessorBase):
             expert_routing_by_pid = []
         else:
             # 静态负载均衡 or 动态负载均衡
-            # shape: eplb_perid * layer * total_model_expert_num
+            # expert_routing_by_pid shape: eplb_perid * layer * total_model_expert_num
             expert_routing_by_pid = expert_routing_df_by_pid[EXPERT_ROUTING_NAME].values.tolist()
 
             mark_id_list = expert_routing_df_by_pid["markId"].values.tolist()
@@ -148,7 +148,7 @@ class ProcessorEplbObserve(ProcessorBase):
         if len(rank_list) != 1 or not isinstance(rank_list[0], int):
             raise ValueError("Expert hot map format illegal. Value rank in one file not same.")
 
-        # shape: [eplb_period][iteration * layer * expert_per_rank]
+        # expert_hot shape: [eplb_period][iteration * layer * expert_per_rank]
         expert_hot = transfer_hot_df_to_list(split_expert_hot)
 
         rank = rank_list[0]
