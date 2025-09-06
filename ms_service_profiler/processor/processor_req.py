@@ -9,11 +9,8 @@ from ms_service_profiler.utils.timer import timer, Timer
 from ms_service_profiler.processor.processor_base import ProcessorBase
 
 
-# 定义常量标识是否已打印过
-_batch_token_iter_warning_issued = False
-
-
 class ProcessorReq(ProcessorBase):
+    _batch_token_iter_warning_issued = False
 
     @property
     def name(self):
@@ -31,16 +28,15 @@ class ProcessorReq(ProcessorBase):
         role_dict = dict(zip(role_df['pid'], role_df['name'].map(dict(prefillRes=1, decodeRes=2))))
         return role_dict
 
-    @staticmethod
-    def batch_token_iter_to_batch_type(token_iter_list):
-        global _batch_token_iter_warning_issued
+    @classmethod
+    def batch_token_iter_to_batch_type(cls, token_iter_list):
         # 统一处理空值和非列表/元组类型
         if (token_iter_list is None
                 or (np.isscalar(token_iter_list) and pd.isna(token_iter_list))
                 or not isinstance(token_iter_list, (list, tuple))):
-            if not _batch_token_iter_warning_issued:
+            if not cls._batch_token_iter_warning_issued:
                 logger.warning(f"Warning: Skipping invalid row type {type(token_iter_list)}: {token_iter_list}")
-                _batch_token_iter_warning_issued = True
+                cls._batch_token_iter_warning_issued = True
             return 1
 
         # 处理空列表
