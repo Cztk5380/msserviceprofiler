@@ -55,7 +55,7 @@ class TaskManager:
                                                                state="unstart",
                                                                gather_data=deque()))
         return self.task_manager_info_dict[task_name]
-    
+
     def init_task_waiting_pool(self, src_dag, pool_index):
         for task_name, _ in src_dag.get_ordered_task_names():
             task_manager_info = self.init_task(task_name)
@@ -185,10 +185,10 @@ class TaskManager:
         # 从前往后排查 task_index 是否有值，都没有就创建一个 list 插入 deque
         gather_data = task_manager_info.get("gather_data")
         for deque_index, list_item in enumerate(gather_data):
-            if list_item[task_index] != DefaultValue.UNFILLED:
+            if list_item[task_index] is not DefaultValue.UNFILLED:
                 continue
             list_item[task_index] = data
-            if deque_index == 0 and all((x != DefaultValue.UNFILLED for x in list_item)):
+            if deque_index == 0 and all((x is not DefaultValue.UNFILLED for x in list_item)):
                 return gather_data.popleft()
             break
         else:
@@ -203,7 +203,7 @@ class TaskManager:
         return None
 
     def start(self):
-        while(True):
+        while (True):
             who_task_name, who_index, msg, param = self.manager_recv_queue.get()
             if msg == "finished":
                 data, after_error = param
@@ -260,7 +260,7 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
             
     def recv_ignore_error():
         msg = "error"
-        while msg== 'error':
+        while msg == 'error':
             msg, gather_data = recv_queue.get()
             if msg != 'error':
                 return msg, gather_data
@@ -282,7 +282,7 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
     
     for task_name, next_task_name in src_dag.get_ordered_task_names():
         try:
-            _, task_index  = recv()
+            _, task_index = recv()
         
             task_info = src_dag.get_task_reg_info(task_name)
             if isinstance(task_info.task_cls, Task):

@@ -68,7 +68,7 @@ class ExecMindIEServer(CommandExecutor):
                 MINDIE_LLM_LOG_TO_STDOUT='1'))
 
         exit_code, has_output = self.wait("Daemon start success!", timeout=600) # 等个10分钟，10分钟都起不来，怕不是卡死了
-        
+
         print("wait result: ", exit_code, has_output)
         if exit_code is None and has_output == 0:
             return True
