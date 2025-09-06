@@ -9,6 +9,10 @@ from ms_service_profiler.utils.timer import timer, Timer
 from ms_service_profiler.processor.processor_base import ProcessorBase
 
 
+# 定义常量标识是否已打印过
+_batch_token_iter_warning_issued = False
+
+
 class ProcessorReq(ProcessorBase):
 
     @property
@@ -29,11 +33,14 @@ class ProcessorReq(ProcessorBase):
 
     @staticmethod
     def batch_token_iter_to_batch_type(token_iter_list):
+        global _batch_token_iter_warning_issued
         # 统一处理空值和非列表/元组类型
         if (token_iter_list is None
                 or (np.isscalar(token_iter_list) and pd.isna(token_iter_list))
                 or not isinstance(token_iter_list, (list, tuple))):
-            logger.warning(f"Warning: Skipping invalid row type {type(token_iter_list)}: {token_iter_list}")
+            if not _batch_token_iter_warning_issued:
+                logger.warning(f"Warning: Skipping invalid row type {type(token_iter_list)}: {token_iter_list}")
+                _batch_token_iter_warning_issued = True
             return 1
 
         # 处理空列表
@@ -257,6 +264,8 @@ class ProcessorReq(ProcessorBase):
 
     def parse(self, data_df: pd.DataFrame):
         batch_event_df, batch_attr_df = self.parse_batch(data_df)
+        batch_event_df.to_csv('/home/chepishuai/result/workspace_0901/batch_event_df_new.csv')
+        batch_attr_df.to_csv('/home/chepishuai/result/workspace_0901/batch_attr_df_new.csv')
         req_event_df, req_attr_df, req_queue_df = (
             self.parse_req(data_df, batch_event_df, batch_attr_df)
         )

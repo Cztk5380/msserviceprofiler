@@ -355,7 +355,6 @@ class ExporterBatchData(ExporterBase):
 
             # 构建batch_req_df和batch_exec_df
             batch_event_df = data.get('batch_event_df')
-            # batch_attr_df = data.get('batch_attr_df')
 
             batch_exec_df, batch_req_df = cls.parse_batch_exec_req(batch_event_df)
 
