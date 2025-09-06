@@ -17,6 +17,6 @@ class PluginCommon(PluginBase):
     def parse(cls, data):
         if data.get("tx_data_df") is None:
             return data
-
-        data["tx_data_df"] = data["tx_data_df"].replace(to_replace=np.nan, value=None)
+        if isinstance(data["tx_data_df"], pd.DataFrame):
+            data["tx_data_df"] = data["tx_data_df"].replace(to_replace=np.nan, value=None)
         return data
