@@ -102,3 +102,28 @@ def test_export_with_csv_format():
         pd.testing.assert_frame_equal(mock_save_dataframe_to_csv.call_args[0][0], expected_df)
         assert mock_save_dataframe_to_csv.call_args[0][1] == 'output_path'
         assert mock_save_dataframe_to_csv.call_args[0][2] == 'request_status.csv'
+
+def test_map_and_encode_status():
+    # 准备测试数据
+    data = {
+        'status': ['waiting', 'running', 'waiting'],
+        'other_column': [1, 2, 3]
+    }
+    df = pd.DataFrame(data)
+    metrics = {'start_datetime': '2023-10-01 12:00:00'}
+
+    # 调用方法
+    result_df = ExporterReqStatus._map_and_encode_status(df, metrics)
+
+    # 预期结果
+    expected_data = {
+        'timestamp': ['2023-10-01 12:00:00', '2023-10-01 12:00:00', '2023-10-01 12:00:00'],
+        'WAITING': [True, False, True],
+        'RUNNING': [False, True, False],
+        'PENDING': [0, 0, 0]
+    }
+
+    expected_df = pd.DataFrame(expected_data)  # 显式指定数据类型为 int
+
+    # 比较结果
+    pd.testing.assert_frame_equal(result_df, expected_df)

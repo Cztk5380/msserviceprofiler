@@ -204,7 +204,7 @@ def check_insight_table(output_path):
 
     # 校验纯表数据
     check_table_with_no_empty_data(cursor, 'batch', ['name', 'res_list', 'batch_size', 'batch_type'])
-    check_table_with_no_empty_data(cursor, 'batch_exec', ['batch_id', 'name', 'pid', 'start', 'end'])
+    check_table_with_no_empty_data(cursor, 'batch_exec', ['batch_id', 'event', 'pid', 'start', 'end'])
     check_table_with_no_empty_data(cursor, 'batch_req', ['req_id', 'iter', 'rid', 'block', 'batch_id'])
     check_has_vaild_table(cursor, 'request', ['http_rid', 'recv_token_size', 'reply_token_size'])
     check_table_with_no_empty_data(cursor, 'data_table', ['id', 'name', 'view_name'])

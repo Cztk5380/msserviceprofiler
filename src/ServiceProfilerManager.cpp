@@ -394,7 +394,13 @@ void ServiceProfilerManager::DynamicControl()
     }
 
     auto configJson = config_->ReadConfigFile();
-    auto enableFromConfig = configJson["enable"] == 1;
+    auto enableFromConfig = false;
+    try {
+        enableFromConfig = configJson["enable"] == 1;
+    } catch (std::exception &e) {
+        PROF_LOGW("Please check your config file if there is a typo: %s", e.what());
+        enableFromConfig = false;
+    }
     if (enableFromConfig && !config_->GetEnable()) {
         PROF_LOGI("Profiler Enabled...");  // LCOV_EXCL_LINE
         config_->ParseConfig(configJson);

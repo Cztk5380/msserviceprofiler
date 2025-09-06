@@ -205,7 +205,11 @@ uint32_t Config::GetProfilingSwitch() const
 }
 
 aclprofAicoreMetrics Config::ConvertStringToAicoreMetrics(const std::string& configStr) const
-{
+{   
+    if (configStr.empty()) {
+        return ACL_AICORE_NONE;
+    }
+    
     std::string upperStr;
     upperStr.reserve(configStr.size());
     
