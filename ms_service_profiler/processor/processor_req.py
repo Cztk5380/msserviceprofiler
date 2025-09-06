@@ -264,8 +264,6 @@ class ProcessorReq(ProcessorBase):
 
     def parse(self, data_df: pd.DataFrame):
         batch_event_df, batch_attr_df = self.parse_batch(data_df)
-        batch_event_df.to_csv('/home/chepishuai/result/workspace_0901/batch_event_df_new.csv')
-        batch_attr_df.to_csv('/home/chepishuai/result/workspace_0901/batch_attr_df_new.csv')
         req_event_df, req_attr_df, req_queue_df = (
             self.parse_req(data_df, batch_event_df, batch_attr_df)
         )
