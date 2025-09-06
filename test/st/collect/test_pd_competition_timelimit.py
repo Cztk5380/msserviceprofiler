@@ -1,16 +1,7 @@
 import json
 import os
-import uuid
 
-from test.st.executor.exec_benchmark import ExecBenchmark
 from test.st.executor.exec_mindie_server import ExecMindIEServer
-from test.st.executor.exec_parse import ExecParse
-from pytest_check import check
-from test.st.checker.csv_checker import check_req_csv, check_batch_csv, check_kvcache_csv
-from test.st.checker.table_checker import db_connect, check_latency_tables, check_kvcache_table
-from test.st.checker.table_checker import check_insight_tables, check_req_status_table
-from test.st.checker.trace_checker import check_chrome_tracing
-from test.st.checker.dump_checker import mindie_key_word_checker
 
 
 def test_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
@@ -28,9 +19,7 @@ def test_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
         assert mindie_server.wait("Profiler Timelimit 18 Seconds Is Reached, Profiler Disabled Successfully!", 18)
         with open(mindie_server.prof_config_path, "r", encoding="utf-8") as f:
             prof_config = json.load(f)
-        print(type(prof_config))
-        print(prof_config)
-
+        assert prof_config["enable"] == 0
 
     finally:
         if mindie_server:
