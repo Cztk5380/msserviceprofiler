@@ -136,7 +136,8 @@ class ProcessorReq(ProcessorBase):
 
         # 1. 取httpReq 和 httpRes 
         # 有问题，P 节点 和D 节点的 httpReq 和 http Res 需要区分开。需要修复 todo 
-        http_event_df = data_df[data_df["name"].isin(["httpReq", "httpRes", "decode", "DecodeEnd", "sendResponse"])]
+        http_event_df = data_df[data_df["name"].isin(["httpReq", "httpRes", "decode",
+                                                      "detokenize", "DecodeEnd", "sendResponse"])]
         req_event_df["rid"] = http_event_df["rid"]
         req_event_df["event"] = http_event_df["name"]
         req_event_df["start_time"] = http_event_df["start_time"]
@@ -207,8 +208,8 @@ class ProcessorReq(ProcessorBase):
 
         # 取请求到达时间和第一个迭代时间
         calc_df = req_event_df[(req_event_df["event"] == "httpReq") | (req_event_df["iter"] == 0)]
-        # 如果有decode ，取第一个 decode
-        first_decode = req_event_df[req_event_df["event"] == "decode"].groupby("rid").first()
+        # 如果有detokenize/decode ，取第一个 detokenize/decode
+        first_decode = req_event_df[req_event_df["event"].isin(["detokenize", "decode"])].groupby("rid").first()
         first_decode["rid"] = first_decode.index
 
         calc_df = pd.concat([calc_df, first_decode])
