@@ -1,6 +1,8 @@
 from pytest_check import check
 import os
 import pandas as pd
+
+from pathlib import Path
 from test.st.checker.checker_utils import check_df_col_has_no_nan_value, check_df_col_has_value
 from test.st.checker.checker_utils import check_df_has_no_empty_line, check_df_expected_column
 
@@ -171,3 +173,18 @@ def check_pd_split_communication_csv(output_path, complete_req_cnt=0):
 
         # 没有空行
         check_df_has_no_empty_line(df)
+
+
+def has_op_summary_csv(folder_path):
+    folder = Path(folder_path)
+    for file in folder.iterdir():
+        if file.is_file() and file.name.startswith("op_summary") and file.name.endswith(".csv"):
+            return True
+    return False
+
+def has_op_statistic_csv(folder_path):
+    folder = Path(folder_path)
+    for file in folder.iterdir():
+        if file.is_file() and file.name.startswith("op_statistic") and file.name.endswith(".csv"):
+            return True
+    return False
