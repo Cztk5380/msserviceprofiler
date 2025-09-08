@@ -8,7 +8,7 @@ from test.st.checker.domain_checker import check_db_domain
 from test.st.checker.dump_checker import mindie_key_word_checker
 
 
-def test_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
+def test_domain_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
     try:
         workspace_path = tmp_workspace
 
