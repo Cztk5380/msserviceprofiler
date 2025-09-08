@@ -3,36 +3,55 @@ import uuid
 
 from test.st.executor.exec_benchmark import ExecBenchmark
 from test.st.executor.exec_mindie_server import ExecMindIEServer
+from test.st.checker.dump_checker import grep_in_directory
 from test.st.executor.exec_parse import ExecParse
 from pytest_check import check
-from test.st.checker.csv_checker import check_req_csv, check_batch_csv, check_kvcache_csv
-from test.st.checker.table_checker import db_connect, check_latency_tables, check_kvcache_table
-from test.st.checker.table_checker import check_insight_tables, check_req_status_table
-from test.st.checker.trace_checker import check_chrome_tracing
-from test.st.checker.dump_checker import mindie_key_word_checker
 
 
 def test_acl_prof_task_time_level_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
     try:
         workspace_path = tmp_workspace
+        prof_path = os.path.join(workspace_path, "prof_data")
 
         # 启动服务
         mindie_server = ExecMindIEServer(workspace_path)
         mindie_server.set_device_id(*devices)
         mindie_server.set_mindie_path(mindie_path)
         mindie_server.set_model_path(model_path)
-        mindie_server.set_prof_config(prof_dir=os.path.join(workspace_path, "prof_data"))
-        mindie_server.set_prof_config(acl_task_time=1, acl_prof_task_time_level="L1;18")
+        mindie_server.set_prof_config(prof_dir=prof_path)
+        mindie_server.set_prof_config(enable=0)
         assert mindie_server.ready_go()
 
         # curl 一条试试深浅
         benchmark = ExecBenchmark()
         benchmark.set_model_path(model_path)
         benchmark.set_dataset_path(dataset_path)
+        mindie_server.set_prof_config(acl_task_time=1, enable=1, acl_prof_task_time_level="L1;18")
         assert benchmark.curl_test()
-        
-        mindie_server.set_prof_config(acl_task_time=0)
+
+        # 查看acl_prof_task_time_level成功后相关日志打印
+        acl_prof_task_time_level_exit_code, acl_prof_task_time_level_out = \
+            mindie_server.wait("Profiler AclTaskTimeDuration 18 Seconds Is Reached, AclTaskTime Disabled Successfully!",
+                               18)
+        if acl_prof_task_time_level_exit_code is None and acl_prof_task_time_level_out == 0:
+            acl_prof_task_time_level_success = True
+        else:
+            acl_prof_task_time_level_success = False
+        assert acl_prof_task_time_level_success == True
+
+        mindie_server.set_prof_config(acl_task_time=0, enable=0)
         mindie_server.kill()
+
+        # 对采集的特殊关键字进行校验
+        key_name = '"profLevel":"l1"'
+        check.is_true(grep_in_directory(prof_path, key_name), f"not found {key_name} in {prof_path}")
+
+        # 开始解析
+        parser = ExecParse()
+        parser.set_input_path(prof_path)
+        parser.set_output_path(os.path.join(workspace_path, "prof_data_out"))
+        assert parser.ready_go()
+
 
     finally:
         if mindie_server:
