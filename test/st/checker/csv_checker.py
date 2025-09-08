@@ -177,14 +177,14 @@ def check_pd_split_communication_csv(output_path, complete_req_cnt=0):
 
 def has_op_summary_csv(folder_path):
     folder = Path(folder_path)
-    for file in folder.iterdir():
-        if file.is_file() and file.name.startswith("op_summary") and file.name.endswith(".csv"):
-            return True
+    # 使用 rglob 递归查找所有 .csv 文件
+    for file in folder.rglob("op_summary*.csv"):
+        return True
     return False
 
 def has_op_statistic_csv(folder_path):
     folder = Path(folder_path)
-    for file in folder.iterdir():
-        if file.is_file() and file.name.startswith("op_statistic") and file.name.endswith(".csv"):
-            return True
+    # 使用 rglob 递归查找所有 .csv 文件
+    for file in folder.rglob("op_statistic*.csv"):
+        return True
     return False
