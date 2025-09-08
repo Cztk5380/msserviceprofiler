@@ -5,6 +5,7 @@ from test.st.executor.exec_benchmark import ExecBenchmark
 from test.st.executor.exec_mindie_server import ExecMindIEServer
 from test.st.checker.dump_checker import grep_in_directory
 from test.st.executor.exec_parse import ExecParse
+from test.st.checker.csv_checker import has_op_statistic_csv, has_op_summary_csv
 
 
 def test_acl_prof_task_time_level_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
