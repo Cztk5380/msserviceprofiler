@@ -42,7 +42,7 @@ def test_acl_prof_task_time_level_example(devices, mindie_path, dataset_path, mo
         mindie_server.set_prof_config(acl_task_time=0, enable=0)
         mindie_server.kill()
 
-        # 对采集的特殊关键字进行校验
+        # 对采集文件夹中的特殊关键字进行校验
         key_name = '"profLevel":"l1"'
         check.is_true(grep_in_directory(prof_path, key_name), f"not found {key_name} in {prof_path}")
 
