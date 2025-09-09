@@ -101,6 +101,10 @@ def draw_hot_map_from_arr(arr, title="", x_label="", y_label="", output_path="ho
     if len(arr.shape) != 2:
         raise ValueError("arr shape size != 2")
 
+    div = np.expand_dims(np.sum(arr, axis=1), axis=1)
+    div[div == 0] = 1  # 实际不可能为0
+    arr = arr / div
+
     x_pixel = max(min(arr.shape[1] // 8, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
     y_pixel = max(min(arr.shape[0] // 8, MAX_PLT_PIXEL), MIN_PLT_PIXEL)
 

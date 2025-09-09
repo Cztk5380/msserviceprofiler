@@ -32,18 +32,20 @@ class ProcessorEplbObserve(ProcessorBase):
         # 从tx_data_df中筛选出专家负载对应domain域的数据
         moe_hot_df = tx_data_df[tx_data_df["domain"] == MOE_HOT_DOMAIN_NAME]
         if moe_hot_df.empty:
-            logger.warning("No moe hot data found in profiling data, skip moe eplb analysis.")
+            logger.warning("No eplb_observe data found in profiling data, skip eplb_observe analysis.")
             return None
 
-        logger.info("Find moe expert hot data in profiling data, launch eplb observing analysis.")
+        logger.info("Find eplb_observe data in profiling data, launch eplb observe analysis.")
 
-        # 按照节点区分数据，并将原始的专家路由信息从list(str)处理成list(list(int))
+        # expert_hot_by_host data
         expert_hot_by_host = defaultdict(dict)
         expert_routing = {}
         for pod_name, df_by_host in moe_hot_df.groupby("hostuid"):
             expert_routing_per_pod = defaultdict(list)
 
             for _, df_by_pid in df_by_host.groupby("pid"):
+                # expert_routing_by_pid shape: list: [eplb_perid][layer][instance_expert_num]
+                # expert_hot_per_pid shape: [eplb_period][iteration * layer * expert_per_rank]
                 expert_hot_per_pid, rank, expert_routing_by_pid = self.process_expert_hot(df_by_pid)
                 expert_hot_by_host[pod_name][rank] = expert_hot_per_pid
                 if len(expert_routing_by_pid) > 0:
@@ -52,8 +54,8 @@ class ProcessorEplbObserve(ProcessorBase):
             if expert_routing_per_pod:
                 expert_routing[pod_name] = expert_routing_per_pod
 
-        # expert_hot_by_host shape: ["pod_name"][rank][eplb_period][iteration][layer][expert_per_rank]
-        # expert_routing shape: ["pod_name"]["rank"][eplb_period][layer][model_expert_num]
+        # expert_hot_by_host shape: ["pod_name"]["rank"][eplb_period][iteration * layer * expert_per_rank]
+        # expert_routing shape: ["pod_name"]["rank"][eplb_period][layer][instance_expert_num]
 
         # 获得实例instance-节点pod的映射
         instance_pod_map = grouping_host_name(list(expert_hot_by_host.keys()))
@@ -65,29 +67,30 @@ class ProcessorEplbObserve(ProcessorBase):
 
         # 不存在路由表则直接返回
         if not expert_routing:
-            # res shape: ["instance_name"][eplb_period][rank][iteration][layer][expert_per_rank]
-            res["expert_hot"] = {key: transpose_eplb_iteration(value) for key, value in expert_hot_by_instance.items()}
+            # transposed_expert_hot shape: ["instance_name"][eplb_period][rank][iteration][layer][expert_per_rank]
+            transposed_expert_hot = {key: transpose_eplb_iteration(value) for key, value in
+                                     expert_hot_by_instance.items()}
+            res["expert_hot"] = transposed_expert_hot
             return res
 
-        expert_map, transposed_expert_hot = \
-            self.mapping_expert_hot(expert_hot_by_instance, instance_pod_map, expert_routing)
-
-        res["expert_map"] = expert_map  # ["instance_name][eplb_period][layer][total_expert_num]
+        expert_map = self.mapping_expert_hot(expert_hot_by_instance, instance_pod_map, expert_routing)
+        transposed_expert_hot = {instance_name: transpose_eplb_iteration(value, len(expert_map.get(instance_name, [0])))
+                                 for instance_name, value in expert_hot_by_instance.items()}
         res["expert_hot"] = transposed_expert_hot
-
+        # expert_map shape: ["instance_name][eplb_period][layer][total_expert_num]
+        res["expert_map"] = expert_map
         return res
 
     @staticmethod
-    def mapping_expert_hot(expert_hot_by_host, instance_pod_map, expert_routing):
-        # 每个instance读音的专家映射表是一致的 根据各卡的路由表 生成专家映射表
+    def mapping_expert_hot(expert_hot_by_instance, instance_pod_map, expert_routing):
+        # 每个instance对应的专家映射表是一致的 根据各卡的路由表 生成专家映射表
         expert_map = {}
-        transposed_expert_hot = {}
         for instance_name, pod_name_list in instance_pod_map.items():
             pod_name = pod_name_list[0]
             instance_expert_num = \
                 len(pod_name_list) * \
-                len(expert_hot_by_host[pod_name]) * \
-                len(expert_hot_by_host[pod_name][0][0][0][0])
+                len(expert_hot_by_instance[instance_name]) * \
+                len(expert_hot_by_instance[instance_name][0][0][0][0])
 
             layer_num = len(list(expert_routing[pod_name].values())[0][0])
 
@@ -105,10 +108,7 @@ class ProcessorEplbObserve(ProcessorBase):
                     instance_expert_map = update_expert_map(instance_expert_map, routing_list)
 
                 expert_map[instance_name] = instance_expert_map
-
-            transposed_expert_hot[instance_name] = \
-                transpose_eplb_iteration(expert_hot_by_host[instance_name], eplb_iteration_num)
-        return expert_map, transposed_expert_hot
+        return expert_map
 
     @staticmethod
     def process_expert_hot(df_by_pid):
@@ -125,7 +125,7 @@ class ProcessorEplbObserve(ProcessorBase):
             expert_routing_by_pid = []
         else:
             # 静态负载均衡 or 动态负载均衡
-            # expert_routing_by_pid shape: eplb_perid * layer * total_model_expert_num
+            # expert_routing_by_pid shape: list: [eplb_perid][layer][instance_expert_num]
             expert_routing_by_pid = expert_routing_df_by_pid[EXPERT_ROUTING_NAME].values.tolist()
 
             mark_id_list = expert_routing_df_by_pid["markId"].values.tolist()
@@ -148,6 +148,7 @@ class ProcessorEplbObserve(ProcessorBase):
         if len(rank_list) != 1 or not isinstance(rank_list[0], int):
             raise ValueError("Expert hot map format illegal. Value rank in one file not same.")
 
+        # split_expert_hot shape: [eplb_period][dataframe]
         # expert_hot shape: [eplb_period][iteration * layer * expert_per_rank]
         expert_hot = transfer_hot_df_to_list(split_expert_hot)
 
@@ -157,12 +158,15 @@ class ProcessorEplbObserve(ProcessorBase):
 
 
 def transfer_hot_df_to_list(dataframe_list):
+    # 将dataframe中的专家热点数据转换为np.array数据
     res = []
     for dataframe in dataframe_list:
+        # item shape: [iteration * layer * expert_per_rank]
         item = np.array(dataframe["expert_hot"].values.tolist())
         if item.ndim != 3:
             raise ValueError("Expert hot format illegal, should be [iteration, layer_num, expert_num_per_rank")
         res.append(item)
+    # res shape: [eplb_period][iteration * layer * expert_per_rank]
     return res
 
 
@@ -176,19 +180,22 @@ def grouping_host_name(host_name_list):
         if not isinstance(host_name, str):
             raise ValueError("hostuid should be str.")
         split_host_name = host_name.split("-")
+        # 如果按照”-“划分失败 则默认所有数据是属于同一个instance
         if len(split_host_name) < 3:
-            return {host_name_list[0]: host_name_list}  # not k8s, assume pods are in one instance
+            return {host_name_list[0]: host_name_list}
         instance_name = '-'.join(split_host_name[:-2])
         grouping_dict[instance_name].append(host_name)
     return grouping_dict
 
 
 def update_expert_map(expert_map_list, expert_routing_list):
+    # 将expert_routing转换为expert_map
     for eplb_iter, expert_map in enumerate(expert_map_list):
         expert_map = expert_map_list[eplb_iter]
         for layer_index, expert_routing_per_layer in enumerate(expert_routing_list[eplb_iter]):
             for expert_index, routing_index in enumerate(expert_routing_per_layer):
                 expert_map[layer_index][routing_index] = expert_index
+    # expert_map_list shape: [eplb_iteration][layer_num][instance_expert_num]
     return expert_map_list
 
 
@@ -205,11 +212,14 @@ def transfer_expert_hot(expert_hot, instance_pod_map):
 
 
 def transpose_eplb_iteration(expert_hot, eplb_iteration_num=1):
-    def split_expert_hot(expert_hot):
-        if expert_hot.shape[0] == 1:
-            return expert_hot
-        expert_hot[1:] -= expert_hot[:-1].copy()
-        return expert_hot
+    # 转置 输入 ["instance_name"][rank][eplb_period][iteration][layer][expert_per_rank]
+    # 转置为 ["instance_name"][eplb_period][rank][iteration][layer][expert_per_rank]
+
+    def split_expert_hot(input_expert_hot):
+        if input_expert_hot.shape[0] == 1:
+            return input_expert_hot
+        input_expert_hot[1:] -= input_expert_hot[:-1].copy()
+        return input_expert_hot
 
     res = [[] for _ in range(eplb_iteration_num)]
     for _, expert_hot_per_rank in enumerate(expert_hot):  # _ is rank
