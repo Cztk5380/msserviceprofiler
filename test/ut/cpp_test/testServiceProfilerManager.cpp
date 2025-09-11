@@ -26,7 +26,7 @@
 using namespace ::testing;
 
 void MarkEventLongAttr(const char *msg);
-namespace msServiceProfiler { void Write2Tx(const std::vector<int> &memoryInfo, const std::string metricName); }
+namespace msServiceProfiler { void DeviceMemoryWrite2Tx(const std::vector<int> &memoryInfo, const std::string metricName); }
 
 using namespace msServiceProfiler;
 
@@ -240,8 +240,6 @@ TEST(ProfilerTest, MsprofSetDeviceCallbackImplDeviceID)
     uint32_t len = sizeof(ProfSetDevParaDevice);
     MsprofSetDeviceCallbackImpl(data, len);
 }
-extern int g_deviceID;
-extern bool g_startFlag;
 
 TEST(ProfilerTest, MsprofSetDeviceCallbackImplStartServerProfiler1)
 {
@@ -249,8 +247,6 @@ TEST(ProfilerTest, MsprofSetDeviceCallbackImplStartServerProfiler1)
     temp.deviceId = 1;
     DATA_PTR data = &temp;
     uint32_t len = sizeof(ProfSetDevParaDevice);
-    g_deviceID = 1;
-    g_startFlag = true;
     MsprofSetDeviceCallbackImpl(data, len);
 }
 
@@ -260,8 +256,6 @@ TEST(ProfilerTest, MsprofSetDeviceCallbackImplStartServerProfiler2)
     temp.deviceId = 1;
     DATA_PTR data = &temp;
     uint32_t len = sizeof(ProfSetDevParaDevice);
-    g_deviceID = 2;
-    g_startFlag = true;
     MsprofSetDeviceCallbackImpl(data, len);
 }
 
@@ -578,27 +572,25 @@ TEST(ProfilerTest, TestWrite2TxMemoryInfoEmpty)
 {
     std::vector<int> memoryInfo;
     std::string metricName;
-    Write2Tx(memoryInfo, metricName);
+    DeviceMemoryWrite2Tx(memoryInfo, metricName);
 }
 
 TEST(ProfilerTest, TestWrite2Tx)
 {
     std::vector<int> memoryInfo {1, 1};
     std::string metricName;
-    Write2Tx(memoryInfo, metricName);
+    DeviceMemoryWrite2Tx(memoryInfo, metricName);
 }
-
-extern bool g_threadRunFlag;
 
 TEST(ProfilerTest, ThreadFunctionTimeLimit)
 {
     ServiceProfilerManager manager;
     manager.started_ = true;
     manager.config_->SetTimeLimit(1);
-    g_threadRunFlag = true;
-    std::thread([]() {
+    manager.threadRunFlag_ = true;
+    std::thread([&manager]() {
         std::this_thread::sleep_for(std::chrono::seconds(2)); // 等待 1 秒
-        g_threadRunFlag = false;
+        manager.threadRunFlag_ = false;
         std::cout << "g_threadRunFlag has been set to false." << std::endl;
     }).detach();
     manager.ThreadFunction();
@@ -607,12 +599,12 @@ TEST(ProfilerTest, ThreadFunctionTimeLimit)
 TEST(ProfilerTest, ThreadFunctionAclTaskTimeLimit)
 {
     ServiceProfilerManager manager;
-    manager.npuFlag_ = true;
+    manager.aclProfStarted_ = true;
     manager.config_->SetAclTaskTimeDuration(1);
-    g_threadRunFlag = true;
-    std::thread([]() {
+    manager.threadRunFlag_ = true;
+    std::thread([&manager]() {
         std::this_thread::sleep_for(std::chrono::seconds(2)); // 等待 1 秒
-        g_threadRunFlag = false;
+        manager.threadRunFlag_ = false;
         std::cout << "g_threadRunFlag has been set to false." << std::endl;
     }).detach();
     manager.ThreadFunction();
@@ -621,14 +613,14 @@ TEST(ProfilerTest, ThreadFunctionAclTaskTimeLimit)
 TEST(ProfilerTest, ThreadFunctionGetEnable)
 {
     ServiceProfilerManager manager;
-    manager.npuFlag_ = true;
+    manager.aclProfStarted_ = true;
     manager.config_->SetEnable(true);
     manager.config_->npuMemoryUsage_ = true;
     manager.isMaster_ = true;
-    g_threadRunFlag = true;
-    std::thread([]() {
+    manager.threadRunFlag_ = true;
+    std::thread([&manager]() {
         std::this_thread::sleep_for(std::chrono::seconds(1)); // 等待 1 秒
-        g_threadRunFlag = false;
+        manager.threadRunFlag_ = false;
         std::cout << "g_threadRunFlag has been set to false." << std::endl;
     }).detach();
     manager.ThreadFunction();
@@ -637,14 +629,14 @@ TEST(ProfilerTest, ThreadFunctionGetEnable)
 TEST(ProfilerTest, ThreadFunctionGetEnable2)
 {
     ServiceProfilerManager manager;
-    manager.npuFlag_ = true;
+    manager.aclProfStarted_ = true;
     manager.config_->SetEnable(false);
     manager.config_->npuMemoryUsage_ = false;
     manager.isMaster_ = true;
-    g_threadRunFlag = true;
-    std::thread([]() {
+    manager.threadRunFlag_ = true;
+    std::thread([&manager]() {
         std::this_thread::sleep_for(std::chrono::seconds(1)); // 等待 2 秒
-        g_threadRunFlag = false;
+        manager.threadRunFlag_ = false;
         std::cout << "g_threadRunFlag has been set to false." << std::endl;
     }).detach();
     manager.ThreadFunction();
@@ -671,18 +663,16 @@ TEST(ProfilerTest, SetAclProfHostSysConfigMEN)
 TEST(ProfilerTest, ProfCreateConfig)
 {
     ServiceProfilerManager manager;
-    g_deviceID = static_cast<uint32_t>(-1);
 
-    manager.ProfCreateConfig();
+    manager.ProfCreateConfig(-1);
 }
 
 TEST(ProfilerTest, ProfCreateConfigL1)
 {
     ServiceProfilerManager manager;
-    g_deviceID = 1;
     manager.config_->enableAclTaskTime_ = 1;
     manager.config_->aclTaskTimeLevel_ = "L1";
-    manager.ProfCreateConfig();
+    manager.ProfCreateConfig(1);
 }
 
 TEST(ProfilerTest, StartMsptiProf)
@@ -695,18 +685,18 @@ TEST(ProfilerTest, StartMsptiProf)
 TEST(ProfilerTest, StopAclTaskTimeMsptiEnabled)
 {
     ServiceProfilerManager manager;
-    manager.msptiEnabled = true;
-    manager.StopAclTaskTime();
+    manager.msptiStarted_ = true;
+    manager.StopAclProf();
 }
 
 TEST(ProfilerTest, StopAclTaskTime)
 {
     ServiceProfilerManager manager;
-    manager.msptiEnabled = false;
+    manager.msptiStarted_ = false;
     manager.config_->enableAclTaskTime_ = 1;
     manager.config_->hostCpuUsage_ = true;
     manager.config_->hostMemoryUsage_ = true;
-    manager.StopAclTaskTime();
+    manager.StopAclProf();
 }
 
 TEST(ProfilerTest, TestMarkFirstProcessAsMainShmOpenFailedUseSysMock)

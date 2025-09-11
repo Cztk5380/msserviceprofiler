@@ -7,6 +7,7 @@
 
 #include <cstdio>
 #include <unistd.h> // for getpid()
+#include "./Utils.h" // for getTid()
 
 namespace msServiceProfiler {
     // 日志级别枚举
@@ -33,7 +34,8 @@ namespace msServiceProfiler {
 #define PROF_LOGD(...) \
     do { \
         if (msServiceProfiler::ProfLogGetLevel() >= msServiceProfiler::ProfLogLevel::PROF_LOG_DEBUG) { \
-            printf("[msservice_profiler] [PID:%d] [DEBUG] [%s:%d] ", getpid(), __func__, __LINE__); \
+            printf("[msservice_profiler] [PID:%d] [TID:%d] [DEBUG] [%s:%d] ", getpid(), MsUtils::GetTid(), \
+                __func__, __LINE__); \
             printf(__VA_ARGS__); \
             printf("\n"); \
         } \

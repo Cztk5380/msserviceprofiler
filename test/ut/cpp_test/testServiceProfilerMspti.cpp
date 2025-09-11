@@ -24,7 +24,7 @@ using namespace ::testing;
 
 void MarkEventLongAttr(const char *msg);
 namespace msServiceProfiler {
-void Write2Tx(const std::vector<int> &memoryInfo, const std::string metricName);
+void DeviceMemoryWrite2Tx(const std::vector<int> &memoryInfo, const std::string metricName);
 void UserBufferComplete(uint8_t *buffer, size_t size, size_t validSize);
 void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords);
 }  // namespace msServiceProfiler

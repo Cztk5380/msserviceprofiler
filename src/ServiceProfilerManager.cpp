@@ -40,16 +40,10 @@
 namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
-constexpr int STRING_TO_UINT_BASE = 10;
 constexpr int SPAN_CACHE_LEN = 64;
-constexpr uint32_t INVALID_DEVICE_ID = static_cast<uint32_t>(-1);
 }  // end of anonymous namespace
 
-// 全局标志位，用于控制线程退出
-std::atomic<bool> g_threadRunFlag(true);
-uint32_t g_deviceID = INVALID_DEVICE_ID;
 std::atomic<u_int64_t> g_markIndex(0);
-bool g_startFlag = false;
 
 using DATA_PTR = struct ProfSetDevParaDevice *;
 
@@ -59,26 +53,6 @@ struct ProfSetDevParaDevice {
     bool isOpen;
 };
 
-static uint64_t GetCurrentTimeInNanoseconds()
-{
-    // 获取当前时间点
-    auto now = std::chrono::high_resolution_clock::now();
-
-    // 转换为从epoch开始的时间跨度
-    auto duration = now.time_since_epoch();
-
-    // 转换为纳秒计数
-    auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration);
-
-    // 返回int64_t类型的纳秒数
-    return static_cast<uint64_t>(nanoseconds.count());
-}
-
-static uint32_t GetTid()
-{
-    return static_cast<uint32_t>(syscall(SYS_gettid));
-}
-
 static uint64_t *GetSpanStartTimeCache()
 {
     thread_local u_int64_t cacheSpanStartTime[SPAN_CACHE_LEN + 8];
@@ -87,11 +61,12 @@ static uint64_t *GetSpanStartTimeCache()
 
 SpanHandle StartSpanWithName(const char *name)
 {
+    // 对外接口，纯用户线程，无多线程数据交互
     if (name == nullptr) {
         return StartSpan();
     }
 
-    auto timestamp = GetCurrentTimeInNanoseconds();
+    auto timestamp = MsUtils::GetCurrentTimeInNanoseconds();
     uint64_t *timeCache = GetSpanStartTimeCache();
     auto threadMarkId = timeCache[0];
     threadMarkId++;
@@ -109,11 +84,12 @@ SpanHandle StartSpan()
 
 void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
 {
+    // 对外接口，用户线程，数据通过 dbBuffer[线程安全] 给到 dbWriter 线程
     if (msg == nullptr) {
         return;
     }
 
-    thread_local uint32_t tid = GetTid();  // 每个线程有自己的副本
+    thread_local uint32_t tid = MsUtils::GetTid();  // 每个线程有自己的副本
 
     uint64_t *timeCache = GetSpanStartTimeCache();
     auto location = spanHandle % SPAN_CACHE_LEN + 1;
@@ -122,7 +98,7 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
     auto marker = std::make_unique<msServiceProfiler::DbActivityMarker>();
     marker->flag = msServiceProfiler::ActivityFlag::ACTIVITY_FLAG_MARKER_SPAN;
     marker->timestamp = stratTimestamp;
-    marker->endTimestamp = GetCurrentTimeInNanoseconds();
+    marker->endTimestamp = MsUtils::GetCurrentTimeInNanoseconds();
     marker->id = g_markIndex.fetch_add(1);
     marker->processId = static_cast<uint32_t>(getpid());
     marker->threadId = tid;
@@ -138,14 +114,15 @@ void EndSpan(SpanHandle spanHandle)
 
 void MarkEvent(const char *msg)
 {
+    // 对外接口，用户线程，数据通过 dbBuffer[线程安全] 给到 dbWriter 线程
     if (msg == nullptr) {
         return;
     }
 
-    thread_local uint32_t tid = GetTid();  // 每个线程有自己的副本
+    thread_local uint32_t tid = MsUtils::GetTid();  // 每个线程有自己的副本
     auto marker = std::make_unique<msServiceProfiler::DbActivityMarker>();
     marker->flag = msServiceProfiler::ActivityFlag::ACTIVITY_FLAG_MARKER_EVENT;
-    marker->timestamp = GetCurrentTimeInNanoseconds();
+    marker->timestamp = MsUtils::GetCurrentTimeInNanoseconds();
     marker->endTimestamp = marker->timestamp;
     marker->id = g_markIndex.fetch_add(1);
     marker->processId = static_cast<uint32_t>(getpid());
@@ -157,43 +134,51 @@ void MarkEvent(const char *msg)
 
 void StartServerProfiler()
 {
-    msServiceProfiler::ServiceProfilerManager::GetInstance().StartProfiler();
+    // 对外接口，用户线程，通过原子变量，将开始事件通知到 Manager 工作线程
+    msServiceProfiler::ServiceProfilerManager::GetInstance().NotifyStartProfiler();
 }
 
 void StopServerProfiler()
 {
-    msServiceProfiler::ServiceProfilerManager::GetInstance().StopProfiler();
+    // 对外接口，用户线程，通过原子变量，将关闭事件通知到 Manager 工作线程
+    msServiceProfiler::ServiceProfilerManager::GetInstance().NotifyStopProfiler();
 }
 
 bool IsEnable(uint32_t level)
 {
+    // 对外接口，用户线程，用户线程只读取，工作线程会变更，为了速度，不做保护，判断错了也无所谓
     return msServiceProfiler::ServiceProfilerManager::GetInstance().IsEnable(level);
 }
 
 bool IsValidDomain(const char *domainName)
 {
+    // 对外接口，用户线程，用户线程只读取，工作线程会变更，有一定风险，做了部分消减
     const std::set<std::string> &allowNames = msServiceProfiler::ServiceProfilerManager::GetInstance().GetValidDomain();
     return allowNames.size() == 0 || allowNames.find(std::string(domainName)) != allowNames.end();
 }
 
 bool GetEnableDomainFilter()
 {
+    // 老对外接口，计划兼容一年后日落
     return msServiceProfiler::ServiceProfilerManager::GetInstance().GetEnableDomainFilter();
 }
 
 const std::set<std::string> &GetValidDomain()
 {
+    // 老对外接口，计划兼容一年后日落
     return msServiceProfiler::ServiceProfilerManager::GetInstance().GetValidDomain();
 }
 
 void AddMetaInfo(const char *key, const char *value)
 {
+    // 对外接口，用户线程，数据通过 dbBuffer[线程安全] 给到 dbWriter 线程
     msServiceProfiler::InsertTxData2Writer(
         std::move(std::make_unique<msServiceProfiler::DbActivityMeta>(msServiceProfiler::DbActivityMeta{key, value})));
 }
 
 void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
 {
+    // 不知道什么线程来的，一切皆有可能
     if (len != sizeof(::ProfSetDevParaDevice)) {
         return;
     }
@@ -201,19 +186,18 @@ void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
         return;
     }
     DATA_PTR setCfg = static_cast<DATA_PTR>(data);
+    static uint32_t sdeviceID = msServiceProfiler::INVALID_DEVICE_ID;
 
-    if (setCfg->deviceId != g_deviceID && g_startFlag) {
-        g_deviceID = setCfg->deviceId;
-        StopServerProfiler();
-        StartServerProfiler();
-    } else {
-        g_deviceID = setCfg->deviceId;
+    if (setCfg->deviceId != sdeviceID) {
+        sdeviceID = setCfg->deviceId;
+        msServiceProfiler::ServiceProfilerManager::GetInstance().NotifyDeviceID(sdeviceID);
     }
     return;
 }
 
 static void RegisterSetDeviceCallback()
 {
+    // 在工作线程中执行
     void *handle = dlopen("libprofapi.so", RTLD_LAZY | RTLD_LOCAL);
     if (handle == nullptr) {
         PROF_LOGW("Failed to dlopen libprofapi.so. Will be not able to get device profiling data. "  // LCOV_EXCL_LINE
@@ -235,33 +219,6 @@ static void RegisterSetDeviceCallback()
 }
 
 namespace msServiceProfiler {
-static inline unsigned long Str2Uint(const std::string &str)
-{
-    char *endPtr;
-    return std::strtoul(str.c_str(), &endPtr, STRING_TO_UINT_BASE);
-}
-
-bool MakeDirs(const std::string &dirPath)
-{
-    if (access(dirPath.c_str(), F_OK) == 0) {
-        return true;
-    }
-    auto pathLen = dirPath.size();
-    decltype(pathLen) offset = 0;
-
-    do {
-        const char *str = strchr(dirPath.c_str() + offset, '/');
-        offset = (str == nullptr) ? pathLen : str - dirPath.c_str() + 1;
-        std::string curPath = dirPath.substr(0, offset);
-        if (access(curPath.c_str(), F_OK) != 0) {
-            int ret = mkdir(curPath.c_str(), S_IRWXU | S_IRGRP | S_IXGRP);
-            if (ret != 0 && errno != EEXIST) {
-                return false;
-            }
-        }
-    } while (offset != pathLen);
-    return true;
-}
 
 ServiceProfilerManager &ServiceProfilerManager::GetInstance()
 {
@@ -275,11 +232,13 @@ ServiceProfilerManager::ServiceProfilerManager()
     ProfLogInit();
     MarkFirstProcessAsMain();
     config_->ReadAndSaveConfig();
-    RegisterSetDeviceCallback();
     if (config_->GetEnable()) {
-        StartProfiler();
+        // 只有这一个地方是用户线程调用初始化，其他的都放到 manager 工作线程中
+        StartProfiler(true);
     }
+    notifyStarted = started_;  // 在构造的时候同步一次，其他都在线程中，如果值不一样，在线程中启动或关闭prof
     LaunchThread();
+    PROF_LOGD("ServiceProfilerManager Init Finished");
 }
 
 ServiceProfilerManager::~ServiceProfilerManager()
@@ -290,7 +249,7 @@ ServiceProfilerManager::~ServiceProfilerManager()
     }
 
     if (this->thread_.joinable()) {
-        g_threadRunFlag = false;
+        threadRunFlag_ = false;
         this->thread_.join();
     }
 }
@@ -305,6 +264,8 @@ std::string ServiceProfilerManager::ToSemName(const std::string &oriSemName)
 
 void ServiceProfilerManager::MarkFirstProcessAsMain()
 {
+    // 在用户线程调用，只在初始化中调用一次，不涉及其他模块
+
     const size_t mmapSize = 1024;     // 共享内存对象的大小
     const size_t infoMaxSize = 1000;  // 内存中信息的最大大小
 
@@ -339,7 +300,7 @@ void ServiceProfilerManager::MarkFirstProcessAsMain()
 
     auto splitInfo = MsUtils::SplitStr(infoStr, ',');  // 格式为： pid,目录。所以使用逗号分隔开
     if (!splitInfo.second.empty()) {
-        pid_t pid = static_cast<pid_t>(Str2Uint(splitInfo.first));  // 检查的进程 PID, 如果存在，就将和它放到一个目录中
+        pid_t pid = static_cast<pid_t>(MsUtils::Str2Uint(splitInfo.first));  // 检查的进程 PID, 如果存在，就将和它放到一个目录中
         if (kill(pid, 0) == 0) {
             isMaster_ = false;
             config_->SetProfPathDateTail(std::string(splitInfo.second.c_str()));
@@ -362,21 +323,11 @@ void ServiceProfilerManager::LaunchThread()
     this->thread_ = std::thread(&ServiceProfilerManager::ThreadFunction, this);
 }
 
-// Funtion that write info to tx
-void Write2Tx(const std::vector<int> &memoryInfo, const std::string metricName)
-{
-    for (long unsigned int i = 0; i < memoryInfo.size(); i++) {
-        msServiceProfiler::Profiler<msServiceProfiler::INFO>()
-            .Domain("npu")
-            .Metric(metricName.c_str(), memoryInfo[i])
-            .MetricScope("device", i)
-            .Launch();
-    }
-}
-
 // Dynamic Control according to config file modification
 void ServiceProfilerManager::DynamicControl()
 {
+    // 只在 Manager 的工作线程中执行，会启动或者关停服务
+
     auto configPath = config_->GetConfigPath();
     if (configPath.empty()) {
         return;
@@ -394,21 +345,16 @@ void ServiceProfilerManager::DynamicControl()
     }
 
     auto configJson = config_->ReadConfigFile();
-    auto enableFromConfig = false;
-    try {
-        enableFromConfig = configJson["enable"] == 1;
-    } catch (std::exception &e) {
-        PROF_LOGW("Please check your config file if there is a typo: %s", e.what());
-        enableFromConfig = false;
-    }
+    bool enableFromConfig = config_->ParseEnable(configJson, true);
+
     if (enableFromConfig && !config_->GetEnable()) {
         PROF_LOGI("Profiler Enabled...");  // LCOV_EXCL_LINE
         config_->ParseConfig(configJson);
-        StartServerProfiler();
+        StartProfiler();
         PROF_LOGI("Profiler Enabled Successfully!");  // LCOV_EXCL_LINE
     } else if (!enableFromConfig && config_->GetEnable()) {
         PROF_LOGI("Profiler Disabled...");  // LCOV_EXCL_LINE
-        StopServerProfiler();
+        StopProfiler();
         PROF_LOGI("Profiler Disabled Successfully!");  // LCOV_EXCL_LINE
     }
 }
@@ -416,14 +362,45 @@ void ServiceProfilerManager::DynamicControl()
 // 线程函数：npu usage and dynamic monitor
 void ServiceProfilerManager::ThreadFunction()
 {
+    PROF_LOGD("profiler thread launched");  // LCOV_EXCL_LINE
+    RegisterSetDeviceCallback(); // 获取device id , 变化  deviceID_ 
+    uint32_t deviceID = deviceID_.load();
+    PROF_LOGD("start prof device id is %u", deviceID);  // LCOV_EXCL_LINE
+    if (config_->GetEnable()) {
+        StartAclProfiler(config_->GetProfPath(), deviceID);
+    }
+
     msServiceProfiler::NpuMemoryUsage npuMemoryUsage = msServiceProfiler::NpuMemoryUsage();
     AddMetaInfo("ppid", std::to_string(getppid()).c_str());
 
-    while (g_threadRunFlag) {
+    int heartbeat = 0;
+    while (threadRunFlag_) {
         // dynamic start_and_stop
+        if (heartbeat++ % (60000 / config_->GetNpuMemorySleepMilliseconds()) == 0)
+        {
+            PROF_LOGD("manager thread heartbeat");  // LCOV_EXCL_LINE
+        }
+
         std::this_thread::sleep_for(std::chrono::milliseconds(config_->GetNpuMemorySleepMilliseconds()));
 
         DynamicControl();
+
+        bool startFlagFromNotify = notifyStarted.load();
+        if (startFlagFromNotify != started_) {
+            if (startFlagFromNotify) {
+                StartProfiler();
+                deviceID = deviceID_.load();
+            } else {
+                StopProfiler();
+            }
+        } 
+
+        uint32_t nowDeviceID = deviceID_.load();
+        if (nowDeviceID != deviceID && started_ && config_->IsAclProf()) {
+            StopAclProf();
+            StartAclProf(config_->GetProfPath(), nowDeviceID);
+        }
+        deviceID = nowDeviceID;
 
         if (config_->GetTimeLimit() > 0 && started_) {
             auto terminate = std::chrono::high_resolution_clock::now();  // 记录结束时间
@@ -439,13 +416,13 @@ void ServiceProfilerManager::ThreadFunction()
             }
         }
         // 单独控制算子采集
-        if (config_->GetAclTaskTimeDuration() > 0 && npuFlag_) {
+        if (config_->GetAclTaskTimeDuration() > 0 && aclProfStarted_) {
             auto terminate = std::chrono::high_resolution_clock::now();  // 记录结束时间
 
             auto duration = std::chrono::duration_cast<std::chrono::seconds>(terminate - initiate);
 
             if (duration.count() >= config_->GetAclTaskTimeDuration()) {
-                StopAclTaskTime();
+                StopAclProf();
                 PROF_LOGI("Profiler AclTaskTimeDuration %d Seconds Is Reached, "  // LCOV_EXCL_LINE
                           "AclTaskTime Disabled Successfully!",
                     config_->GetAclTaskTimeDuration());  // LCOV_EXCL_LINE
@@ -455,9 +432,23 @@ void ServiceProfilerManager::ThreadFunction()
 
         RecordMemoryUsage(npuMemoryUsage);
 
-        if (msptiEnabled) {
+        if (msptiStarted_) {
             FlushBufferByTime();
         }
+    }
+    PROF_LOGD("profiler thread stop loop");  // LCOV_EXCL_LINE
+    StopProfiler();
+}
+
+// Funtion that write info to tx
+void DeviceMemoryWrite2Tx(const std::vector<int> &memoryInfo, const std::string metricName)
+{
+    for (long unsigned int i = 0; i < memoryInfo.size(); i++) {
+        msServiceProfiler::Profiler<msServiceProfiler::INFO>()
+            .Domain("npu")
+            .Metric(metricName.c_str(), memoryInfo[i])
+            .MetricScope("device", i)
+            .Launch();
     }
 }
 
@@ -476,8 +467,8 @@ void ServiceProfilerManager::RecordMemoryUsage(NpuMemoryUsage& npuMemoryUsage)
         std::vector<int> memoryUsed;
         std::vector<int> memoryUtiliza;
         if (npuMemoryUsage.GetByDcmi(memoryUsed, memoryUtiliza) == EXITCODE_SUCCESS) {
-            Write2Tx(memoryUsed, "usage");
-            Write2Tx(memoryUtiliza, "utiliza");
+            DeviceMemoryWrite2Tx(memoryUsed, "usage");
+            DeviceMemoryWrite2Tx(memoryUtiliza, "utiliza");
         }
     } catch (std::exception &e) {
         PROF_LOGD("get npu memory usage failed");  // LCOV_EXCL_LINE
@@ -504,23 +495,23 @@ void ServiceProfilerManager::SetAclProfHostSysConfig() const
         strlen(std::to_string(config_->GetHostFreq()).c_str()));
 }
 
-AclprofConfig *ServiceProfilerManager::ProfCreateConfig()
+AclprofConfig *ServiceProfilerManager::ProfCreateConfig(uint32_t deviceID)
 {
     uint32_t profSwitch = ACL_PROF_MSPROFTX;
     uint32_t deviceIdList[MAX_DEVICE_NUM] = {0};
-    uint32_t deviceNums = g_deviceID == INVALID_DEVICE_ID ? 0 : 1;
-    if (g_deviceID != INVALID_DEVICE_ID) {
-        deviceIdList[0] = g_deviceID;
+    uint32_t deviceNums = deviceID == INVALID_DEVICE_ID ? 0 : 1;
+    if (deviceNums > 0) {
+        deviceIdList[0] = deviceID;
 
         if (config_->GetEnableAclTaskTime()) {
             profSwitch = config_->GetProfilingSwitch();
-            npuFlag_ = true;
         }
     }
     // 创建性能采集配置
     aclprofAicoreMetrics aicoreMetricsEnum = config_->GetAclProfAicoreMetrics();
     PROF_LOGD("Current profSwitch configuration: Hex: 0x%x", profSwitch);
     PROF_LOGD("Current aicoreMetricsEnum configuration: %d", aicoreMetricsEnum);
+    PROF_LOGD("Current deviceID configuration: %d, %d", deviceNums, deviceIdList[0]);
     auto profConfig = aclprofCreateConfig(
         deviceIdList,
         deviceNums,
@@ -535,7 +526,7 @@ AclprofConfig *ServiceProfilerManager::ProfCreateConfig()
     return profConfig;
 }
 
-void ServiceProfilerManager::StartProfiler()
+void ServiceProfilerManager::StartProfiler(bool isInit)
 {
     if (started_) {
         return;
@@ -544,7 +535,7 @@ void ServiceProfilerManager::StartProfiler()
     initiate = std::chrono::high_resolution_clock::now();  // 记录开始时间
 
     auto profPath = config_->GetProfPath();
-    if (!MakeDirs(profPath)) {
+    if (!MsUtils::MakeDirs(profPath)) {
         PROF_LOGE(
             "Failed to create directory(%s), possibly due to lack of permission", profPath.c_str());  // LCOV_EXCL_LINE
         // 无法创建目录，就直接返回
@@ -552,112 +543,142 @@ void ServiceProfilerManager::StartProfiler()
         return;
     }
     PROF_LOGI("prof path: %s", profPath.c_str());  // LCOV_EXCL_LINE
+    // 服务化数据开始采集
     StartTxData2Writer(profPath);
+
+    if (!isInit) {
+        // 在构造的时候，不初始化这些不重要的，在工作线程中初始化一次
+        StartAclProfiler(profPath, deviceID_.load());
+    }
+
+    // 设置标志位
+    config_->SetEnable(true);
+    started_ = true;
+    notifyStarted = true; // 处理完同步一次状态, 等待下一次通知
+}
+
+void ServiceProfilerManager::StartAclProfiler(const std::string& profPath, uint32_t deviceID)
+{
     if (config_->GetMsptiEnable()) {
+        // mspti 数据开始采集
         StartMsptiProf(profPath);
+    } else if (config_->IsAclProf()) {
+        // msprof 数据开始采集
+        StartAclProf(profPath, deviceID);
     } else {
-        StartAclProf(profPath);
+        // 无算子采集
     }
 }
 
-void ServiceProfilerManager::StartMsptiProf(std::string &profPath)
+
+void ServiceProfilerManager::StartMsptiProf(const std::string &profPath)
 {
     auto ret = InitMspti(profPath, msptiHandle_);
     if (ret != 0) {
         PROF_LOGE("Mspti init failed.");  // LCOV_EXCL_LINE
-        msptiEnabled = false;
+        msptiStarted_ = false;
     } else {
         InitMsptiActivity(config_->GetMsptiEnable());
         auto apiFilter_ = config_->GetApiFilter();
         auto kernelFilter_ = config_->GetKernelFilter();
         InitMsptiFilter(apiFilter_, kernelFilter_);
-        msptiEnabled = true;
+        msptiStarted_ = true;
     }
-
-    // 设置标志位
-    config_->SetEnable(true);
-    g_threadRunFlag = true;
-    started_ = true;
-    g_startFlag = true;
 }
 
-void ServiceProfilerManager::StartAclProf(std::string &profPath)
+void ServiceProfilerManager::StartAclProf(const std::string &profPath, uint32_t deviceID)
 {
-    PROF_LOGD("StartAclProf device_id: %d", static_cast<int>(g_deviceID));  // LCOV_EXCL_LINE
-    if (config_->IsAclProf()) {
-        aclError ret = aclprofInit(profPath.c_str(), profPath.size());
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            return;
-        }
-
-        if (ret == ACL_ERROR_NONE && isMaster_) {
-            SetAclProfHostSysConfig();
-        }
-
-        auto profConfig = ProfCreateConfig();
-        if (profConfig == nullptr) {
-            config_->SetEnable(false);
-            return;
-        }
-
-        PROF_LOGD("begin to start profiling");  // LCOV_EXCL_LINE
-        ret = aclprofStart(profConfig);
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            config_->SetEnable(false);
-            return;
-        }
+    if (aclProfStarted_) {
+        return;
+    }
+    if (deviceID == INVALID_DEVICE_ID && !(isMaster_ && (config_->GetHostCpuUsage() || config_->GetHostMemoryUsage()))) {
+        // 不知道为啥，如果没有 device，就会卡死。算了，反正不设置 device 也没有什么意义。
+        return;
+    }
+    PROF_LOGD("StartAclProf device_id: %u", deviceID);  // LCOV_EXCL_LINE
+    aclError ret = aclprofInit(profPath.c_str(), profPath.size());
+    if (ret != ACL_ERROR_NONE) {
+        PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
+        return;
     }
 
-    // 设置标志位
-    config_->SetEnable(true);
-    g_threadRunFlag = true;
-    started_ = true;
-    g_startFlag = true;
+    if (ret == ACL_ERROR_NONE && isMaster_) {
+        SetAclProfHostSysConfig();
+    }
+
+    auto profConfig = ProfCreateConfig(deviceID);
+    if (profConfig == nullptr) {
+        config_->SetEnable(false);
+        return;
+    }
+
+    PROF_LOGD("begin to start profiling");  // LCOV_EXCL_LINE
+    ret = aclprofStart(profConfig);
+    if (ret != ACL_ERROR_NONE) {
+        PROF_LOGE("acl prof start failed, ret = %d", ret);  // LCOV_EXCL_LINE
+        config_->SetEnable(false);
+        return;
+    }
+    
+    aclProfStarted_ = true;
 }
 
-void ServiceProfilerManager::StopAclTaskTime()
+void ServiceProfilerManager::StopAclProf()
 {
+    if (!aclProfStarted_) {
+        return;
+    }
     auto profConfig = (AclprofConfig *)this->configHandle_;
 
-    if (msptiEnabled) {
-        msptiEnabled = false;
-        UninitMspti(msptiHandle_);
-    } else if (config_->IsAclProf()) {
-        PROF_LOGD("StopAclTaskTime calling aclprofStop");  // LCOV_EXCL_LINE
-        auto ret = aclprofStop(profConfig);
-        npuFlag_ = false;
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof stop failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            return;
-        }
-        ret = aclprofDestroyConfig(profConfig);
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof destroy config failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            return;
-        }
-        this->configHandle_ = nullptr;
-        ret = aclprofFinalize();
-        if (ret != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof finalize failed, ret = %d", ret);  // LCOV_EXCL_LINE
-            return;
-        }
+    PROF_LOGD("StopAclProf calling aclprofStop");  // LCOV_EXCL_LINE
+    auto ret = aclprofStop(profConfig);
+    aclProfStarted_ = false;
+    if (ret != ACL_ERROR_NONE) {
+        PROF_LOGE("acl prof stop failed, ret = %d", ret);  // LCOV_EXCL_LINE
+        return;
     }
+    ret = aclprofDestroyConfig(profConfig);
+    if (ret != ACL_ERROR_NONE) {
+        PROF_LOGE("acl prof destroy config failed, ret = %d", ret);  // LCOV_EXCL_LINE
+        return;
+    }
+    this->configHandle_ = nullptr;
+    ret = aclprofFinalize();
+    if (ret != ACL_ERROR_NONE) {
+        PROF_LOGE("acl prof finalize failed, ret = %d", ret);  // LCOV_EXCL_LINE
+        return;
+    }
+}
+
+void ServiceProfilerManager::NotifyDeviceID(uint32_t deviceID)
+{
+    PROF_LOGD("device id set to %u", deviceID);  // LCOV_EXCL_LINE
+    deviceID_ = deviceID;
 }
 
 void ServiceProfilerManager::StopProfiler()
 {
-    PROF_LOGD("StopProfiler started_=%d, npuFlag_=%d", started_, npuFlag_);  // LCOV_EXCL_LINE
+    // 只 Manager 的工作线程
+    PROF_LOGD("StopProfiler started_=%d, aclProfStarted_=%d", started_, aclProfStarted_);  // LCOV_EXCL_LINE
     if (!started_) {
         return;
     }
 
     config_->SetEnable(false);
-    StopAclTaskTime();
+    if (msptiStarted_) {
+        // mspti 数据结束采集
+        msptiStarted_ = false;
+        UninitMspti(msptiHandle_);
+    } else if (aclProfStarted_) {
+        // msprof 数据结束采集
+        StopAclProf();
+    } else {
+        // 无算子采集
+    }
 
+    // 服务化数据结束采集
     msServiceProfiler::CloseTxData2Writer();
     started_ = false;
-    g_startFlag = false;
+    notifyStarted = false; // 处理完同步一次状态, 等待下一次通知
 }
 }  // namespace msServiceProfiler

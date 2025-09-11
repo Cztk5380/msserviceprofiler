@@ -54,10 +54,10 @@ public:
     MS_SERVICE_INLINE_FLAG const std::string GetApiFilter() const { return apiFilter_; }
     MS_SERVICE_INLINE_FLAG const std::string GetKernelFilter() const { return kernelFilter_; }
 
+    bool ParseEnable(const Json& config, bool justParse=false);
 private:
     std::string GetEnvAsString(const std::string& envName) const;
     void ReadConfigPath();
-    void ParseEnable(const Json& config);
     void ParseTimeLimit(const Json& config);
     void ParseAicoreMetrics(const Json& config);
     void ParseDataTypeConfig(const Json& config);
@@ -104,7 +104,7 @@ private:
     uint32_t npuMemoryFreq_ = 1;
     uint32_t npuMemoryFreqMin_ = 1;
     uint32_t npuMemoryFreqMax_ = 50;
-    uint32_t npuMemorySleepMilliseconds_ = 1000;
+    uint32_t npuMemorySleepMilliseconds_ = 100;
 
     bool msptiEnable_ = false;
 

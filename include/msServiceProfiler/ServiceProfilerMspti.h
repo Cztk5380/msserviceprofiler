@@ -27,7 +27,7 @@ namespace msServiceProfiler {
 constexpr int ALIGN_SIZE = 8;
 constexpr int ONE_K = 1024;
 const char SPLIT_SYMBOL = ';';
-int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber);
+int InitMspti(const std::string& profPath_, msptiSubscriberHandle& subscriber);
 void InitMsptiActivity(bool msptiEnable);
 void InitMsptiFilter(const std::string& apiFilter, const std::string& kernelFilter);
 void UninitMspti(msptiSubscriberHandle& subscriber);

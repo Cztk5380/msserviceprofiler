@@ -397,6 +397,9 @@ public:
             if (dbCloseFlag) {
                 ServiceProfilerDbWriter::GetInstance().Close();
             }
+            if (popCount) {
+                PROF_LOGD("db write thread pop %d items", popCount);
+            }
         }
     }
 

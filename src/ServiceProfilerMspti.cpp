@@ -463,7 +463,7 @@ namespace msServiceProfiler {
         *maxNumRecords = 0;
     }
 
-    int InitMspti(std::string& profPath_, msptiSubscriberHandle& subscriber)
+    int InitMspti(const std::string& profPath_, msptiSubscriberHandle& subscriber)
     {
         // 创建mspti订阅者
         auto ret = msptiSubscribe(&subscriber, nullptr, nullptr);

@@ -119,7 +119,6 @@ nlohmann::ordered_json Config::ReadConfigFile()
 
 void Config::ParseConfig(const Json& configJson)
 {
-    ParseEnable(configJson);
     ParseTimeLimit(configJson);
     ParseAclTaskTime(configJson);
     ParseProfPath(configJson);
@@ -129,6 +128,7 @@ void Config::ParseConfig(const Json& configJson)
     ParseMspti(configJson);
     ParseAicoreMetrics(configJson);
     ParseDataTypeConfig(configJson);
+    ParseEnable(configJson);  // enable 值最后变化，可以【稍微】保护一下上面的值在开启后都已经赋值成功了。
 }
 
 void Config::ParseAicoreMetrics(const Json& config)
@@ -258,17 +258,23 @@ void Config::ParseMspti(const Json& config)
     }
 }
 
-void Config::ParseEnable(const Json& config)
+bool Config::ParseEnable(const Json& config, bool justParse)
 {
-    enable_ = false;  // Default to false
+    bool enable = false;  // Default to false
     if (config.contains("enable")) {
         if (config["enable"].is_number_integer()) {
-            enable_ = config["enable"] == 1;
+            enable = config["enable"] == 1;
         } else {
             PROF_LOGW("enable value is not an integer, will set false.");  // LCOV_EXCL_LINE
         }
     }
+    if (justParse) {
+        return enable;
+    }
+    enable_ = enable;
     PROF_LOGI("profile enable_: %s", enable_ ? "true" : "false");  // LCOV_EXCL_LINE
+    
+    return enable;
 }
 
 void Config::ParseTimeLimit(const Json& config)
@@ -557,7 +563,9 @@ bool Config::ParseCollectConfig(const Json &config)
 bool Config::ParseHostConfig(const Json &config)
 {
     bool ret = true;
-    if (config.contains("host_system_usage_freq") && config["host_system_usage_freq"] != -1) {
+    hostCpuUsage_ = false;
+    hostMemoryUsage_ = false;
+    if (config.contains("host_system_usage_freq")) {
         try {
             uint32_t hostFreq = config["host_system_usage_freq"];
             if (hostFreq >= hostFreqMin_ && hostFreq <= hostFreqMax_) {
@@ -571,16 +579,11 @@ bool Config::ParseHostConfig(const Json &config)
                     "host cpu or host memory usage collection is now disabled.",
                     hostFreqMin_, hostFreqMax_);
                 // LCOV_EXCL_STOP
-
-                hostCpuUsage_ = false;
-                hostMemoryUsage_ = false;
                 ret = false;
             }
         } catch (const std::exception &e) {
             LOG_ONCE_E("fail to convert host_system_usage_freq config to uint,"  // LCOV_EXCL_LINE
                       "will not collect host cpu or host memory usage.");  // LCOV_EXCL_LINE
-            hostCpuUsage_ = false;
-            hostMemoryUsage_ = false;
             ret = false;
         }
     } else {
@@ -593,7 +596,8 @@ bool Config::ParseHostConfig(const Json &config)
 bool Config::ParseNpuConfig(const Json &config)
 {
     bool ret = true;
-    if (config.contains("npu_memory_usage_freq") && config["npu_memory_usage_freq"] != -1) {
+    npuMemoryUsage_ = false;
+    if (config.contains("npu_memory_usage_freq")) {
         try {
             uint32_t npuMemoryFreq = config["npu_memory_usage_freq"];
             if (npuMemoryFreq >= npuMemoryFreqMin_ && npuMemoryFreq <= npuMemoryFreqMax_) {
@@ -606,13 +610,11 @@ bool Config::ParseNpuConfig(const Json &config)
                     "npu memory usage collection is now disabled.",
                     npuMemoryFreqMin_, npuMemoryFreqMax_);
                 // LCOV_EXCL_STOP
-                npuMemoryUsage_ = false;
                 ret = false;
             }
         } catch (const std::exception &e) {
             LOG_ONCE_E("Fail to convert npu_memory_usage_freq config to uint, "  // LCOV_EXCL_LINE
                 "will not collect npu memory usage.");  // LCOV_EXCL_LINE
-            npuMemoryUsage_ = false;
             ret = false;
         }
         npuMemorySleepMilliseconds_ = static_cast<uint32_t>(std::round(MILLISECONDS_IN_SECOND / npuMemoryFreq_));
