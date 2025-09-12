@@ -248,21 +248,26 @@ def add_flow_event(flow_event_df):
     # 初始化 ph 列为默认值
     exploded_df['ph'] = 't'
 
-    # 找出每个 rid 的第一次和最后一次出现的位置
-    first_occurrences = exploded_df.groupby('rid').head(1).index
-    last_occurrences = exploded_df.groupby('rid').tail(1).index
+    # 如果某个 rid 只有一行，根据during_time是否为0区分，为0就是ph=i，否则ph=x
+    single_occurrences = exploded_df['rid'].value_counts()
+    single_rids = single_occurrences[single_occurrences == 1].index
+    single_mask = exploded_df['rid'].isin(single_rids)
+
+    # 根据 during_time 的值来设置 ph（优先处理）
+    during_time_zero_mask = exploded_df['during_time'] == 0
+    exploded_df.loc[single_mask & during_time_zero_mask, 'ph'] = 'i'  # 瞬时事件
+    exploded_df.loc[single_mask & ~during_time_zero_mask, 'ph'] = 'X'  # 完整事件
+
+    # 找出每个 rid 的第一次和最后一次出现的位置（排除单次出现的）
+    multi_mask = ~single_mask  # 多次出现的记录
+    first_occurrences = exploded_df[multi_mask].groupby('rid').head(1).index
+    last_occurrences = exploded_df[multi_mask].groupby('rid').tail(1).index
 
     # 设置第一次出现为 's'
     exploded_df.loc[first_occurrences, 'ph'] = 's'
 
     # 设置最后一次出现为 'f'
     exploded_df.loc[last_occurrences, 'ph'] = 'f'
-
-    # 如果某个 rid 只有一行，那么它既是第一次也是最后一次，设置为 's'
-    single_occurrences = exploded_df['rid'].value_counts()
-    single_rids = single_occurrences[single_occurrences == 1].index
-    single_mask = exploded_df['rid'].isin(single_rids)
-    exploded_df.loc[single_mask, 'ph'] = 's'
 
     exploded_df['bp'] = ['b' if ph == 'f' else '' for ph in exploded_df['ph']]
     exploded_df['name'] = 'flow_' + exploded_df['rid']
@@ -464,7 +469,7 @@ def add_trace_events(valid_name_df):
                 args_dict.update({'batch_size': batch_size})
             if batch_type is not None and not pd.isna(batch_type):
                 args_dict.update({'batch_type': batch_type})
-            if res_list is not None is not None and not pd.isna(res_list):
+            if res_list is not None and not pd.isna(res_list):
                 args_dict.update({"res_list": res_list})
             if batch_size is None and rid != res_list and rid is not None and not pd.isna(rid):
                 args_dict.update({"rid": rid})
