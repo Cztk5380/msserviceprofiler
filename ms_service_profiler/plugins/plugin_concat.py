@@ -44,6 +44,16 @@ class PluginConcat(PluginBase):
         if msprof_merged:
             merged_data["msprof_data"] = msprof_merged
 
+        # 避免丢失 pid_label_map
+        pid_label_map = {}
+        for data_single in data:
+            if 'pid_label_map' in data_single and data_single['pid_label_map'] is not None:
+                if isinstance(data_single['pid_label_map'], dict):
+                    pid_label_map.update(data_single['pid_label_map'])
+
+        if pid_label_map:
+            merged_data["pid_label_map"] = pid_label_map
+
         for key, value in merged_data.items():
             if isinstance(value, pd.DataFrame):
                 merged_data[key] = value.sort_values(by='start_time', ascending=True).reset_index(drop=True)

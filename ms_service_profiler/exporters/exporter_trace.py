@@ -244,17 +244,27 @@ def add_flow_event(flow_event_df):
     flow_event_df.loc[:, 'rid'] = flow_event_df['rid'].str.split(',')
     exploded_df = flow_event_df.explode('rid')
     exploded_df['tid'] = exploded_df['domain']
-    if 'PDCommunication' in flow_event_df['domain'].values:
-        exploded_df['ph'] = [
-            's' if 'httpReq' in name else ('f' if ('httpRes' in name and 'receiveToken=' in message) else 't')
-            for name, message in zip(exploded_df['name'], exploded_df['message'])
-        ]
-    else:
-        exploded_df['ph'] = [
-            's' if 'httpReq' in name else ('f' if 'httpRes' in name else 't')
-            for name in exploded_df['name']
-        ]
-    exploded_df['bp'] = ['b' if 'httpRes' in name else '' for name in exploded_df['name']]
+
+    # 初始化 ph 列为默认值
+    exploded_df['ph'] = 't'
+
+    # 找出每个 rid 的第一次和最后一次出现的位置
+    first_occurrences = exploded_df.groupby('rid').head(1).index
+    last_occurrences = exploded_df.groupby('rid').tail(1).index
+
+    # 设置第一次出现为 's'
+    exploded_df.loc[first_occurrences, 'ph'] = 's'
+
+    # 设置最后一次出现为 'f'
+    exploded_df.loc[last_occurrences, 'ph'] = 'f'
+
+    # 如果某个 rid 只有一行，那么它既是第一次也是最后一次，设置为 's'
+    single_occurrences = exploded_df['rid'].value_counts()
+    single_rids = single_occurrences[single_occurrences == 1].index
+    single_mask = exploded_df['rid'].isin(single_rids)
+    exploded_df.loc[single_mask, 'ph'] = 's'
+
+    exploded_df['bp'] = ['b' if ph == 'f' else '' for ph in exploded_df['ph']]
     exploded_df['name'] = 'flow_' + exploded_df['rid']
     exploded_df['ts'] = exploded_df['start_time']
     exploded_df['id'] = exploded_df['rid']
@@ -289,7 +299,7 @@ def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
         npu_trace_events = add_npu_events(all_data_df[all_data_df['name'] == 'npu'])
         trace_events.extend(npu_trace_events)
 
-        kv_trace_events = add_kvcache_events(all_data_df[all_data_df['domain'] == 'KVCache'])
+        kv_trace_events = add_kvcache_events(all_data_df[all_data_df['domain'] == 'KVCache'], pid_label_map)
         trace_events.extend(kv_trace_events)
 
         pull_kvcache_events = add_pull_kvcache_events(all_data_df[all_data_df['domain'] == 'PullKVCache'])
@@ -450,13 +460,13 @@ def add_trace_events(valid_name_df):
                 'end_datetime': end,
                 'tid': tid
             })
-            if batch_size is not None:
+            if batch_size is not None and not pd.isna(batch_size):
                 args_dict.update({'batch_size': batch_size})
-            if batch_type is not None:
+            if batch_type is not None and not pd.isna(batch_type):
                 args_dict.update({'batch_type': batch_type})
-            if res_list is not None:
+            if res_list is not None is not None and not pd.isna(res_list):
                 args_dict.update({"res_list": res_list})
-            if batch_size is None and rid != res_list:
+            if batch_size is None and rid != res_list and rid is not None and not pd.isna(rid):
                 args_dict.update({"rid": rid})
             args_list.append(args_dict)
 
@@ -511,14 +521,35 @@ def add_npu_events(npu_data_df):
     return npu_trace_events
 
 
-def add_kvcache_events(kv_data_df):
+def add_kvcache_events(kv_data_df, pid_label_map=None):
     if 'deviceBlock=' not in kv_data_df:
         return []
     kv_trace_df = kv_data_df.copy()
-    if "scope#dp" in kv_trace_df:
+
+    # 优先使用 pid_label_map 中的 dp_rank
+    if pid_label_map is not None and "pid" in kv_trace_df.columns:
+        def get_name(row):
+            pid = row['pid']
+            # 优先使用 pid_label_map 中的 dp_rank
+            if pid in pid_label_map and 'dp_rank' in pid_label_map[pid]:
+                dp_rank = pid_label_map[pid]['dp_rank']
+                return f"{row['domain']}-dp{dp_rank}"
+            # 回退到 scope#dp
+            elif "scope#dp" in kv_trace_df.columns:
+                scope_dp = row["scope#dp"]
+                if pd.notna(scope_dp):
+                    return f"{row['domain']}-dp{int(scope_dp)}"
+            # 都没有就只返回 domain
+            return row['domain']
+
+        kv_trace_df['name'] = kv_trace_df.apply(get_name, axis=1)
+    elif "scope#dp" in kv_trace_df:
+        # 没有 pid_label_map 时使用 scope#dp
         kv_trace_df['name'] = kv_trace_df['domain'] + '-dp' + kv_trace_df["scope#dp"].astype(int,
-                                                                                            errors='ignore').astype(str)
+                                                                                             errors='ignore').astype(
+            str)
     else:
+        # 都没有就只返回 domain
         kv_trace_df['name'] = kv_trace_df['domain']
     kv_trace_df['ph'] = 'C'
     kv_trace_df['ts'] = kv_data_df['start_time']
