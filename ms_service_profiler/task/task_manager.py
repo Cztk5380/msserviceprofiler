@@ -41,7 +41,7 @@ class SubprocessInfo:
 
 
 class TaskManager:
-    def __init__(self, task_dag:TaskDag) -> None:
+    def __init__(self, task_dag: TaskDag) -> None:
         self.task_dag = task_dag
         self.task_manager_info_dict = dict()
         self.manager_recv_queue = Queue()
@@ -71,8 +71,8 @@ class TaskManager:
         queues = process_info.get_queues()
         self.init_task_waiting_pool(src_dag, pool_index)
         # 启动进程
-        for index in range(len(single_data_list)):
-            process_info.new_process(self.manager_recv_queue, (single_data_list[index], src_dag, pool_index, args))
+        for index, data in enumerate(single_data_list):
+            process_info.new_process(self.manager_recv_queue, (data, src_dag, pool_index, args))
 
         task_manager_info.get("queues").extend(queues)
 
@@ -268,7 +268,8 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
     def finished_sync(task_name, task_index, next_task_name, after_error=False):
         send_queue.put((task_name, task_index, "finished", ((pool_index, next_task_name), after_error)))
         msg, _ = recv()
-        assert msg == 'finished'
+        if msg != 'finished':
+            raise ValueError("Expected 'finished' message, but received: {}".format(msg))
         
     def error_sync(task_name, task_index, err_msg=None):
         # 发送 error 到主进程
