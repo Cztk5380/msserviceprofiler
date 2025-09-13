@@ -34,7 +34,7 @@ namespace msServiceProfiler {
 #define PROF_LOGD(...) \
     do { \
         if (msServiceProfiler::ProfLogGetLevel() >= msServiceProfiler::ProfLogLevel::PROF_LOG_DEBUG) { \
-            printf("[msservice_profiler] [PID:%d] [TID:%d] [DEBUG] [%s:%d] ", getpid(), MsUtils::GetTid(), \
+            printf("[msservice_profiler] [PID:%d] [TID:%u] [DEBUG] [%s:%d] ", getpid(), MsUtils::GetTid(), \
                 __func__, __LINE__); \
             printf(__VA_ARGS__); \
             printf("\n"); \
