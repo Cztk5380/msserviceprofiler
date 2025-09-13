@@ -4,6 +4,7 @@ import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 
+import numpy as np
 import pandas as pd
 
 from ms_service_profiler.exporters.base import TaskExporterBase
@@ -465,13 +466,13 @@ def add_trace_events(valid_name_df):
                 'end_datetime': end,
                 'tid': tid
             })
-            if batch_size is not None and not pd.isna(batch_size):
+            if batch_size is not None and is_valid_value(batch_size):
                 args_dict.update({'batch_size': batch_size})
-            if batch_type is not None and not pd.isna(batch_type):
+            if batch_type is not None and is_valid_value(batch_type):
                 args_dict.update({'batch_type': batch_type})
-            if res_list is not None and not pd.isna(res_list):
+            if res_list is not None and is_valid_value(res_list):
                 args_dict.update({"res_list": res_list})
-            if batch_size is None and rid != res_list and rid is not None and not pd.isna(rid):
+            if batch_size is None and rid != res_list:
                 args_dict.update({"rid": rid})
             args_list.append(args_dict)
 
@@ -482,6 +483,26 @@ def add_trace_events(valid_name_df):
     trace_event_df['args'] = args_list
     trace_events = trace_event_df[['name', 'ph', 'ts', 'dur', 'pid', 'tid', 'args']].to_dict(orient='records')
     return trace_events
+
+
+def is_valid_value(x):
+    """
+    判断是否一个值是否非空、非Nan值等
+    涉及到多种数据格式
+    """
+    if x is None:
+        return False
+    if isinstance(x, (list, tuple)) and len(x) == 0:
+        return False
+    if isinstance(x, str) and x.strip() == "":
+        return False
+    if isinstance(x, (list, tuple)):
+        # 对于列表，检查是否全为 None/空/NaN
+        return not all(item is None or (isinstance(item, str) and item.strip() == "") for item in x)
+    if isinstance(x, (np.ndarray, pd.Series)):
+        return len(x) > 0 and not pd.isna(x).all()
+    # 其他情况：数字、非空字符串等都算有效
+    return not pd.isna(x)
 
 
 def add_cpu_events(cpu_data_df):
