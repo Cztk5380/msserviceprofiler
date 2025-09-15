@@ -23,7 +23,6 @@
 #include <cmath>
 #include <csignal>
 #include <functional>
-#include <sys/syscall.h>
 
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
@@ -509,8 +508,8 @@ AclprofConfig *ServiceProfilerManager::ProfCreateConfig(uint32_t deviceID)
     // 创建性能采集配置
     aclprofAicoreMetrics aicoreMetricsEnum = config_->GetAclProfAicoreMetrics();
     PROF_LOGD("Current profSwitch configuration: Hex: 0x%x", profSwitch);
-    PROF_LOGD("Current aicoreMetricsEnum configuration: %d", aicoreMetricsEnum);
-    PROF_LOGD("Current deviceID configuration: %d, %d", deviceNums, deviceIdList[0]);
+    PROF_LOGD("Current aicoreMetricsEnum configuration: %u", aicoreMetricsEnum);
+    PROF_LOGD("Current deviceID configuration: %u, %u", deviceNums, deviceIdList[0]);
     auto profConfig = aclprofCreateConfig(
         deviceIdList,
         deviceNums,

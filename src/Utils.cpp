@@ -1,14 +1,19 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <stdio.h>
-#include <string.h>
-#include <string>
+#include <cstring>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <chrono>
+#include "msServiceProfiler/Utils.h"
 
 namespace MsUtils {
+
+uint32_t GetTid()
+{
+    thread_local uint32_t tid = static_cast<uint32_t>(syscall(SYS_gettid));
+    return tid;
+}
 
 bool MakeDirs(const std::string &dirPath)
 {
