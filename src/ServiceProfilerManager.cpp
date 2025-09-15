@@ -362,7 +362,7 @@ void ServiceProfilerManager::DynamicControl()
 void ServiceProfilerManager::ThreadFunction()
 {
     PROF_LOGD("profiler thread launched");  // LCOV_EXCL_LINE
-    RegisterSetDeviceCallback(); // 获取device id , 变化  deviceID_ 
+    RegisterSetDeviceCallback(); // 获取device id , 变化  deviceID_
     uint32_t deviceID = deviceID_.load();
     PROF_LOGD("start prof device id is %u", deviceID);  // LCOV_EXCL_LINE
     if (config_->GetEnable()) {
@@ -375,8 +375,7 @@ void ServiceProfilerManager::ThreadFunction()
     int heartbeat = 0;
     while (threadRunFlag_) {
         // dynamic start_and_stop
-        if (heartbeat++ % (60000 / config_->GetNpuMemorySleepMilliseconds()) == 0)
-        {
+        if (heartbeat++ % (60000 / config_->GetNpuMemorySleepMilliseconds()) == 0) {
             PROF_LOGD("manager thread heartbeat");  // LCOV_EXCL_LINE
         }
 
@@ -392,7 +391,7 @@ void ServiceProfilerManager::ThreadFunction()
             } else {
                 StopProfiler();
             }
-        } 
+        }
 
         uint32_t nowDeviceID = deviceID_.load();
         if (nowDeviceID != deviceID && started_ && config_->IsAclProf()) {
@@ -618,7 +617,7 @@ void ServiceProfilerManager::StartAclProf(const std::string &profPath, uint32_t 
         config_->SetEnable(false);
         return;
     }
-    
+
     aclProfStarted_ = true;
 }
 

@@ -1,3 +1,6 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ */
 #include <cstring>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -33,7 +36,7 @@ bool MakeDirs(const std::string &dirPath)
     } while (offset != pathLen);
     return true;
 }
-    
+
 uint64_t GetCurrentTimeInNanoseconds()
 {
     // 获取当前时间点

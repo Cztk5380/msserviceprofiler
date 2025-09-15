@@ -62,7 +62,7 @@ namespace msServiceProfiler {
             notifyStarted = false;
         }
 
-        void StartProfiler(bool isInit=false);
+        void StartProfiler(bool isInit = false);
 
         void StartAclProfiler(const std::string& profPath, uint32_t deviceID);
 
@@ -133,7 +133,7 @@ namespace msServiceProfiler {
         // 3. 其他变量，只有在 enable 变化的时候才可能会变化
         //    3.1 enable 从 true 变为 false ，变量不会变，无风险
         //    3.2 enable 从 false 变为 true ，变量会变化，但是采集一般都先判断 enable 等于 true 才会继续执行其他。在变化的时候，优先变化其他变量，最后修改 enable
-        // 
+        //
         // 其实还是存在极其小的风险。如果出现，一般是偶现问题。目前还没发现这个原因导致的问题。
         std::shared_ptr<Config> config_;
     };
