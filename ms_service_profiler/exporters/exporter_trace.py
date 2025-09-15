@@ -4,6 +4,7 @@ import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 
+import numpy as np
 import pandas as pd
 
 from ms_service_profiler.exporters.base import TaskExporterBase
@@ -244,17 +245,32 @@ def add_flow_event(flow_event_df):
     flow_event_df.loc[:, 'rid'] = flow_event_df['rid'].str.split(',')
     exploded_df = flow_event_df.explode('rid')
     exploded_df['tid'] = exploded_df['domain']
-    if 'PDCommunication' in flow_event_df['domain'].values:
-        exploded_df['ph'] = [
-            's' if 'httpReq' in name else ('f' if ('httpRes' in name and 'receiveToken=' in message) else 't')
-            for name, message in zip(exploded_df['name'], exploded_df['message'])
-        ]
-    else:
-        exploded_df['ph'] = [
-            's' if 'httpReq' in name else ('f' if 'httpRes' in name else 't')
-            for name in exploded_df['name']
-        ]
-    exploded_df['bp'] = ['b' if 'httpRes' in name else '' for name in exploded_df['name']]
+
+    # 初始化 ph 列为默认值
+    exploded_df['ph'] = 't'
+
+    # 如果某个 rid 只有一行，根据during_time是否为0区分，为0就是ph=i，否则ph=x
+    single_occurrences = exploded_df['rid'].value_counts()
+    single_rids = single_occurrences[single_occurrences == 1].index
+    single_mask = exploded_df['rid'].isin(single_rids)
+
+    # 根据 during_time 的值来设置 ph（优先处理）
+    during_time_zero_mask = exploded_df['during_time'] == 0
+    exploded_df.loc[single_mask & during_time_zero_mask, 'ph'] = 'i'  # 瞬时事件
+    exploded_df.loc[single_mask & ~during_time_zero_mask, 'ph'] = 'X'  # 完整事件
+
+    # 找出每个 rid 的第一次和最后一次出现的位置（排除单次出现的）
+    multi_mask = ~single_mask  # 多次出现的记录
+    first_occurrences = exploded_df[multi_mask].groupby('rid').head(1).index
+    last_occurrences = exploded_df[multi_mask].groupby('rid').tail(1).index
+
+    # 设置第一次出现为 's'
+    exploded_df.loc[first_occurrences, 'ph'] = 's'
+
+    # 设置最后一次出现为 'f'
+    exploded_df.loc[last_occurrences, 'ph'] = 'f'
+
+    exploded_df['bp'] = ['b' if ph == 'f' else '' for ph in exploded_df['ph']]
     exploded_df['name'] = 'flow_' + exploded_df['rid']
     exploded_df['ts'] = exploded_df['start_time']
     exploded_df['id'] = exploded_df['rid']
@@ -289,7 +305,7 @@ def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
         npu_trace_events = add_npu_events(all_data_df[all_data_df['name'] == 'npu'])
         trace_events.extend(npu_trace_events)
 
-        kv_trace_events = add_kvcache_events(all_data_df[all_data_df['domain'] == 'KVCache'])
+        kv_trace_events = add_kvcache_events(all_data_df[all_data_df['domain'] == 'KVCache'], pid_label_map)
         trace_events.extend(kv_trace_events)
 
         pull_kvcache_events = add_pull_kvcache_events(all_data_df[all_data_df['domain'] == 'PullKVCache'])
@@ -450,11 +466,11 @@ def add_trace_events(valid_name_df):
                 'end_datetime': end,
                 'tid': tid
             })
-            if batch_size is not None:
+            if batch_size is not None and is_valid_value(batch_size):
                 args_dict.update({'batch_size': batch_size})
-            if batch_type is not None:
+            if batch_type is not None and is_valid_value(batch_type):
                 args_dict.update({'batch_type': batch_type})
-            if res_list is not None:
+            if res_list is not None and is_valid_value(res_list):
                 args_dict.update({"res_list": res_list})
             if batch_size is None and rid != res_list:
                 args_dict.update({"rid": rid})
@@ -467,6 +483,26 @@ def add_trace_events(valid_name_df):
     trace_event_df['args'] = args_list
     trace_events = trace_event_df[['name', 'ph', 'ts', 'dur', 'pid', 'tid', 'args']].to_dict(orient='records')
     return trace_events
+
+
+def is_valid_value(x):
+    """
+    判断是否一个值是否非空、非Nan值等
+    涉及到多种数据格式
+    """
+    if x is None:
+        return False
+    if isinstance(x, (list, tuple)) and len(x) == 0:
+        return False
+    if isinstance(x, str) and x.strip() == "":
+        return False
+    if isinstance(x, (list, tuple)):
+        # 对于列表，检查是否全为 None/空/NaN
+        return not all(item is None or (isinstance(item, str) and item.strip() == "") for item in x)
+    if isinstance(x, (np.ndarray, pd.Series)):
+        return len(x) > 0 and not pd.isna(x).all()
+    # 其他情况：数字、非空字符串等都算有效
+    return not pd.isna(x)
 
 
 def add_cpu_events(cpu_data_df):
@@ -511,14 +547,35 @@ def add_npu_events(npu_data_df):
     return npu_trace_events
 
 
-def add_kvcache_events(kv_data_df):
+def add_kvcache_events(kv_data_df, pid_label_map=None):
     if 'deviceBlock=' not in kv_data_df:
         return []
     kv_trace_df = kv_data_df.copy()
-    if "scope#dp" in kv_trace_df:
+
+    # 优先使用 pid_label_map 中的 dp_rank
+    if pid_label_map is not None and "pid" in kv_trace_df.columns:
+        def get_name(row):
+            pid = row['pid']
+            # 优先使用 pid_label_map 中的 dp_rank
+            if pid in pid_label_map and 'dp_rank' in pid_label_map[pid]:
+                dp_rank = pid_label_map[pid]['dp_rank']
+                return f"{row['domain']}-dp{dp_rank}"
+            # 回退到 scope#dp
+            elif "scope#dp" in kv_trace_df.columns:
+                scope_dp = row["scope#dp"]
+                if pd.notna(scope_dp):
+                    return f"{row['domain']}-dp{int(scope_dp)}"
+            # 都没有就只返回 domain
+            return row['domain']
+
+        kv_trace_df['name'] = kv_trace_df.apply(get_name, axis=1)
+    elif "scope#dp" in kv_trace_df:
+        # 没有 pid_label_map 时使用 scope#dp
         kv_trace_df['name'] = kv_trace_df['domain'] + '-dp' + kv_trace_df["scope#dp"].astype(int,
-                                                                                            errors='ignore').astype(str)
+                                                                                             errors='ignore').astype(
+            str)
     else:
+        # 都没有就只返回 domain
         kv_trace_df['name'] = kv_trace_df['domain']
     kv_trace_df['ph'] = 'C'
     kv_trace_df['ts'] = kv_data_df['start_time']
