@@ -21,43 +21,236 @@
 #include <memory>
 #include <string>
 #include <map>
-#include <iostream>
 #include <fstream>
+#include <utility>
+#include <mutex>
+
+#include <sqlite3.h>
+#include "DBExecutor/DbDefines.h"
+#include "DbBuffer.h"
+#include "Log.h"
 
 namespace msServiceProfiler {
 
-enum class ActivityFlag {
-    ACTIVITY_FLAG_MARKER_EVENT = 1,
-    ACTIVITY_FLAG_MARKER_SPAN = 2,
+enum DBPriorityLevel : int {
+    PRIORITY_START_PROF = -10,
+    PRIORITY_NORMAL = 0,
+    PRIORITY_STOP_PROF = 10,
 };
 
-using DbActivityMarker = struct PACKED_MARKER_DB {
-    ActivityFlag flag;
-    uint64_t timestamp;
-    uint64_t endTimestamp;
-    uint64_t id;
-    uint32_t processId;
-    uint32_t threadId;
-    std::string message;
+class ServiceProfilerDbWriter;
+class DbExecutorInterface {
+public:
+    virtual void Execute(ServiceProfilerDbWriter &writer, sqlite3 *db) = 0;
+    virtual bool Cache() = 0;
+    virtual int Level()
+    {
+        return PRIORITY_NORMAL;
+    };
+    virtual ~DbExecutorInterface() = default;
 };
 
-using DbActivityMeta = struct PACKED_META_DB {
-    std::string metaKey;
-    std::string metaValue;
+template <int T>
+class DbExecutor final : public DbExecutorInterface {
+public:
+    void Execute(ServiceProfilerDbWriter &, sqlite3 *) override{};
+    bool Cache() override
+    {
+        return false;
+    };
+    ~DbExecutor() override = default;
 };
 
-using DbActivityMarkerPtr = std::unique_ptr<DbActivityMarker>;
-using DbActivityMetaPtr = std::unique_ptr<DbActivityMeta>;
+class DbFuncExec final : public DbExecutorInterface {
+public:
+    explicit DbFuncExec(std::function<void(ServiceProfilerDbWriter &, sqlite3 *)> func, int level = PRIORITY_NORMAL)
+        : func_(std::move(func)), level_(level)
+    {}
+    void Execute(ServiceProfilerDbWriter &writer, sqlite3 *db) override
+    {
+        if (func_) {
+            func_(writer, db);
+        }
+    };
+    bool Cache() override
+    {
+        return false;
+    };
+    int Level() override
+    {
+        return level_;
+    }
+    ~DbFuncExec() override = default;
 
-void InsertTxData2Writer(std::unique_ptr<DbActivityMarker> activity);
-void InsertTxData2Writer(std::unique_ptr<DbActivityMeta> activity);
-void CloseTxData2Writer();
-void StartTxData2Writer(const std::string &outputPath);
-std::string GetHostName();
+private:
+    std::function<void(ServiceProfilerDbWriter &, sqlite3 *)> func_;
+    int level_ = PRIORITY_NORMAL;
+};
+
+using DBExecBuffer = DbBuffer<DbExecutorInterface>;
+
+class ServiceProfilerDbWriter {
+public:
+    explicit ServiceProfilerDbWriter(const char *fileName) : dbFileName_(fileName)
+    {
+        this->thread_ = std::thread(&ServiceProfilerDbWriter::DumpThread, this);
+    };
+    ~ServiceProfilerDbWriter()
+    {
+        if (this->thread_.joinable()) {
+            threadExitFlag_ = true;
+            this->thread_.join();
+        }
+        std::lock_guard<std::mutex> lock(mtx_);
+        StopDump();
+        lifeEndFlag_ = true;
+        workingDbBuffers_.clear();
+        disableDbBuffers_.clear();
+    };
+
+    void StartDump(const std::string &outputPath);
+    void StopDump();
+
+    void DumpThread();
+
+    // 只有register 和 unregister 是多线程竞争，其他都是通过 DBBuffer 过来的 Executor 执行，保证顺序，且不需要保护。
+    std::shared_ptr<DBExecBuffer> Register(uintptr_t pThreadIns);
+    void Unregister(uintptr_t pThreadIns);
+
+public:
+    sqlite3_stmt *GetStmt(const size_t stmtIndex) const
+    {
+        if (stmtIndex >= enableStmts_.size()) {
+            return nullptr;
+        }
+
+        return enableStmts_[stmtIndex];
+    }
+    sqlite3_stmt *InitStmt(const size_t stmtIndex, const char *stmtStr)
+    {
+        if (stmtIndex >= enableStmts_.size() || db_ == nullptr || !inited) {
+            return nullptr;
+        }
+
+        sqlite3_stmt *stmt = nullptr;
+        if (sqlite3_prepare_v2(db_, stmtStr, -1, &stmt, nullptr) != SQLITE_OK) {
+            PROF_LOGE("sqlInsertKindMstx SQL error");  // LCOV_EXCL_LINE
+            return nullptr;
+        }
+        enableStmts_[stmtIndex] = stmt;
+        return stmt;
+    }
+    void Execute(const char *sql) const;
+    void CacheExecutor(std::unique_ptr<DbExecutorInterface> pExec)
+    {
+        cachedExecutor.push_back(std::move(pExec));
+    }
+
+private:
+    void ApplyOptimizations() const;
+    bool StartTransAction() const;
+    void Flash() const;
+
+private:
+    int PopAndInsert2DB(const std::vector<std::shared_ptr<DBExecBuffer>> &workingDbBuffers,
+        std::set<std::shared_ptr<DBExecBuffer>> &disableDbBuffers, std::vector<DBExecBuffer *> &freeDbBuffers);
+
+private:
+    std::mutex mtx_;
+    std::thread thread_;
+    bool lifeEndFlag_ = false;
+    bool threadExitFlag_ = false;
+
+private:
+    std::map<uintptr_t, std::shared_ptr<DBExecBuffer>> mapBuffer_;
+    std::set<std::shared_ptr<DBExecBuffer>> disableDbBuffers_;
+    std::vector<std::shared_ptr<DBExecBuffer>> workingDbBuffers_;
+
+private:
+    const char *dbFileName_ = nullptr;
+    bool inited = false;
+    sqlite3 *db_ = nullptr;
+    std::vector<std::unique_ptr<DbExecutorInterface>> cachedExecutor;
+    std::array<sqlite3_stmt *, DB_STMT_CNT> enableStmts_{nullptr};
+    std::map<int, std::vector<std::unique_ptr<DbExecutorInterface>>> cachePopExecutors_;
+};
+
+template <DBFile dbFile>
+class ServiceProfilerDbFileWriter : public ServiceProfilerDbWriter {
+    ServiceProfilerDbFileWriter() : ServiceProfilerDbWriter(DbFileName(dbFile)){};
+
+public:
+    static ServiceProfilerDbFileWriter &GetDbWriter()
+    {
+        static ServiceProfilerDbFileWriter manager;
+        return manager;
+    };
+};
+
+template <DBFile dbFile>
+class ServiceProfilerThreadWriter {
+public:
+    ServiceProfilerThreadWriter()
+    {
+        pBuffer = ServiceProfilerDbFileWriter<dbFile>::GetDbWriter().Register((uintptr_t)this);
+    }
+
+    ~ServiceProfilerThreadWriter()
+    {
+        ServiceProfilerDbFileWriter<dbFile>::GetDbWriter().Unregister((uintptr_t)this);
+    }
+
+    static ServiceProfilerThreadWriter &GetWriter()
+    {
+        thread_local ServiceProfilerThreadWriter writer;
+        return writer;
+    }
+
+    void Insert(std::unique_ptr<DbExecutorInterface> activity)
+    {
+        if (pBuffer) {
+            auto pRetData = pBuffer->Push(std::move(activity));
+            // pRetData 有值的话。表示存不进去了，目前不做什么处理，让他自动delete 好了
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+            if (pRetData != nullptr) {
+                thisThreadPushFailedCnt_++;
+            }
+            thisThreadPushCnt_++;
+#endif
+        }
+    }
 
 #ifdef ENABLE_SERVICE_PROF_UNIT_TEST
-void WaitForAllDump();
+    void WaitForAllDump()
+    {
+        while (pBuffer->Size() > 0) {
+            std::this_thread::sleep_for(std::chrono::nanoseconds(100));
+        }
+        PROF_LOGI(
+            "buffer push: %lu, failed: %lu, pop cnt: %lu, push cnt: %lu, max cnt: %lu, diff: %lu",  // LCOV_EXCL_LINE
+            thisThreadPushCnt_,
+            thisThreadPushFailedCnt_,
+            pBuffer->PopCnt(),
+            pBuffer->PushCnt(),
+            pBuffer->MaxCntInBuffer(),
+            pBuffer->PushCnt() - pBuffer->PopCnt());
+    }
 #endif
+
+private:
+    std::shared_ptr<DBExecBuffer> pBuffer = nullptr;
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+    size_t thisThreadPushCnt_ = 0;
+    size_t thisThreadPushFailedCnt_ = 0;
+#endif
+};
+
+template <DBFile dbFile>
+void InsertExecutor2Writer(std::unique_ptr<DbExecutorInterface> activity)
+{
+    ServiceProfilerThreadWriter<dbFile>::GetWriter().Insert(std::move(activity));
+}
+
 }  // namespace msServiceProfiler
 
-#endif  // SERVICEPROFILERMANAGERMSPTI_H
+#endif  // SERVICEPROFILERDBWRITER_H

@@ -4,8 +4,10 @@
 #include <cstring>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <limits.h>
 #include <chrono>
 #include "msServiceProfiler/Utils.h"
+#include "msServiceProfiler/Log.h"
 
 namespace MsUtils {
 
@@ -51,4 +53,19 @@ uint64_t GetCurrentTimeInNanoseconds()
     // 返回int64_t类型的纳秒数
     return static_cast<uint64_t>(nanoseconds.count());
 }
+
+static std::string LocalGetHostName()
+{
+    char hostname[HOST_NAME_MAX + 1] = {'\0'};  // 分配足够大的缓冲区
+    if (gethostname(hostname, sizeof(hostname)) != 0) {
+        PROF_LOGE("get hostname failed");  // LCOV_EXCL_LINE
+    }
+    return std::string(hostname);
 }
+
+const std::string &GetHostName()
+{
+    static std::string hostname = LocalGetHostName();
+    return hostname;
+}
+}  // namespace MsUtils

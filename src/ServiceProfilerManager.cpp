@@ -35,6 +35,8 @@
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/ServiceProfilerDbWriter.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
+#include "msServiceProfiler/DBExecutor/DbExecutorServiceData.h"
+#include "msServiceProfiler/DBExecutor/DbExecutorMetaData.h"
 
 namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
@@ -94,16 +96,18 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
     auto location = spanHandle % SPAN_CACHE_LEN + 1;
     auto stratTimestamp = *(timeCache + location);
 
-    auto marker = std::make_unique<msServiceProfiler::DbActivityMarker>();
-    marker->flag = msServiceProfiler::ActivityFlag::ACTIVITY_FLAG_MARKER_SPAN;
-    marker->timestamp = stratTimestamp;
-    marker->endTimestamp = MsUtils::GetCurrentTimeInNanoseconds();
-    marker->id = g_markIndex.fetch_add(1);
-    marker->processId = static_cast<uint32_t>(getpid());
-    marker->threadId = tid;
-    marker->message = msg;
+    msServiceProfiler::DbActivityMarker marker;
+    marker.flag = msServiceProfiler::ActivityFlag::ACTIVITY_FLAG_MARKER_SPAN;
+    marker.timestamp = stratTimestamp;
+    marker.endTimestamp = MsUtils::GetCurrentTimeInNanoseconds();
+    marker.id = g_markIndex.fetch_add(1);
+    marker.processId = static_cast<uint32_t>(getpid());
+    marker.threadId = tid;
+    marker.message = msg;
 
-    msServiceProfiler::InsertTxData2Writer(std::move(marker));
+    auto executor =
+        std::make_unique<msServiceProfiler::DbExecutor<msServiceProfiler::SERVICE_INSERT_STMT>>(std::move(marker));
+    msServiceProfiler::InsertExecutor2Writer<msServiceProfiler::DBFile::SERVICE>(std::move(executor));
 }
 
 void EndSpan(SpanHandle spanHandle)
@@ -119,16 +123,18 @@ void MarkEvent(const char *msg)
     }
 
     thread_local uint32_t tid = MsUtils::GetTid();  // 每个线程有自己的副本
-    auto marker = std::make_unique<msServiceProfiler::DbActivityMarker>();
-    marker->flag = msServiceProfiler::ActivityFlag::ACTIVITY_FLAG_MARKER_EVENT;
-    marker->timestamp = MsUtils::GetCurrentTimeInNanoseconds();
-    marker->endTimestamp = marker->timestamp;
-    marker->id = g_markIndex.fetch_add(1);
-    marker->processId = static_cast<uint32_t>(getpid());
-    marker->threadId = tid;
-    marker->message = msg;
+    msServiceProfiler::DbActivityMarker marker;
+    marker.flag = msServiceProfiler::ActivityFlag::ACTIVITY_FLAG_MARKER_EVENT;
+    marker.timestamp = MsUtils::GetCurrentTimeInNanoseconds();
+    marker.endTimestamp = marker.timestamp;
+    marker.id = g_markIndex.fetch_add(1);
+    marker.processId = static_cast<uint32_t>(getpid());
+    marker.threadId = tid;
+    marker.message = msg;
 
-    msServiceProfiler::InsertTxData2Writer(std::move(marker));
+    auto executor =
+        std::make_unique<msServiceProfiler::DbExecutor<msServiceProfiler::SERVICE_INSERT_STMT>>(std::move(marker));
+    msServiceProfiler::InsertExecutor2Writer<msServiceProfiler::DBFile::SERVICE>(std::move(executor));
 }
 
 void StartServerProfiler()
@@ -153,7 +159,7 @@ bool IsValidDomain(const char *domainName)
 {
     // 对外接口，用户线程，用户线程只读取，工作线程会变更，有一定风险，做了部分消减
     const std::set<std::string> &allowNames = msServiceProfiler::ServiceProfilerManager::GetInstance().GetValidDomain();
-    return allowNames.size() == 0 || allowNames.find(std::string(domainName)) != allowNames.end();
+    return allowNames.empty() || allowNames.find(std::string(domainName)) != allowNames.end();
 }
 
 bool GetEnableDomainFilter()
@@ -171,8 +177,8 @@ const std::set<std::string> &GetValidDomain()
 void AddMetaInfo(const char *key, const char *value)
 {
     // 对外接口，用户线程，数据通过 dbBuffer[线程安全] 给到 dbWriter 线程
-    msServiceProfiler::InsertTxData2Writer(
-        std::move(std::make_unique<msServiceProfiler::DbActivityMeta>(msServiceProfiler::DbActivityMeta{key, value})));
+    auto executor = std::make_unique<msServiceProfiler::DbExecutor<msServiceProfiler::META_INSERT_STMT>>(key, value);
+    msServiceProfiler::InsertExecutor2Writer<msServiceProfiler::DBFile::SERVICE>(std::move(executor));
 }
 
 void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
@@ -235,7 +241,7 @@ ServiceProfilerManager::ServiceProfilerManager()
         // 只有这一个地方是用户线程调用初始化，其他的都放到 manager 工作线程中
         StartProfiler(true);
     }
-    notifyStarted = started_;  // 在构造的时候同步一次，其他都在线程中，如果值不一样，在线程中启动或关闭prof
+    notifyStarted = started_;  // 在构造的时候同步一次，其他都在工作线程中。如果值不一样，在工作线程中启动或关闭prof
     LaunchThread();
     PROF_LOGD("ServiceProfilerManager Init Finished");
 }
@@ -299,7 +305,8 @@ void ServiceProfilerManager::MarkFirstProcessAsMain()
 
     auto splitInfo = MsUtils::SplitStr(infoStr, ',');  // 格式为： pid,目录。所以使用逗号分隔开
     if (!splitInfo.second.empty()) {
-        pid_t pid = static_cast<pid_t>(MsUtils::Str2Uint(splitInfo.first));  // 检查的进程 PID, 如果存在，就将和它放到一个目录中
+        pid_t pid =
+            static_cast<pid_t>(MsUtils::Str2Uint(splitInfo.first));  // 检查的进程 PID, 如果存在，就将和它放到一个目录中
         if (kill(pid, 0) == 0) {
             isMaster_ = false;
             config_->SetProfPathDateTail(std::string(splitInfo.second.c_str()));
@@ -369,7 +376,9 @@ void ServiceProfilerManager::ThreadFunction()
         StartAclProfiler(config_->GetProfPath(), deviceID);
     }
 
-    msServiceProfiler::NpuMemoryUsage npuMemoryUsage = msServiceProfiler::NpuMemoryUsage();
+    NpuMemoryUsage npuMemoryUsage = NpuMemoryUsage();
+
+    AddMetaInfo("hostname", MsUtils::GetHostName().c_str());
     AddMetaInfo("ppid", std::to_string(getppid()).c_str());
 
     int heartbeat = 0;
@@ -400,6 +409,21 @@ void ServiceProfilerManager::ThreadFunction()
         }
         deviceID = nowDeviceID;
 
+        ProfTimerCtrl();
+
+        RecordMemoryUsage(npuMemoryUsage);
+
+        if (msptiStarted_) {
+            FlushBufferByTime();
+        }
+    }
+    PROF_LOGD("profiler thread stop loop");  // LCOV_EXCL_LINE
+    StopProfiler();
+}
+
+void ServiceProfilerManager::ProfTimerCtrl()
+{
+    {
         if (config_->GetTimeLimit() > 0 && started_) {
             auto terminate = std::chrono::high_resolution_clock::now();  // 记录结束时间
 
@@ -409,7 +433,7 @@ void ServiceProfilerManager::ThreadFunction()
                 StopProfiler();
                 PROF_LOGI("Profiler Timelimit %u Seconds Is Reached,"  // LCOV_EXCL_LINE
                           " Profiler Disabled Successfully!",
-                    config_->GetTimeLimit());  // LCOV_EXCL_LINE
+                          config_->GetTimeLimit());  // LCOV_EXCL_LINE
                 config_->SetFileEnable(0);
             }
         }
@@ -423,23 +447,15 @@ void ServiceProfilerManager::ThreadFunction()
                 StopAclProf();
                 PROF_LOGI("Profiler AclTaskTimeDuration %d Seconds Is Reached, "  // LCOV_EXCL_LINE
                           "AclTaskTime Disabled Successfully!",
-                    config_->GetAclTaskTimeDuration());  // LCOV_EXCL_LINE
+                          config_->GetAclTaskTimeDuration());  // LCOV_EXCL_LINE
                 config_->SetAclTaskTimeDuration(0);
             }
         }
-
-        RecordMemoryUsage(npuMemoryUsage);
-
-        if (msptiStarted_) {
-            FlushBufferByTime();
-        }
     }
-    PROF_LOGD("profiler thread stop loop");  // LCOV_EXCL_LINE
-    StopProfiler();
 }
 
 // Funtion that write info to tx
-void DeviceMemoryWrite2Tx(const std::vector<int> &memoryInfo, const std::string metricName)
+void DeviceMemoryWrite2Tx(const std::vector<int> &memoryInfo, const std::string& metricName)
 {
     for (long unsigned int i = 0; i < memoryInfo.size(); i++) {
         msServiceProfiler::Profiler<msServiceProfiler::INFO>()
@@ -450,7 +466,7 @@ void DeviceMemoryWrite2Tx(const std::vector<int> &memoryInfo, const std::string 
     }
 }
 
-void ServiceProfilerManager::RecordMemoryUsage(NpuMemoryUsage& npuMemoryUsage)
+void ServiceProfilerManager::RecordMemoryUsage(NpuMemoryUsage &npuMemoryUsage)
 {
     try {
         if (!(config_->GetEnable() && config_->GetNpuMemoryUsage() && isMaster_)) {
@@ -541,8 +557,10 @@ void ServiceProfilerManager::StartProfiler(bool isInit)
         return;
     }
     PROF_LOGI("prof path: %s", profPath.c_str());  // LCOV_EXCL_LINE
-    // 服务化数据开始采集
-    StartTxData2Writer(profPath);
+    // 服务化数据开始采集，到写入线程去执行，这样不用管多线程安全
+    auto executor = std::make_unique<DbFuncExec>(
+        [profPath](ServiceProfilerDbWriter &writer, sqlite3 *) -> void { writer.StartDump(profPath); }, PRIORITY_START_PROF);
+    msServiceProfiler::InsertExecutor2Writer<DBFile::SERVICE>(std::move(executor));
 
     if (!isInit) {
         // 在构造的时候，不初始化这些不重要的，在工作线程中初始化一次
@@ -552,10 +570,10 @@ void ServiceProfilerManager::StartProfiler(bool isInit)
     // 设置标志位
     config_->SetEnable(true);
     started_ = true;
-    notifyStarted = true; // 处理完同步一次状态, 等待下一次通知
+    notifyStarted = true;  // 处理完同步一次状态, 等待下一次通知
 }
 
-void ServiceProfilerManager::StartAclProfiler(const std::string& profPath, uint32_t deviceID)
+void ServiceProfilerManager::StartAclProfiler(const std::string &profPath, uint32_t deviceID)
 {
     if (config_->GetMsptiEnable()) {
         // mspti 数据开始采集
@@ -568,7 +586,6 @@ void ServiceProfilerManager::StartAclProfiler(const std::string& profPath, uint3
     }
 }
 
-
 void ServiceProfilerManager::StartMsptiProf(const std::string &profPath)
 {
     auto ret = InitMspti(profPath, msptiHandle_);
@@ -577,8 +594,8 @@ void ServiceProfilerManager::StartMsptiProf(const std::string &profPath)
         msptiStarted_ = false;
     } else {
         InitMsptiActivity(config_->GetMsptiEnable());
-        auto apiFilter_ = config_->GetApiFilter();
-        auto kernelFilter_ = config_->GetKernelFilter();
+        const auto apiFilter_ = config_->GetApiFilter();
+        const auto kernelFilter_ = config_->GetKernelFilter();
         InitMsptiFilter(apiFilter_, kernelFilter_);
         msptiStarted_ = true;
     }
@@ -589,7 +606,8 @@ void ServiceProfilerManager::StartAclProf(const std::string &profPath, uint32_t 
     if (aclProfStarted_) {
         return;
     }
-    if (deviceID == INVALID_DEVICE_ID && !(isMaster_ && (config_->GetHostCpuUsage() || config_->GetHostMemoryUsage()))) {
+    if (deviceID == INVALID_DEVICE_ID &&
+        !(isMaster_ && (config_->GetHostCpuUsage() || config_->GetHostMemoryUsage()))) {
         // 不知道为啥，如果没有 device，就会卡死。算了，反正不设置 device 也没有什么意义。
         return;
     }
@@ -674,9 +692,12 @@ void ServiceProfilerManager::StopProfiler()
         // 无算子采集
     }
 
-    // 服务化数据结束采集
-    msServiceProfiler::CloseTxData2Writer();
+    // 服务化数据结束采集，到写入线程去执行，这样不用管多线程安全
+    auto executor =
+        std::make_unique<DbFuncExec>([](ServiceProfilerDbWriter &writer, sqlite3 *) -> void { writer.StopDump(); }, PRIORITY_STOP_PROF);
+    msServiceProfiler::InsertExecutor2Writer<DBFile::SERVICE>(std::move(executor));
+
     started_ = false;
-    notifyStarted = false; // 处理完同步一次状态, 等待下一次通知
+    notifyStarted = false;  // 处理完同步一次状态, 等待下一次通知
 }
 }  // namespace msServiceProfiler

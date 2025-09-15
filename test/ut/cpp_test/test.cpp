@@ -212,7 +212,7 @@ void TestSpeed(uint64_t allTime, uint64_t preTokenTime, uint64_t preTokenData, c
     if (cannot_pref_times) {
         std::cerr << "cannot push " << preTokenData << " data in. * " << cannot_pref_times << std::endl;
     }
-    WaitForAllDump();
+    ServiceProfilerThreadWriter<DBFile::SERVICE>::GetWriter().WaitForAllDump();
     auto allEndTime = GetCurrentTimeInNanoseconds();
     std::cout << "done. " << std::endl;
     std::cout << "data(" << preTokenData << ") avg time:" << allRunTime / 1000.0 / allTimes

@@ -26,7 +26,9 @@
 using namespace ::testing;
 
 void MarkEventLongAttr(const char *msg);
-namespace msServiceProfiler { void DeviceMemoryWrite2Tx(const std::vector<int> &memoryInfo, const std::string metricName); }
+namespace msServiceProfiler {
+void DeviceMemoryWrite2Tx(const std::vector<int> &memoryInfo, const std::string &metricName);
+}
 
 using namespace msServiceProfiler;
 

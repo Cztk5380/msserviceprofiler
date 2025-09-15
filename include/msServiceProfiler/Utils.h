@@ -55,6 +55,7 @@ inline unsigned long Str2Uint(const std::string &str)
 uint32_t GetTid();
 bool MakeDirs(const std::string &dirPath);
 uint64_t GetCurrentTimeInNanoseconds();
+const std::string &GetHostName();
 
 };  // namespace MsUtils
 

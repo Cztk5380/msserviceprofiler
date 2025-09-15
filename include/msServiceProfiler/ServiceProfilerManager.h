@@ -109,6 +109,8 @@ namespace msServiceProfiler {
 
         void RecordMemoryUsage(NpuMemoryUsage& npuMemoryUsage);
 
+        void ProfTimerCtrl();
+
     private:
         bool isMaster_ = true;  // 构造时初始化一次，在工作线程启动前，不涉及多个线程修改
         bool started_ = false;  // 整体启动状态，构造时可能会初始化一次，在工作线程启动前；其他修改都在工作进程中，不涉及多个线程修改
