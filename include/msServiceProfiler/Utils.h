@@ -52,12 +52,7 @@ inline unsigned long Str2Uint(const std::string &str)
     return std::strtoul(str.c_str(), &endPtr, STRING_TO_UINT_BASE);
 };
 
-inline uint32_t GetTid()
-{
-    thread_local uint32_t tid = static_cast<uint32_t>(syscall(SYS_gettid));
-    return tid;
-};
-
+uint32_t GetTid();
 bool MakeDirs(const std::string &dirPath);
 uint64_t GetCurrentTimeInNanoseconds();
 

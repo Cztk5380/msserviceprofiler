@@ -54,7 +54,7 @@ public:
     MS_SERVICE_INLINE_FLAG const std::string GetApiFilter() const { return apiFilter_; }
     MS_SERVICE_INLINE_FLAG const std::string GetKernelFilter() const { return kernelFilter_; }
 
-    bool ParseEnable(const Json& config, bool justParse=false);
+    bool ParseEnable(const Json& config, bool justParse = false);
 private:
     std::string GetEnvAsString(const std::string& envName) const;
     void ReadConfigPath();
