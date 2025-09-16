@@ -173,12 +173,9 @@ namespace msServiceProfiler {
             PROF_LOGD("ShowApiInfo failed, nullptr api.");  // LCOV_EXCL_LINE
             return;
         }
-        PROF_LOGD("ShowApiInfo item filter before start .");  // LCOV_EXCL_LINE
         if (!ServiceProfilerMspti::GetInstance().ApiNameMatch(api->name)) {
             return;
         }
-        PROF_LOGD("ShowApiInfo item start .");  // LCOV_EXCL_LINE
-
         auto executor = std::make_unique<DbExecutor<MSPTI_API_INSERT_STMT>>(*api);
         msServiceProfiler::InsertExecutor2Writer<DBFile::MSPTI>(std::move(executor));
     }
@@ -231,7 +228,7 @@ namespace msServiceProfiler {
         msptiResult status = MSPTI_SUCCESS;
         do {
             status = msptiActivityGetNextRecord(buffer, validSize, &pRecord);
-            recv_size ++;
+            ++recv_size;
             if (status == MSPTI_SUCCESS) {
                 if (pRecord->kind == MSPTI_ACTIVITY_KIND_API) {
                     auto* activity = reinterpret_cast<msptiActivityApi*>(pRecord);
