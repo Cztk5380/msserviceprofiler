@@ -47,6 +47,9 @@ public:
                 return;
             }
         }
+        if (db == nullptr) {
+            return;
+        }
         InsertMstxData(db, stmtMstx);
     };
 

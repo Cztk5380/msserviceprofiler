@@ -27,10 +27,10 @@ namespace msServiceProfiler {
 constexpr int ALIGN_SIZE = 8;
 constexpr int ONE_K = 1024;
 const char SPLIT_SYMBOL = ';';
-int InitMspti(const std::string& profPath_, msptiSubscriberHandle& subscriber);
+int InitMspti(const std::string &profPath_, msptiSubscriberHandle &subscriber);
 void InitMsptiActivity(bool msptiEnable);
-void InitMsptiFilter(const std::string& apiFilter, const std::string& kernelFilter);
-void UninitMspti(msptiSubscriberHandle& subscriber);
+void InitMsptiFilter(const std::string &apiFilter, const std::string &kernelFilter);
+void UninitMspti(msptiSubscriberHandle &subscriber);
 void FlushBufferByTime();
 
 class ServiceProfilerMspti {
@@ -49,19 +49,20 @@ public:
         return manager;
     };
 
-    void InsertApiData(msptiActivityApi* activity);
-
-    void InsertKernelData(msptiActivityKernel* activity);
-
-    void InsertCommunicationData(msptiActivityCommunication* activity) const;
-
-    void InsertMstxData(msptiActivityMarker* activity) const;
-
     void Init();
 
-    void InitFilter(const std::string& apiFilter, const std::string& kernelFilter);
+    void InitFilter(const std::string &apiFilter, const std::string &kernelFilter);
 
-    void InitOutputPath(const std::string& outputPath);
+    bool ApiNameMatch(const char *name) const
+    {
+        return IsNameMatch(filterApi, name);
+    }
+    bool KernelNameMatch(const char *name) const
+    {
+        return IsNameMatch(filterKernel, name);
+    }
+
+    void InitOutputPath(const std::string &outputPath);
 
     void Close();
 
@@ -76,15 +77,7 @@ public:
 private:
     ServiceProfilerMspti() = default;
 
-    void CreateTable();
-
-    void CreateMstxTable();
-
-    void CreateApiTable();
-
-    void CreateKernelTable();
-
-    void CreateCommunicationTable();
+    static bool IsNameMatch(const std::set<std::string> &filterSet, const char *name);
 
 private:
     static constexpr size_t buffer_size = 5 * ONE_K * ONE_K;
@@ -92,13 +85,13 @@ private:
     bool inited = false;
     int workingThreadNum = 0;
     std::string file_name;
-    sqlite3* db;
-    sqlite3_stmt* stmtApi;
-    sqlite3_stmt* stmtKernel;
-    sqlite3_stmt* stmtCommunication;
-    sqlite3_stmt* stmtMstx;
+    sqlite3 *db;
+    sqlite3_stmt *stmtApi;
+    sqlite3_stmt *stmtKernel;
+    sqlite3_stmt *stmtCommunication;
+    sqlite3_stmt *stmtMstx;
     std::set<std::string> filterApi;
     std::set<std::string> filterKernel;
 };
-}
-#endif // SERVICEPROFILERMANAGERMSPTI_H
+}  // namespace msServiceProfiler
+#endif  // SERVICEPROFILERMANAGERMSPTI_H

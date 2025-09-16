@@ -33,6 +33,9 @@ public:
                 return;
             }
         }
+        if (db == nullptr) {
+            return;
+        }
         InsertMetaData(db, stmtMeta);
     };
 

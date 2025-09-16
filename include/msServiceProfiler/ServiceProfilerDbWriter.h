@@ -17,7 +17,7 @@
 #ifndef SERVICEPROFILERDBWRITER_H
 #define SERVICEPROFILERDBWRITER_H
 
-#include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <map>
@@ -83,7 +83,7 @@ public:
     ~DbFuncExec() override = default;
 
 private:
-    std::function<void(ServiceProfilerDbWriter &, sqlite3 *)> func_;
+    std::function<void(ServiceProfilerDbWriter &, sqlite3 *)> func_{};
     int level_ = PRIORITY_NORMAL;
 };
 
@@ -162,15 +162,15 @@ private:
     bool threadExitFlag_ = false;
 
 private:
-    std::map<uintptr_t, std::shared_ptr<DBExecBuffer>> mapBuffer_;
-    std::set<std::shared_ptr<DBExecBuffer>> disableDbBuffers_;
-    std::vector<std::shared_ptr<DBExecBuffer>> workingDbBuffers_;
+    std::map<uintptr_t, std::shared_ptr<DBExecBuffer>> mapBuffer_{};
+    std::set<std::shared_ptr<DBExecBuffer>> disableDbBuffers_{};
+    std::vector<std::shared_ptr<DBExecBuffer>> workingDbBuffers_{};
 
 private:
     const char *dbFileName_ = nullptr;
     bool inited = false;
     sqlite3 *db_ = nullptr;
-    std::vector<std::unique_ptr<DbExecutorInterface>> cachedExecutor;
+    std::vector<std::unique_ptr<DbExecutorInterface>> cachedExecutor{};
     std::array<sqlite3_stmt *, DB_STMT_CNT> enableStmts_{nullptr};
     std::map<int, std::vector<std::unique_ptr<DbExecutorInterface>>> cachePopExecutors_;
 };

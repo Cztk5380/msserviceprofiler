@@ -18,6 +18,11 @@
 #include "msptiHelper.h"
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
+#include "msServiceProfiler/ServiceProfilerDbWriter.h"
+#include "msServiceProfiler/DBExecutor/DbExecutorMsptiApiData.h"
+#include "msServiceProfiler/DBExecutor/DbExecutorMsptikernelData.h"
+#include "msServiceProfiler/DBExecutor/DbExecutorMsptiCommData.h"
+#include "msServiceProfiler/DBExecutor/DbExecutorMsptiMstxData.h"
 #include "stubs.h"
 
 using namespace ::testing;
@@ -27,35 +32,34 @@ namespace msServiceProfiler {
 void DeviceMemoryWrite2Tx(const std::vector<int> &memoryInfo, const std::string metricName);
 void UserBufferComplete(uint8_t *buffer, size_t size, size_t validSize);
 void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords);
+void UserBufferClear();
 }  // namespace msServiceProfiler
 
 using namespace msServiceProfiler;
 using namespace UTHelper;
 
-namespace msServiceProfiler {
-bool IsNameMatch(std::set<std::string> &filterSet, const char *name);
-}
+
 
 // Test suite for IsNameMatchTest function
 TEST(ServiceProfilerMsptiTest, IsNameMatchEmptyFilterSet)
 {
     std::set<std::string> filterSet;
     const char *name = "example";
-    EXPECT_TRUE(IsNameMatch(filterSet, name));
+    EXPECT_TRUE(ServiceProfilerMspti::IsNameMatch(filterSet, name));
 }
 
 TEST(ServiceProfilerMsptiTest, IsNameMatchNameContainsFilter)
 {
     std::set<std::string> filterSet = {"amp"};
     const char *name = "example";
-    EXPECT_TRUE(IsNameMatch(filterSet, name));
+    EXPECT_TRUE(ServiceProfilerMspti::IsNameMatch(filterSet, name));
 }
 
 TEST(ServiceProfilerMsptiTest, IsNameMatchNameDoesNotContainFilter)
 {
     std::set<std::string> filterSet = {"amp"};
     const char *name = "test";
-    EXPECT_FALSE(IsNameMatch(filterSet, name));
+    EXPECT_FALSE(ServiceProfilerMspti::IsNameMatch(filterSet, name));
 }
 
 TEST(ServiceProfilerMsptiTest, InsertApiData_ValidActivity)
@@ -76,21 +80,13 @@ TEST(ServiceProfilerMsptiTest, InsertApiData_ValidActivity)
     profiler.Init();
 
     // 调用函数
-    profiler.InsertApiData(&activity);
-
+    auto exec = DbExecutor<MSPTI_API_INSERT_STMT>(activity);
+    ServiceProfilerDbWriter xx{"tmp.db"};
+    xx.StartDump("/tmp");
+    exec.Execute(xx, xx.db_);
+    xx.StopDump();
     // 验证是否成功执行 SQLite 操作
     // 由于 SQLite 函数被模拟，这里主要验证流程是否执行
-    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
-}
-
-TEST(ServiceProfilerMsptiTest, InsertApiData_InvalidActivity)
-{
-    ServiceProfilerMspti profiler;
-    msptiActivityApi *activity = nullptr;
-
-    // 调用函数，activity 为 nullptr
-    profiler.InsertApiData(activity);
-
     EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
 }
 
@@ -113,7 +109,9 @@ TEST(ServiceProfilerMsptiTest, InsertApiData_NotInitialized)
     profiler.InitOutputPath("/tmp");
 
     // 调用函数
-    profiler.InsertApiData(&activity);
+    auto exec = DbExecutor<MSPTI_API_INSERT_STMT>(activity);
+    ServiceProfilerDbWriter xx{"tmp.db"};
+    exec.Execute(xx, nullptr);
 
     EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
 }
@@ -136,9 +134,8 @@ TEST(ServiceProfilerMsptiTest, InsertApiData_NameNotMatch)
     profiler.Init();
 
     // 调用函数
-    profiler.InsertApiData(&activity);
 
-    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
+    EXPECT_FALSE(profiler.ApiNameMatch(activity.name));  // 如果程序没有崩溃，则认为测试通过
 }
 
 // 测试用例
@@ -159,7 +156,11 @@ TEST(ServiceProfilerMsptiTest, InsertMstxData_ValidActivity_HostSource)
     profiler.Init();
 
     // 调用函数
-    profiler.InsertMstxData(&activity);
+    auto exec = DbExecutor<MSPTI_MSTX_INSERT_STMT>(activity);
+    ServiceProfilerDbWriter xx{"tmp.db"};
+    xx.StartDump("/tmp");
+    exec.Execute(xx, xx.db_);
+    xx.StopDump();
 
     // 验证是否成功执行 SQLite 操作
     // 由于 SQLite 函数被模拟，这里主要验证流程是否执行
@@ -184,21 +185,14 @@ TEST(ServiceProfilerMsptiTest, InsertMstxData_ValidActivity_DeviceSource)
     profiler.Init();
 
     // 调用函数
-    profiler.InsertMstxData(&activity);
+    auto exec = DbExecutor<MSPTI_MSTX_INSERT_STMT>(activity);
+    ServiceProfilerDbWriter xx{"tmp.db"};
+    xx.StartDump("/tmp");
+    exec.Execute(xx, xx.db_);
+    xx.StopDump();
 
     // 验证是否成功执行 SQLite 操作
     // 由于 SQLite 函数被模拟，这里主要验证流程是否执行
-    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
-}
-
-TEST(ServiceProfilerMsptiTest, InsertMstxData_InvalidActivity)
-{
-    ServiceProfilerMspti profiler;
-    msptiActivityMarker *activity = nullptr;
-
-    // 调用函数，activity 为 nullptr
-    profiler.InsertMstxData(activity);
-
     EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
 }
 
@@ -221,7 +215,9 @@ TEST(ServiceProfilerMsptiTest, InsertMstxData_NotInitialized)
     profiler.inited = false;  // 设置 inited 为 false
 
     // 调用函数
-    profiler.InsertMstxData(&activity);
+    auto exec = DbExecutor<MSPTI_MSTX_INSERT_STMT>(activity);
+    ServiceProfilerDbWriter xx{"/tmp/tmp.db"};
+    exec.Execute(xx, nullptr);
 
     EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
 }
@@ -244,23 +240,14 @@ TEST(ServiceProfilerMsptiTest, InsertKernelData_ValidActivity)
     profiler.Init();
 
     // 调用函数
-    profiler.InsertKernelData(&activity);
+    auto exec = DbExecutor<MSPTI_KERNEL_INSERT_STMT>(activity);
+    ServiceProfilerDbWriter xx{"tmp.db"};
+    xx.StartDump("/tmp");
+    exec.Execute(xx, xx.db_);
+    xx.StopDump();
 
     // 验证是否成功执行 SQLite 操作
     // 由于 SQLite 函数被模拟，这里主要验证流程是否执行
-    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
-}
-
-TEST(ServiceProfilerMsptiTest, InsertKernelData_InvalidActivity)
-{
-    ServiceProfilerMspti profiler;
-    msptiActivityKernel *activity = nullptr;
-
-    profiler.InitOutputPath("/tmp");
-    profiler.Init();
-    // 调用函数，activity 为 nullptr
-    profiler.InsertKernelData(activity);
-
     EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
 }
 
@@ -283,7 +270,9 @@ TEST(ServiceProfilerMsptiTest, InsertKernelData_NotInitialized)
     profiler.Init();
 
     // 调用函数
-    profiler.InsertKernelData(&activity);
+    auto exec = DbExecutor<MSPTI_KERNEL_INSERT_STMT>(activity);
+    ServiceProfilerDbWriter xx{"/tmp/tmp.db"};
+    exec.Execute(xx, nullptr);
 
     EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
 }
@@ -305,9 +294,7 @@ TEST(ServiceProfilerMsptiTest, InsertKernelData_NameNotMatch)
     profiler.Init();
 
     // 调用函数
-    profiler.InsertKernelData(&activity);
-
-    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
+    EXPECT_FALSE(profiler.KernelNameMatch(activity.name));
 }
 
 // 测试用例
@@ -328,24 +315,13 @@ TEST(ServiceProfilerMsptiTest, InsertCommunicationData_ValidActivity)
     profiler.InitOutputPath("/tmp");
     profiler.Init();
     // 调用函数
-    profiler.InsertCommunicationData(&activity);
+    auto exec = DbExecutor<MSPTI_COMMUNICATION_INSERT_STMT>(activity);
+    ServiceProfilerDbWriter xx{"/tmp/tmp.db"};
+    exec.Execute(xx, nullptr);
+    // profiler.InsertCommunicationData(&activity);
 
     // 验证是否成功执行 SQLite 操作
     // 由于 SQLite 函数被模拟，这里主要验证流程是否执行
-    EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
-}
-
-TEST(ServiceProfilerMsptiTest, InsertCommunicationData_InvalidActivity)
-{
-    ServiceProfilerMspti profiler;
-    msptiActivityCommunication *activity = nullptr;
-
-    profiler.InitOutputPath("/tmp");
-    profiler.Init();
-    // 调用函数，activity 为 nullptr
-    profiler.InsertCommunicationData(activity);
-
-    // 验证是否没有执行 SQLite 操作
     EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
 }
 
@@ -368,7 +344,9 @@ TEST(ServiceProfilerMsptiTest, InsertCommunicationData_NotInitialized)
     profiler.InitOutputPath("/tmp");
     profiler.Init();
     // 调用函数
-    profiler.InsertCommunicationData(&activity);
+    auto exec = DbExecutor<MSPTI_COMMUNICATION_INSERT_STMT>(activity);
+    ServiceProfilerDbWriter xx{"/tmp/tmp.db"};
+    exec.Execute(xx, nullptr);
 
     // 验证是否没有执行 SQLite 操作
     EXPECT_TRUE(true);  // 如果程序没有崩溃，则认为测试通过
@@ -643,7 +621,7 @@ TEST(ServiceProfilerMsptiTest, UserBufferRequestTestNormalCase) {
     uint8_t* buffer = nullptr;
     size_t size = 0;
     size_t maxNumRecords = 0;
-
+    UserBufferClear();
     // 调用函数
     UserBufferRequest(&buffer, &size, &maxNumRecords);
 
@@ -658,5 +636,7 @@ TEST(ServiceProfilerMsptiTest, UserBufferRequestTestNormalCase) {
     EXPECT_EQ(maxNumRecords, 0);
 
     // 释放内存
-    free(buffer);
+    if (buffer) {
+        free(buffer);
+    }
 }
