@@ -21,7 +21,8 @@ class ProcessorEplbObserve(ProcessorBase):
 
     def parse(self, data):
         if data is None:
-            return
+            logger.warning("Input data is None, skip eplb_observe analysis.")
+            return None
 
         tx_data_df = pd.concat(data)
 
@@ -68,8 +69,10 @@ class ProcessorEplbObserve(ProcessorBase):
         # 不存在路由表则直接返回
         if not expert_routing:
             # transposed_expert_hot shape: ["instance_name"][eplb_period][rank][iteration][layer][expert_per_rank]
-            transposed_expert_hot = {key: transpose_eplb_iteration(value) for key, value in
-                                     expert_hot_by_instance.items()}
+            transposed_expert_hot = {
+                key: transpose_eplb_iteration(value)
+                for key, value in expert_hot_by_instance.items()
+            }
             res["expert_hot"] = transposed_expert_hot
             return res
 
@@ -180,7 +183,7 @@ def grouping_host_name(host_name_list):
         if not isinstance(host_name, str):
             raise ValueError("hostuid should be str.")
         split_host_name = host_name.split("-")
-        # 如果按照”-“划分失败 则默认所有数据是属于同一个instance
+        # 如果按照"-"划分失败 则默认所有数据是属于同一个instance
         if len(split_host_name) < 3:
             return {host_name_list[0]: host_name_list}
         instance_name = '-'.join(split_host_name[:-2])
@@ -206,7 +209,7 @@ def transfer_expert_hot(expert_hot, instance_pod_map):
         for pod_name in pod_name_list:
             instance_expert_hot_dict.update(expert_hot[pod_name])
 
-        instance_expert_hot_list = [instance_expert_hot_dict[rank] for rank in sorted(instance_expert_hot_dict)]
+        instance_expert_hot_list = [instance_expert_hot_dict.get(rank, None) for rank in sorted(instance_expert_hot_dict)]
         res[instance_name] = instance_expert_hot_list
     return res
 
