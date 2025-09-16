@@ -8,6 +8,8 @@
 #include "msServiceProfiler/NpuMemoryUsage.h"
 #include "acl/acl.h"
 #include "msServiceProfiler/ServiceProfilerDbWriter.h"
+#include "msServiceProfiler/ServiceProfilerMspti.h"
+#include "msServiceProfiler/ServiceProfilerManager.h"
 
 using namespace msServiceProfiler;
 
@@ -181,8 +183,16 @@ static uint64_t GetCurrentTimeInNanoseconds()
     return static_cast<uint64_t>(nanoseconds.count());
 }
 
-void TestSpeed(uint64_t allTime, uint64_t preTokenTime, uint64_t preTokenData, const char *data)
+void TestSpeed(uint64_t allTime, uint64_t preTokenTime, uint64_t preTokenData, std::function<void()> sendFunc)
 {
+    /**
+     * allTime 所有时间，单位毫秒
+     * preTokenTime 一次执行耗时，单位毫秒，用来监控每次执行耗时是否正常
+     * preTokenData 一次发送的数据数目
+     * sendFunc 发送数据的函数，自己定义
+     * 比如：发送10s， 每一毫秒发送 140 条数据，每条数据 为 50bit data
+     * TestSpeed(10000, 1, 140, CALL_50_BIT_DATA_FUNC)
+     **/
     std::cout << "====================" << std::endl;
     long unsigned int allRunTime = 0;
     long unsigned int allTimes = 0;
@@ -193,7 +203,7 @@ void TestSpeed(uint64_t allTime, uint64_t preTokenTime, uint64_t preTokenData, c
     for (uint64_t time = 0; time < allTime; time = time + preTokenTime) {
         auto startTime = GetCurrentTimeInNanoseconds();
         for (int dataTimes = 0; dataTimes < preTokenData; ++dataTimes) {
-            PROF(INFO, Domain(__func__).Attr("data", data).Event("test_event_66"));
+            sendFunc();
         }
         auto endTime = GetCurrentTimeInNanoseconds();
         if ((endTime - startTime) > preTokenTime * 1000 * 1000) {
@@ -210,14 +220,17 @@ void TestSpeed(uint64_t allTime, uint64_t preTokenTime, uint64_t preTokenData, c
         allTimes += 1;
     }
     if (cannot_pref_times) {
-        std::cerr << "cannot push " << preTokenData << " data in. * " << cannot_pref_times << std::endl;
+        printf( "xx cannot push %ld data  in %ld ms. * %lu times \n", preTokenData, preTokenTime, cannot_pref_times);
+    } else {
+        printf( "vv can push %ld data in %ld ms.\n", preTokenData, preTokenTime);
     }
     ServiceProfilerThreadWriter<DBFile::SERVICE>::GetWriter().WaitForAllDump();
+    ServiceProfilerThreadWriter<DBFile::MSPTI>::GetWriter().WaitForAllDump();
     auto allEndTime = GetCurrentTimeInNanoseconds();
-    std::cout << "done. " << std::endl;
-    std::cout << "data(" << preTokenData << ") avg time:" << allRunTime / 1000.0 / allTimes
-              << "(μs) max time:" << maxTime / 1000.0 << "(μs)" << std::endl;
-    std::cout << "all dump time:" << (allEndTime - allStartTime) / 1000000 << "(ms)" << std::endl;
+    printf("done. \n");
+    printf("data(%lu) avg time: %g(μs) max time: %g(μs)\n",
+        preTokenData, allRunTime / 1000.0 / allTimes, maxTime / 1000.0);
+    printf("all dump time: %g (ms)\n", (allEndTime - allStartTime) / 1000000.0);
 }
 
 void SpeedTest()
@@ -235,14 +248,77 @@ void SpeedTest()
 void ViolentSpeedTest()
 {
     const char *DATA_50_BIT = "12345678902234567890323456789042345678905234567890";
+    std::function<void()> sendFunc = [DATA_50_BIT] ()-> void {
+        PROF(INFO, Domain(__func__).Attr("data", DATA_50_BIT).Event("test_event_66"));
+    };
     // 测试10s, 每 1ms 写入 180 数据，每个数据50+ bit 数据: 完全可以
-    TestSpeed(10000, 1, 160, DATA_50_BIT);
+    TestSpeed(10000, 1, 160, sendFunc);
     // 2*160 个数据，勉强可以,180 非常吃力
-    TestWithThread<2>([DATA_50_BIT]() -> void { TestSpeed(10000, 1, 140, DATA_50_BIT); });
+    TestWithThread<2>([sendFunc]() -> void { TestSpeed(10000, 1, 140, sendFunc); });
     // 3*100 个数据，勉强可以
-    TestWithThread<3>([DATA_50_BIT]() -> void { TestSpeed(10000, 1, 80, DATA_50_BIT); });
+    TestWithThread<3>([sendFunc]() -> void { TestSpeed(10000, 1, 80, sendFunc); });
     // 4*80 个数据，勉强可以, 90 非常吃力
-    TestWithThread<4>([DATA_50_BIT]() -> void { TestSpeed(10000, 1, 70, DATA_50_BIT); });
+    TestWithThread<4>([sendFunc]() -> void { TestSpeed(10000, 1, 70, sendFunc); });
+}
+
+namespace msServiceProfiler {
+    void CallShowApiInfo(msptiActivityApi* api);
+    void CallShowKernelInfo(msptiActivityKernel* api);
+    void CallShowCommunicationInfo(msptiActivityCommunication* api);
+    void STCallShowApiInfo()
+    {
+        msptiActivityApi activity = {.kind = msptiActivityKind::MSPTI_ACTIVITY_KIND_API,
+            .start = 123456789,
+            .end = 987654321,
+            .pt = {123, 456},
+            .correlationId = 789UL,
+            .name = "test_activity"};
+        CallShowApiInfo(&activity);
+    }
+    void STCallShowKernelInfo()
+    {
+        msptiActivityKernel activity = {
+            .kind = msptiActivityKind::MSPTI_ACTIVITY_KIND_KERNEL,
+            .start = 123456789,
+            .end = 987654321,
+            .ds = {123, 456},
+            .correlationId = 789,
+            .type = "test_type",
+            .name = "test_kernel"};
+        CallShowKernelInfo(&activity);
+    }
+    void STCallShowCommunicationInfo()
+    {
+        msptiActivityCommunication activity = {.kind = msptiActivityKind::MSPTI_ACTIVITY_KIND_COMMUNICATION,
+            .dataType = msptiCommunicationDataType::MSPTI_ACTIVITY_COMMUNICATION_INT16,
+            .count = 1000,
+            .ds = {123, 456},
+            .start = 123456789,
+            .end = 987654321,
+            .algType = "test_alg",
+            .name = "test_communication",
+            .commName = "test_domain",
+            .correlationId = 789};
+        CallShowCommunicationInfo(&activity);
+    }
+}
+void ViolentSpeedTestMspti()
+{
+    ServiceProfilerMspti::GetInstance().InitOutputPath(ServiceProfilerManager::GetInstance().GetProfPath());
+    ServiceProfilerMspti::GetInstance().Init();
+    std::function<void()> sendFunc = [] ()-> void {
+        Times(STCallShowApiInfo, 40);
+        Times(STCallShowKernelInfo, 40);
+        Times(STCallShowCommunicationInfo, 4);
+    };
+    // 5个线程 1ms 发一次数据 40 * 2数据，发10s  可以。  统计 5 * 40 * 2 每ms ： 400 条数据每ms
+    // 5个线程 1ms 发一次数据 50 * 2数据，发10s  被打爆，buffer 不够了,超了 12W
+    // 5个线程 1ms 发一次数据 60 * 2数据，发10s  被打爆，buffer 不够了,超了 42W
+    // 5个线程 25ms 发一次数据 900 * 2数据，发10s  可以。  统计 5 * 900 * 2 / 每 25 ms ： 360 条数据每ms
+    // 5个线程 25ms 发一次数据 1000 * 2数据，发10s 被打爆，buffer 不够了,超了 5W ,现在 buffer 是 1.6W
+    // 5个线程 50ms 发一次数据 1800 * 2数据，发10s  可以。  统计 5 * 1800 * 2 / 每 50 ms ： 360 条数据每ms
+    TestWithThread<5>([sendFunc]() -> void { TestSpeed(10000, 1, 1, sendFunc); });
+    ServiceProfilerMspti::GetInstance().Close();
 }
 
 int main()
@@ -252,6 +328,7 @@ int main()
     SmokeTest();
     SpeedTest();
     ViolentSpeedTest();
+    ViolentSpeedTestMspti();
     msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallStopServerProfiler();
     // start again
     msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallStartServerProfiler();

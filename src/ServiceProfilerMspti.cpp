@@ -391,4 +391,24 @@ namespace msServiceProfiler {
             }
         }
     }
+
+#ifdef ENABLE_SERVICE_PROF_UNIT_TEST
+    void CallShowApiInfo(msptiActivityApi* api)
+    {
+        ShowApiInfo(api);
+    };
+    void CallShowKernelInfo(msptiActivityKernel* api)
+    {
+        ShowKernelInfo(api);
+    };
+    void CallShowCommunicationInfo(msptiActivityCommunication* api)
+    {
+        ShowCommunicationInfo(api);
+    };
+    void CallShowMstxInfo(msptiActivityMarker* api)
+    {
+        ShowMstxInfo(api);
+    };
+#endif
+
 }  // namespace msServiceProfiler
