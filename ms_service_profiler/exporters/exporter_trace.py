@@ -419,13 +419,35 @@ def sort_trace_events_by_tid(trace_events):
 
 
 def add_trace_events(valid_name_df):
-    trace_event_df = valid_name_df.copy()
+    """将有效名称数据转换为跟踪事件列表"""
+    # 添加基本跟踪事件字段
+    trace_event_df = _add_basic_trace_fields(valid_name_df)
+    
+    # 确保所有必需的列都存在
+    valid_name_df = _ensure_required_columns(valid_name_df)
+    
+    # 构建参数列表
+    args_list = _build_args_list(valid_name_df)
+    
+    # 添加参数到DataFrame并转换为记录
+    trace_event_df['args'] = args_list
+    trace_events = trace_event_df[['name', 'ph', 'ts', 'dur', 'pid', 'tid', 'args']].to_dict(orient='records')
+    
+    return trace_events
 
-    trace_event_df['ph'] = ['I' if during_time == 0 else 'X' for during_time in valid_name_df['during_time']]
-    trace_event_df['ts'] = valid_name_df['start_time']
-    trace_event_df['tid'] = valid_name_df['domain']
-    trace_event_df['dur'] = valid_name_df['during_time']
 
+def _add_basic_trace_fields(df):
+    """添加基本跟踪事件字段到DataFrame"""
+    trace_df = df.copy()
+    trace_df['ph'] = ['I' if during_time == 0 else 'X' for during_time in df['during_time']]
+    trace_df['ts'] = df['start_time']
+    trace_df['tid'] = df['domain']
+    trace_df['dur'] = df['during_time']
+    return trace_df
+
+
+def _ensure_required_columns(df):
+    """确保DataFrame包含所有必需的列，缺失的列使用默认值填充"""
     required_columns = [
         'start_datetime', 'end_datetime', 'batch_type', 'batch_size',
         'res_list', 'rid', 'message', 'tid'
@@ -444,45 +466,70 @@ def add_trace_events(valid_name_df):
 
     missing_columns = []
     for col in required_columns:
-        if col not in valid_name_df.columns:
+        if col not in df.columns:
             missing_columns.append(col)
-            if column_defaults[col] == []:
-                valid_name_df[col] = valid_name_df.apply(lambda _: [], axis=1)
+            default_value = column_defaults.get(col, [])
+            if default_value == []:
+                df[col] = df.apply(lambda _: [], axis=1)
             else:
-                valid_name_df[col] = column_defaults[col]
+                df[col] = default_value
 
     if missing_columns:
         logger.warning(f"Missing columns in trace event data, using defaults: {missing_columns}")
+    
+    return df
 
+
+def _build_args_list(df):
+    """从DataFrame构建参数列表"""
+    required_columns = [
+        'start_datetime', 'end_datetime', 'batch_type', 'batch_size',
+        'res_list', 'rid', 'message', 'tid'
+    ]
+    
     args_list = []
     try:
-        selected_df = valid_name_df[required_columns]
+        selected_df = df[required_columns]
 
         for row in selected_df.itertuples(index=False, name='TraceRow'):
-            start, end, batch_type, batch_size, res_list, rid, message, tid = row
-
-            args_dict = dict(**{k: v for k, v in message.items() if k not in ["domain", "name", "type", "rid"]}, **{
-                'start_datetime': start,
-                'end_datetime': end,
-                'tid': tid
-            })
-            if batch_size is not None and is_valid_value(batch_size):
-                args_dict.update({'batch_size': batch_size})
-            if batch_type is not None and is_valid_value(batch_type):
-                args_dict.update({'batch_type': batch_type})
-            if res_list is not None and is_valid_value(res_list):
-                args_dict.update({"res_list": res_list})
-            if batch_size is None and rid != res_list:
-                args_dict.update({"rid": rid})
+            args_dict = _process_row_to_args(row)
             args_list.append(args_dict)
 
     except Exception as e:
         logger.error(f"Error during trace event generation: {e}")
         return []
+    
+    return args_list
 
-    trace_event_df['args'] = args_list
-    trace_events = trace_event_df[['name', 'ph', 'ts', 'dur', 'pid', 'tid', 'args']].to_dict(orient='records')
-    return trace_events
+
+def _process_row_to_args(row):
+    """处理单行数据并转换为参数字典"""
+    start, end, batch_type, batch_size, res_list, rid, message, tid = row
+    
+    # 从message中排除特定键
+    args_dict = {k: v for k, v in message.items() if k not in ["domain", "name", "type", "rid"]}
+    
+    # 添加基本字段
+    args_dict.update({
+        'start_datetime': start,
+        'end_datetime': end,
+        'tid': tid
+    })
+    
+    # 条件添加可选字段
+    if batch_size is not None and is_valid_value(batch_size):
+        args_dict.update({'batch_size': batch_size})
+        
+    if batch_type is not None and is_valid_value(batch_type):
+        args_dict.update({'batch_type': batch_type})
+        
+    if res_list is not None and is_valid_value(res_list):
+        args_dict.update({"res_list": res_list})
+        
+    if batch_size is None and rid != res_list:
+        args_dict.update({"rid": rid})
+    
+    return args_dict
 
 
 def is_valid_value(x):
