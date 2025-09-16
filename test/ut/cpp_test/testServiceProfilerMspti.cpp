@@ -38,8 +38,6 @@ void UserBufferClear();
 using namespace msServiceProfiler;
 using namespace UTHelper;
 
-
-
 // Test suite for IsNameMatchTest function
 TEST(ServiceProfilerMsptiTest, IsNameMatchEmptyFilterSet)
 {
@@ -318,7 +316,6 @@ TEST(ServiceProfilerMsptiTest, InsertCommunicationData_ValidActivity)
     auto exec = DbExecutor<MSPTI_COMMUNICATION_INSERT_STMT>(activity);
     ServiceProfilerDbWriter xx{"/tmp/tmp.db"};
     exec.Execute(xx, nullptr);
-    // profiler.InsertCommunicationData(&activity);
 
     // 验证是否成功执行 SQLite 操作
     // 由于 SQLite 函数被模拟，这里主要验证流程是否执行

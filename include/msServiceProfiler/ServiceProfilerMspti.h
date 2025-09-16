@@ -84,7 +84,7 @@ private:
     char buffer[buffer_size];
     bool inited = false;
     int workingThreadNum = 0;
-    std::string file_name;
+    std::string outputDir_;
     sqlite3 *db;
     sqlite3_stmt *stmtApi;
     sqlite3_stmt *stmtKernel;

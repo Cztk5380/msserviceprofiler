@@ -60,7 +60,7 @@ namespace msServiceProfiler {
             pBufferPool.pop_back();
             return bufferInfo;
         };
-        void Clear(bool close=false)
+        void Clear(const bool close = false)
         {
             std::lock_guard<std::mutex> lock(mutex_);
             closeFlag = close;
@@ -69,7 +69,7 @@ namespace msServiceProfiler {
             };
             pBufferPool.clear();
         };
-        void RecycleBuffer(uint8_t* buffer, size_t size)
+        void RecycleBuffer(uint8_t* buffer, const size_t size)
         {
             if (buffer == nullptr || size == 0) {
                 return;
@@ -81,7 +81,8 @@ namespace msServiceProfiler {
             }
             pBufferPool.push_back(BufferInfo{buffer, size});
         };
-        ~BufferPool() {
+        ~BufferPool()
+        {
             Clear(true);
         }
     private:
@@ -111,7 +112,10 @@ namespace msServiceProfiler {
         }
 
         PROF_LOGD("Initing ServiceFilerWriter.");
-
+        std::string outputDir = outputDir_;
+        auto executor = std::make_unique<DbFuncExec>(
+            [outputDir](ServiceProfilerDbWriter &writer, sqlite3 *) -> void { writer.StartDump(outputDir); }, PRIORITY_START_PROF);
+        msServiceProfiler::InsertExecutor2Writer<DBFile::MSPTI>(std::move(executor));
         inited = true;
         PROF_LOGD("Init ServiceProfilerFilerWriter Success.");  // LCOV_EXCL_LINE
     }
@@ -124,8 +128,8 @@ namespace msServiceProfiler {
 
     void ServiceProfilerMspti::InitOutputPath(const std::string& outputPath)
     {
-        file_name = outputPath + "ascend_service_profiler_" + std::to_string(getpid()) + ".db";
-        PROF_LOGD("set mspti output path: %s", file_name.c_str());  // LCOV_EXCL_LINE
+        outputDir_ = outputPath;
+        PROF_LOGD("set mspti output path: %s", outputDir_.c_str());  // LCOV_EXCL_LINE
     }
 
     void ServiceProfilerMspti::Close()
@@ -134,6 +138,9 @@ namespace msServiceProfiler {
         if (inited) {
             inited = false;
         }
+        auto executor =
+            std::make_unique<DbFuncExec>([](ServiceProfilerDbWriter &writer, sqlite3 *) -> void { writer.StopDump(); }, PRIORITY_STOP_PROF);
+        msServiceProfiler::InsertExecutor2Writer<DBFile::MSPTI>(std::move(executor));
     }
 
     void ServiceProfilerMspti::AddWorkingThreadNum()
@@ -166,9 +173,11 @@ namespace msServiceProfiler {
             PROF_LOGD("ShowApiInfo failed, nullptr api.");  // LCOV_EXCL_LINE
             return;
         }
+        PROF_LOGD("ShowApiInfo item filter before start .");  // LCOV_EXCL_LINE
         if (!ServiceProfilerMspti::GetInstance().ApiNameMatch(api->name)) {
             return;
         }
+        PROF_LOGD("ShowApiInfo item start .");  // LCOV_EXCL_LINE
 
         auto executor = std::make_unique<DbExecutor<MSPTI_API_INSERT_STMT>>(*api);
         msServiceProfiler::InsertExecutor2Writer<DBFile::MSPTI>(std::move(executor));
@@ -213,6 +222,7 @@ namespace msServiceProfiler {
         ServiceProfilerMspti::GetInstance().AddWorkingThreadNum();
         // profiler manager会在每个进程上创建 而host上的进程暂时不会有mspti数据上报 因此在这个位置初始化 防止创建host上的空db
         ServiceProfilerMspti::GetInstance().Init();
+        int recv_size = 0;
         if (validSize < 1) {
             PROF_LOGE("Invalid validSize.");  // LCOV_EXCL_LINE
             return;
@@ -221,6 +231,7 @@ namespace msServiceProfiler {
         msptiResult status = MSPTI_SUCCESS;
         do {
             status = msptiActivityGetNextRecord(buffer, validSize, &pRecord);
+            recv_size ++;
             if (status == MSPTI_SUCCESS) {
                 if (pRecord->kind == MSPTI_ACTIVITY_KIND_API) {
                     auto* activity = reinterpret_cast<msptiActivityApi*>(pRecord);
@@ -250,13 +261,14 @@ namespace msServiceProfiler {
             BufferPool::GetBufferPool().RecycleBuffer(buffer, size);
         }
         ServiceProfilerMspti::GetInstance().PopWorkingThreadNum();
+
+        PROF_LOGD("MSPTI buffer size is : %lu, item size: %d", size, recv_size);  // LCOV_EXCL_LINE
     }
 
     void UserBufferClear()
     {
         BufferPool::GetBufferPool().Clear();
     }
-
 
     // MSPTI
     void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords)
@@ -266,6 +278,8 @@ namespace msServiceProfiler {
             *buffer = cacheBuffer.pBuffer;
             *size = cacheBuffer.size;
             *maxNumRecords = 0;
+
+            PROF_LOGD("MSPTI get cached buffer size is : %lu", *size);  // LCOV_EXCL_LINE
             return;
         }
         constexpr size_t bufferSize = 1 * ONE_K * ONE_K;
@@ -287,6 +301,7 @@ namespace msServiceProfiler {
         *buffer = static_cast<uint8_t*>(alignedPtr);
         *size = bufferSize;
         *maxNumRecords = 0;
+        PROF_LOGD("MSPTI get new buffer size is : %lu", *size);  // LCOV_EXCL_LINE
     }
 
     int InitMspti(const std::string& profPath_, msptiSubscriberHandle& subscriber)
@@ -373,7 +388,6 @@ namespace msServiceProfiler {
     {
         bool workingStatus = ServiceProfilerMspti::GetInstance().GetWorkingStatus();
         if (!workingStatus) {
-            PROF_LOGD("No mspti flush working thread running for period, automaticaly flush all.");  // LCOV_EXCL_LINE
             auto ret = msptiActivityFlushAll(1);
             if (ret != MSPTI_SUCCESS) {
                 PROF_LOGE("Mspti Flush All failed.");  // LCOV_EXCL_LINE
