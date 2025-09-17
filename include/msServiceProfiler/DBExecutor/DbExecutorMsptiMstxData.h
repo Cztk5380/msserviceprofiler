@@ -7,7 +7,8 @@
 
 #include <cstdint>
 #include <string>
-#include <fstream>
+#include <sqlite3.h>
+#include <cstdio>
 
 #include "../Log.h"
 #include "../ServiceProfilerDbWriter.h"

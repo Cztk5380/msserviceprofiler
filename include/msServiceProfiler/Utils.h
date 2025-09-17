@@ -5,7 +5,6 @@
 
 #include <string>
 #include <set>
-#include <sys/syscall.h>
 
 namespace MsUtils {
 constexpr int STRING_TO_UINT_BASE = 10;

@@ -5,9 +5,9 @@
 #ifndef SERVICE_PROFILER_DB_EXECUTOR_MSPTI_API_H
 #define SERVICE_PROFILER_DB_EXECUTOR_MSPTI_API_H
 
-#include <cstdint>
 #include <string>
-#include <fstream>
+#include <sqlite3.h>
+#include <cstdio>
 
 #include "../Log.h"
 #include "../ServiceProfilerDbWriter.h"
