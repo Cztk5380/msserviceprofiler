@@ -111,7 +111,7 @@ class ProcessorReq(ProcessorBase):
         batch_attr_df["req_list"] = schedule_data_df["res_list"]
         batch_attr_df["req_id_list"] = schedule_data_df["rid_list"]
         batch_attr_df["batch_size"] = schedule_data_df["rid_list"].map(len)
-        batch_attr_df["batch_type"] = role_batch_type.combine_first(iter_batch_type)
+        batch_attr_df["batch_type"] = pd.concat([role_batch_type, iter_batch_type]).groupby(level=0).first()
 
         return batch_event_df, batch_attr_df
 
@@ -205,7 +205,9 @@ class ProcessorReq(ProcessorBase):
         first_decode = req_event_df[req_event_df["event"].isin(["detokenize", "decode"])].groupby("rid").first()
         first_decode["rid"] = first_decode.index
 
-        calc_df = pd.concat([calc_df, first_decode])
+        # 保证 calc_df 不为空时才进行合并
+        non_empty_dfs = [df for df in [calc_df, first_decode] if not df.empty]
+        calc_df = pd.concat(non_empty_dfs) if non_empty_dfs else calc_df
 
         # 如果有 sendResponse，取最后一个
         last_send_response = req_event_df[req_event_df["event"] == "sendResponse"].groupby("rid").last()
@@ -224,9 +226,9 @@ class ProcessorReq(ProcessorBase):
         req_ttft_df = group_by_df[
             (group_by_df['event_count'] > 1) &
             (group_by_df['event_first'] == 'httpReq')
-            ]
+            ].copy()
 
-        req_ttft_df["ttft"] = req_ttft_df['end_time'] - req_ttft_df['start_time']
+        req_ttft_df.loc[:, "ttft"] = req_ttft_df['end_time'] - req_ttft_df['start_time']
         req_ttft_df = req_ttft_df.drop(columns=['event_first', 'event_count'])
         return req_ttft_df
 
