@@ -87,7 +87,7 @@ def calculate_first_token_latency(req_map):
         # 计算首token时延，µs级
         if req_info.get('first_token_latency') is not None:
             first_token_latency.append(round(req_info['first_token_latency'], 4))
-    
+
     return get_percentile_results(first_token_latency)
 
 
@@ -195,7 +195,7 @@ class ExporterLatency(ExporterBase):
     @classmethod
     def get_err_log_flag(cls, index):
         return cls.err_log[index]
-    
+
     @staticmethod
     def gen_exporter_percentile_of_df(df, order_col_name, value_col_name, max_points=100):
         if df.empty or order_col_name not in df.columns or value_col_name not in df.columns:
@@ -246,8 +246,10 @@ class ExporterLatency(ExporterBase):
         group_by_df = calc_df.groupby("rid").agg({"start_time": "min", "end_time": "max", "event": ["first", 'count']})
 
         # 过滤掉没有 httpReq 和 只有 httpReq 的
-        req_latency_df = group_by_df[(group_by_df["event"]["count"] > 1) & (group_by_df["event"]["first"] == 'httpReq')]
-        req_latency_df["req_latency"] = req_latency_df["end_time"]["max"] - req_latency_df["start_time"]["min"]
+        req_latency_df = (
+            group_by_df[(group_by_df["event"]["count"] > 1) & (group_by_df["event"]["first"] == 'httpReq')]
+            .copy())
+        req_latency_df.loc[:, "req_latency"] = req_latency_df["end_time"]["max"] - req_latency_df["start_time"]["min"]
         req_latency_df = req_latency_df.drop(columns=["event"])
         req_latency_df.columns = req_latency_df.columns.map(lambda x: x[0])
 
@@ -280,7 +282,7 @@ class ExporterLatency(ExporterBase):
             return
 
         all_data_df = data['tx_data_df']
-        
+
         if check_domain_valid(all_data_df, ['ModelExecute', 'BatchSchedule', 'Request'], 'latency') is False:
             return
 
