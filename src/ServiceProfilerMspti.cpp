@@ -37,8 +37,6 @@
 std::mutex g_mtx;
 
 namespace msServiceProfiler {
-    enum class DBFile;
-
     class BufferPool {
         struct BufferInfo {
             uint8_t* pBuffer;
@@ -270,11 +268,14 @@ namespace msServiceProfiler {
     // MSPTI
     void UserBufferRequest(uint8_t **buffer, size_t *size, size_t *maxNumRecords)
     {
+        *buffer = nullptr;
+        *size = 0;
+        *maxNumRecords = 0;
+
         auto cacheBuffer = BufferPool::GetBufferPool().GetBuffer();
         if (cacheBuffer.pBuffer != nullptr) {
             *buffer = cacheBuffer.pBuffer;
             *size = cacheBuffer.size;
-            *maxNumRecords = 0;
 
             PROF_LOGD("MSPTI get cached buffer size is : %lu", *size);  // LCOV_EXCL_LINE
             return;
@@ -285,6 +286,7 @@ namespace msServiceProfiler {
         auto *pBuffer = static_cast<uint8_t*>(malloc(bufferSize + alignment));
         if (!pBuffer) {
             PROF_LOGE("Buffer request failed.");
+            return;
         }
         // 使用 std::align 计算对齐地址
         void* alignedPtr = pBuffer;
@@ -297,7 +299,6 @@ namespace msServiceProfiler {
         }
         *buffer = static_cast<uint8_t*>(alignedPtr);
         *size = bufferSize;
-        *maxNumRecords = 0;
         PROF_LOGD("MSPTI get new buffer size is : %lu", *size);  // LCOV_EXCL_LINE
     }
 
