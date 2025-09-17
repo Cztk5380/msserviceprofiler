@@ -220,9 +220,9 @@ void TestSpeed(uint64_t allTime, uint64_t preTokenTime, uint64_t preTokenData, s
         allTimes += 1;
     }
     if (cannot_pref_times) {
-        printf( "xx cannot push %ld data  in %ld ms. * %lu times \n", preTokenData, preTokenTime, cannot_pref_times);
+        printf("xx cannot push %ld data  in %ld ms. * %lu times \n", preTokenData, preTokenTime, cannot_pref_times);
     } else {
-        printf( "vv can push %ld data in %ld ms.\n", preTokenData, preTokenTime);
+        printf("vv can push %ld data in %ld ms.\n", preTokenData, preTokenTime);
     }
     ServiceProfilerThreadWriter<DBFile::SERVICE>::GetWriter().WaitForAllDump();
     ServiceProfilerThreadWriter<DBFile::MSPTI>::GetWriter().WaitForAllDump();
