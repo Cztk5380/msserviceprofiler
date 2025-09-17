@@ -572,7 +572,7 @@ bool Config::ParseHostConfig(const Json &config)
                 hostFreq_ = hostFreq;
                 hostCpuUsage_ = true;
                 hostMemoryUsage_ = true;
-            } else if (static_cast<int32_t>(npuMemoryFreq) == -1) {
+            } else if (static_cast<int32_t>(hostFreq) == -1) {
                 ret = false;
             } else {
                 // LCOV_EXCL_START
