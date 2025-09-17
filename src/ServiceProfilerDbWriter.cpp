@@ -137,6 +137,8 @@ void ServiceProfilerDbWriter::ApplyOptimizations() const
     Execute("PRAGMA temp_store = MEMORY;");    // 内存临时存储
     Execute("PRAGMA page_size = 4096;");       // 页面大小
     Execute("PRAGMA locking_mode = NORMAL;");  // 非独占锁定模式
+
+    PROF_LOGD("DB set to WAL mode.");
 }
 
 void ServiceProfilerDbWriter::Execute(const char *sql) const
@@ -219,7 +221,8 @@ void ServiceProfilerDbWriter::DumpThread()
 }
 }  // namespace msServiceProfiler
 
-int msServiceProfiler::ServiceProfilerDbWriter::PopAndInsert2DB(const std::vector<std::shared_ptr<DBExecBuffer>> &workingDbBuffers,
+int msServiceProfiler::ServiceProfilerDbWriter::PopAndInsert2DB(
+    const std::vector<std::shared_ptr<DBExecBuffer>> &workingDbBuffers,
     std::set<std::shared_ptr<DBExecBuffer>> &disableDbBuffers, std::vector<DBExecBuffer *> &freeDbBuffers)
 {
     constexpr size_t MAX_POP_SIZE = 2000;
@@ -249,7 +252,7 @@ int msServiceProfiler::ServiceProfilerDbWriter::PopAndInsert2DB(const std::vecto
     }
 
     std::vector<int> levels;
-    for (const auto& pair : cachePopExecutors_) {
+    for (const auto &pair : cachePopExecutors_) {
         levels.push_back(pair.first);
     }
     std::sort(levels.begin(), levels.end());
@@ -275,4 +278,3 @@ int msServiceProfiler::ServiceProfilerDbWriter::PopAndInsert2DB(const std::vecto
     }
     return popCount;
 }
-
