@@ -4,7 +4,8 @@
 #include <cstring>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <limits.h>
+#include <sys/syscall.h>
+#include <climits>
 #include <chrono>
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Log.h"

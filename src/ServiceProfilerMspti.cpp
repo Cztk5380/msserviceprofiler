@@ -2,7 +2,6 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
  */
 
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -13,12 +12,9 @@
 #include <chrono>
 #include <cstring>
 #include <climits>
-#include <ctime>
 #include <fstream>
-#include <iostream>
 #include <thread>
 #include <vector>
-#include <map>
 #include <cmath>
 #include <csignal>
 #include <mutex>

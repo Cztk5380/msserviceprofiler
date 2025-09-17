@@ -18,7 +18,6 @@
 #include <cmath>
 #include <sqlite3.h>
 #include <functional>  // for std::hash
-#include <sys/syscall.h>
 #include <algorithm>
 #include <set>
 #include <cmath>
@@ -214,7 +213,7 @@ void ServiceProfilerDbWriter::DumpThread()
             workingDbBuffers = workingDbBuffers_;
             disableDbBuffers = disableDbBuffers_;
         }
-        if (popCount) {
+        if (popCount > 0) {
             PROF_LOGD("db write thread pop %d items", popCount);
         }
     }

@@ -18,11 +18,8 @@
 #define SERVICEPROFILERDBWRITER_H
 
 #include <functional>
-#include <memory>
 #include <string>
 #include <map>
-#include <fstream>
-#include <utility>
 #include <mutex>
 
 #include <sqlite3.h>
@@ -192,15 +189,15 @@ class ServiceProfilerThreadWriter {
 public:
     ServiceProfilerThreadWriter()
     {
-        pBuffer = ServiceProfilerDbFileWriter<dbFile>::GetDbWriter().Register((uintptr_t)this);
+        pBuffer = ServiceProfilerDbFileWriter<dbFile>::GetDbWriter().Register(reinterpret_cast<uintptr_t>(this));
     }
 
     ~ServiceProfilerThreadWriter()
     {
-        ServiceProfilerDbFileWriter<dbFile>::GetDbWriter().Unregister((uintptr_t)this);
+        ServiceProfilerDbFileWriter<dbFile>::GetDbWriter().Unregister(reinterpret_cast<uintptr_t>(this));
     }
 
-    static ServiceProfilerThreadWriter &GetWriter()
+    inline static ServiceProfilerThreadWriter &GetWriter()
     {
         thread_local ServiceProfilerThreadWriter writer;
         return writer;

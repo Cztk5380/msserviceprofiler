@@ -5,10 +5,11 @@
 #ifndef SERVICE_PROFILER_DB_EXECUTOR_META_H
 #define SERVICE_PROFILER_DB_EXECUTOR_META_H
 
-#include <cstdint>
 #include <string>
-#include <fstream>
 #include <utility>
+#include <sqlite3.h>
+#include <cstdio>
+
 #include "../ServiceProfilerDbWriter.h"
 #include "./DbDefines.h"
 #include "../Log.h"
