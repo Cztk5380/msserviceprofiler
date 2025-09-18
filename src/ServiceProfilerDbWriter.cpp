@@ -16,23 +16,23 @@
 #include <vector>
 #include <map>
 #include <cmath>
-#include <sqlite3.h>
-#include <functional>  // for std::hash
+#include <functional>
 #include <algorithm>
 #include <set>
 #include <cmath>
 #include <forward_list>
+#include <sqlite3.h>
 
 #include "securec.h"
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
 #include "mstx/ms_tools_ext.h"
 
-#include "msServiceProfiler/NpuMemoryUsage.h"
-#include "msServiceProfiler/Profiler.h"
 #include "msServiceProfiler/Log.h"
-#include "msServiceProfiler/ServiceProfilerManager.h"
 #include "msServiceProfiler/DbBuffer.h"
+#include "msServiceProfiler/Profiler.h"
+#include "msServiceProfiler/NpuMemoryUsage.h"
+#include "msServiceProfiler/ServiceProfilerManager.h"
 #include "msServiceProfiler/ServiceProfilerDbWriter.h"
 
 namespace {
@@ -224,12 +224,10 @@ int msServiceProfiler::ServiceProfilerDbWriter::PopAndInsert2DB(
     const std::vector<std::shared_ptr<DBExecBuffer>> &workingDbBuffers,
     std::set<std::shared_ptr<DBExecBuffer>> &disableDbBuffers, std::vector<DBExecBuffer *> &freeDbBuffers)
 {
-    constexpr size_t MAX_POP_SIZE = 2000;
     int popCount = 0;
+    std::unique_ptr<DbExecutorInterface> *pMarkers = pPopMarkerBuffer.get();
     // pop
     for (const auto &pBuffer : workingDbBuffers) {
-        std::unique_ptr<DbExecutorInterface> pMarkers[MAX_POP_SIZE] = {nullptr};
-
         size_t popSize = pBuffer->Pop(MAX_POP_SIZE, pMarkers);
         for (size_t i = 0; i < popSize; ++i) {
             if (pMarkers[i] == nullptr) {

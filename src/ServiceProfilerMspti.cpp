@@ -23,12 +23,12 @@
 #include "securec.h"
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Log.h"
-#include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "msServiceProfiler/ServiceProfilerDbWriter.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorMsptiApiData.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorMsptikernelData.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorMsptiCommData.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorMsptiMstxData.h"
+#include "msServiceProfiler/ServiceProfilerMspti.h"
 
 std::mutex g_mtx;
 

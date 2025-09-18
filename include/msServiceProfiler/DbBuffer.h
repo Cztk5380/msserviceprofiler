@@ -17,10 +17,7 @@
 
 namespace msServiceProfiler {
 
-constexpr long long unsigned int PTR_ARRAY_SIZE = 128;
-constexpr long long unsigned int PTR_ARRAY_PRE_SIZE = 128;
-
-template <typename T>
+template <typename T, size_t PTR_ARRAY_SIZE = 128, size_t PTR_ARRAY_PRE_SIZE = 256>
 class DbBuffer {
     struct NodeDbActivityMarker {
         std::unique_ptr<T> pMarkerData = nullptr;
