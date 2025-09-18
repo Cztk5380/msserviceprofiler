@@ -607,7 +607,6 @@ bool Config::ParseNpuConfig(const Json &config)
                 npuMemoryUsage_ = true;
             } else if (static_cast<int32_t>(npuMemoryFreq) == -1) {
                 ret = false;
-            }
             } else {
                 // LCOV_EXCL_START
                 LOG_ONCE_E("To enable npu memory usage collection, set npu_memory_usage_freq "
