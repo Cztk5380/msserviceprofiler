@@ -31,12 +31,12 @@
 
 #include "msServiceProfiler/Profiler.h"
 #include "msServiceProfiler/Log.h"
-#include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/ServiceProfilerDbWriter.h"
-#include "msServiceProfiler/ServiceProfilerManager.h"
+#include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorServiceData.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorMetaData.h"
+#include "msServiceProfiler/ServiceProfilerManager.h"
 
 namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
@@ -110,7 +110,7 @@ void MarkSpanAttr(const char *msg, SpanHandle spanHandle)
     msServiceProfiler::InsertExecutor2Writer<msServiceProfiler::DBFile::SERVICE>(std::move(executor));
 }
 
-void EndSpan(SpanHandle spanHandle)
+void EndSpan(SpanHandle)
 {
     return;
 }
@@ -352,7 +352,6 @@ void ServiceProfilerManager::DynamicControl()
 
     auto configJson = config_->ReadConfigFile();
     bool enableFromConfig = config_->ParseEnable(configJson, true);
-
     if (enableFromConfig && !config_->GetEnable()) {
         PROF_LOGI("Profiler Enabled...");  // LCOV_EXCL_LINE
         config_->ParseConfig(configJson);

@@ -7,8 +7,8 @@
 #include <sys/syscall.h>
 #include <climits>
 #include <chrono>
-#include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Log.h"
+#include "msServiceProfiler/Utils.h"
 
 namespace MsUtils {
 

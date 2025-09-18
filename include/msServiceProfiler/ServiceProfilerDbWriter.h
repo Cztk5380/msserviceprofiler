@@ -20,15 +20,17 @@
 #include <functional>
 #include <string>
 #include <map>
+#include <vector>
 #include <mutex>
-
 #include <sqlite3.h>
+
 #include "DBExecutor/DbDefines.h"
 #include "DbBuffer.h"
 #include "Log.h"
 
 namespace msServiceProfiler {
 
+constexpr size_t MAX_POP_SIZE = 2000;
 enum DBPriorityLevel : int {
     PRIORITY_START_PROF = -10,
     PRIORITY_NORMAL = 0,
@@ -91,6 +93,7 @@ public:
     explicit ServiceProfilerDbWriter(const char *fileName) : dbFileName_(fileName)
     {
         this->thread_ = std::thread(&ServiceProfilerDbWriter::DumpThread, this);
+        pPopMarkerBuffer = std::make_unique<std::unique_ptr<DbExecutorInterface>[]>(MAX_POP_SIZE);
     };
     ~ServiceProfilerDbWriter()
     {
@@ -170,6 +173,7 @@ private:
     std::vector<std::unique_ptr<DbExecutorInterface>> cachedExecutor{};
     std::array<sqlite3_stmt *, DB_STMT_CNT> enableStmts_{nullptr};
     std::map<int, std::vector<std::unique_ptr<DbExecutorInterface>>> cachePopExecutors_;
+    std::unique_ptr<std::unique_ptr<DbExecutorInterface>[]> pPopMarkerBuffer;
 };
 
 template <DBFile dbFile>
