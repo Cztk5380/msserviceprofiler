@@ -568,7 +568,6 @@ bool Config::ParseHostConfig(const Json &config)
     if (config.contains("host_system_usage_freq")) {
         try {
             uint32_t hostFreq = config["host_system_usage_freq"];
-            LOG_ONCE_E("############################### %x",hostFreq);
             if (hostFreq >= hostFreqMin_ && hostFreq <= hostFreqMax_) {
                 hostFreq_ = hostFreq;
                 hostCpuUsage_ = true;
@@ -603,10 +602,12 @@ bool Config::ParseNpuConfig(const Json &config)
     if (config.contains("npu_memory_usage_freq")) {
         try {
             uint32_t npuMemoryFreq = config["npu_memory_usage_freq"];
-            LOG_ONCE_E("&&&&&&&&&&&&&& %x",npuMemoryFreq);
             if (npuMemoryFreq >= npuMemoryFreqMin_ && npuMemoryFreq <= npuMemoryFreqMax_) {
                 npuMemoryFreq_ = npuMemoryFreq;
                 npuMemoryUsage_ = true;
+            } else if (static_cast<int32_t>(npuMemoryFreq) == -1) {
+                ret = false;
+            }
             } else {
                 // LCOV_EXCL_START
                 LOG_ONCE_E("To enable npu memory usage collection, set npu_memory_usage_freq "
