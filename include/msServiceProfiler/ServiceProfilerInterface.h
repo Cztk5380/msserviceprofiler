@@ -48,7 +48,7 @@ MS_SERVICE_PROFILER_API void MarkSpanAttr(const char *msg, SpanHandle spanHandle
     * @brief 性能监测区间（Span）结束
     * @param spanHandle [in] span区间的唯一句柄标识
 */
-MS_SERVICE_PROFILER_API void EndSpan(SpanHandle spanHandle);
+MS_SERVICE_PROFILER_API void EndSpan(SpanHandle);
 
 /**
     * @brief 记录一个独立事件
