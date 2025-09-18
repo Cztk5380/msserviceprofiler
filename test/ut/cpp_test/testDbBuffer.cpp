@@ -89,7 +89,7 @@ TEST_F(TestDbBuffer, CallPushWhenOverLineSizeExceptFalse)
     // 正常push超量的数据
     DbBuffer<DbExecutorInterface> buffer;
     std::unique_ptr<DbExecutorInterface> pMarkerPop = nullptr;
-    size_t times = PTR_ARRAY_SIZE * PTR_ARRAY_PRE_SIZE + 1;
+    size_t times = 128 * 256 + 1;
     while (--times) {
         auto pMarker = std::make_unique<DbExecutor<100>>();
         auto ret = buffer.Push(std::move(pMarker));
@@ -98,12 +98,12 @@ TEST_F(TestDbBuffer, CallPushWhenOverLineSizeExceptFalse)
         }
     };
 
-    EXPECT_EQ(buffer.PushCnt(), PTR_ARRAY_SIZE * PTR_ARRAY_PRE_SIZE);
-    EXPECT_EQ(buffer.Size(), PTR_ARRAY_SIZE * PTR_ARRAY_PRE_SIZE - 1);
+    EXPECT_EQ(buffer.PushCnt(), 128 * 256);
+    EXPECT_EQ(buffer.Size(), 128 * 256 - 1);
     while (buffer.Pop(1, &pMarkerPop)) {
         pMarkerPop = nullptr;
     }
-    EXPECT_EQ(buffer.MaxCntInBuffer(), PTR_ARRAY_SIZE * PTR_ARRAY_PRE_SIZE - 1);
+    EXPECT_EQ(buffer.MaxCntInBuffer(), 128 * 256 - 1);
 }
 
 TEST_F(TestDbBuffer, CallPopWhen300ItemsExceptEq)
