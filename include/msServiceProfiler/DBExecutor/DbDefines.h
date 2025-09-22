@@ -2,6 +2,15 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 
+#ifndef DBDEFINES_H
+#define DBDEFINES_H
+
+#include <stdio.h>  // 确保头文件自包含
+
+#define DEBUG_FUNC_START  printf("FUNC:[%s] start\n", __func__)
+
+#endif  // DBDEFINES_H
+
 #ifndef SERVICE_PROFILER_DB_DEFINE_H
 #define SERVICE_PROFILER_DB_DEFINE_H
 
