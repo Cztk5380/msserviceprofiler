@@ -142,10 +142,11 @@ class ExporterReqData(ExporterBase):
         req_base = get_req_base_info(df)
         req_base_info = safe_merge_ttft_que(req_base, ttft_df, que_wait_df)
 
-        filtered_df = req_base_info[[
+        required_colunms = [
             'rid', 'start_time', 'recvTokenSize=', 'replyTokenSize=',
             'execution_time', 'que_wait_time', 'ttft'
-        ]]
+        ]
+        filtered_df = req_base_info.reindex(columns=required_colunms)
 
         check_columns = ['recvTokenSize=', 'replyTokenSize=', 'execution_time']
 
