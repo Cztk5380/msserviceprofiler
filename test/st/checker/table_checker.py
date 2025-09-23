@@ -4,7 +4,7 @@ import sqlite3
 from contextlib import contextmanager, ExitStack
 
 import pandas as pd
-from ms_service_profiler.exporters.utils import CURVE_VIEW_NAME_LIST
+from ms_service_profiler.exporters.utils import CURVE_VIEW_NAME_LIST_COMPETITION
 from test.st.checker.checker_utils import check_df_has_no_empty_line, check_df_expected_column
 
 
@@ -137,5 +137,5 @@ def check_insight_tables(conn, complete_req_cnt=0):
         with check("data_table"):
             check_and_get_df_from_table(conn, cursor, "data_table", ["id", "name", "view_name"], allow)
 
-        for view in CURVE_VIEW_NAME_LIST.values():
+        for view in CURVE_VIEW_NAME_LIST_COMPETITION.values():
             check_view_exists(cursor, view)
