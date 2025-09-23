@@ -38,6 +38,18 @@ CURVE_VIEW_NAME_LIST = {
     'request_status': 'Request_Status_curve',
     'coordinator': 'Coordinator_curve',
 }
+
+CURVE_VIEW_NAME_LIST_COMPETITION = {
+    # 折线图原始表名: 视图名称
+    'batch': 'Batch_Size_by_Batch_ID_curve',
+    'kvcache': 'Kvcache_Usage_Percent_curve',
+    'prefill_gen_speed': 'Prefill_Generate_Speed_Latency_curve',
+    'req_latency': 'Request_Latency_curve',
+    'decode_gen_speed': 'Decode_Generate_Speed_Latency_curve',
+    'first_token_latency': 'First_Token_Latency_curve',
+    'request_status': 'Request_Status_curve'
+}
+
 TABLE_DATA_VIEW_NAME_LIST = {
     # 需要以纯表显示的db中的表名: data_table中的视图名称
     # data_table中(name, view_name)都为视图名称

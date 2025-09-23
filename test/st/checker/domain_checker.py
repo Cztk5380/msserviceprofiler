@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 # 预编译正则
-DOMAIN_PATTERN = re.compile(r'\^domain\^\s*\:\s*\^([^\\^]+)\^', re.IGNORECASE)
+DOMAIN_PATTERN = re.compile(r'["\^]domain["\^]\s*:\s*["\^]([^"\^]+)["\^]', re.IGNORECASE)
 
 def extract_domain_from_message(message):
     """提取 domain 值"""
