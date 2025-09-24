@@ -38,13 +38,13 @@ def test_get_prof_paths(mock_rglob):
     # Mock the rglob method
     mock_path = MagicMock()
     mock_path.is_file.return_value = True
-    mock_path.name = 'ascend_service_profiler_test.db'
+    mock_path.name = 'ascend_service_profiler_test-0.db'
     mock_path_not_file = MagicMock()
     mock_path_not_file.is_file.return_value = False
-    mock_path_not_file.name = 'ascend_service_profiler_test.db'
+    mock_path_not_file.name = 'ascend_service_profiler_test-0.db'
     mock_path_bad_name = MagicMock()
     mock_path_bad_name.is_file.return_value = True
-    mock_path_bad_name.name = 'bad_ascend_service_profiler_test.db'
+    mock_path_bad_name.name = 'bad_ascend_service_profiler_test-0.db'
     mock_rglob.return_value = [mock_path, mock_path_not_file, mock_path_bad_name]
 
     # Call the method
