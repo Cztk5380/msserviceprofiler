@@ -37,12 +37,12 @@ class MsptiDataSource(BaseDataSource):
     def get_prof_paths(cls, input_path: str):
         filepaths = []
         # 合并后的正则表达式，同时验证文件名格式和提取通配符内容
-        unified_pattern = re.compile(r'^ascend_service_profiler_(.+)\.db$')
+        unified_pattern = re.compile(r'^ascend_service_profiler_(.*?)-(\d+)\.db$')
 
         for fp in Path(input_path).rglob('*'):  # 遍历所有文件
             match = unified_pattern.match(fp.name)
             if fp.is_file() and match:
-                filepaths.append((str(fp), match.group(1)))
+                filepaths.append((str(fp), match.group(2)))
         return filepaths
 
     def load(self, prof_path):
