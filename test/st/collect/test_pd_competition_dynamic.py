@@ -6,7 +6,7 @@ from test.st.executor.exec_benchmark import ExecBenchmark
 from test.st.executor.exec_mindie_server import ExecMindIEServer
 from test.st.executor.exec_parse import ExecParse
 from pytest_check import check
-from test.st.checker.csv_checker import check_req_csv, check_batch_csv, check_kvcache_csv
+from test.st.checker.csv_checker import check_req_csv, check_batch_csv, check_kvcache_csv, check_forward_csv
 from test.st.checker.table_checker import db_connect, check_latency_tables, check_kvcache_table
 from test.st.checker.table_checker import check_insight_tables, check_req_status_table
 from test.st.checker.trace_checker import check_chrome_tracing
@@ -46,6 +46,7 @@ def test_dynamic_example(devices, mindie_path, dataset_path, model_path, tmp_wor
         check_req_csv(os.path.join(workspace_path, "prof_data_out"))
         check_batch_csv(os.path.join(workspace_path, "prof_data_out"))
         check_kvcache_csv(os.path.join(workspace_path, "prof_data_out"))
+        check_forward_csv(os.path.join(workspace_path, "prof_data_out"), card_nums=len(devices))
 
         with db_connect(os.path.join(workspace_path, "prof_data_out", "profiler.db")) as conn:
             check_kvcache_table(conn)

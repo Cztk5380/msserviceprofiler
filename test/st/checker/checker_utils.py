@@ -33,3 +33,8 @@ def check_df_col_has_value(df, col_name, value, times=None, empty_enable=False):
 def check_df_col_type(df, col_name, checker):
     # 检查某列的类型
     return df[col_name].apply(checker).all()
+
+
+def check_df_col_unique_value_nums(df, col_name, number):
+    # 检查某列 unique 值是否是 number 个
+    return df[col_name].nunique() == number
