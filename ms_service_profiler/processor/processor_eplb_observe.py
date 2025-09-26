@@ -24,7 +24,7 @@ class ProcessorEplbObserve(ProcessorBase):
             logger.warning("Input data is None, skip eplb_observe analysis.")
             return None
 
-        data = [item for item in data if not item.empty]
+        data = [item for item in data if isinstance(item, pd.DataFrame) and not item.empty]
         tx_data_df = pd.concat(data)
 
         if tx_data_df is None:
