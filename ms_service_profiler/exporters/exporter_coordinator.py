@@ -386,8 +386,8 @@ class ExporterCoordinator(ExporterBase):
             node_type = row['node_type']
             addr = row['address']
             col_alias = f"{node_type} {addr}"
-            clause = f"""    MAX(CASE WHEN node_type = '{node_type}' AND address = '{addr}' 
-            THEN add_count ELSE NULL END) AS "{col_alias}\""""
+            clause = f'''    MAX(CASE WHEN node_type = '{node_type}' AND address = '{addr}' 
+            THEN add_count ELSE NULL END) AS "{col_alias}"'''
             columns.append(clause)
 
         # 拼接 SQL
@@ -409,7 +409,7 @@ class ExporterCoordinator(ExporterBase):
     @classmethod
     def export_coordinator_data(cls, final_stats):
         """
-        将 coordinator 数据导出到 DB 或 CSV（根据 self.args.format）
+        将 coordinator 数据导出到 DB 或 CSV（根据 self 属性 args 中的 format）
         """
         if 'db' in cls.args.format:
             df_param_list = [
