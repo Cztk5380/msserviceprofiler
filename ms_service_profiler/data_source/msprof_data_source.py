@@ -50,8 +50,13 @@ class MsprofDataSource(BaseDataSource):
             )
             all_data = cursor.fetchall()
 
-            columns = [description[0] if description[0] != "message" else "ori_msg" for description in
-                       cursor.description]
+            columns = []
+            for description in cursor.description:
+                if description[0] != "message":
+                    columns.append(description[0])
+                else:
+                    columns.append("ori_msg")
+
             if "mark_id" not in columns:
                 raise ValueError(f'"mark_id" not exists in database: {db_path}, All columns: {columns}')
             columns += ["message"]

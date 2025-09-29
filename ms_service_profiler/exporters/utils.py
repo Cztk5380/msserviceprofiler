@@ -205,19 +205,21 @@ def handle_sqlite_table_list(table_list, cursor):
 
 
 def create_sqlite_tables(table_list):
-    with db_write_lock:
-        with ms_open(visual_db_fp, "a"):
-            conn = None
-            try:
-                conn = sqlite3.connect(visual_db_fp)
-                cursor = conn.cursor()
-                handle_sqlite_table_list(table_list, cursor)
-                conn.commit()
-            except Exception as ex:
-                raise DatabaseError("Cannot update sqlite database when create trace table.") from ex
-            finally:
-                if conn:
-                    conn.close()
+    with db_write_lock, ms_open(visual_db_fp, "a"):
+        conn = None
+        cursor = None
+        try:
+            conn = sqlite3.connect(visual_db_fp)
+            cursor = conn.cursor()
+            handle_sqlite_table_list(table_list, cursor)
+            conn.commit()
+        except Exception as ex:
+            raise DatabaseError("Cannot update sqlite database when create trace table.") from ex
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
 
 
 def get_db_connection():

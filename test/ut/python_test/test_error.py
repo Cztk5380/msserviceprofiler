@@ -90,7 +90,8 @@ def test_key_except_decorator(mock_warning):
 
     data = {"key3": "value3"}
     test_func_ignore(data)
-    mock_warning.assert_called_once_with(ColumnMissingError(("key1",), "Custom message"))
+
+    mock_warning.assert_called_once_with(ColumnMissingError("key1", "Custom message"))
 
 
 @patch("ms_service_profiler.utils.error.logger.warning")

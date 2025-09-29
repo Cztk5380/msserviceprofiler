@@ -27,10 +27,11 @@ class TestDBConversion(unittest.TestCase):
         mock_read_sql_query.return_value = pd.DataFrame({'markId': [1, 2], 'col1': ['a', 'b']})
         mock_conn = mock_sqlite3_connect.return_value.__enter__.return_value
         mock_cursor = mock_conn.cursor.return_value
-        mock_cursor.execute.return_value = [('col2', [3, 4])]
+        mock_cursor.execute.return_value = None  # execute方法返回None
+        mock_cursor.fetchall.return_value = [('col2', [3, 4])]  # fetchall返回数据
 
         file_path = 'test.db'
-        result, _  = convert_db_to_df(file_path)
+        result, _ = convert_db_to_df(file_path)
 
         self.assertIsNotNone(result)
         self.assertIn('markId', result.columns)
