@@ -92,7 +92,7 @@ class Profiler:
         if self._enable:
             service_profiler.mark_span_attr(self.get_msg(), self._span_handle)
             service_profiler.end_span(self._span_handle)
-    
+
     def add_meta_info(self, meta_key, meta_data):
         if self._enable:
-            service_profiler.add_meta_info(meta_key, json.dumps(meta_data))
+            service_profiler.add_meta_info(meta_key, str(meta_data))
