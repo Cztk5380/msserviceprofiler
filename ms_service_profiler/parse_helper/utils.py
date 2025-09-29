@@ -25,7 +25,8 @@ def convert_db_to_df(file_path):
 
         cursor = conn.cursor()
         try:
-            data = cursor.execute(minor_sql_query)
+            cursor.execute(minor_sql_query)
+            data = cursor.fetchall()
         except Exception as e:
             logger.warning("cannot read meta data from %r, due to %s", file_path, e)
             return df, meta

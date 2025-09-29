@@ -9,6 +9,7 @@ from pathlib import Path
 
 from ms_service_profiler.data_source.base_data_source import BaseDataSource, Task
 from ms_service_profiler.utils.error import LoadDataError
+from ms_service_profiler.utils.log import logger
 
 
 @Task.register("data_source:db")
@@ -134,7 +135,15 @@ class DBDataSource(BaseDataSource):
         df['end_datetime'] = pd.to_datetime(df['end_time'], unit='us', utc=True).dt.tz_convert(
             'Asia/Shanghai').dt.strftime("%Y-%m-%d %H:%M:%S:%f")
 
-        # 定义一个函数来处理消息字段
+        # 定义一个安全的JSON解析函数
+        def safe_json_loads(message_str):
+            try:
+                return json.loads(message_str)
+            except json.JSONDecodeError as e:
+                # 如果JSON解析失败，返回空字典或原始字符串，取决于需求
+                logger.warning(f"Warning: Failed to parse JSON: {message_str}. Error: {e}")
+                return {}
+        # 处理消息字段
         df['message'] = (
             df['message']
             .str.replace(r'\^', '"', regex=True)
@@ -142,7 +151,7 @@ class DBDataSource(BaseDataSource):
                 lambda s: s.str.match(r'^{.*}$'),
                 other=lambda s: "{" + s.str.replace(r",$", "", regex=True) + "}"
             )
-            .apply(json.loads)
+            .apply(safe_json_loads)
         )
 
         # 将消息字段展开为独立的列
