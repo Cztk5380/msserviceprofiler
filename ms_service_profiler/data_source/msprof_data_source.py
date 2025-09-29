@@ -41,76 +41,73 @@ class MsprofDataSource(BaseDataSource):
     def load_tx_data(cls, db_path):
         if db_path is None:
             return None
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT DISTINCT pid, tid, event_type, start_time, end_time, mark_id, message "
-            "FROM MsprofTxEx order by start_time "
-        )
-        all_data = cursor.fetchall()
 
-        columns = [description[0] if description[0] != "message" else "ori_msg" for description in cursor.description]
-        if "mark_id" not in columns:
-            raise ValueError(f'"mark_id" not exists in database: {db_path}, All columns: {columns}')
-        columns += ["message"]
-        message_dict = cls.create_span_message_dict(all_data)
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT DISTINCT pid, tid, event_type, start_time, end_time, mark_id, message "
+                "FROM MsprofTxEx order by start_time "
+            )
+            all_data = cursor.fetchall()
 
-        basic_df_list, message_df_list = [], []
-        for cur in all_data:
-            if len(cur) < 6 or cur[6].startswith("span="):
-                continue
-            msg = "" if cur[2] == "start/end" else cur[6]  # clean span name in range
-            msg_combined = (msg + message_dict.get(str(cur[5]), "")).replace("^", "\"")
-            if not (msg_combined.startswith('{') and msg_combined.endswith('}')):
-                msg_combined = '{' + msg_combined[:-1] + '}'  # -1 is ,
-            msg_combined_json = json.loads(msg_combined)
+            columns = [description[0] if description[0] != "message" else "ori_msg" for description in
+                       cursor.description]
+            if "mark_id" not in columns:
+                raise ValueError(f'"mark_id" not exists in database: {db_path}, All columns: {columns}')
+            columns += ["message"]
+            message_dict = cls.create_span_message_dict(all_data)
 
-            basic_df_list.append(cur + (msg_combined_json,))  # also append raw dict message
-            message_df_list.append(msg_combined_json)
+            basic_df_list, message_df_list = [], []
+            for cur in all_data:
+                if len(cur) < 6 or cur[6].startswith("span="):
+                    continue
+                msg = "" if cur[2] == "start/end" else cur[6]  # clean span name in range
+                msg_combined = (msg + message_dict.get(str(cur[5]), "")).replace("^", "\"")
+                if not (msg_combined.startswith('{') and msg_combined.endswith('}')):
+                    msg_combined = '{' + msg_combined[:-1] + '}'  # -1 is ,
+                msg_combined_json = json.loads(msg_combined)
 
-        basic_df = pd.DataFrame(basic_df_list, columns=columns)
-        message_df = pd.DataFrame(message_df_list)
-        all_data_df = pd.concat([basic_df, message_df], axis=1)
-        all_data_df["span_id"] = all_data_df["mark_id"]
-        conn.close()
-        return all_data_df
+                basic_df_list.append(cur + (msg_combined_json,))  # also append raw dict message
+                message_df_list.append(msg_combined_json)
+
+            basic_df = pd.DataFrame(basic_df_list, columns=columns)
+            message_df = pd.DataFrame(message_df_list)
+            all_data_df = pd.concat([basic_df, message_df], axis=1)
+            all_data_df["span_id"] = all_data_df["mark_id"]
+            return all_data_df
 
     @classmethod
     def load_cpu_data(cls, db_path):
         if db_path is None:
             return None
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT *
-            FROM CpuUsage
-            WHERE cpu_no == 'Avg'
-        """)
-
-        cpu_data = cursor.fetchall()
-        columns = [description[0] for description in cursor.description]
-        cpu_data_df = pd.DataFrame(cpu_data, columns=columns)
-        conn.close()
-        return cpu_data_df
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT *
+                FROM CpuUsage
+                WHERE cpu_no == 'Avg'
+            """)
+            cpu_data = cursor.fetchall()
+            columns = [description[0] for description in cursor.description]
+            cpu_data_df = pd.DataFrame(cpu_data, columns=columns)
+            return cpu_data_df
 
     @classmethod
     def load_memory_data(cls, db_path):
         if db_path is None:
             return None
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT *
-            FROM MemUsage
-        """)
-
-        data = cursor.fetchall()
-        columns = [description[0] for description in cursor.description]
-        df = pd.DataFrame(data, columns=columns)
-        conn.close()
-        return df
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT *
+                FROM MemUsage
+            """)
+            data = cursor.fetchall()
+            columns = [description[0] for description in cursor.description]
+            df = pd.DataFrame(data, columns=columns)
+            return df
 
     @classmethod
     def load_cpu_freq(cls, info_path):

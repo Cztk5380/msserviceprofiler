@@ -94,13 +94,27 @@ def key_except(*keys, ignore=False, msg=None):
             except KeyError as key_err:
                 if not hasattr(key_err, "args") or all(item not in keys for item in key_err.args):
                     raise key_err
-                error = ColumnMissingError(key_err.args, msg)
+
+                matched_keys = [item for item in key_err.args if item in keys]
+
+                # 创建包含所有缺失key的异常信息，但保持单个异常实例
+                if len(matched_keys) == 1:
+                    error_key = matched_keys[0]  # 单个key
+                    error_msg = msg
+                else:
+                    error_key = matched_keys[0]  # 只用第一个key，保持与父类兼容
+                    error_msg = f"{msg} Missing keys: {', '.join(str(k) for k in matched_keys)}"  # 包含所有缺失的key
+
+                error = ColumnMissingError(error_key, error_msg)  # 仍然只创建一个异常实例
+
                 if ignore:
                     logger.warning(error)
+                    return None
                 else:
                     raise error from key_err
-            return None
+
         return wrapper
+
     return decorator
 
 

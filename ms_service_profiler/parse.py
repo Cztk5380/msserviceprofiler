@@ -50,7 +50,6 @@ def parse_run(input_path, exporters, args=None):
     logger.info('Exporter done.')
 
 
-
 def main():
     parser = argparse.ArgumentParser(description='MS Server Profiler')
     parser.add_argument(

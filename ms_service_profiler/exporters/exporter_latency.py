@@ -133,8 +133,7 @@ def calculate_gen_token_speed_latency(req_map, is_prefill):
             # 计算生成token平均时延，s级
             cur_gen_speed = round(cur_req_gen_token_num / (diff_time / 1000000), 4) # 1000000:换算为秒级
             gen_token_speed.append(cur_gen_speed)
-        except KeyError:
-            # 并发场景下，若请求到达后还未生成token，则跳过当前请求不计算
+        except (KeyError, ValueError) as e:
             continue
 
     return get_percentile_results(gen_token_speed)

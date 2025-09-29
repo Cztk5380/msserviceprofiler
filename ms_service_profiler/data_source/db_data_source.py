@@ -134,7 +134,16 @@ class DBDataSource(BaseDataSource):
         df['end_datetime'] = pd.to_datetime(df['end_time'], unit='us', utc=True).dt.tz_convert(
             'Asia/Shanghai').dt.strftime("%Y-%m-%d %H:%M:%S:%f")
 
-        # 定义一个函数来处理消息字段
+        # 定义一个安全的JSON解析函数
+        def safe_json_loads(message_str):
+            try:
+                return json.loads(message_str)
+            except (json.JSONDecodeError, ValueError) as e:
+                # 如果JSON解析失败，返回空字典或原始字符串，取决于需求
+                print(f"Warning: Failed to parse JSON: {message_str}. Error: {e}")
+                return {}  # 或者返回原始字符串: message_str
+
+        # 处理消息字段
         df['message'] = (
             df['message']
             .str.replace(r'\^', '"', regex=True)
@@ -142,7 +151,7 @@ class DBDataSource(BaseDataSource):
                 lambda s: s.str.match(r'^{.*}$'),
                 other=lambda s: "{" + s.str.replace(r",$", "", regex=True) + "}"
             )
-            .apply(json.loads)
+            .apply(safe_json_loads)
         )
 
         # 将消息字段展开为独立的列
