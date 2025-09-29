@@ -9,6 +9,7 @@ from pathlib import Path
 
 from ms_service_profiler.data_source.base_data_source import BaseDataSource, Task
 from ms_service_profiler.utils.error import LoadDataError
+from ms_service_profiler.utils.log import logger
 
 
 @Task.register("data_source:db")
@@ -140,7 +141,7 @@ class DBDataSource(BaseDataSource):
                 return json.loads(message_str)
             except json.JSONDecodeError as e:
                 # 如果JSON解析失败，返回空字典或原始字符串，取决于需求
-                print(f"Warning: Failed to parse JSON: {message_str}. Error: {e}")
+                logger.warning(f"Warning: Failed to parse JSON: {message_str}. Error: {e}")
                 return {}
         # 处理消息字段
         df['message'] = (

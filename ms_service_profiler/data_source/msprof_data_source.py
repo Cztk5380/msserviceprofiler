@@ -58,7 +58,7 @@ class MsprofDataSource(BaseDataSource):
                     columns.append("ori_msg")
 
             if "mark_id" not in columns:
-                raise ValueError(f'"mark_id" not exists in database: {db_path}, All columns: {columns}')
+                raise ValueError(f'"mark_id" not exists in database: {db_path!r}, All columns: {columns}')
             columns += ["message"]
             message_dict = cls.create_span_message_dict(all_data)
 
