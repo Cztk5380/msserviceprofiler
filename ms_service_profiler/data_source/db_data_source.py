@@ -155,7 +155,7 @@ class DBDataSource(BaseDataSource):
         all_data_df.insert(0, 'hostuid', df['hostname'])
 
         # 六壬仿真场景，使用logical信息替换原本的时间，pid信息
-        is_simulation_profiling = meta.get("service_type") == "liuren_simulation"
+        is_simulation_profiling = isinstance(meta, dict) and meta.get("service_type") == "liuren_simulation"
         if is_simulation_profiling:
             all_data_df["start_time"] = all_data_df["logical_start_time="]
             all_data_df["end_time"] = all_data_df["logical_end_time="]
