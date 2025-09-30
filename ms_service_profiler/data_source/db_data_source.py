@@ -156,7 +156,8 @@ class DBDataSource(BaseDataSource):
 
         # 六壬仿真场景，使用logical信息替换原本的时间，pid信息
         is_simulation_profiling = isinstance(meta, dict) and meta.get("service_type") == "liuren_simulation"
-        if is_simulation_profiling:
+        simulation_required_cols = ["logical_start_time=", "logical_end_time=", "logical_pid="]
+        if is_simulation_profiling and set(simulation_required_cols).issubset(all_data_df.columns):
             all_data_df["start_time"] = all_data_df["logical_start_time="]
             all_data_df["end_time"] = all_data_df["logical_end_time="]
             all_data_df["pid"] = all_data_df["logical_pid="]
