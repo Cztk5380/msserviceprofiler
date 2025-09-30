@@ -163,6 +163,15 @@ class DBDataSource(BaseDataSource):
         # 在最前面添加hostname列，并将其重命名为hostuid
         all_data_df.insert(0, 'hostuid', df['hostname'])
 
+        # 六壬仿真场景，使用logical信息替换原本的时间，pid信息
+        is_simulation_profiling = isinstance(meta, dict) and meta.get("service_type") == "liuren_simulation"
+        simulation_required_cols = ["logical_start_time=", "logical_end_time=", "logical_pid="]
+        if is_simulation_profiling and set(simulation_required_cols).issubset(all_data_df.columns):
+            all_data_df["start_time"] = all_data_df["logical_start_time="]
+            all_data_df["end_time"] = all_data_df["logical_end_time="]
+            all_data_df["pid"] = all_data_df["logical_pid="]
+            all_data_df["during_time"] = all_data_df["end_time"] - all_data_df["start_time"]
+
         # 返回包含处理后数据的字典
         return dict(
             tx_data_df=all_data_df,  # 事务数据，包含hostuid列
