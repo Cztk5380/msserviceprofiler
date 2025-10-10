@@ -47,6 +47,7 @@ int NpuMemoryUsage::DcmiInit() const
     if (!dcmiInit) {
         PROF_LOGW("Error: %s", dlerror());
         dlclose(handleDcmi);
+        handleDcmi = nullptr;
         return EXITCODE_EMPTY_DLSYM_ADDR;
     }
 
