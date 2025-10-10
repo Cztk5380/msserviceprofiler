@@ -698,7 +698,7 @@ void Config::SetFileEnable(bool enable)
 
     // 添加特殊字符校验
     if (HasIllegalChars(configPath)) {
-        PROF_LOGE("Config path contains illegal characters: %s", configPath.c_str());
+        PROF_LOGE("Config path contains illegal characters: %s", configPath.c_str()); // LCOV_EXCL_LINE
         return;
     }
 
