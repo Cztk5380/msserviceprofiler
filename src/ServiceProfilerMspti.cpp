@@ -61,9 +61,9 @@ namespace msServiceProfiler {
             for (auto& pBuffer : pBufferPool) {
                 free(pBuffer.pBuffer);
                 pBuffer.pBuffer = nullptr;
-            }
+            };
             pBufferPool.clear();
-        }
+        };
         void RecycleBuffer(uint8_t* buffer, const size_t size)
         {
             if (buffer == nullptr || size == 0) {
