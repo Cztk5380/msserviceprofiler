@@ -60,9 +60,10 @@ namespace msServiceProfiler {
             closeFlag = close;
             for (auto& pBuffer : pBufferPool) {
                 free(pBuffer.pBuffer);
-            };
+                pBuffer.pBuffer = nullptr;
+            }
             pBufferPool.clear();
-        };
+        }
         void RecycleBuffer(uint8_t* buffer, const size_t size)
         {
             if (buffer == nullptr || size == 0) {
@@ -71,6 +72,7 @@ namespace msServiceProfiler {
             std::lock_guard<std::mutex> lock(mutex_);
             if (closeFlag) {
                 free(buffer);
+                buffer = nullptr;
                 return;
             }
             pBufferPool.push_back(BufferInfo{buffer, size});
@@ -289,6 +291,7 @@ namespace msServiceProfiler {
         size_t space = bufferSize + alignment;
         if (!std::align(alignment, bufferSize, alignedPtr, space)) {
             free(pBuffer);
+            pBuffer = nullptr;
             *buffer = nullptr;
             PROF_LOGE("Buffer request failed.");
             return;

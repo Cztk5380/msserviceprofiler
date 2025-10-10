@@ -22,6 +22,7 @@
 #include <cmath>
 #include <forward_list>
 #include <sqlite3.h>
+#include <sys/stat.h>
 
 #include "securec.h"
 #include "acl/acl_prof.h"
@@ -85,6 +86,12 @@ void ServiceProfilerDbWriter::StartDump(const std::string &outputPath)
         PROF_LOGE("Execution failed: %s, %s", sqlite3_errmsg(db_), dbPath.c_str());  // LCOV_EXCL_LINE
         return;
     }
+
+    // 设置文件权限为640
+    if (chmod(dbPath.c_str(), S_IRUSR | S_IWUSR | S_IRGRP) != 0) {
+        PROF_LOGE("Failed to set file permissions for %s", dbPath.c_str());  // LCOV_EXCL_LINE
+    }
+
     ApplyOptimizations();
     inited = true;
 
