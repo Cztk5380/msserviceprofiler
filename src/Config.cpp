@@ -712,7 +712,6 @@ void Config::SetFileEnable(bool enable)
         PROF_LOGE("Invalid config path due to excessive depth: %s", configPath.c_str()); // LCOV_EXCL_LINE
         return;
     }
-
     std::ofstream outputFile(configPath.c_str());
     if (!outputFile.is_open()) {
         PROF_LOGW("Automatic config file update failed %s", configPath.c_str()); // LCOV_EXCL_LINE
