@@ -68,7 +68,7 @@ private:
     int listLen = MAX_CHIP_NUM;
     std::vector<CardDevice> cardDevices;
 
-    int DcmiInit() const;
+    int DcmiInit();
     int DcmiGetCardList(int *paramCardNum, int *paramCardList, int paramListLen) const;
     int DcmiGetDeviceIdInCard(int cardId, int *deviceIdMax) const;
     int DcmiGetDeviceMemoryInfoV3(
