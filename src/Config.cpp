@@ -695,7 +695,6 @@ void Config::SetFileEnable(bool enable)
     SetEnable(enable);
     const int jsonIndentSize = 4;
     std::string configPath = GetEnvAsString("SERVICE_PROF_CONFIG_PATH");
-
     // 添加特殊字符校验
     if (HasIllegalChars(configPath)) {
         PROF_LOGE("Config path contains illegal characters: %s", configPath.c_str()); // LCOV_EXCL_LINE
