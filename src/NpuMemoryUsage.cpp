@@ -36,7 +36,7 @@ NpuMemoryUsage::~NpuMemoryUsage()
     }
 }
 
-int NpuMemoryUsage::DcmiInit() const
+int NpuMemoryUsage::DcmiInit()
 {
     using DcmiInitFunc = int (*)();
     if (handleDcmi == nullptr) {
