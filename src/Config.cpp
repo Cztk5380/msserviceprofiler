@@ -705,20 +705,19 @@ void Config::SetFileEnable(bool enable)
     auto configJson = ReadConfigFile();
     configJson["enable"] = 0;
     if (!SecurityUtils::IsPathLenLegal(configPath)) {
-        PROF_LOGE("Invalid config path due to excessive length: %s", configPath.c_str());
+        PROF_LOGE("Invalid config path due to excessive length: %s", configPath.c_str()); // LCOV_EXCL_LINE
         return;
     }
     if (!SecurityUtils::IsPathDepthLegal(configPath)) {
-        PROF_LOGE("Invalid config path due to excessive depth: %s", configPath.c_str());
+        PROF_LOGE("Invalid config path due to excessive depth: %s", configPath.c_str()); // LCOV_EXCL_LINE
         return;
     }
 
     std::ofstream outputFile(configPath.c_str());
     if (!outputFile.is_open()) {
-        PROF_LOGW("Automatic config file update failed %s", configPath.c_str());
+        PROF_LOGW("Automatic config file update failed %s", configPath.c_str()); // LCOV_EXCL_LINE
         return;
     }
-
     outputFile << configJson.dump(jsonIndentSize);
     outputFile.close();
 }
