@@ -321,6 +321,11 @@ void ServiceProfilerManager::MarkFirstProcessAsMain()
             PROF_LOGW("cannot write to mmap");  // LCOV_EXCL_LINE
         }
     }
+
+    if (munmap(mmapPtr, mmapSize) == -1) {
+        PROF_LOGW("munmap failed");  // LCOV_EXCL_LINE
+    }
+    
     close(shmFd);
 }
 
@@ -655,7 +660,6 @@ void ServiceProfilerManager::StopAclProf()
     ret = aclprofDestroyConfig(profConfig);
     if (ret != ACL_ERROR_NONE) {
         PROF_LOGE("acl prof destroy config failed, ret = %d", ret);  // LCOV_EXCL_LINE
-        return;
     }
     this->configHandle_ = nullptr;
     ret = aclprofFinalize();
