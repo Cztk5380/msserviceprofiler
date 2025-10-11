@@ -6,9 +6,6 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <unordered_map>
-#include <string>
-#include <cctype>
-#include <algorithm>
 
 #include "securec.h"
 
@@ -642,12 +639,12 @@ bool Config::PrepareConfigAndPath(std::string& configPath) const
 
     if (configPath.size() < jsonSuffixSize ||
         configPath.substr(configPath.size() - jsonSuffixSize) != ".json") {
-        PROF_LOGW("Config path must end with .json: %s", configPath.c_str());  // LCOV_EXCL_LINE
+        PROF_LOGW("Config path must end with .json: %s", ToSafeString(configPath.c_str()));  // LCOV_EXCL_LINE
         return false;
     }
 
     if (access(configPath.c_str(), F_OK) == 0) {
-        PROF_LOGD("Config path: %s already exists", configPath.c_str());  // LCOV_EXCL_LINE
+        PROF_LOGD("Config path: %s already exists", ToSafeString(configPath.c_str()));  // LCOV_EXCL_LINE
         return false;
     }
     std::string dirPath = GetDirPath(configPath);
@@ -676,44 +673,24 @@ nlohmann::ordered_json Config::GetConfigData() const
     // LCOV_EXCL_STOP
 }
 
-// 定义允许的字符集合
-bool IsPathCharLegal(char c)
-{
-    // 允许字母、数字、下划线、点、斜杠、连字符和短横线
-    return std::isalnum(c) || c == '_' || c == '.' || c == '/' || c == '-' || c == '\\';
-}
-
-bool HasIllegalChars(const std::string& path)
-{
-    return std::any_of(path.begin(), path.end(), [](char c) {
-        return !IsPathCharLegal(c);
-    });
-}
-
 void Config::SetFileEnable(bool enable)
 {
     SetEnable(enable);
     const int jsonIndentSize = 4;
     std::string configPath = GetEnvAsString("SERVICE_PROF_CONFIG_PATH");
-    // 添加特殊字符校验
-    if (HasIllegalChars(configPath)) {
-        PROF_LOGE("Config path contains illegal characters: %s", configPath.c_str()); // LCOV_EXCL_LINE
-        return;
-    }
-
     auto configJson = ReadConfigFile();
     configJson["enable"] = 0;
     if (!SecurityUtils::IsPathLenLegal(configPath)) {
-        PROF_LOGE("Invalid config path due to excessive length: %s", configPath.c_str()); // LCOV_EXCL_LINE
+        PROF_LOGE("Invalid config path due to excessive length: %s", ToSafeString(configPath.c_str())); // LCOV_EXCL_LINE
         return;
     }
     if (!SecurityUtils::IsPathDepthLegal(configPath)) {
-        PROF_LOGE("Invalid config path due to excessive depth: %s", configPath.c_str()); // LCOV_EXCL_LINE
+        PROF_LOGE("Invalid config path due to excessive depth: %s", ToSafeString(configPath.c_str())); // LCOV_EXCL_LINE
         return;
     }
     std::ofstream outputFile(configPath.c_str());
     if (!outputFile.is_open()) {
-        PROF_LOGW("Automatic config file update failed %s", configPath.c_str()); // LCOV_EXCL_LINE
+        PROF_LOGW("Automatic config file update failed %s", ToSafeString(configPath.c_str()));  // LCOV_EXCL_LINE
         return;
     }
     outputFile << configJson.dump(jsonIndentSize);
@@ -762,7 +739,7 @@ void Config::SaveConfigToJsonFile() const
             remove(realTempPath);
             return;
         }
-        PROF_LOGD("Successfully saved profiler configuration to: %s", configPath.c_str());  // LCOV_EXCL_LINE
+        PROF_LOGD("Successfully saved profiler configuration to: %s", ToSafeString(configPath.c_str()));  // LCOV_EXCL_LINE
     } catch (const std::exception& e) {  // LCOV_EXCL_LINE
         PROF_LOGE("Failed to save config to JSON file: %s", e.what());  // LCOV_EXCL_LINE
     }
