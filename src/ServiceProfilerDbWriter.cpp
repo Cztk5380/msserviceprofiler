@@ -33,6 +33,7 @@
 #include "msServiceProfiler/DbBuffer.h"
 #include "msServiceProfiler/Profiler.h"
 #include "msServiceProfiler/NpuMemoryUsage.h"
+#include "msServiceProfiler/SecurityUtilsLog.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
 #include "msServiceProfiler/ServiceProfilerDbWriter.h"
 

@@ -33,6 +33,7 @@
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/ServiceProfilerDbWriter.h"
+#include "msServiceProfiler/SecurityUtilsLog.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorServiceData.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorMetaData.h"

@@ -11,6 +11,7 @@
 
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/SecurityUtils.h"
+#include "msServiceProfiler/SecurityUtilsLog.h"
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/Config.h"
 
