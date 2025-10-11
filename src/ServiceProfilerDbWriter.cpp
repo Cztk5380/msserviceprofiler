@@ -83,13 +83,13 @@ void ServiceProfilerDbWriter::StartDump(const std::string &outputPath)
     // 打开数据库连接
     int rc = sqlite3_open(dbPath.c_str(), &db_);
     if (rc != SQLITE_OK) {
-        PROF_LOGE("Execution failed: %s, %s", sqlite3_errmsg(db_), dbPath.c_str());  // LCOV_EXCL_LINE
+        PROF_LOGE("Execution failed: %s, %s", sqlite3_errmsg(db_), ToSafeString(dbPath.c_str()));  // LCOV_EXCL_LINE
         return;
     }
 
     // 设置文件权限为640
     if (chmod(dbPath.c_str(), S_IRUSR | S_IWUSR | S_IRGRP) != 0) {
-        PROF_LOGE("Failed to set file permissions for %s", dbPath.c_str());  // LCOV_EXCL_LINE
+        PROF_LOGE("Failed to set file permissions for %s", ToSafeString(dbPath.c_str()));  // LCOV_EXCL_LINE
     }
 
     ApplyOptimizations();
