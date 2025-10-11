@@ -347,7 +347,7 @@ void ServiceProfilerManager::DynamicControl()
             lastUpdate_ = configFileStat.st_mtime;
         }
     } else {
-        LOG_ONCE_E("fail to get stat of %s", ToSafeString(configPath.c_str()));  // LCOV_EXCL_LINE
+        LOG_ONCE_E("fail to get stat of %s", SecurityUtils::ToSafeString(configPath.c_str()));  // LCOV_EXCL_LINE
         return;
     }
 
