@@ -33,6 +33,7 @@
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/ServiceProfilerDbWriter.h"
+#include "msServiceProfiler/SecurityUtilsLog.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorServiceData.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorMetaData.h"
@@ -351,7 +352,7 @@ void ServiceProfilerManager::DynamicControl()
             lastUpdate_ = configFileStat.st_mtime;
         }
     } else {
-        LOG_ONCE_E("fail to get stat of %s", configPath.c_str());  // LCOV_EXCL_LINE
+        LOG_ONCE_E("fail to get stat of %s", SecurityUtils::ToSafeString(configPath.c_str()));  // LCOV_EXCL_LINE
         return;
     }
 
