@@ -201,24 +201,38 @@ class ProcessorReq(ProcessorBase):
 
         # 取请求到达时间和第一个迭代时间
         calc_df = req_event_df[(req_event_df["event"] == "httpReq") | (req_event_df["iter"] == 0)]
-        # 如果有detokenize/decode ，取第一个 detokenize/decode
-        first_decode = req_event_df[req_event_df["event"].isin(["detokenize", "decode"])].groupby("rid").first()
-        first_decode["rid"] = first_decode.index
 
-        # 保证 calc_df 不为空时才进行合并
+        # 取第一个 detokenize/decode
+        first_decode = (
+            req_event_df[req_event_df["event"].isin(["detokenize", "decode"])]
+            .groupby("rid")
+            .first()
+            .reset_index()
+        )
+
+        # 合并非空 DataFrame
         non_empty_dfs = [df for df in [calc_df, first_decode] if not df.empty]
-        calc_df = pd.concat(non_empty_dfs) if non_empty_dfs else calc_df
+        calc_df = pd.concat(non_empty_dfs, ignore_index=True) if non_empty_dfs else calc_df
 
-        # 如果有 sendResponse，取最后一个
-        last_send_response = req_event_df[req_event_df["event"] == "sendResponse"].groupby("rid").last()
+        # 取最后一个 sendResponse
+        last_send_response = (
+            req_event_df[req_event_df["event"] == "sendResponse"]
+            .groupby("rid")
+            .last()
+            .reset_index()
+        )
         if not last_send_response.empty:
-            last_send_response["rid"] = last_send_response.index
-            calc_df = pd.concat([calc_df, last_send_response])
+            calc_df = pd.concat([calc_df, last_send_response], ignore_index=True)
 
+        # 如果 calc_df 为空，直接返回
+        if calc_df.empty:
+            return req_ttft_df
+
+        # 按 rid 聚合
         group_by_df = calc_df.groupby("rid").agg({
             "start_time": "min",
             "end_time": "max",
-            "event": ["first", 'count']
+            "event": ["first", "count"]
         }).reset_index()
 
         group_by_df.columns = ['rid', 'start_time', 'end_time', 'event_first', 'event_count']

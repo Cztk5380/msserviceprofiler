@@ -161,7 +161,7 @@ class DBDataSource(BaseDataSource):
         all_data_df = df.join(msg_df)
 
         # 在最前面添加hostname列，并将其重命名为hostuid
-        all_data_df.insert(0, 'hostuid', df['hostname'])
+        all_data_df.insert(0, 'hostuid', df.get('hostname', 'None'))
 
         # 六壬仿真场景，使用logical信息替换原本的时间，pid信息
         is_simulation_profiling = isinstance(meta, dict) and meta.get("service_type") == "liuren_simulation"
