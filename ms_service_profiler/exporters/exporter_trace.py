@@ -32,8 +32,28 @@ class ExporterTrace(TaskExporterBase):
     def do_export(self):
         data, mspti = self.get_depends_result("pipeline:service", None), self.get_depends_result("pipeline:mspti", None)
         if data is None and mspti is None:
+            self.gather((None, None), dst=0)
             return
-        self.export(data, mspti)
+        if self.task_index == 0 and (data is not None or mspti is not None):
+            data_list = self.gather((None, None), dst=0)
+        else:
+            data_list = self.gather((data, mspti), dst=0)
+
+        if data_list is None:
+            return None
+
+        if self.task_index == 0 and (data is not None or mspti is not None):
+            data_list[0] = (data, mspti)
+
+        # 使用列表推导式过滤并提取非None值
+        all_data = [item[0] for item in data_list if item is not None and item[0] is not None]
+        all_mspti = [item[1] for item in data_list if item is not None and item[1] is not None]
+
+        # 获取第一个非None的值
+        valid_data = all_data[0] if all_data else None
+        valid_mspti = all_mspti[0] if all_mspti else None
+
+        self.export(valid_data, valid_mspti)
 
     @classmethod
     @timer(logger.debug)
