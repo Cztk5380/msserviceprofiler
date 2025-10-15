@@ -31,9 +31,6 @@ class ExporterTrace(TaskExporterBase):
 
     def do_export(self):
         data, mspti = self.get_depends_result("pipeline:service", None), self.get_depends_result("pipeline:mspti", None)
-        if data is None and mspti is None:
-            self.gather((None, None), dst=0)
-            return None  # 统一返回None
 
         if self.task_index == 0 and (data is not None or mspti is not None):
             data_list = self.gather((None, None), dst=0)
@@ -55,7 +52,7 @@ class ExporterTrace(TaskExporterBase):
         valid_mspti = all_mspti[0] if all_mspti else None
 
         self.export(valid_data, valid_mspti)
-        return None  # 统一返回None
+        return None
 
     @classmethod
     @timer(logger.debug)
