@@ -55,7 +55,6 @@ class ExporterTrace(TaskExporterBase):
         valid_mspti = all_mspti[0] if all_mspti else None
 
         self.export(valid_data, valid_mspti)
-        return None  # 统一返回None
 
     @classmethod
     @timer(logger.debug)
