@@ -42,6 +42,7 @@ def check_df_col_unique_value_nums(df, col_name, number):
 
 
 def has_prof_folder(root_folder):
+    # 检查文件夹下是否存在PROF_开头的子文件夹
     root_path = Path(root_folder)
     for p in root_path.rglob("*"):
         if p.is_dir() and p.name.startswith("PROF_"):
