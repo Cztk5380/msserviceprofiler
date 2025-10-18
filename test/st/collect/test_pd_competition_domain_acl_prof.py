@@ -1,21 +1,14 @@
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
 
 import os
-from pathlib import Path
 from pytest_check import check
 
 from test.st.executor.exec_benchmark import ExecBenchmark
 from test.st.executor.exec_mindie_server import ExecMindIEServer
 from test.st.checker.domain_checker import check_db_domain
 from test.st.checker.dump_checker import mindie_key_word_checker
+from test.st.checker.checker_utils import has_prof_folder
 
-
-def has_prof_folder(root_folder):
-    root_path = Path(root_folder)
-    for p in root_path.rglob("*"):
-        if p.is_dir() and p.name.startswith("PROF_"):
-            return True
-    return False
 
 def test_domain_acl_prof_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
     try:
