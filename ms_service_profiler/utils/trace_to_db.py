@@ -7,7 +7,7 @@ from ms_service_profiler.utils.file_open_check import safe_json_dump
 from ms_service_profiler.constant import NS_PER_US
 
 
-DB_CACHE_SIZE = 1024
+DB_CACHE_SIZE = 10000
 
 TRACE_TABLE_DEFINITIONS = {
     'process': """CREATE TABLE process 
@@ -140,21 +140,35 @@ class ProcessTableManager:
 
 
 class CacheTableManager:
-    cache_list = {
-        "slice": [],
-        "counter": [],
-        "flow": []
-    }
+    _local_cache = None
 
     @classmethod
-    def insert_cache_to_db(cls, data_type, cursor, cache_size):
-        cache_table = cls.cache_list[data_type]
+    def get_cache(cls):
+        if cls._local_cache is None:
+            cls._local_cache = {
+                "slice": [],
+                "counter": [],
+                "flow": []
+            }
+        return cls._local_cache
+
+    @classmethod
+    def insert_cache_to_db(cls, data_type, cursor, cache_size=None):
+        if cache_size is None:
+            cache_size = DB_CACHE_SIZE
+        cache_table = cls.get_cache()[data_type]
         if len(cache_table) >= cache_size:
             cursor.executemany(
                 UPDATA_SQL_TEMPLATES[data_type],
                 cache_table
             )
             cache_table.clear()
+
+    # 添加 cache_list 属性以兼容现有代码
+    @classmethod
+    @property
+    def cache_list(cls):
+        return cls.get_cache()
 
 
 def trans_trace_meta_event(event, cursor):
@@ -196,18 +210,20 @@ def write_to_process_thread_table(event_data, thread_sort_index, cursor):
 
 
 def trans_trace_slice_event(event, cursor):
-    if event.get('ts') is None:
+    if event.get('ts') is None or event.get('dur') is None:
         return
-    if event.get('dur') is None:
-        return
+
     event_data = trans_trace_slice_data(event)
     end_ts = event_data['ts'] + event_data['dur']
 
     track_id = write_to_process_thread_table(event_data, event.get('thread_sort_index'), cursor)
 
-    # 创建slice块
-    CacheTableManager.cache_list['slice'].append((event_data.get('ts'), event_data.get('dur'), event_data.get('name'),
-        track_id, event.get('cat'), event_data.get('args'), event.get('cname'), end_ts, event.get('flag_id')))
+    # 使用进程局部缓存
+    CacheTableManager.get_cache()['slice'].append((
+        event_data.get('ts'), event_data.get('dur'), event_data.get('name'),
+        track_id, event.get('cat'), event_data.get('args'), event.get('cname'),
+        end_ts, event.get('flag_id')
+    ))
     CacheTableManager.insert_cache_to_db('slice', cursor, DB_CACHE_SIZE)
 
 
@@ -220,9 +236,11 @@ def trans_trace_counter_event(event, cursor):
 
     _ = write_to_process_thread_table(event_data, event.get('thread_sort_index'), cursor)
 
-    # 创建counter块
-    CacheTableManager.cache_list['counter'].append((event_data.get('name'), event_data.get('pid'), event_data.get('ts'),
-        event.get('cat'), event_data.get('args')))
+    # 使用进程局部缓存
+    CacheTableManager.get_cache()['counter'].append((
+        event_data.get('name'), event_data.get('pid'), event_data.get('ts'),
+        event.get('cat'), event_data.get('args')
+    ))
     CacheTableManager.insert_cache_to_db('counter', cursor, DB_CACHE_SIZE)
 
 
@@ -233,9 +251,11 @@ def trans_trace_flow_event(event, ph_type, cursor):
 
     track_id = write_to_process_thread_table(event_data, event.get('thread_sort_index'), cursor)
 
-    # 创建flow连线
-    CacheTableManager.cache_list['flow'].append((event_data.get('flow_id'), event_data.get('name'), track_id,
-        event_data.get('ts'), event_data.get('cat'), ph_type))
+    # 使用进程局部缓存
+    CacheTableManager.get_cache()['flow'].append((
+        event_data.get('flow_id'), event_data.get('name'), track_id,
+        event_data.get('ts'), event_data.get('cat'), ph_type
+    ))
     CacheTableManager.insert_cache_to_db('flow', cursor, DB_CACHE_SIZE)
 
 
@@ -252,5 +272,5 @@ def trans_trace_event(event, cursor):
 
 
 def save_cache_data_to_db(cursor):
-    for data_type in CacheTableManager.cache_list.keys():
+    for data_type in CacheTableManager.get_cache().keys():
         CacheTableManager.insert_cache_to_db(data_type, cursor, 0)

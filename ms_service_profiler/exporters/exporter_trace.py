@@ -1,7 +1,11 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-import json
 import os
+import time
+import multiprocessing as mp
+import json
+from multiprocessing import Queue, Process
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
@@ -14,7 +18,8 @@ from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.error import DatabaseError, key_except
 from ms_service_profiler.exporters.utils import get_db_connection, create_sqlite_tables
 from ms_service_profiler.utils.trace_to_db import (
-    trans_trace_event, save_cache_data_to_db, TRACE_TABLE_DEFINITIONS
+    save_cache_data_to_db, TRACE_TABLE_DEFINITIONS, trans_trace_event,
+    CacheTableManager, UPDATA_SQL_TEMPLATES, DB_CACHE_SIZE
 )
 
 
@@ -31,9 +36,27 @@ class ExporterTrace(TaskExporterBase):
 
     def do_export(self):
         data, mspti = self.get_depends_result("pipeline:service", None), self.get_depends_result("pipeline:mspti", None)
-        if data is None and mspti is None:
-            return
-        self.export(data, mspti)
+        if self.task_index == 0 and (data is not None or mspti is not None):
+            data_list = self.gather((None, None), dst=0)
+        else:
+            data_list = self.gather((data, mspti), dst=0)
+
+        if data_list is None:
+            return None
+
+        if self.task_index == 0 and (data is not None or mspti is not None):
+            data_list[0] = (data, mspti)
+
+        # 使用列表推导式过滤并提取非None值
+        all_data = [item[0] for item in data_list if item is not None and item[0] is not None]
+        all_mspti = [item[1] for item in data_list if item is not None and item[1] is not None]
+
+        # 获取第一个非None的值
+        valid_data = all_data[0] if all_data else None
+        valid_mspti = all_mspti[0] if all_mspti else None
+
+        self.export(valid_data, valid_mspti)
+
 
     @classmethod
     @timer(logger.debug)
@@ -101,10 +124,10 @@ class ExporterTrace(TaskExporterBase):
             save_trace_data_into_json(merged_data, output)
 
         if 'db' in cls.args.format:
-            logger.debug('Start write trace data to db')
+            logger.info('Start write trace data to db')
             create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
             save_trace_data_into_db(merged_data)
-            logger.debug('Write trace data to db success')
+            logger.info('Write trace data to db success')
 
 
 def prepare_domain_for_process(all_data_df):
@@ -172,27 +195,216 @@ def find_cann_pid(trace_events):
     return None
 
 
-def save_trace_data_into_db(trace_data):
-    events = trace_data.get("traceEvents", [])
+# English
+def _process_event_direct(event):
+    """
+    Producer task: process single event and return results
+    """
     try:
-        # 创建数据库连接
+
+        # Each process uses independent in-memory database
+        mem_conn = sqlite3.connect(":memory:")
+        mem_cursor = mem_conn.cursor()
+
+        # Create same table structure in memory database
+        for table_name, create_sql in TRACE_TABLE_DEFINITIONS.items():
+            mem_cursor.execute(create_sql)
+        mem_conn.commit()
+
+        # Process event
+        trans_trace_event(event, mem_cursor)
+
+        # Get data from CacheTableManager
+        results = []
+        cache_data = CacheTableManager.get_cache()
+        for data_type, rows in cache_data.items():
+            if rows:
+                results.extend([(data_type, row) for row in rows])
+                # Clear current process cache
+                cache_data[data_type].clear()
+
+        mem_conn.close()
+        return results
+
+    except Exception as e:
+        logger.warning(f"Failed to process event: {str(e)}, event: {event.get('name', 'unknown')}")
+        return []
+
+
+def producer_worker(events_chunk, output_queue):
+    """
+    Producer process: process event chunk and put results into output queue
+    """
+    try:
+        logger.debug(f"Producer started processing {len(events_chunk)} events")
+        processed_count = 0
+
+        for event in events_chunk:
+            try:
+                processed = _process_event_direct(event)
+                if processed:
+                    # Put processing results into queue
+                    output_queue.put(processed)
+                    processed_count += len(processed)
+            except Exception as e:
+                logger.debug(f"Failed to process event: {e}")
+                continue
+
+        logger.debug(f"Producer completed, processed {len(events_chunk)} events, "
+                     f"generated {processed_count} data records")
+
+    except Exception as e:
+        logger.error(f"Producer process error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+
+
+def consumer_worker(input_queue, total_events):
+    """
+    Consumer process: get data from queue and batch write to database
+    """
+    try:
+        logger.debug("Consumer process started")
         conn = get_db_connection()
+        if conn is None:
+            logger.error("Consumer failed to get database connection")
+            return
+
         cursor = conn.cursor()
 
-        # 写入db文件
-        for event in events:
-            trans_trace_event(event, cursor)
+        cache = {}  # {data_type: list of rows}
+        total_processed = 0
+        batch_count = 0
 
-        # 写入批量提交后剩余的缓存数据
+        while True:
+            try:
+                # Set timeout to avoid permanent blocking
+                item = input_queue.get(timeout=30)
+                if item is None:  # End signal
+                    logger.debug("Received end signal")
+                    break
+
+                batch_count += 1
+
+                # Process batch data
+                for data_type, row in item:
+                    if data_type not in cache:
+                        cache[data_type] = []
+                    cache[data_type].append(row)
+                    total_processed += 1
+
+                    # Batch write
+                    if len(cache[data_type]) >= DB_CACHE_SIZE:
+                        if data_type in UPDATA_SQL_TEMPLATES:
+                            cursor.executemany(UPDATA_SQL_TEMPLATES[data_type], cache[data_type])
+                            logger.debug(f"Batch written {data_type} data: {len(cache[data_type])}")
+                            cache[data_type].clear()
+
+                # Regular commit
+                if batch_count % 10 == 0:
+                    conn.commit()
+                    logger.debug(f"Consumer processed {total_processed}/{total_events} data")
+
+            except mp.queues.Empty:
+                logger.warning("Queue timeout, continue waiting...")
+                continue
+            except Exception as e:
+                logger.error(f"Failed to process queue data: {e}")
+                break
+
+        # Write remaining data
+        logger.debug("Start writing remaining cache data")
+        for data_type, rows in cache.items():
+            if rows and data_type in UPDATA_SQL_TEMPLATES:
+                cursor.executemany(UPDATA_SQL_TEMPLATES[data_type], rows)
+                logger.debug(f"Written remaining {data_type} data: {len(rows)}")
+
+        # Save cache data
         save_cache_data_to_db(cursor)
 
         conn.commit()
-    except Exception as ex:
-        conn.rollback()  # 失败时回滚
-        raise DatabaseError(f"Cannot update sqlite database when create trace table due to {ex}") from ex
-    finally:
-        if conn:
-            conn.close()
+        conn.close()
+        logger.debug(f"Consumer process ended, total processed data: {total_processed}")
+
+    except Exception as e:
+        logger.error(f"Consumer process error: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+
+
+def save_trace_data_into_db(trace_data):
+    """
+    Complete multi-process version: clear Producer and Consumer architecture
+    """
+    events = trace_data.get("traceEvents", [])
+    total = len(events)
+    if total == 0:
+        logger.warning("no data to write")
+        return
+
+    start_time = time.perf_counter()
+    logger.debug(f"Multi-process started processing {total} events")
+
+    # Use multi-process queue
+    mp_queue = Queue(maxsize=1000)
+
+    # Determine number of processes
+    cpu_count = mp.cpu_count()
+    # producer_processes = min(max(1, cpu_count - 1), 32)
+
+    # Try to maximize
+    producer_processes = max(1, cpu_count - 1)
+
+    # Split into chunks
+    chunk_size = max(1, total // producer_processes)
+    chunks = [events[i:i + chunk_size] for i in range(0, total, chunk_size)]
+
+    logger.debug(f"Using {producer_processes} Producer processes, chunk size: {chunk_size}, chunk count: {len(chunks)}")
+
+    # Start Consumer process
+    consumer_process = Process(
+        target=consumer_worker,
+        args=(mp_queue, total)
+    )
+    consumer_process.start()
+    logger.debug("Consumer process started")
+
+    # Start Producer processes
+    producer_processes_list = []
+    for i, chunk in enumerate(chunks):
+        process = Process(
+            target=producer_worker,
+            args=(chunk, mp_queue)
+        )
+        process.start()
+        producer_processes_list.append(process)
+        logger.debug(f"Started Producer process {i + 1}/{len(chunks)}")
+
+    # Wait for all Producer processes to complete
+    logger.debug("Waiting for all Producer processes to complete...")
+    for i, process in enumerate(producer_processes_list):
+        process.join()
+        logger.debug(f"Producer process {i + 1} completed")
+
+    # Send end signal to Consumer
+    mp_queue.put(None)
+    logger.debug("Sent end signal to Consumer")
+
+    # Wait for Consumer process to complete
+    consumer_process.join(timeout=60)
+    if consumer_process.is_alive():
+        logger.debug("Consumer process did not end within timeout")
+        consumer_process.terminate()
+    else:
+        logger.debug("Consumer process ended")
+
+    elapsed = time.perf_counter() - start_time
+    logger.debug(
+        f"✅ process down ，total_num: {total}, "
+        f"Producer num: {producer_processes}, "
+        f"time: {elapsed:.3f}s, "
+        f"speed: {total / elapsed:.2f} records/second")
+#
 
 
 def merge_json_data(trace_data, msprof_data_df):
@@ -428,11 +640,28 @@ def add_trace_events(valid_name_df):
     
     # 构建参数列表
     args_list = _build_args_list(valid_name_df)
-    
-    # 添加参数到DataFrame并转换为记录
-    trace_event_df['args'] = args_list
-    trace_events = trace_event_df[['name', 'ph', 'ts', 'dur', 'pid', 'tid', 'args']].to_dict(orient='records')
-    
+
+    # 直接构建结果列表
+    names = trace_event_df['name'].tolist()
+    phs = trace_event_df['ph'].tolist()
+    tss = trace_event_df['ts'].tolist()
+    durs = trace_event_df['dur'].tolist()
+    pids = trace_event_df['pid'].tolist()
+    tids = trace_event_df['tid'].tolist()
+
+    trace_events = [
+        {
+            'name': names[i],
+            'ph': phs[i],
+            'ts': tss[i],
+            'dur': durs[i],
+            'pid': pids[i],
+            'tid': tids[i],
+            'args': args_list[i]
+        }
+        for i in range(len(trace_event_df))
+    ]
+
     return trace_events
 
 
@@ -595,41 +824,77 @@ def add_npu_events(npu_data_df):
 
 
 def add_kvcache_events(kv_data_df, pid_label_map=None):
-    if 'deviceBlock=' not in kv_data_df:
+    if 'deviceBlock=' not in kv_data_df.columns:
         return []
-    kv_trace_df = kv_data_df.copy()
 
-    # 优先使用 pid_label_map 中的 dp_rank
-    if pid_label_map is not None and "pid" in kv_trace_df.columns:
-        def get_name(row):
-            pid = row['pid']
-            # 优先使用 pid_label_map 中的 dp_rank
-            if pid in pid_label_map and 'dp_rank' in pid_label_map[pid]:
-                dp_rank = pid_label_map[pid]['dp_rank']
-                return f"{row['domain']}-dp{dp_rank}"
-            # 回退到 scope#dp
-            elif "scope#dp" in kv_trace_df.columns:
-                scope_dp = row["scope#dp"]
-                if pd.notna(scope_dp):
-                    return f"{row['domain']}-dp{int(scope_dp)}"
-            # 都没有就只返回 domain
-            return row['domain']
+    # 预声明变量避免分支中重复检查
+    has_pid_map = pid_label_map is not None and "pid" in kv_data_df.columns
+    has_scope_dp = "scope#dp" in kv_data_df.columns
 
-        kv_trace_df['name'] = kv_trace_df.apply(get_name, axis=1)
-    elif "scope#dp" in kv_trace_df:
-        # 没有 pid_label_map 时使用 scope#dp
-        kv_trace_df['name'] = kv_trace_df['domain'] + '-dp' + kv_trace_df["scope#dp"].astype(int,
-                                                                                             errors='ignore').astype(
-            str)
+    # 向量化处理name列
+    if has_pid_map:
+        # 构建pid到dp_rank的向量化映射
+        dp_rank_map = {}
+        for pid, info in pid_label_map.items():
+            if 'dp_rank' in info:
+                dp_rank_map[pid] = info['dp_rank']
+
+        # 使用map高效处理
+        dp_ranks = kv_data_df['pid'].map(dp_rank_map)
+        has_dp_rank = dp_ranks.notna()
+
+        # 初始化name为domain (默认值)
+        name = kv_data_df['domain'].copy()
+
+        # 处理有dp_rank的情况
+        if has_dp_rank.any():
+            name.loc[has_dp_rank] = (
+                    kv_data_df.loc[has_dp_rank, 'domain'] +
+                    '-dp' +
+                    dp_ranks[has_dp_rank].astype(int).astype(str)
+            )
+
+        # 处理scope#dp回退
+        if has_scope_dp:
+            scope_dp_mask = ~has_dp_rank & kv_data_df['scope#dp'].notna()
+            if scope_dp_mask.any():
+                name.loc[scope_dp_mask] = (
+                        kv_data_df.loc[scope_dp_mask, 'domain'] +
+                        '-dp' +
+                        kv_data_df.loc[scope_dp_mask, 'scope#dp'].astype(int).astype(str)
+                )
+    elif has_scope_dp:
+        # 无pid_map时处理scope#dp
+        name = (
+                kv_data_df['domain'] +
+                '-dp' +
+                kv_data_df['scope#dp'].astype(int, errors='ignore').astype(str)
+        )
     else:
-        # 都没有就只返回 domain
-        kv_trace_df['name'] = kv_trace_df['domain']
-    kv_trace_df['ph'] = 'C'
-    kv_trace_df['ts'] = kv_data_df['start_time']
-    kv_trace_df['tid'] = kv_data_df['domain']
-    kv_trace_df['args'] = [{'Device Block': usage} for usage in kv_data_df['deviceBlock=']]
-    kv_trace_events = kv_trace_df[['name', 'ph', 'ts', 'pid', 'tid', 'args']].to_dict(orient='records')
-    return kv_trace_events
+        name = kv_data_df['domain']
+
+    # 避免完整复制DataFrame，只构建结果所需列
+    result_df = pd.DataFrame({
+        'name': name,
+        'ph': 'C',
+        'ts': kv_data_df['start_time'],
+        'pid': kv_data_df['pid'] if 'pid' in kv_data_df else None,
+        'tid': kv_data_df['domain'],
+        'args': [{'Device Block': x} for x in kv_data_df['deviceBlock=']]
+    })
+
+    # 使用itertuples加速字典转换
+    return [
+        {
+            'name': r.name,
+            'ph': r.ph,
+            'ts': r.ts,
+            'pid': r.pid,
+            'tid': r.tid,
+            'args': r.args
+        }
+        for r in result_df.itertuples(index=False)
+    ]
 
 
 def add_pull_kvcache_events(df):
