@@ -38,7 +38,7 @@ def test_domain_acl_prof_example(devices, mindie_path, dataset_path, model_path,
 
         mindie_key_word_checker(prof_path)
 
-        check_db_domain(prof_path,"ModelExecute")
+        check_db_domain(prof_path, "ModelExecute")
 
     finally:
         if mindie_server:
