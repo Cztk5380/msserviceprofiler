@@ -22,6 +22,7 @@
 #include <cmath>
 #include <forward_list>
 #include <sqlite3.h>
+#include <sys/stat.h>
 
 #include "securec.h"
 #include "acl/acl_prof.h"
@@ -32,6 +33,7 @@
 #include "msServiceProfiler/DbBuffer.h"
 #include "msServiceProfiler/Profiler.h"
 #include "msServiceProfiler/NpuMemoryUsage.h"
+#include "msServiceProfiler/SecurityUtilsLog.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
 #include "msServiceProfiler/ServiceProfilerDbWriter.h"
 
@@ -79,12 +81,16 @@ void ServiceProfilerDbWriter::StartDump(const std::string &outputPath)
 
     std::string dbPath = outputPath + dbFileName_ + "_" + hostName + "-" + std::to_string(getpid()) + ".db";
 
+    mode_t new_umask = 0137; // dbPath权限改成640
+    mode_t old_umask = umask(new_umask);
     // 打开数据库连接
     int rc = sqlite3_open(dbPath.c_str(), &db_);
     if (rc != SQLITE_OK) {
-        PROF_LOGE("Execution failed: %s, %s", sqlite3_errmsg(db_), dbPath.c_str());  // LCOV_EXCL_LINE
+        PROF_LOGE("Execution failed: %s, %s", SecurityUtils::ToSafeString(sqlite3_errmsg(db_)), SecurityUtils::ToSafeString(dbPath.c_str()));  // LCOV_EXCL_LINE
         return;
     }
+    umask(old_umask);
+
     ApplyOptimizations();
     inited = true;
 

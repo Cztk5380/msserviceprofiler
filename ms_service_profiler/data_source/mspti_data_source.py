@@ -15,23 +15,31 @@ class MsptiDataSource(BaseDataSource):
     @staticmethod
     def load_ops_db(filepath, db_id):
         with sqlite3.connect(filepath) as conn:
+            def safe_query(conn, query, table_name, db_id):
+                try:
+                    df = pd.read_sql_query(query, conn)
+                    df["db_id"] = db_id
+                    return df
+                except pd.io.sql.DatabaseError:
+                    # 如果表不存在，返回空的DataFrame
+                    return pd.DataFrame()
+
             api_query = """
-            SELECT name, start, end, processId, threadId, correlationId FROM Api order by correlationId asc
-            """
+                SELECT name, start, end, processId, threadId, correlationId FROM Api order by correlationId asc
+                """
             kernel_query = """
-            SELECT name, type, start, end, deviceId, streamId, correlationId FROM Kernel order by correlationId asc
-            """
+                SELECT name, type, start, end, deviceId, streamId, correlationId FROM Kernel order by correlationId asc
+                """
             communication_query = """
-            SELECT name, start, end, deviceId, streamId, dataCount, dataType, commGroupName, correlationId FROM Communication 
-            order by correlationId asc
-            """
-            api_df = pd.read_sql_query(api_query, conn)
-            kernel_df = pd.read_sql_query(kernel_query, conn)
-            communication_df = pd.read_sql_query(communication_query, conn)
-            api_df["db_id"] = db_id
-            kernel_df["db_id"] = db_id
-            communication_df["db_id"] = db_id
-        return api_df, kernel_df, communication_df
+                SELECT name, start, end, deviceId, streamId, dataCount, dataType, commGroupName, correlationId FROM Communication 
+                order by correlationId asc
+                """
+
+            api_df = safe_query(conn, api_query, 'Api', db_id)
+            kernel_df = safe_query(conn, kernel_query, 'Kernel', db_id)
+            communication_df = safe_query(conn, communication_query, 'Communication', db_id)
+
+            return api_df, kernel_df, communication_df
 
     @classmethod
     def get_prof_paths(cls, input_path: str):

@@ -33,6 +33,7 @@
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/ServiceProfilerDbWriter.h"
+#include "msServiceProfiler/SecurityUtilsLog.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorServiceData.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorMetaData.h"
@@ -321,6 +322,11 @@ void ServiceProfilerManager::MarkFirstProcessAsMain()
             PROF_LOGW("cannot write to mmap");  // LCOV_EXCL_LINE
         }
     }
+
+    if (munmap(mmapPtr, mmapSize) == -1) {
+        PROF_LOGW("munmap failed");  // LCOV_EXCL_LINE
+    }
+    
     close(shmFd);
 }
 
@@ -346,7 +352,7 @@ void ServiceProfilerManager::DynamicControl()
             lastUpdate_ = configFileStat.st_mtime;
         }
     } else {
-        LOG_ONCE_E("fail to get stat of %s", configPath.c_str());  // LCOV_EXCL_LINE
+        LOG_ONCE_E("fail to get stat of %s", SecurityUtils::ToSafeString(configPath.c_str()));  // LCOV_EXCL_LINE
         return;
     }
 
@@ -655,7 +661,6 @@ void ServiceProfilerManager::StopAclProf()
     ret = aclprofDestroyConfig(profConfig);
     if (ret != ACL_ERROR_NONE) {
         PROF_LOGE("acl prof destroy config failed, ret = %d", ret);  // LCOV_EXCL_LINE
-        return;
     }
     this->configHandle_ = nullptr;
     ret = aclprofFinalize();
