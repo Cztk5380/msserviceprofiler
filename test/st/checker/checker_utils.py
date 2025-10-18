@@ -1,3 +1,4 @@
+from pathlib import Path
 from pytest_check import check
 
 
@@ -38,3 +39,12 @@ def check_df_col_type(df, col_name, checker):
 def check_df_col_unique_value_nums(df, col_name, number):
     # 检查某列 unique 值是否是 number 个
     return df[col_name].nunique() == number
+
+
+def has_prof_folder(root_folder):
+    # 检查文件夹下是否存在PROF_开头的子文件夹
+    root_path = Path(root_folder)
+    for p in root_path.rglob("*"):
+        if p.is_dir() and p.name.startswith("PROF_"):
+            return True
+    return False
