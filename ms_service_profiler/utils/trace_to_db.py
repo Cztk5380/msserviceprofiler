@@ -175,11 +175,12 @@ def trans_trace_meta_event(event, cursor):
     event_name = event.get('name')
     event_data = trans_trace_meta_data(event)
     pid = event_data.get('pid')
+    tid = event_data.get('tid')
 
     if event_name == "process_name":
         cursor.execute(UPDATE_PROCESS_NAME_SQL, (pid, event_data.get('args_name')))
     elif event_name == "thread_name":
-        tid = event_data.get('tid')
+        # 对于thread_name事件，我们仍然需要创建线程记录
         track_id, _ = TrackIdManager.get_track_id(pid, tid)
         cursor.execute(UPDATE_THREAD_NAME_SQL, (track_id, tid, pid, event_data.get('args_name')))
     elif event_name == "process_labels":
@@ -187,9 +188,24 @@ def trans_trace_meta_event(event, cursor):
     elif event_name == "process_sort_index":
         cursor.execute(UPDATE_PROCESS_SORTINDEX_SQL, (pid, event_data.get('args_sort_index')))
     elif event_name == "thread_sort_index":
-        tid = event_data.get('tid')
-        track_id, _ = TrackIdManager.get_track_id(pid, tid)
-        cursor.execute(UPDATE_THREAD_SORTINDEX_SQL, (track_id, event_data.get('args_sort_index')))
+        # 关键修复：检查数据库中是否已存在该线程记录
+        cursor.execute("SELECT track_id FROM thread WHERE pid = ? AND tid = ?", (pid, tid))
+        result = cursor.fetchone()
+
+        if result:
+            # 如果记录已存在，更新排序索引
+            track_id = result[0]
+            cursor.execute(UPDATE_THREAD_SORTINDEX_SQL, (track_id, event_data.get('args_sort_index')))
+        else:
+            # 如果记录不存在，创建一个只有排序索引的空记录
+            # 使用TrackIdManager获取track_id，但不创建完整的线程记录
+            track_id, _ = TrackIdManager.get_track_id(pid, tid)
+            cursor.execute(
+                "INSERT INTO thread (track_id, thread_sort_index) VALUES (?, ?)",
+                (track_id, event_data.get('args_sort_index'))
+            )
+            logger.warning(
+                f"Created empty thread record with track_id={track_id}, sort_index={event_data.get('args_sort_index')}")
     else:
         logger.warning(f'Trans trace M event to db failed due to unknown event name {event_name}')
 
@@ -274,3 +290,24 @@ def trans_trace_event(event, cursor):
 def save_cache_data_to_db(cursor):
     for data_type in CacheTableManager.get_cache().keys():
         CacheTableManager.insert_cache_to_db(data_type, cursor, 0)
+
+
+def reset_track_id_manager():
+    """重置TrackIdManager状态"""
+    TrackIdManager.pid_tid_map.clear()
+    TrackIdManager.current_max = 1
+    logger.warning("TrackIdManager reset")
+
+
+def reset_process_table_manager():
+    """重置ProcessTableManager状态"""
+    ProcessTableManager.process_table.clear()
+    logger.warning("ProcessTableManager reset")
+
+
+def clear_data_cache():
+    """清空数据缓存"""
+    CacheTableManager.cache_list['slice'].clear()
+    CacheTableManager.cache_list['counter'].clear()
+    CacheTableManager.cache_list['flow'].clear()
+    logger.warning("Data cache cleared")

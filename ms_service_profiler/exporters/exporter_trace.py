@@ -21,6 +21,22 @@ from ms_service_profiler.utils.trace_to_db import (
     save_cache_data_to_db, TRACE_TABLE_DEFINITIONS, trans_trace_event,
     CacheTableManager, UPDATA_SQL_TEMPLATES, DB_CACHE_SIZE
 )
+from ms_service_profiler.utils.trace_to_db import (
+trans_trace_slice_event,
+trans_trace_counter_event,
+trans_trace_flow_event,
+trans_trace_meta_event,
+TrackIdManager,
+SIMULATION_UPDATE_PROCESS_NAME_SQL,
+ProcessTableManager,
+write_to_process_thread_table,
+trans_trace_flow_data,
+SIMULATION_UPDATE_THREAD_NAME_SQL,
+trans_trace_counter_data,
+trans_trace_slice_data,
+reset_track_id_manager,
+reset_process_table_manager
+)
 
 
 class ExporterTrace(TaskExporterBase):
@@ -124,11 +140,35 @@ class ExporterTrace(TaskExporterBase):
         if 'json' in cls.args.format:
             save_trace_data_into_json(merged_data, output)
 
+        # if 'db' in cls.args.format:
+        #     logger.info('Start write trace data to db')
+        #     create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
+        #     start_time = time.time()
+        #     # 存入db文件
+        #     save_trace_data_into_db(merged_data)
+        #     end_time = time.time()
+        #     logger.warning(f'db write time is {end_time - start_time}')
+        #     logger.info('Write trace data to db success')
+
         if 'db' in cls.args.format:
-            logger.info('Start write trace data to db')
+            logger.warning('Start write trace data to db')
             create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
+
+            # 前置检查：验证输入数据
+            events = merged_data.get("traceEvents", [])
+            meta_events = [e for e in events if e.get('ph') == 'M']
+            logger.warning(f"Input data contains {len(events)} total events, including {len(meta_events)} meta events")
+
+            if meta_events:
+                # 显示元事件样本
+                for i, event in enumerate(meta_events[:3]):
+                    logger.warning(f"Sample meta event {i}: name='{event.get('name')}', pid={event.get('pid')}")
+
+            start_time = time.time()
             save_trace_data_into_db(merged_data)
-            logger.info('Write trace data to db success')
+            end_time = time.time()
+            logger.warning(f'db write time is {end_time - start_time}')
+            logger.warning('Write trace data to db success')
 
 
 def prepare_domain_for_process(all_data_df):
@@ -196,215 +236,236 @@ def find_cann_pid(trace_events):
     return None
 
 
-# English
-def _process_event_direct(event):
-    """
-    Producer task: process single event and return results
-    """
-    try:
-
-        # Each process uses independent in-memory database
-        mem_conn = sqlite3.connect(":memory:")
-        mem_cursor = mem_conn.cursor()
-
-        # Create same table structure in memory database
-        for table_name, create_sql in TRACE_TABLE_DEFINITIONS.items():
-            mem_cursor.execute(create_sql)
-        mem_conn.commit()
-
-        # Process event
-        trans_trace_event(event, mem_cursor)
-
-        # Get data from CacheTableManager
-        results = []
-        cache_data = CacheTableManager.get_cache()
-        for data_type, rows in cache_data.items():
-            if rows:
-                results.extend([(data_type, row) for row in rows])
-                # Clear current process cache
-                cache_data[data_type].clear()
-
-        mem_conn.close()
-        return results
-
-    except Exception as e:
-        logger.warning(f"Failed to process event: {str(e)}, event: {event.get('name', 'unknown')}")
-        return []
-
-
-def producer_worker(events_chunk, output_queue):
-    """
-    Producer process: process event chunk and put results into output queue
-    """
-    try:
-        logger.debug(f"Producer started processing {len(events_chunk)} events")
-        processed_count = 0
-
-        for event in events_chunk:
-            try:
-                processed = _process_event_direct(event)
-                if processed:
-                    # Put processing results into queue
-                    output_queue.put(processed)
-                    processed_count += len(processed)
-            except Exception as e:
-                logger.debug(f"Failed to process event: {e}")
-                continue
-
-        logger.debug(f"Producer completed, processed {len(events_chunk)} events, "
-                     f"generated {processed_count} data records")
-
-    except Exception as e:
-        logger.error(f"Producer process error: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-
-
-def consumer_worker(input_queue, total_events):
-    """
-    Consumer process: get data from queue and batch write to database
-    """
-    try:
-        logger.debug("Consumer process started")
-        conn = get_db_connection()
-        if conn is None:
-            logger.error("Consumer failed to get database connection")
-            return
-
-        cursor = conn.cursor()
-
-        cache = {}  # {data_type: list of rows}
-        total_processed = 0
-        batch_count = 0
-
-        while True:
-            try:
-                # Set timeout to avoid permanent blocking
-                item = input_queue.get(timeout=30)
-                if item is None:  # End signal
-                    logger.debug("Received end signal")
-                    break
-
-                batch_count += 1
-
-                # Process batch data
-                for data_type, row in item:
-                    if data_type not in cache:
-                        cache[data_type] = []
-                    cache[data_type].append(row)
-                    total_processed += 1
-
-                    # Batch write
-                    if len(cache[data_type]) >= DB_CACHE_SIZE:
-                        if data_type in UPDATA_SQL_TEMPLATES:
-                            cursor.executemany(UPDATA_SQL_TEMPLATES[data_type], cache[data_type])
-                            logger.debug(f"Batch written {data_type} data: {len(cache[data_type])}")
-                            cache[data_type].clear()
-
-                # Regular commit
-                if batch_count % 10 == 0:
-                    conn.commit()
-                    logger.debug(f"Consumer processed {total_processed}/{total_events} data")
-
-            except mp.queues.Empty:
-                logger.warning("Queue timeout, continue waiting...")
-                continue
-            except Exception as e:
-                logger.error(f"Failed to process queue data: {e}")
-                break
-
-        # Write remaining data
-        logger.debug("Start writing remaining cache data")
-        for data_type, rows in cache.items():
-            if rows and data_type in UPDATA_SQL_TEMPLATES:
-                cursor.executemany(UPDATA_SQL_TEMPLATES[data_type], rows)
-                logger.debug(f"Written remaining {data_type} data: {len(rows)}")
-
-        # Save cache data
-        save_cache_data_to_db(cursor)
-
-        conn.commit()
-        conn.close()
-        logger.debug(f"Consumer process ended, total processed data: {total_processed}")
-
-    except Exception as e:
-        logger.error(f"Consumer process error: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
-
-
-def save_trace_data_into_db(trace_data):
-    """
-    Complete multi-process version: clear Producer and Consumer architecture
-    """
-    events = trace_data.get("traceEvents", [])
-    total = len(events)
-    if total == 0:
-        logger.warning("no data to write")
-        return
-
-    start_time = time.perf_counter()
-    logger.debug(f"Multi-process started processing {total} events")
-
-    # Use multi-process queue
-    mp_queue = Queue(maxsize=1000)
-
-    # Determine number of processes
-    cpu_count = mp.cpu_count()
-    # producer_processes = min(max(1, cpu_count - 1), 32)
-
-    # Try to maximize
-    producer_processes = max(1, cpu_count - 1)
-
-    # Split into chunks
-    chunk_size = max(1, total // producer_processes)
-    chunks = [events[i:i + chunk_size] for i in range(0, total, chunk_size)]
-
-    logger.debug(f"Using {producer_processes} Producer processes, chunk size: {chunk_size}, chunk count: {len(chunks)}")
-
-    # Start Consumer process
-    consumer_process = Process(
-        target=consumer_worker,
-        args=(mp_queue, total)
-    )
-    consumer_process.start()
-    logger.debug("Consumer process started")
-
-    # Start Producer processes
-    producer_processes_list = []
-    for i, chunk in enumerate(chunks):
-        process = Process(
-            target=producer_worker,
-            args=(chunk, mp_queue)
-        )
-        process.start()
-        producer_processes_list.append(process)
-        logger.debug(f"Started Producer process {i + 1}/{len(chunks)}")
-
-    # Wait for all Producer processes to complete
-    logger.debug("Waiting for all Producer processes to complete...")
-    for i, process in enumerate(producer_processes_list):
-        process.join()
-        logger.debug(f"Producer process {i + 1} completed")
-
-    # Send end signal to Consumer
-    mp_queue.put(None)
-    logger.debug("Sent end signal to Consumer")
-
-    # Wait for Consumer process to complete
-    consumer_process.join(timeout=60)
-    if consumer_process.is_alive():
-        logger.debug("Consumer process did not end within timeout")
-        consumer_process.terminate()
-    else:
-        logger.debug("Consumer process ended")
-
-    elapsed = time.perf_counter() - start_time
-    logger.debug(
-        f"✅ process down ，total_num: {total}, "
-        f"Producer num: {producer_processes}, "
-        f"time: {elapsed:.3f}s, "
-        f"speed: {total / elapsed:.2f} records/second")
+# TODO:旧版代码，能跑但是丢数据
+# def _process_event_direct(event):
+#     """
+#     Producer task: process single event and return results
+#     """
+#     try:
+#
+#         # Each process uses independent in-memory database
+#         mem_conn = sqlite3.connect(":memory:")
+#         mem_cursor = mem_conn.cursor()
+#
+#         # Create same table structure in memory database
+#         for table_name, create_sql in TRACE_TABLE_DEFINITIONS.items():
+#             mem_cursor.execute(create_sql)
+#         mem_conn.commit()
+#
+#         # Process event
+#         trans_trace_event(event, mem_cursor)
+#
+#         # Get data from CacheTableManager
+#         results = []
+#         cache_data = CacheTableManager.get_cache()
+#         for data_type, rows in cache_data.items():
+#             if rows:
+#                 results.extend([(data_type, row) for row in rows])
+#                 # Clear current process cache
+#                 cache_data[data_type].clear()
+#
+#         mem_conn.close()
+#         return results
+#
+#     except Exception as e:
+#         logger.warning(f"Failed to process event: {str(e)}, event: {event.get('name', 'unknown')}")
+#         return []
+#
+#
+# def producer_worker(events_chunk, output_queue, batch_size=1000):
+#     """
+#     Producer process: process event chunk and put results into output queue
+#     """
+#     try:
+#         logger.debug(f"Producer started processing {len(events_chunk)} events")
+#         processed_count = 0
+#         batch_results = []  # 批量收集结果
+#
+#         for event in events_chunk:
+#             try:
+#                 processed = _process_event_direct(event)
+#                 if processed:
+#                     batch_results.extend(processed)
+#                     processed_count += len(processed)
+#
+#                     # 批量发送，减少队列操作
+#                     if len(batch_results) >= batch_size:
+#                         output_queue.put(batch_results)
+#                         batch_results = []
+#
+#             except Exception as e:
+#                 logger.debug(f"Failed to process event: {e}")
+#                 continue
+#
+#         # 发送剩余结果
+#         if batch_results:
+#             output_queue.put(batch_results)
+#
+#         logger.debug(
+#             f"Producer completed, processed {len(events_chunk)} events, generated {processed_count} data records")
+#
+#     except Exception as e:
+#         logger.error(f"Producer process error: {e}")
+#         import traceback
+#         logger.error(traceback.format_exc())
+#
+#
+# def consumer_worker(input_queue, total_events):
+#     """
+#     Consumer process: get data from queue and batch write to database
+#     """
+#     try:
+#         logger.debug("Consumer process started")
+#         conn = get_db_connection()
+#         if conn is None:
+#             logger.error("Consumer failed to get database connection")
+#             return
+#
+#         # 优化数据库设置
+#         cursor = conn.cursor()
+#
+#         cursor.execute("PRAGMA journal_mode = WAL")
+#         cursor.execute("PRAGMA cache_size = 10000")  # 增大缓存
+#         cursor.execute("PRAGMA temp_store = MEMORY")  # 临时表用内存
+#
+#         cache = {}  # {data_type: list of rows}
+#         total_processed = 0
+#         batch_count = 0
+#         last_log_time = time.time()
+#
+#         while True:
+#             try:
+#                 # 设置超时，避免永久阻塞
+#                 item = input_queue.get(timeout=30)
+#                 if item is None:  # 结束信号
+#                     logger.debug("Received end signal")
+#                     break
+#
+#                 batch_count += 1
+#
+#                 # 处理批量数据
+#                 for data_type, row in item:
+#                     if data_type not in cache:
+#                         cache[data_type] = []
+#                     cache[data_type].append(row)
+#                     total_processed += 1
+#
+#                     # 批量写入
+#                     if len(cache[data_type]) >= DB_CACHE_SIZE:
+#                         if data_type in UPDATA_SQL_TEMPLATES:
+#                             cursor.executemany(UPDATA_SQL_TEMPLATES[data_type], cache[data_type])
+#                             cache[data_type].clear()
+#
+#                 # 减少提交频率，改为基于时间或数据量
+#                 current_time = time.time()
+#                 if current_time - last_log_time > 5:  # 每5秒提交一次
+#                     conn.commit()
+#                     logger.debug(f"Consumer processed {total_processed}/{total_events} data")
+#                     last_log_time = current_time
+#
+#             except mp.queues.Empty:
+#                 logger.warning("Queue timeout, continue waiting...")
+#                 continue
+#             except Exception as e:
+#                 logger.error(f"Failed to process queue data: {e}")
+#                 break
+#
+#         # 写入剩余数据
+#         logger.debug("Start writing remaining cache data")
+#         for data_type, rows in cache.items():
+#             if rows and data_type in UPDATA_SQL_TEMPLATES:
+#                 cursor.executemany(UPDATA_SQL_TEMPLATES[data_type], rows)
+#                 logger.debug(f"Written remaining {data_type} data: {len(rows)}")
+#
+#         # 保存缓存数据
+#         save_cache_data_to_db(cursor)
+#
+#         conn.commit()
+#         conn.close()
+#         logger.debug(f"Consumer process ended, total processed data: {total_processed}")
+#
+#     except Exception as e:
+#         logger.error(f"Consumer process error: {str(e)}")
+#         import traceback
+#         logger.error(traceback.format_exc())
+#
+#
+# def save_trace_data_into_db(trace_data):
+#     """
+#     Complete multi-process version: clear Producer and Consumer architecture
+#     """
+#     events = trace_data.get("traceEvents", [])
+#     total = len(events)
+#     if total == 0:
+#         logger.warning("no data to write")
+#         return
+#
+#     start_time = time.perf_counter()
+#     logger.debug(f"Multi-process started processing {total} events")
+#
+#     # 根据数据量动态调整进程数
+#     cpu_count = mp.cpu_count()
+#
+#     # 小数据量使用更少的进程
+#     if total < 10000:
+#         producer_processes = min(2, cpu_count)
+#     elif total < 100000:
+#         producer_processes = min(4, cpu_count)
+#     else:
+#         producer_processes = max(1, cpu_count - 1)
+#
+#     # 使用多进程队列
+#     mp_queue = Queue(maxsize=1000)
+#
+#     # 分块
+#     chunk_size = max(1, total // producer_processes)
+#     chunks = [events[i:i + chunk_size] for i in range(0, total, chunk_size)]
+#
+#     logger.debug(f"Using {producer_processes} Producer processes, chunk size: {chunk_size}, chunk count: {len(chunks)}")
+#
+#     # 启动 Consumer 进程
+#     consumer_process = Process(
+#         target=consumer_worker,
+#         args=(mp_queue, total)
+#     )
+#     consumer_process.start()
+#     logger.debug("Consumer process started")
+#
+#     # 启动 Producer 进程
+#     producer_processes_list = []
+#     for i, chunk in enumerate(chunks):
+#         process = Process(
+#             target=producer_worker,
+#             args=(chunk, mp_queue, chunk_size // 10)  # 动态调整批处理大小
+#         )
+#         process.start()
+#         producer_processes_list.append(process)
+#         logger.debug(f"Started Producer process {i + 1}/{len(chunks)}")
+#
+#     # 等待所有 Producer 进程完成
+#     logger.debug("Waiting for all Producer processes to complete...")
+#     for i, process in enumerate(producer_processes_list):
+#         process.join()
+#         logger.debug(f"Producer process {i + 1} completed")
+#
+#     # 发送结束信号给 Consumer
+#     mp_queue.put(None)
+#     logger.debug("Sent end signal to Consumer")
+#
+#     # 等待 Consumer 进程完成
+#     consumer_process.join(timeout=60)
+#     if consumer_process.is_alive():
+#         logger.debug("Consumer process did not end within timeout")
+#         consumer_process.terminate()
+#     else:
+#         logger.debug("Consumer process ended")
+#
+#     elapsed = time.perf_counter() - start_time
+#     logger.debug(
+#         f"✅ process down ，total_num: {total}, "
+#         f"Producer num: {producer_processes}, "
+#         f"time: {elapsed:.3f}s, "
+#         f"speed: {total / elapsed:.2f} records/second")
 #
 
 
@@ -966,3 +1027,274 @@ def export_event_from_df(df, channel_name, tid):
         tarce_events_list.append(channel_event)
 
     return tarce_events_list
+
+# # TODO:千万别删！！！！！！！！！！
+# #  最新调试(能跑，但是缺了个Request的泳道，性能55s，不上不下)
+#
+#
+# def save_trace_data_into_db(trace_data):
+#     """
+#     高性能版本：使用单进程批量写入策略，避免锁问题
+#     """
+#     events = trace_data.get("traceEvents", [])
+#     total = len(events)
+#     if total == 0:
+#         logger.warning("no data to write")
+#         return
+#
+#     start_time = time.time()
+#
+#     logger.warning(f"=== START PROCESSING ===")
+#     logger.warning(f"Total events: {total}")
+#
+#     # 重置状态确保一致性
+#     reset_track_id_manager()
+#     reset_process_table_manager()
+#     cache = CacheTableManager.get_cache()
+#     cache['slice'].clear()
+#     cache['counter'].clear()
+#     cache['flow'].clear()
+#
+#     # 单进程批量处理：结合了记录创建和数据插入
+#     logger.warning("=== PROCESSING ALL EVENTS IN SINGLE PROCESS ===")
+#     conn = get_db_connection()
+#     if not conn:
+#         logger.warning("❌ Failed to get database connection")
+#         return
+#
+#     try:
+#         cursor = conn.cursor()
+#
+#         # 应用数据库优化设置
+#         cursor.execute("PRAGMA journal_mode = WAL")
+#         cursor.execute("PRAGMA cache_size = 10000")
+#         cursor.execute("PRAGMA synchronous = NORMAL")  # 降低同步级别提高性能
+#         cursor.execute("PRAGMA temp_store = MEMORY")
+#
+#         # 批量处理所有事件
+#         records_processed = 0
+#         data_records_processed = 0
+#
+#         # 先处理所有元事件
+#         meta_events = [e for e in events if e.get('ph') == 'M']
+#         logger.warning(f"Processing {len(meta_events)} meta events first")
+#         for i, event in enumerate(meta_events):
+#             try:
+#                 trans_trace_meta_event(event, cursor)
+#                 records_processed += 1
+#             except Exception as e:
+#                 logger.warning(f"Failed to process meta event: {e}")
+#
+#         # 然后批量处理其他事件
+#         other_events = [e for e in events if e.get('ph') != 'M']
+#         logger.warning(f"Processing {len(other_events)} other events")
+#
+#         batch_size = 10000
+#         for i, event in enumerate(other_events):
+#             try:
+#                 # 使用旧版逻辑处理事件（包括记录创建和数据插入）
+#                 trans_trace_event(event, cursor)
+#                 records_processed += 1
+#                 data_records_processed += 1
+#
+#                 # 定期提交和清空缓存
+#                 if i % batch_size == 0 and i > 0:
+#                     # 先保存缓存数据
+#                     save_cache_data_to_db(cursor)
+#                     # 提交事务
+#                     conn.commit()
+#                     logger.warning(f"Processed {i}/{len(other_events)} events, committed transaction")
+#
+#             except Exception as e:
+#                 logger.warning(f"Failed to process event: {e}")
+#                 continue
+#
+#         # 保存所有剩余的缓存数据
+#         save_cache_data_to_db(cursor)
+#
+#         # 最终提交
+#         conn.commit()
+#         logger.warning(f"✅ Processed {records_processed} total events, {data_records_processed} data events")
+#
+#     except Exception as e:
+#         logger.warning(f"❌ Error during processing: {e}")
+#         conn.rollback()
+#     finally:
+#         conn.close()
+#
+#     elapsed = time.time() - start_time
+#     logger.warning(
+#         f"✅ Overall processing completed: "
+#         f"Total events: {total}, "
+#         f"Time: {elapsed:.3f}s")
+#
+#     # 验证数据一致性
+#     verify_final_data_in_db()
+#
+#
+# def verify_final_data_in_db():
+#     """
+#     验证数据库中的数据与预期一致
+#     """
+#     conn = get_db_connection()
+#     if conn:
+#         cursor = conn.cursor()
+#
+#         # 预期的记录数量（根据你的测试数据调整）
+#         expected_counts = {
+#             'process': 3,
+#             'thread': 19,
+#             'slice': 838740,
+#             'counter': 171361,
+#             'flow': 856805
+#         }
+#
+#         actual_counts = {}
+#         for table in expected_counts.keys():
+#             cursor.execute(f"SELECT COUNT(*) FROM {table}")
+#             actual_counts[table] = cursor.fetchone()[0]
+#
+#         logger.warning(f"=== FINAL RECORD COUNTS ===")
+#         all_correct = True
+#         for table, expected in expected_counts.items():
+#             actual = actual_counts[table]
+#             if actual == expected:
+#                 logger.warning(f"✅ {table}: {actual} (correct)")
+#             else:
+#                 logger.warning(f"❌ {table}: {actual} (expected {expected})")
+#                 all_correct = False
+#
+#         if all_correct:
+#             logger.warning("🎉 All table counts are correct!")
+#         else:
+#             logger.warning("⚠️ Some table counts are incorrect")
+#
+#         conn.close()
+#         return all_correct
+
+# end
+
+
+
+# 尝试修复request缺失的问题
+def save_trace_data_into_db(trace_data):
+    """
+    修复版本：正确处理ph=M事件，不创建多余的线程记录
+    """
+    events = trace_data.get("traceEvents", [])
+    total = len(events)
+    if total == 0:
+        logger.warning("no data to write")
+        return
+
+    start_time = time.time()
+    logger.warning(f"=== PROCESSING {total} EVENTS ===")
+
+    # 重置状态确保一致性
+    reset_track_id_manager()
+    reset_process_table_manager()
+    cache = CacheTableManager.get_cache()
+    cache['slice'].clear()
+    cache['counter'].clear()
+    cache['flow'].clear()
+
+    # 单进程处理 - 使用修复的逻辑
+    conn = get_db_connection()
+    if not conn:
+        logger.warning("❌ Failed to get database connection")
+        return
+
+    try:
+        cursor = conn.cursor()
+
+        # 优化数据库设置
+        cursor.execute("PRAGMA journal_mode = WAL")
+        cursor.execute("PRAGMA cache_size = 10000")
+        cursor.execute("PRAGMA synchronous = NORMAL")
+        cursor.execute("PRAGMA temp_store = MEMORY")
+
+        # 处理所有事件
+        processed_count = 0
+        batch_size = 50000
+
+        for i, event in enumerate(events):
+            try:
+                # 使用修复的逻辑处理事件
+                trans_trace_event(event, cursor)
+                processed_count += 1
+
+                # 定期提交
+                if i % batch_size == 0 and i > 0:
+                    save_cache_data_to_db(cursor)
+                    conn.commit()
+                    logger.warning(f"Processed {i}/{total} events")
+
+            except Exception as e:
+                logger.warning(f"Failed to process event {i}: {e}")
+                continue
+
+        # 保存剩余数据并提交
+        save_cache_data_to_db(cursor)
+        conn.commit()
+        logger.warning(f"✅ Processed {processed_count}/{total} events")
+
+    except Exception as e:
+        logger.warning(f"❌ Error during processing: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
+
+    elapsed = time.time() - start_time
+    logger.warning(f"✅ Processing completed in {elapsed:.3f}s")
+
+    # 验证数据一致性
+    verify_final_data_in_db()
+
+
+def verify_final_data_in_db():
+    """
+    验证数据库中的数据与预期一致
+    """
+    conn = get_db_connection()
+    if conn:
+        cursor = conn.cursor()
+
+        expected_counts = {
+            'process': 3,
+            'thread': 19,
+            'slice': 838740,
+            'counter': 171361,
+            'flow': 856805
+        }
+
+        actual_counts = {}
+        for table in expected_counts.keys():
+            cursor.execute(f"SELECT COUNT(*) FROM {table}")
+            actual_counts[table] = cursor.fetchone()[0]
+
+        logger.warning(f"=== FINAL RECORD COUNTS ===")
+        all_correct = True
+        for table, expected in expected_counts.items():
+            actual = actual_counts[table]
+            if actual == expected:
+                logger.warning(f"✅ {table}: {actual} (correct)")
+            else:
+                logger.warning(f"❌ {table}: {actual} (expected {expected})")
+                all_correct = False
+
+        # 特别检查thread表的内容
+        cursor.execute("SELECT track_id, tid, pid, thread_name, thread_sort_index FROM thread ORDER BY track_id")
+        threads = cursor.fetchall()
+        logger.warning("=== THREAD TABLE CONTENTS ===")
+        for thread in threads:
+            logger.warning(
+                f"track_id={thread[0]}, tid={thread[1]}, pid={thread[2]}, name={thread[3]}, sort_index={thread[4]}")
+
+        if all_correct:
+            logger.warning("🎉 All table counts are correct!")
+        else:
+            logger.warning("⚠️ Some table counts are incorrect")
+
+        conn.close()
+        return all_correct
+
