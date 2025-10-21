@@ -23,7 +23,7 @@ def test_dynamic_example(devices, mindie_path, dataset_path, model_path, tmp_wor
         mindie_server.set_mindie_path(mindie_path)
         mindie_server.set_model_path(model_path)
         mindie_server.set_prof_config(prof_dir=os.path.join(workspace_path, "prof_data"))
-        mindie_server.set_prof_config(enable=0)
+        mindie_server.set_prof_config(acl_task_time=0, enable=0)
         assert mindie_server.ready_go()
 
         # curl 一条试试深浅
