@@ -45,7 +45,7 @@ def test_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
         parser.set_output_path(os.path.join(workspace_path, "prof_data_out_csv"))
         parser.add_param('--format', 'csv')
         assert parser.ready_go()
-        assert count_files_with_single_extension(os.path.join(workspace_path, "prof_data_out_csv"), '.csv') == 4
+        assert count_files_with_single_extension(os.path.join(workspace_path, "prof_data_out_csv"), '.csv') == 5
         check_req_csv(os.path.join(workspace_path, "prof_data_out_csv"))
         check_batch_csv(os.path.join(workspace_path, "prof_data_out_csv"))
         check_kvcache_csv(os.path.join(workspace_path, "prof_data_out_csv"), complete_req_cnt=1)
