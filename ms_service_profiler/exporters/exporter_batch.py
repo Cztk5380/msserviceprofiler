@@ -98,7 +98,7 @@ class ExporterBatchData(ExporterBase):
     @classmethod
     def build_batch_req(cls, batch_event_df):
         """构建 batch_req 数据"""
-        schedule_events = batch_event_df[batch_event_df["event"] == "BatchSchedule"]
+        schedule_events = batch_event_df[batch_event_df["event"].isin(["BatchSchedule", "batchFrameworkProcessing"])]
 
         if schedule_events.empty:
             return pd.DataFrame(columns=["batch_id", "req_id", "rid", "iter", "block"])
