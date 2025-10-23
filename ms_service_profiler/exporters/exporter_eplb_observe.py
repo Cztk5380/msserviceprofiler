@@ -1,7 +1,7 @@
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
 import os
 from abc import abstractmethod
-from typing import Dict
+from typing import Dict, List
 import numpy as np
 
 from ms_service_profiler.exporters.base import TaskExporterBase
@@ -39,6 +39,7 @@ class ExporterEplbObserve(TaskExporterBase):
 
         for instance_name, expert_hot_per_instance in expert_hot.items():
             for eplb_iteration, expert_hot_per_eplb in enumerate(expert_hot_per_instance):
+                expert_hot_per_eplb = cut2samelen(expert_hot_per_eplb)
                 summed_hot_rank_output_path = \
                     os.path.join(output, SUMMED_OUTPUT_NAME_RANK.format(instance_name, eplb_iteration))
                 # 将热度信息按照rank、expert_per_rank的维度进行累加
@@ -71,6 +72,7 @@ class ExporterEplbObserve(TaskExporterBase):
                 for eplb_iteration, expert_map_per_eplb in enumerate(expert_map_by_instance):
                     # expert_hot_per_eplb shape:[rank][iteration][layer][expert_per_rank]
                     expert_hot_per_eplb = expert_hot.get(instance_name)[eplb_iteration]
+                    expert_hot_per_eplb = cut2samelen(expert_hot_per_eplb)
                     expert_hot_per_eplb_arr = np.array(expert_hot_per_eplb)
                     expert_hot_summed_expert = expert_hot_per_eplb_arr.sum(axis=1).transpose([0, 2, 1])
                     expert_hot_summed_expert = \
@@ -132,8 +134,9 @@ def remap_expert_hot(expert_map_per_eplb, expert_hot_summed_expert):
     remapped_expert_hot = np.zeros([expert_map_per_eplb.shape[0], model_expert_num])
 
     if expert_map_per_eplb.shape != expert_hot_summed_expert.shape:
-        raise ValueError("Shape of expert_map and expert_hot are not equal, "
-                         "please check profiling input.")
+        raise ValueError(f"Shape of expert_map and expert_hot are not equal, "
+                         f"please check profiling input.Expert_map shape: "
+                         f"{expert_map_per_eplb.shape}, expert_hot shape: {expert_hot_summed_expert.shape}")
 
     for layer_index in range(expert_hot_summed_expert.shape[0]):
         for expert_index in range(expert_hot_summed_expert.shape[1]):
@@ -142,3 +145,12 @@ def remap_expert_hot(expert_map_per_eplb, expert_hot_summed_expert):
                 expert_hot_summed_expert[layer_index][expert_index]
 
     return remapped_expert_hot
+
+
+def cut2samelen(array_list: List[np.ndarray]):
+    len_list = [len(arr) for arr in array_list]
+    min_len = min(len_list)
+    if min_len == 0:
+        raise ValueError("Expert hot data in certain rank is empty.")
+    return [arr[:min_len] for arr in array_list]
+
