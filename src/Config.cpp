@@ -399,7 +399,9 @@ void Config::ParseAclTaskTime(const Json &config)
     if (config.contains("acl_prof_task_time_level")) {
         auto aclProfTaskTimeLevel = MsUtils::SplitStr(config["acl_prof_task_time_level"], ';');
         // parser aclTaskTimeLevel
-        if (aclProfTaskTimeLevel.first != "L0" && aclProfTaskTimeLevel.first != "L1") {
+        if (aclProfTaskTimeLevel.first.empty()) {
+            aclProfTaskTimeLevel.first = "L0";
+        } if (aclProfTaskTimeLevel.first != "L0" && aclProfTaskTimeLevel.first != "L1") {
             // LCOV_EXCL_START
             PROF_LOGW("aclProfTaskTimeLevel should be L0 or L1, now it is %s, default to L0",
                 aclProfTaskTimeLevel.first.c_str());
