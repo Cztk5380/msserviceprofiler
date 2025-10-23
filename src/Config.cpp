@@ -75,8 +75,6 @@ nlohmann::ordered_json Config::ReadConfigFile()
         LOG_ONCE_E("SERVICE_PROF_CONFIG_PATH : %s is not file or Permission Denied",  // LCOV_EXCL_LINE
             configPath_.c_str());  // LCOV_EXCL_LINE
         return jsonData;
-    } else {
-        LOG_ONCE_D("SERVICE_PROF_CONFIG_PATH : %s", configPath_.c_str());  // LCOV_EXCL_LINE
     }
 
     std::ifstream configFile; // 单独创建 std::ifstream 对象
@@ -87,6 +85,8 @@ nlohmann::ordered_json Config::ReadConfigFile()
         return jsonData;
     }
     configPath_ = realConfigPath;
+    
+    LOG_ONCE_D("SERVICE_PROF_CONFIG_PATH : %s", configPath_.c_str());  // LCOV_EXCL_LINE
 
     try {
         configFile.open(configPath_);
@@ -399,7 +399,9 @@ void Config::ParseAclTaskTime(const Json &config)
     if (config.contains("acl_prof_task_time_level")) {
         auto aclProfTaskTimeLevel = MsUtils::SplitStr(config["acl_prof_task_time_level"], ';');
         // parser aclTaskTimeLevel
-        if (aclProfTaskTimeLevel.first != "L0" && aclProfTaskTimeLevel.first != "L1") {
+        if (aclProfTaskTimeLevel.first.empty()) {
+            aclProfTaskTimeLevel.first = "L0";
+        } else if (aclProfTaskTimeLevel.first != "L0" && aclProfTaskTimeLevel.first != "L1") {
             // LCOV_EXCL_START
             PROF_LOGW("aclProfTaskTimeLevel should be L0 or L1, now it is %s, default to L0",
                 aclProfTaskTimeLevel.first.c_str());
