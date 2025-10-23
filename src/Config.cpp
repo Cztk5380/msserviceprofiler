@@ -75,8 +75,6 @@ nlohmann::ordered_json Config::ReadConfigFile()
         LOG_ONCE_E("SERVICE_PROF_CONFIG_PATH : %s is not file or Permission Denied",  // LCOV_EXCL_LINE
             configPath_.c_str());  // LCOV_EXCL_LINE
         return jsonData;
-    } else {
-        LOG_ONCE_D("SERVICE_PROF_CONFIG_PATH : %s", configPath_.c_str());  // LCOV_EXCL_LINE
     }
 
     std::ifstream configFile; // 单独创建 std::ifstream 对象
@@ -87,6 +85,8 @@ nlohmann::ordered_json Config::ReadConfigFile()
         return jsonData;
     }
     configPath_ = realConfigPath;
+    
+    LOG_ONCE_D("SERVICE_PROF_CONFIG_PATH : %s", configPath_.c_str());  // LCOV_EXCL_LINE
 
     try {
         configFile.open(configPath_);
