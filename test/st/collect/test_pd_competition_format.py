@@ -13,7 +13,7 @@ from test.st.checker.dump_checker import mindie_key_word_checker
 from test.st.checker.checker_utils import count_files_with_single_extension
 
 
-def test_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
+def test_pd_competition_format(devices, mindie_path, dataset_path, model_path, tmp_workspace):
     try:
         workspace_path = tmp_workspace
 
