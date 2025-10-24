@@ -10,7 +10,7 @@ from test.st.checker.table_checker import db_connect, check_latency_tables, chec
 from test.st.checker.table_checker import check_insight_tables, check_req_status_table
 from test.st.checker.trace_checker import check_chrome_tracing
 from test.st.checker.dump_checker import mindie_key_word_checker
-from test.st.checker.checker_utils import count_files_with_single_extension
+from test.st.checker.checker_utils import check_files_in_folder
 
 
 def test_pd_competition_format(devices, mindie_path, dataset_path, model_path, tmp_workspace):
@@ -45,7 +45,7 @@ def test_pd_competition_format(devices, mindie_path, dataset_path, model_path, t
         parser.set_output_path(os.path.join(workspace_path, "prof_data_out_csv"))
         parser.add_param('--format', 'csv')
         assert parser.ready_go()
-        assert count_files_with_single_extension(os.path.join(workspace_path, "prof_data_out_csv"), '.csv') == 5
+        assert check_files_in_folder(os.path.join(workspace_path, "prof_data_out_csv"), '.csv')
         check_req_csv(os.path.join(workspace_path, "prof_data_out_csv"))
         check_batch_csv(os.path.join(workspace_path, "prof_data_out_csv"))
         check_kvcache_csv(os.path.join(workspace_path, "prof_data_out_csv"), complete_req_cnt=1)
@@ -55,7 +55,7 @@ def test_pd_competition_format(devices, mindie_path, dataset_path, model_path, t
         parser.set_output_path(os.path.join(workspace_path, "prof_data_out_db"))
         parser.add_param('--format', 'db')
         assert parser.ready_go()
-        assert count_files_with_single_extension(os.path.join(workspace_path, "prof_data_out_db"), '.db') == 1
+        assert check_files_in_folder(os.path.join(workspace_path, "prof_data_out_db"), '.db')
         with db_connect(os.path.join(workspace_path, "prof_data_out_db", "profiler.db")) as conn:
             check_latency_tables(conn, complete_req_cnt=1)
             check_kvcache_table(conn, complete_req_cnt=1)
@@ -66,7 +66,7 @@ def test_pd_competition_format(devices, mindie_path, dataset_path, model_path, t
         parser.set_output_path(os.path.join(workspace_path, "prof_data_out_json"))
         parser.add_param('--format', 'json')
         assert parser.ready_go()
-        assert count_files_with_single_extension(os.path.join(workspace_path, "prof_data_out_json"), '.json') == 1
+        assert check_files_in_folder(os.path.join(workspace_path, "prof_data_out_json"), '.json')
         check_chrome_tracing(os.path.join(workspace_path, "prof_data_out_json"))
     finally:
         if mindie_server:

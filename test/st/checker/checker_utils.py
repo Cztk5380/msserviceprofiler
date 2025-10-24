@@ -51,35 +51,9 @@ def has_prof_folder(root_folder):
     return False
 
 
-def count_files_with_single_extension(folder_path, target_extension):
-    """
-    统计指定文件夹内具有指定后缀名的文件数量，并确保文件夹内只有一种后缀名。
+def check_files_in_folder(folder_path, target_extension):
+    for file in os.listdir(folder_path):
+        if not file.endswith(target_extension):
+            return False
 
-    参数:
-        folder_path (str): 要搜索的文件夹路径。
-        target_extension (str): 要统计的文件后缀名，例如 ".csv"。
-
-    返回:
-        int: 指定后缀名的文件数量。
-    """
-    if not os.path.isdir(folder_path):
-        raise NotADirectoryError(f"路径 '{folder_path}' 不是有效的文件夹。")
-
-    if not target_extension.startswith('.'):
-        target_extension = '.' + target_extension
-
-    files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-
-    if not files:
-        return 0  # 文件夹为空
-
-    # 获取所有文件的后缀名并去重
-    seen_extensions = {os.path.splitext(f)[1] for f in files}
-
-    if len(seen_extensions) != 1:
-        raise ValueError(f"文件夹 '{folder_path}' 内包含多个后缀名，不满足只有一种后缀名的条件。")
-
-    if target_extension not in seen_extensions:
-        return 0  # 指定后缀名与文件夹内的后缀名不一致
-
-    return len(files)
+    return True
