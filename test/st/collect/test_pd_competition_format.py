@@ -13,6 +13,7 @@ from test.st.checker.dump_checker import mindie_key_word_checker
 from test.st.checker.checker_utils import check_files_in_folder
 
 
+# pd竞争采集、指定format解析及相关校验
 def test_pd_competition_format(devices, mindie_path, dataset_path, model_path, tmp_workspace):
     try:
         workspace_path = tmp_workspace
@@ -45,6 +46,7 @@ def test_pd_competition_format(devices, mindie_path, dataset_path, model_path, t
         parser.set_output_path(os.path.join(workspace_path, "prof_data_out_csv"))
         parser.add_param('--format', 'csv')
         assert parser.ready_go()
+        # 校验输出文件夹内是否只有.csv后缀的输出
         assert check_files_in_folder(os.path.join(workspace_path, "prof_data_out_csv"), '.csv')
         check_req_csv(os.path.join(workspace_path, "prof_data_out_csv"))
         check_batch_csv(os.path.join(workspace_path, "prof_data_out_csv"))
@@ -55,6 +57,7 @@ def test_pd_competition_format(devices, mindie_path, dataset_path, model_path, t
         parser.set_output_path(os.path.join(workspace_path, "prof_data_out_db"))
         parser.add_param('--format', 'db')
         assert parser.ready_go()
+        # 校验输出文件夹内是否只有.db后缀的输出
         assert check_files_in_folder(os.path.join(workspace_path, "prof_data_out_db"), '.db')
         with db_connect(os.path.join(workspace_path, "prof_data_out_db", "profiler.db")) as conn:
             check_latency_tables(conn, complete_req_cnt=1)
@@ -66,6 +69,7 @@ def test_pd_competition_format(devices, mindie_path, dataset_path, model_path, t
         parser.set_output_path(os.path.join(workspace_path, "prof_data_out_json"))
         parser.add_param('--format', 'json')
         assert parser.ready_go()
+        # 校验输出文件夹内是否只有.json后缀的输出
         assert check_files_in_folder(os.path.join(workspace_path, "prof_data_out_json"), '.json')
         check_chrome_tracing(os.path.join(workspace_path, "prof_data_out_json"))
     finally:
