@@ -1,11 +1,3 @@
-'''
-pd竞争采集、指定format解析及相关校验
-校验内容包括：1、指定format解析的输出结果是否只有指定的format格式的输出
-           2、对csv的format输出的request.csv/batch.csv/kvcache.csv/forward.csv的内容进行校验
-           3、对db的format输出的profiler.db的内容进行校验
-           4、对json的format输出的chrome_tracing.json的内容进行校验
-'''
-
 import os
 import uuid
 
@@ -22,6 +14,13 @@ from test.st.checker.checker_utils import check_files_in_folder
 
 
 def test_pd_competition_format(devices, mindie_path, dataset_path, model_path, tmp_workspace):
+    '''
+    pd竞争采集、指定format解析及相关校验
+    校验内容包括：1、指定format解析的输出结果是否只有指定的format格式的输出
+               2、对csv的format输出的request.csv/batch.csv/kvcache.csv/forward.csv的内容进行校验
+               3、对db的format输出的profiler.db的内容进行校验
+               4、对json的format输出的chrome_tracing.json的内容进行校验
+    '''
     try:
         workspace_path = tmp_workspace
 
