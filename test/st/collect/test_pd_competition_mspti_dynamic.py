@@ -1,19 +1,15 @@
 import os
-import uuid
-import pytest
 
 from test.st.executor.exec_benchmark import ExecBenchmark
 from test.st.executor.exec_mindie_server import ExecMindIEServer
 from test.st.executor.exec_parse import ExecParse
-from pytest_check import check
 from test.st.checker.csv_checker import check_req_csv, check_batch_csv, check_kvcache_csv, check_forward_csv
 from test.st.checker.table_checker import db_connect, check_latency_tables, check_kvcache_table
 from test.st.checker.table_checker import check_insight_tables, check_req_status_table
 from test.st.checker.trace_checker import check_chrome_tracing
-from test.st.checker.dump_checker import mindie_key_word_checker
 
 
-def test_dynamic_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
+def test_mspti_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
     try:
         workspace_path = tmp_workspace
 
@@ -23,14 +19,13 @@ def test_dynamic_example(devices, mindie_path, dataset_path, model_path, tmp_wor
         mindie_server.set_mindie_path(mindie_path)
         mindie_server.set_model_path(model_path)
         mindie_server.set_prof_config(prof_dir=os.path.join(workspace_path, "prof_data"))
-        mindie_server.set_prof_config(acl_task_time=0, enable=0)
+        mindie_server.set_prof_config(acl_task_time=2, enable=1)
         assert mindie_server.ready_go()
 
         # curl 一条试试深浅
         benchmark = ExecBenchmark()
         benchmark.set_model_path(model_path)
         benchmark.set_dataset_path(dataset_path)
-        mindie_server.set_prof_config(acl_task_time=2, enable=1)
         assert benchmark.curl_test()
 
         mindie_server.set_prof_config(acl_task_time=0, enable=0)
@@ -45,12 +40,17 @@ def test_dynamic_example(devices, mindie_path, dataset_path, model_path, tmp_wor
         # 解析完了，开始校验
         check_req_csv(os.path.join(workspace_path, "prof_data_out"))
         check_batch_csv(os.path.join(workspace_path, "prof_data_out"))
-        check_kvcache_csv(os.path.join(workspace_path, "prof_data_out"))
+        check_kvcache_csv(os.path.join(workspace_path, "prof_data_out"), complete_req_cnt=1)
         check_forward_csv(os.path.join(workspace_path, "prof_data_out"), card_nums=len(devices))
 
         with db_connect(os.path.join(workspace_path, "prof_data_out", "profiler.db")) as conn:
-            check_kvcache_table(conn)
-            check_insight_tables(conn)
+            check_latency_tables(conn, complete_req_cnt=1)
+            check_kvcache_table(conn, complete_req_cnt=1)
+            check_req_status_table(conn, complete_req_cnt=1)
+            check_insight_tables(conn, complete_req_cnt=1)
+
+        check_chrome_tracing(os.path.join(workspace_path, "prof_data_out"))
+
     finally:
         if mindie_server:
             mindie_server.kill()
