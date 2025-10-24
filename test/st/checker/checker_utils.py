@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from pytest_check import check
 
@@ -48,3 +49,11 @@ def has_prof_folder(root_folder):
         if p.is_dir() and p.name.startswith("PROF_"):
             return True
     return False
+
+
+def check_files_in_folder(folder_path, target_extension):
+    for file in os.listdir(folder_path):
+        if not file.endswith(target_extension):
+            return False
+
+    return True
