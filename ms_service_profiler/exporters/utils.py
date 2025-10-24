@@ -73,6 +73,9 @@ class COLUMN_CONST:
     NAME_COLUMN = 'name'
     STATUS_COLUMN = 'status'
     QUEUESIZE_COLUMN = 'QueueSize='
+    FINISHED_COLUMN = "FINISHED+" # vllm数据特有
+    START_DATETIME_COLUMN = "start_datetime"
+    SCOPE_QUEUE_NAME_COLUMN = "scope#QueueName"
 
 
 def write_result_to_db(df_param_list, create_view_sql=None, table_name="", rename_cols=None):

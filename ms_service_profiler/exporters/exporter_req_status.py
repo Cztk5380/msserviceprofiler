@@ -113,9 +113,37 @@ class ExporterReqStatus(ExporterBase):
         return True
 
     @classmethod
+    def _process_queue_columns(cls, df):
+        need_columns = [COLUMN_CONST.NAME_COLUMN, COLUMN_CONST.START_DATETIME_COLUMN, \
+            COLUMN_CONST.SCOPE_QUEUE_NAME_COLUMN, COLUMN_CONST.QUEUESIZE_COLUMN]
+        if not check_columns_valid(df, need_columns, cls.name):
+            return pd.DataFrame()
+
+        queue_df = df[df['name'] == "Queue"]
+        df = queue_df.pivot_table(
+            index='start_datetime',
+            columns='scope#QueueName', 
+            values='QueueSize=',
+            aggfunc='first'
+        ).reset_index()
+
+        # 检查并创建所需的列，如果不存在则填充为0
+        required_columns = ['start_datetime', 'WAITING', 'RUNNING', 'PENDING']
+        for col in required_columns:
+            if col not in df.columns:
+                df[col] = 0
+
+        df = df[required_columns].rename(columns={'start_datetime': 'timestamp'})
+        df = df.ffill().fillna(0)  # 平滑填充nan值
+        return df
+
+    @classmethod
     def _process_status_columns(cls, df, metrics):
         if COLUMN_CONST.STATUS_COLUMN in df.columns:
             df = cls._map_and_encode_status(df, metrics)
+        elif COLUMN_CONST.FINISHED_COLUMN in df.columns:
+            # vllm 数据解析特有处理逻辑，当前只有vllm数据会走到
+            df = cls._process_queue_columns(df)
         else:
             df = cls._prepare_metrics_df(df, metrics)
         return df
