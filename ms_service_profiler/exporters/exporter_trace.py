@@ -2,6 +2,8 @@
 
 import os
 import time
+import psutil
+import math
 import multiprocessing as mp
 import json
 from multiprocessing import Queue, Process
@@ -18,24 +20,10 @@ from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.error import DatabaseError, key_except
 from ms_service_profiler.exporters.utils import get_db_connection, create_sqlite_tables
 from ms_service_profiler.utils.trace_to_db import (
-    save_cache_data_to_db, TRACE_TABLE_DEFINITIONS, trans_trace_event,
-    CacheTableManager, UPDATA_SQL_TEMPLATES, DB_CACHE_SIZE
-)
-from ms_service_profiler.utils.trace_to_db import (
-trans_trace_slice_event,
-trans_trace_counter_event,
-trans_trace_flow_event,
-trans_trace_meta_event,
-TrackIdManager,
-SIMULATION_UPDATE_PROCESS_NAME_SQL,
-ProcessTableManager,
-write_to_process_thread_table,
-trans_trace_flow_data,
-SIMULATION_UPDATE_THREAD_NAME_SQL,
-trans_trace_counter_data,
-trans_trace_slice_data,
-reset_track_id_manager,
-reset_process_table_manager
+    TRACE_TABLE_DEFINITIONS,trans_trace_meta_event,
+    trans_trace_slice_data, trans_trace_counter_data,trans_trace_flow_data,
+    write_to_process_thread_table, reset_track_id_manager,
+    reset_process_table_manager, clear_data_cache
 )
 
 
@@ -140,35 +128,15 @@ class ExporterTrace(TaskExporterBase):
         if 'json' in cls.args.format:
             save_trace_data_into_json(merged_data, output)
 
-        # if 'db' in cls.args.format:
-        #     logger.info('Start write trace data to db')
-        #     create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
-        #     start_time = time.time()
-        #     # 存入db文件
-        #     save_trace_data_into_db(merged_data)
-        #     end_time = time.time()
-        #     logger.warning(f'db write time is {end_time - start_time}')
-        #     logger.info('Write trace data to db success')
-
         if 'db' in cls.args.format:
-            logger.warning('Start write trace data to db')
+            logger.info('Start write trace data to db')
             create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
-
-            # 前置检查：验证输入数据
-            events = merged_data.get("traceEvents", [])
-            meta_events = [e for e in events if e.get('ph') == 'M']
-            logger.warning(f"Input data contains {len(events)} total events, including {len(meta_events)} meta events")
-
-            if meta_events:
-                # 显示元事件样本
-                for i, event in enumerate(meta_events[:3]):
-                    logger.warning(f"Sample meta event {i}: name='{event.get('name')}', pid={event.get('pid')}")
-
             start_time = time.time()
+            # 存入db文件
             save_trace_data_into_db(merged_data)
             end_time = time.time()
             logger.warning(f'db write time is {end_time - start_time}')
-            logger.warning('Write trace data to db success')
+            logger.info('Write trace data to db success')
 
 
 def prepare_domain_for_process(all_data_df):
@@ -234,239 +202,6 @@ def find_cann_pid(trace_events):
             if args.get("name") == "CANN":
                 return event.get("pid")
     return None
-
-
-# TODO:旧版代码，能跑但是丢数据
-# def _process_event_direct(event):
-#     """
-#     Producer task: process single event and return results
-#     """
-#     try:
-#
-#         # Each process uses independent in-memory database
-#         mem_conn = sqlite3.connect(":memory:")
-#         mem_cursor = mem_conn.cursor()
-#
-#         # Create same table structure in memory database
-#         for table_name, create_sql in TRACE_TABLE_DEFINITIONS.items():
-#             mem_cursor.execute(create_sql)
-#         mem_conn.commit()
-#
-#         # Process event
-#         trans_trace_event(event, mem_cursor)
-#
-#         # Get data from CacheTableManager
-#         results = []
-#         cache_data = CacheTableManager.get_cache()
-#         for data_type, rows in cache_data.items():
-#             if rows:
-#                 results.extend([(data_type, row) for row in rows])
-#                 # Clear current process cache
-#                 cache_data[data_type].clear()
-#
-#         mem_conn.close()
-#         return results
-#
-#     except Exception as e:
-#         logger.warning(f"Failed to process event: {str(e)}, event: {event.get('name', 'unknown')}")
-#         return []
-#
-#
-# def producer_worker(events_chunk, output_queue, batch_size=1000):
-#     """
-#     Producer process: process event chunk and put results into output queue
-#     """
-#     try:
-#         logger.debug(f"Producer started processing {len(events_chunk)} events")
-#         processed_count = 0
-#         batch_results = []  # 批量收集结果
-#
-#         for event in events_chunk:
-#             try:
-#                 processed = _process_event_direct(event)
-#                 if processed:
-#                     batch_results.extend(processed)
-#                     processed_count += len(processed)
-#
-#                     # 批量发送，减少队列操作
-#                     if len(batch_results) >= batch_size:
-#                         output_queue.put(batch_results)
-#                         batch_results = []
-#
-#             except Exception as e:
-#                 logger.debug(f"Failed to process event: {e}")
-#                 continue
-#
-#         # 发送剩余结果
-#         if batch_results:
-#             output_queue.put(batch_results)
-#
-#         logger.debug(
-#             f"Producer completed, processed {len(events_chunk)} events, generated {processed_count} data records")
-#
-#     except Exception as e:
-#         logger.error(f"Producer process error: {e}")
-#         import traceback
-#         logger.error(traceback.format_exc())
-#
-#
-# def consumer_worker(input_queue, total_events):
-#     """
-#     Consumer process: get data from queue and batch write to database
-#     """
-#     try:
-#         logger.debug("Consumer process started")
-#         conn = get_db_connection()
-#         if conn is None:
-#             logger.error("Consumer failed to get database connection")
-#             return
-#
-#         # 优化数据库设置
-#         cursor = conn.cursor()
-#
-#         cursor.execute("PRAGMA journal_mode = WAL")
-#         cursor.execute("PRAGMA cache_size = 10000")  # 增大缓存
-#         cursor.execute("PRAGMA temp_store = MEMORY")  # 临时表用内存
-#
-#         cache = {}  # {data_type: list of rows}
-#         total_processed = 0
-#         batch_count = 0
-#         last_log_time = time.time()
-#
-#         while True:
-#             try:
-#                 # 设置超时，避免永久阻塞
-#                 item = input_queue.get(timeout=30)
-#                 if item is None:  # 结束信号
-#                     logger.debug("Received end signal")
-#                     break
-#
-#                 batch_count += 1
-#
-#                 # 处理批量数据
-#                 for data_type, row in item:
-#                     if data_type not in cache:
-#                         cache[data_type] = []
-#                     cache[data_type].append(row)
-#                     total_processed += 1
-#
-#                     # 批量写入
-#                     if len(cache[data_type]) >= DB_CACHE_SIZE:
-#                         if data_type in UPDATA_SQL_TEMPLATES:
-#                             cursor.executemany(UPDATA_SQL_TEMPLATES[data_type], cache[data_type])
-#                             cache[data_type].clear()
-#
-#                 # 减少提交频率，改为基于时间或数据量
-#                 current_time = time.time()
-#                 if current_time - last_log_time > 5:  # 每5秒提交一次
-#                     conn.commit()
-#                     logger.debug(f"Consumer processed {total_processed}/{total_events} data")
-#                     last_log_time = current_time
-#
-#             except mp.queues.Empty:
-#                 logger.warning("Queue timeout, continue waiting...")
-#                 continue
-#             except Exception as e:
-#                 logger.error(f"Failed to process queue data: {e}")
-#                 break
-#
-#         # 写入剩余数据
-#         logger.debug("Start writing remaining cache data")
-#         for data_type, rows in cache.items():
-#             if rows and data_type in UPDATA_SQL_TEMPLATES:
-#                 cursor.executemany(UPDATA_SQL_TEMPLATES[data_type], rows)
-#                 logger.debug(f"Written remaining {data_type} data: {len(rows)}")
-#
-#         # 保存缓存数据
-#         save_cache_data_to_db(cursor)
-#
-#         conn.commit()
-#         conn.close()
-#         logger.debug(f"Consumer process ended, total processed data: {total_processed}")
-#
-#     except Exception as e:
-#         logger.error(f"Consumer process error: {str(e)}")
-#         import traceback
-#         logger.error(traceback.format_exc())
-#
-#
-# def save_trace_data_into_db(trace_data):
-#     """
-#     Complete multi-process version: clear Producer and Consumer architecture
-#     """
-#     events = trace_data.get("traceEvents", [])
-#     total = len(events)
-#     if total == 0:
-#         logger.warning("no data to write")
-#         return
-#
-#     start_time = time.perf_counter()
-#     logger.debug(f"Multi-process started processing {total} events")
-#
-#     # 根据数据量动态调整进程数
-#     cpu_count = mp.cpu_count()
-#
-#     # 小数据量使用更少的进程
-#     if total < 10000:
-#         producer_processes = min(2, cpu_count)
-#     elif total < 100000:
-#         producer_processes = min(4, cpu_count)
-#     else:
-#         producer_processes = max(1, cpu_count - 1)
-#
-#     # 使用多进程队列
-#     mp_queue = Queue(maxsize=1000)
-#
-#     # 分块
-#     chunk_size = max(1, total // producer_processes)
-#     chunks = [events[i:i + chunk_size] for i in range(0, total, chunk_size)]
-#
-#     logger.debug(f"Using {producer_processes} Producer processes, chunk size: {chunk_size}, chunk count: {len(chunks)}")
-#
-#     # 启动 Consumer 进程
-#     consumer_process = Process(
-#         target=consumer_worker,
-#         args=(mp_queue, total)
-#     )
-#     consumer_process.start()
-#     logger.debug("Consumer process started")
-#
-#     # 启动 Producer 进程
-#     producer_processes_list = []
-#     for i, chunk in enumerate(chunks):
-#         process = Process(
-#             target=producer_worker,
-#             args=(chunk, mp_queue, chunk_size // 10)  # 动态调整批处理大小
-#         )
-#         process.start()
-#         producer_processes_list.append(process)
-#         logger.debug(f"Started Producer process {i + 1}/{len(chunks)}")
-#
-#     # 等待所有 Producer 进程完成
-#     logger.debug("Waiting for all Producer processes to complete...")
-#     for i, process in enumerate(producer_processes_list):
-#         process.join()
-#         logger.debug(f"Producer process {i + 1} completed")
-#
-#     # 发送结束信号给 Consumer
-#     mp_queue.put(None)
-#     logger.debug("Sent end signal to Consumer")
-#
-#     # 等待 Consumer 进程完成
-#     consumer_process.join(timeout=60)
-#     if consumer_process.is_alive():
-#         logger.debug("Consumer process did not end within timeout")
-#         consumer_process.terminate()
-#     else:
-#         logger.debug("Consumer process ended")
-#
-#     elapsed = time.perf_counter() - start_time
-#     logger.debug(
-#         f"✅ process down ，total_num: {total}, "
-#         f"Producer num: {producer_processes}, "
-#         f"time: {elapsed:.3f}s, "
-#         f"speed: {total / elapsed:.2f} records/second")
-#
 
 
 def merge_json_data(trace_data, msprof_data_df):
@@ -1028,158 +763,12 @@ def export_event_from_df(df, channel_name, tid):
 
     return tarce_events_list
 
-# # TODO:千万别删！！！！！！！！！！
-# #  最新调试(能跑，但是缺了个Request的泳道，性能55s，不上不下)
-#
-#
-# def save_trace_data_into_db(trace_data):
-#     """
-#     高性能版本：使用单进程批量写入策略，避免锁问题
-#     """
-#     events = trace_data.get("traceEvents", [])
-#     total = len(events)
-#     if total == 0:
-#         logger.warning("no data to write")
-#         return
-#
-#     start_time = time.time()
-#
-#     logger.warning(f"=== START PROCESSING ===")
-#     logger.warning(f"Total events: {total}")
-#
-#     # 重置状态确保一致性
-#     reset_track_id_manager()
-#     reset_process_table_manager()
-#     cache = CacheTableManager.get_cache()
-#     cache['slice'].clear()
-#     cache['counter'].clear()
-#     cache['flow'].clear()
-#
-#     # 单进程批量处理：结合了记录创建和数据插入
-#     logger.warning("=== PROCESSING ALL EVENTS IN SINGLE PROCESS ===")
-#     conn = get_db_connection()
-#     if not conn:
-#         logger.warning("❌ Failed to get database connection")
-#         return
-#
-#     try:
-#         cursor = conn.cursor()
-#
-#         # 应用数据库优化设置
-#         cursor.execute("PRAGMA journal_mode = WAL")
-#         cursor.execute("PRAGMA cache_size = 10000")
-#         cursor.execute("PRAGMA synchronous = NORMAL")  # 降低同步级别提高性能
-#         cursor.execute("PRAGMA temp_store = MEMORY")
-#
-#         # 批量处理所有事件
-#         records_processed = 0
-#         data_records_processed = 0
-#
-#         # 先处理所有元事件
-#         meta_events = [e for e in events if e.get('ph') == 'M']
-#         logger.warning(f"Processing {len(meta_events)} meta events first")
-#         for i, event in enumerate(meta_events):
-#             try:
-#                 trans_trace_meta_event(event, cursor)
-#                 records_processed += 1
-#             except Exception as e:
-#                 logger.warning(f"Failed to process meta event: {e}")
-#
-#         # 然后批量处理其他事件
-#         other_events = [e for e in events if e.get('ph') != 'M']
-#         logger.warning(f"Processing {len(other_events)} other events")
-#
-#         batch_size = 10000
-#         for i, event in enumerate(other_events):
-#             try:
-#                 # 使用旧版逻辑处理事件（包括记录创建和数据插入）
-#                 trans_trace_event(event, cursor)
-#                 records_processed += 1
-#                 data_records_processed += 1
-#
-#                 # 定期提交和清空缓存
-#                 if i % batch_size == 0 and i > 0:
-#                     # 先保存缓存数据
-#                     save_cache_data_to_db(cursor)
-#                     # 提交事务
-#                     conn.commit()
-#                     logger.warning(f"Processed {i}/{len(other_events)} events, committed transaction")
-#
-#             except Exception as e:
-#                 logger.warning(f"Failed to process event: {e}")
-#                 continue
-#
-#         # 保存所有剩余的缓存数据
-#         save_cache_data_to_db(cursor)
-#
-#         # 最终提交
-#         conn.commit()
-#         logger.warning(f"✅ Processed {records_processed} total events, {data_records_processed} data events")
-#
-#     except Exception as e:
-#         logger.warning(f"❌ Error during processing: {e}")
-#         conn.rollback()
-#     finally:
-#         conn.close()
-#
-#     elapsed = time.time() - start_time
-#     logger.warning(
-#         f"✅ Overall processing completed: "
-#         f"Total events: {total}, "
-#         f"Time: {elapsed:.3f}s")
-#
-#     # 验证数据一致性
-#     verify_final_data_in_db()
-#
-#
-# def verify_final_data_in_db():
-#     """
-#     验证数据库中的数据与预期一致
-#     """
-#     conn = get_db_connection()
-#     if conn:
-#         cursor = conn.cursor()
-#
-#         # 预期的记录数量（根据你的测试数据调整）
-#         expected_counts = {
-#             'process': 3,
-#             'thread': 19,
-#             'slice': 838740,
-#             'counter': 171361,
-#             'flow': 856805
-#         }
-#
-#         actual_counts = {}
-#         for table in expected_counts.keys():
-#             cursor.execute(f"SELECT COUNT(*) FROM {table}")
-#             actual_counts[table] = cursor.fetchone()[0]
-#
-#         logger.warning(f"=== FINAL RECORD COUNTS ===")
-#         all_correct = True
-#         for table, expected in expected_counts.items():
-#             actual = actual_counts[table]
-#             if actual == expected:
-#                 logger.warning(f"✅ {table}: {actual} (correct)")
-#             else:
-#                 logger.warning(f"❌ {table}: {actual} (expected {expected})")
-#                 all_correct = False
-#
-#         if all_correct:
-#             logger.warning("🎉 All table counts are correct!")
-#         else:
-#             logger.warning("⚠️ Some table counts are incorrect")
-#
-#         conn.close()
-#         return all_correct
 
-# end
+# 优化一下，不行就上上一版
 
-
-
-# 尝试修复request缺失的问题
 def save_trace_data_into_db(trace_data):
     """
-    修复版本：正确处理ph=M事件，不创建多余的线程记录
+    使用智能进程数设置的多进程优化方案 - 性能优化版
     """
     events = trace_data.get("traceEvents", [])
     total = len(events)
@@ -1188,113 +777,346 @@ def save_trace_data_into_db(trace_data):
         return
 
     start_time = time.time()
-    logger.warning(f"=== PROCESSING {total} EVENTS ===")
+    logger.warning(f"=== SMART MULTI-PROCESS: PROCESSING {total} EVENTS ===")
 
-    # 重置状态确保一致性
+    # 重置状态（复用b.py中的函数）
     reset_track_id_manager()
     reset_process_table_manager()
-    cache = CacheTableManager.get_cache()
-    cache['slice'].clear()
-    cache['counter'].clear()
-    cache['flow'].clear()
+    clear_data_cache()
 
-    # 单进程处理 - 使用修复的逻辑
+    # 第一步：单进程构建track_id映射
+    logger.warning("=== STEP 1: BUILDING TRACK_ID MAPPING ===")
+    track_id_map = _build_track_id_mapping_smart(events)
+
+    # 第二步：智能多进程数据准备
+    logger.warning("=== STEP 2: SMART MULTI-PROCESS DATA PREPARATION ===")
+    other_events = [e for e in events if e.get('ph') != 'M']
+
+    if other_events:
+        data_results = _prepare_data_smart_parallel(other_events, track_id_map)
+    else:
+        data_results = {'slice': [], 'counter': [], 'flow': []}
+
+    # 第三步：单进程批量写入
+    logger.warning("=== STEP 3: BATCH WRITE ===")
+    _write_all_data_smart(data_results)
+
+    elapsed = time.time() - start_time
+    logger.warning(f"✅ Smart multi-process completed in {elapsed:.3f}s")
+
+
+def _build_track_id_mapping_smart(events):
+    """
+    优化的track_id映射构建 - 复用b.py中的函数
+    """
+    track_id_map = {}
+
     conn = get_db_connection()
     if not conn:
-        logger.warning("❌ Failed to get database connection")
+        logger.warning("❌ Failed to get database connection for track_id mapping")
+        return track_id_map
+
+    try:
+        cursor = conn.cursor()
+
+        # 数据库优化设置
+        cursor.execute("PRAGMA journal_mode = WAL")
+        cursor.execute("PRAGMA cache_size = 10000")
+        cursor.execute("PRAGMA synchronous = NORMAL")
+
+        # 收集所有需要的pid, tid对，减少数据库操作
+        unique_pid_tid = set()
+        meta_events = []
+
+        for event in events:
+            ph_type = event.get('ph')
+            if ph_type == 'M':
+                meta_events.append(event)
+            else:
+                pid = event.get('pid')
+                tid = event.get('tid')
+                if ph_type == 'C':
+                    tid = event.get('name')
+                if pid is not None and tid is not None:
+                    unique_pid_tid.add((pid, tid))
+
+        # 批量处理meta事件（复用b.py中的函数）
+        for event in meta_events:
+            trans_trace_meta_event(event, cursor)
+
+        # 批量处理process_thread表（复用b.py中的函数）
+        for pid, tid in unique_pid_tid:
+            thread_sort_index = next((e.get('thread_sort_index', 0)
+                                      for e in events
+                                      if e.get('pid') == pid and e.get('tid') == tid), 0)
+            track_id = write_to_process_thread_table(
+                {'pid': pid, 'tid': tid}, thread_sort_index, cursor
+            )
+            track_id_map[(pid, tid)] = track_id
+
+        conn.commit()
+        logger.warning(f"✅ Built track_id mapping with {len(track_id_map)} entries")
+
+    except Exception as e:
+        logger.warning(f"❌ Error during track_id mapping: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
+
+    return track_id_map
+
+
+def _prepare_data_smart_parallel(events, track_id_map):
+    """
+    智能多进程数据准备 - 优化进程配置
+    """
+    total_events = len(events)
+    if total_events == 0:
+        return {'slice': [], 'counter': [], 'flow': []}
+
+    # 优化的进程数和分块大小配置 - 针对大数据量
+    if total_events > 5000000:  # 超过500万事件
+        optimal_processes = min(mp.cpu_count() - 1, 8)  # 限制最大8个进程
+        chunk_size = max(200000, total_events // optimal_processes)
+    else:
+        num_processes, chunk_size = _calculate_smart_process_config(total_events)
+        optimal_processes = num_processes
+
+    # 创建分块
+    chunks = [events[i:i + chunk_size] for i in range(0, total_events, chunk_size)]
+
+    logger.warning(f"Smart config: {len(chunks)} processes, {chunk_size} chunk size for {total_events} events")
+
+    # 使用进程池处理
+    with mp.Pool(processes=len(chunks),
+                 initializer=_init_worker_shared,
+                 initargs=(track_id_map,)) as pool:
+
+        results = []
+        completed = 0
+
+        # 使用imap_unordered提高效率
+        for result in pool.imap_unordered(_process_chunk_smart, chunks, chunksize=1):
+            results.append(result)
+            completed += 1
+
+            # 进度报告
+            if completed % 10 == 0 or completed == len(chunks):
+                logger.warning(f"Processed {completed}/{len(chunks)} chunks")
+
+    # 合并结果
+    final_result = {'slice': [], 'counter': [], 'flow': []}
+    for result in results:
+        final_result['slice'].extend(result['slice'])
+        final_result['counter'].extend(result['counter'])
+        final_result['flow'].extend(result['flow'])
+
+    logger.warning(f"Data preparation completed: {len(final_result['slice'])} slices, "
+                   f"{len(final_result['counter'])} counters, {len(final_result['flow'])} flows")
+    return final_result
+
+
+def _calculate_smart_process_config(total_events):
+    """
+    智能计算进程数和分块大小配置
+    """
+    # 获取系统信息
+    cpu_count = mp.cpu_count()
+    memory_info = psutil.virtual_memory()
+    total_memory_gb = memory_info.total / (1024 ** 3)
+    available_memory_gb = memory_info.available / (1024 ** 3)
+
+    logger.warning(f"System: {cpu_count} CPUs, {total_memory_gb:.1f}GB RAM, {available_memory_gb:.1f}GB available")
+
+    # 基于CPU的进程数
+    cpu_based = max(2, cpu_count - 1)  # 保留一个核心用于系统任务
+
+    # 基于内存的进程数
+    memory_per_process_mb = 200  # 保守估计每个进程200MB
+    memory_based = int(available_memory_gb * 1024 / memory_per_process_mb * 0.7)  # 使用70%可用内存
+
+    # 基于数据量的进程数
+    target_events_per_process = 400000
+    data_based = max(4, min(32, math.ceil(total_events / target_events_per_process)))
+
+    # 计算最优进程数（取三者最小值）
+    optimal_processes = min(cpu_based, memory_based, data_based)
+
+    # 确保进程数在合理范围内
+    optimal_processes = max(4, min(optimal_processes, 32))
+
+    # 计算分块大小
+    chunk_size = max(50000, math.ceil(total_events / optimal_processes))
+
+    # 如果分块太大，增加进程数
+    if chunk_size > 600000:
+        additional_processes = math.ceil(chunk_size / 400000)
+        optimal_processes = min(32, optimal_processes + additional_processes)
+        chunk_size = math.ceil(total_events / optimal_processes)
+
+    logger.warning(f"Process config: CPU={cpu_based}, Memory={memory_based}, Data={data_based}, "
+                   f"Final={optimal_processes} processes, {chunk_size} chunk size")
+
+    return optimal_processes, chunk_size
+
+
+def _process_chunk_smart(events_chunk):
+    """
+    智能处理数据块 - 复用b.py中的转换函数
+    """
+    slice_data = []
+    counter_data = []
+    flow_data = []
+
+    for event in events_chunk:
+        try:
+            ph_type = event.get('ph')
+
+            if ph_type in ('X', 'I'):
+                if event.get('ts') is not None and event.get('dur') is not None:
+                    data = _prepare_slice_data_smart(event)
+                    if data:
+                        slice_data.append(data)
+            elif ph_type == 'C':
+                if event.get('ts') is not None:
+                    data = _prepare_counter_data_smart(event)
+                    if data:
+                        counter_data.append(data)
+            elif ph_type in ('s', 't', 'f'):
+                if event.get('ts') is not None:
+                    data = _prepare_flow_data_smart(event, ph_type)
+                    if data:
+                        flow_data.append(data)
+
+        except Exception as e:
+            continue
+
+    return {'slice': slice_data, 'counter': counter_data, 'flow': flow_data}
+
+
+def _prepare_slice_data_smart(event):
+    """智能slice数据处理 - 复用b.py的转换函数"""
+    # 复用b.py中的转换函数
+    event_data = trans_trace_slice_data(event)
+    end_ts = event_data['ts'] + event_data['dur']
+
+    pid = event.get('pid')
+    tid = event.get('tid')
+
+    track_id = _worker_track_id_map.get((pid, tid), 0)
+    if track_id == 0:
+        return None
+
+    return (
+        event_data.get('ts'), event_data.get('dur'), event_data.get('name'),
+        track_id, event.get('cat'), event_data.get('args'), event.get('cname'),
+        end_ts, event.get('flag_id')
+    )
+
+
+def _prepare_counter_data_smart(event):
+    """智能counter数据处理 - 复用b.py的转换函数"""
+    # 复用b.py中的转换函数
+    event_data = trans_trace_counter_data(event)
+    if event_data.get('ts') == 0:
+        return None
+
+    return (
+        event_data.get('name'), event_data.get('pid'), event_data.get('ts'),
+        event.get('cat'), event_data.get('args')
+    )
+
+
+def _prepare_flow_data_smart(event, ph_type):
+    """智能flow数据处理 - 复用b.py的转换函数"""
+    # 复用b.py中的转换函数
+    event_data = trans_trace_flow_data(event)
+
+    pid = event.get('pid')
+    tid = event.get('tid')
+
+    track_id = _worker_track_id_map.get((pid, tid), 0)
+    if track_id == 0:
+        return None
+
+    return (
+        event_data.get('flow_id'), event_data.get('name'), track_id,
+        event_data.get('ts'), event.get('cat'), ph_type
+    )
+
+
+def _write_all_data_smart(data_results):
+    """
+    智能批量写入数据 - 增大批次大小
+    """
+    conn = get_db_connection()
+    if not conn:
+        logger.warning("❌ Failed to get database connection for final write")
         return
 
     try:
         cursor = conn.cursor()
 
-        # 优化数据库设置
-        cursor.execute("PRAGMA journal_mode = WAL")
-        cursor.execute("PRAGMA cache_size = 10000")
+        # 数据库优化设置
+        cursor.execute("PRAGMA journal_mode = WAL")  # 改回WAL模式，更稳定
+        cursor.execute("PRAGMA cache_size = -100000")  # 增大缓存
         cursor.execute("PRAGMA synchronous = NORMAL")
         cursor.execute("PRAGMA temp_store = MEMORY")
 
-        # 处理所有事件
-        processed_count = 0
-        batch_size = 50000
+        # 增大批次大小以提高性能
+        batch_size = 100000  # 从50000增加到100000
 
-        for i, event in enumerate(events):
-            try:
-                # 使用修复的逻辑处理事件
-                trans_trace_event(event, cursor)
-                processed_count += 1
+        # 写入slice数据
+        slice_data = data_results['slice']
+        if slice_data:
+            logger.warning(f"Writing {len(slice_data)} slice records")
+            for i in range(0, len(slice_data), batch_size):
+                batch = slice_data[i:i + batch_size]
+                cursor.executemany("""
+                    INSERT INTO slice (timestamp, duration, name, track_id, cat, args, cname, end_time, flag_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, batch)
+                if (i // batch_size) % 5 == 0:  # 调整进度报告频率
+                    logger.warning(f"Written {min(i + batch_size, len(slice_data))}/{len(slice_data)} slice records")
 
-                # 定期提交
-                if i % batch_size == 0 and i > 0:
-                    save_cache_data_to_db(cursor)
-                    conn.commit()
-                    logger.warning(f"Processed {i}/{total} events")
+        # 写入counter数据
+        counter_data = data_results['counter']
+        if counter_data:
+            logger.warning(f"Writing {len(counter_data)} counter records")
+            for i in range(0, len(counter_data), batch_size):
+                batch = counter_data[i:i + batch_size]
+                cursor.executemany("""
+                    INSERT INTO counter (name, pid, timestamp, cat, args)
+                    VALUES (?, ?, ?, ?, ?)
+                """, batch)
 
-            except Exception as e:
-                logger.warning(f"Failed to process event {i}: {e}")
-                continue
+        # 写入flow数据
+        flow_data = data_results['flow']
+        if flow_data:
+            logger.warning(f"Writing {len(flow_data)} flow records")
+            for i in range(0, len(flow_data), batch_size):
+                batch = flow_data[i:i + batch_size]
+                cursor.executemany("""
+                    INSERT INTO flow (flow_id, name, track_id, timestamp, cat, type)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, batch)
 
-        # 保存剩余数据并提交
-        save_cache_data_to_db(cursor)
         conn.commit()
-        logger.warning(f"✅ Processed {processed_count}/{total} events")
+        total_written = len(slice_data) + len(counter_data) + len(flow_data)
+        logger.warning(f"✅ Written {total_written} data records")
 
     except Exception as e:
-        logger.warning(f"❌ Error during processing: {e}")
+        logger.warning(f"❌ Error during data writing: {e}")
         conn.rollback()
     finally:
         conn.close()
 
-    elapsed = time.time() - start_time
-    logger.warning(f"✅ Processing completed in {elapsed:.3f}s")
 
-    # 验证数据一致性
-    verify_final_data_in_db()
+# 全局变量用于worker进程共享数据
+_worker_track_id_map = None
 
 
-def verify_final_data_in_db():
-    """
-    验证数据库中的数据与预期一致
-    """
-    conn = get_db_connection()
-    if conn:
-        cursor = conn.cursor()
-
-        expected_counts = {
-            'process': 3,
-            'thread': 19,
-            'slice': 838740,
-            'counter': 171361,
-            'flow': 856805
-        }
-
-        actual_counts = {}
-        for table in expected_counts.keys():
-            cursor.execute(f"SELECT COUNT(*) FROM {table}")
-            actual_counts[table] = cursor.fetchone()[0]
-
-        logger.warning(f"=== FINAL RECORD COUNTS ===")
-        all_correct = True
-        for table, expected in expected_counts.items():
-            actual = actual_counts[table]
-            if actual == expected:
-                logger.warning(f"✅ {table}: {actual} (correct)")
-            else:
-                logger.warning(f"❌ {table}: {actual} (expected {expected})")
-                all_correct = False
-
-        # 特别检查thread表的内容
-        cursor.execute("SELECT track_id, tid, pid, thread_name, thread_sort_index FROM thread ORDER BY track_id")
-        threads = cursor.fetchall()
-        logger.warning("=== THREAD TABLE CONTENTS ===")
-        for thread in threads:
-            logger.warning(
-                f"track_id={thread[0]}, tid={thread[1]}, pid={thread[2]}, name={thread[3]}, sort_index={thread[4]}")
-
-        if all_correct:
-            logger.warning("🎉 All table counts are correct!")
-        else:
-            logger.warning("⚠️ Some table counts are incorrect")
-
-        conn.close()
-        return all_correct
-
+def _init_worker_shared(track_id_map):
+    """初始化worker进程，共享track_id映射"""
+    global _worker_track_id_map
+    _worker_track_id_map = track_id_map
