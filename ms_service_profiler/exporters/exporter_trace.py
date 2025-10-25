@@ -23,7 +23,7 @@ from ms_service_profiler.utils.error import DatabaseError, key_except
 from ms_service_profiler.exporters.utils import get_db_connection, create_sqlite_tables
 from ms_service_profiler.utils.trace_to_db import (
     TRACE_TABLE_DEFINITIONS, trans_trace_meta_event,
-    trans_trace_slice_data,  trans_trace_counter_data, trans_trace_flow_data,
+    trans_trace_slice_data, trans_trace_counter_data, trans_trace_flow_data,
     write_to_process_thread_table, reset_track_id_manager,
     reset_process_table_manager, clear_data_cache
 )
@@ -1061,6 +1061,17 @@ class CounterData:
     args: Optional[dict]
 
 
+@dataclass
+class FlowData:
+    """流数据的数据类"""
+    flow_id: str
+    name: str
+    track_id: int
+    timestamp: float
+    category: Optional[str]
+    phase_type: str
+
+
 def _prepare_slice_data_smart(event: dict) -> Optional[SliceData]:
     """智能slice数据处理 - 复用b.py的转换函数
 
@@ -1119,21 +1130,33 @@ def _prepare_counter_data_smart(event: dict) -> Optional[CounterData]:
     )
 
 
-def _prepare_flow_data_smart(event, ph_type):
-    """智能flow数据处理 - 复用b.py的转换函数"""
+def _prepare_flow_data_smart(event: dict, ph_type: str) -> Optional[FlowData]:
+    """智能flow数据处理 - 复用b.py的转换函数
+
+    Args:
+        event: 原始事件数据
+        ph_type: 事件阶段类型 ('s', 't', 'f')
+
+    Returns:
+        Optional[FlowData]: 流数据对象，如果track_id无效则返回None
+    """
     # 复用b.py中的转换函数
     event_data = trans_trace_flow_data(event)
 
     pid = event.get('pid')
     tid = event.get('tid')
-
     track_id = _worker_track_id_map.get((pid, tid), 0)
+
     if track_id == 0:
         return None
 
-    return (
-        event_data.get('flow_id'), event_data.get('name'), track_id,
-        event_data.get('ts'), event.get('cat'), ph_type
+    return FlowData(
+        flow_id=event_data.get('flow_id'),
+        name=event_data.get('name'),
+        track_id=track_id,
+        timestamp=event_data.get('ts'),
+        category=event.get('cat'),
+        phase_type=ph_type
     )
 
 
