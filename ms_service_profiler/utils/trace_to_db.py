@@ -220,7 +220,7 @@ def write_to_process_thread_table(event_data, thread_sort_index, cursor):
 
     # 创建三级泳道
     track_id, exist = TrackIdManager.get_track_id(pid, tid)
-    # logger.warning(f'three track-id is {track_id}, exist is {exist},pid is {pid}, tid is {tid}')
+
     if not exist:
         cursor.execute(SIMULATION_UPDATE_THREAD_NAME_SQL, (track_id, tid, pid, tid, thread_sort_index))
     return track_id

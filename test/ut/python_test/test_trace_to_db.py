@@ -167,19 +167,21 @@ class TestTraceEvent(unittest.TestCase):
         )
         self.cursor.execute.assert_called_with(*expected_call)
 
-
     def test_trans_trace_meta_event_thread_sort_index(self):
         self.event['name'] = "thread_sort_index"
         self.event['pid'] = 1
         self.event['tid'] = 1
         self.event['args'] = {'sort_index': 10}
 
+        # 模拟数据库查询返回结果，表示记录已存在
+        self.cursor.fetchone.return_value = (2,)  # 返回track_id=2
+
         trans_trace_meta_event(self.event, self.cursor)
 
-        track_id, _ = TrackIdManager.get_track_id(1, 1)
+        # 验证执行了更新操作
         expected_call = (
             UPDATE_THREAD_SORTINDEX_SQL,
-            (track_id, 10)
+            (2, 10)
         )
         self.cursor.execute.assert_called_with(*expected_call)
 
