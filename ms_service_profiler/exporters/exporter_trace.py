@@ -85,12 +85,12 @@ class ExporterTrace(TaskExporterBase):
                     cann_data.append(cann_prof_data)
                 for msprof_data_pid in msprof_data_pids:
                     pid_ppid_map.append((msprof_data_pid, msprof_data_ppid))
-            
+
             if "ppid" in all_data_df and "pid" in all_data_df:
                 pid_ppid_map.extend(set(zip(all_data_df['pid'], all_data_df['ppid'])))
 
             pid_ppid_map = [(str(pid), ppid, pid) for pid, ppid in pid_ppid_map]
-            
+
             trace_data = create_trace_events(all_data_df, pid_label_map, pid_ppid_map)
             merged_data = merge_json_data(trace_data, cann_data)
         else:
@@ -104,7 +104,6 @@ class ExporterTrace(TaskExporterBase):
             kernel_df = mspti.get('kernel_df', pd.DataFrame())
 
         if not api_df.empty or not kernel_df.empty:
-
             tarce_events_list = []
 
             api_events = export_event_from_df(api_df, "Api", "Api")
@@ -134,14 +133,14 @@ def prepare_domain_for_process(all_data_df):
     # 过滤显示数据, Meta不显示
     meta_mask = all_data_df['domain'].isin(['Meta'])
     all_data_df.drop(all_data_df[meta_mask].index, inplace=True)
-    
+
     # 对于非Request, RequestState, KVCache泳道区分tid显示
     mask = ~all_data_df['domain'].isin(['Request', 'RequestState', 'KVCache'])
     all_data_df.loc[mask, 'domain'] = (
-        all_data_df.loc[mask, 'domain'].astype(str) 
-        + '(' 
-        + all_data_df.loc[mask, 'tid'].astype(str)
-        + ')'
+            all_data_df.loc[mask, 'domain'].astype(str)
+            + '('
+            + all_data_df.loc[mask, 'tid'].astype(str)
+            + ')'
     )
 
     all_data_df['domain'] = all_data_df['domain'].replace('PDSplit', 'PDCommunication')
@@ -243,9 +242,9 @@ def write_trace_data_to_file(trace_data, output):
     with ms_open(output, "w") as f:
         f.write('{"traceEvents":[')
         for index, content2 in enumerate(results):
-            if len(content2) < 2:   # 确保至少有 2 个字符
+            if len(content2) < 2:  # 确保至少有 2 个字符
                 continue
-            f.write(content2[1:-1]) # 去除首字符和尾字符
+            f.write(content2[1:-1])  # 去除首字符和尾字符
             if index != len(results) - 1:
                 f.write(',')
 
@@ -317,7 +316,7 @@ def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
         name_notna_condition &
         domain_not_in_metric_condition &
         domain_not_startswith_condition
-    ]
+        ]
     trace_events = add_trace_events(valid_name_df)
 
     if not all_data_df.empty and "name" in all_data_df:
@@ -334,7 +333,7 @@ def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
         flow_event_df = valid_name_df[valid_name_df['rid'].notna()]
         flow_trace_events = add_flow_event(flow_event_df)
         trace_events.extend(flow_trace_events)
-        
+
     trace_events = sort_trace_events_by_tid(trace_events)
 
     coordinator_pid = None
@@ -343,7 +342,6 @@ def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
         if isinstance(tid, str) and "Coordinator" in tid:
             coordinator_pid = event["pid"]
             break  # 找到第一个就退出
-
 
     if pid_label_map is not None or pid_ppid_map is not None:
         trace_events.extend(sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid))
@@ -354,27 +352,27 @@ def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
 
 def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None):
     pid_sorting_meta = []
-    
+
     process_tree = {}
     for pid, ppid, _ in pid_ppid_map:
         process_tree[pid] = ppid
-    
+
     process_prefix = {}
-    
+
     def build_prcess_prefix(pid):
         if pid in process_prefix:
             return process_prefix[pid]
         ppid = process_tree.get(pid)
         if ppid is None:
             return ""
-        
+
         ppid_prefix = build_prcess_prefix(ppid)
         pid_prefix = f"{ppid_prefix}.{pid}"
         process_prefix[pid] = pid_prefix
         return pid_prefix
-    
+
     process_prefix_list = [(ori_pid, build_prcess_prefix(pid)) for pid, _, ori_pid in pid_ppid_map]
-    
+
     process_prefix_list.sort(key=lambda x: x[1])
 
     def sort_key(item):
@@ -392,11 +390,11 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None):
             args=dict(sort_index=index))
         )
         labels = []
-        if pid_label_map is not None and "host_name" in pid_label_map.get(pid, []): 
+        if pid_label_map is not None and "host_name" in pid_label_map.get(pid, []):
             labels.append(pid_label_map.get(pid).get("host_name"))
-        if pid_label_map is not None and "dp" in pid_label_map.get(pid, []): 
+        if pid_label_map is not None and "dp" in pid_label_map.get(pid, []):
             labels.append(f"dp{pid_label_map.get(pid).get('dp')}")
-        elif pid_label_map is not None and "dp_rank" in pid_label_map.get(pid, []): 
+        elif pid_label_map is not None and "dp_rank" in pid_label_map.get(pid, []):
             labels.append(f"dp{pid_label_map.get(pid).get('dp_rank')}")
 
         if labels:
@@ -405,8 +403,8 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None):
                 ph="M",
                 pid=pid,
                 args=dict(labels=','.join(labels)))
-        )
-    
+            )
+
     return pid_sorting_meta
 
 
@@ -441,17 +439,17 @@ def add_trace_events(valid_name_df):
     """将有效名称数据转换为跟踪事件列表"""
     # 添加基本跟踪事件字段
     trace_event_df = _add_basic_trace_fields(valid_name_df)
-    
+
     # 确保所有必需的列都存在
     valid_name_df = _ensure_required_columns(valid_name_df)
-    
+
     # 构建参数列表
     args_list = _build_args_list(valid_name_df)
-    
+
     # 添加参数到DataFrame并转换为记录
     trace_event_df['args'] = args_list
     trace_events = trace_event_df[['name', 'ph', 'ts', 'dur', 'pid', 'tid', 'args']].to_dict(orient='records')
-    
+
     return trace_events
 
 
@@ -495,7 +493,7 @@ def _ensure_required_columns(df):
 
     if missing_columns:
         logger.warning(f"Missing columns in trace event data, using defaults: {missing_columns}")
-    
+
     return df
 
 
@@ -505,7 +503,7 @@ def _build_args_list(df):
         'start_datetime', 'end_datetime', 'batch_type', 'batch_size',
         'res_list', 'rid', 'message', 'tid'
     ]
-    
+
     args_list = []
     try:
         selected_df = df[required_columns]
@@ -517,37 +515,37 @@ def _build_args_list(df):
     except Exception as e:
         logger.error(f"Error during trace event generation: {e}")
         return []
-    
+
     return args_list
 
 
 def _process_row_to_args(row):
     """处理单行数据并转换为参数字典"""
     start, end, batch_type, batch_size, res_list, rid, message, tid = row
-    
+
     # 从message中排除特定键
     args_dict = {k: v for k, v in message.items() if k not in ["domain", "name", "type", "rid"]}
-    
+
     # 添加基本字段
     args_dict.update({
         'start_datetime': start,
         'end_datetime': end,
         'tid': tid
     })
-    
+
     # 条件添加可选字段
     if batch_size is not None and is_valid_value(batch_size):
         args_dict.update({'batch_size': batch_size})
-        
+
     if batch_type is not None and is_valid_value(batch_type):
         args_dict.update({'batch_type': batch_type})
-        
+
     if res_list is not None and is_valid_value(res_list):
         args_dict.update({"res_list": res_list})
-        
+
     if batch_size is None and rid != res_list:
         args_dict.update({"rid": rid})
-    
+
     return args_dict
 
 
