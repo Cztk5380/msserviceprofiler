@@ -1,13 +1,38 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
+import multiprocessing as mp
+import psutil
+import math
 from decimal import Decimal
 from collections import defaultdict
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.file_open_check import safe_json_dump
+from ms_service_profiler.exporters.utils import get_db_connection
 from ms_service_profiler.constant import NS_PER_US
 
 
 DB_CACHE_SIZE = 10000
+
+# 进程配置常量
+MIN_PROCESSES = 4                    # 最小进程数，确保有足够的并行度
+MAX_PROCESSES = 32                   # 最大进程数限制，避免创建过多进程导致资源竞争
+RESERVED_CPUS = 1                    # 保留的CPU核心数，用于系统任务和其他应用
+MIN_SAFE_PROCESSES = 2               # 基于CPU计算时的最小安全进程数
+
+# 内存配置常量
+MEMORY_PER_PROCESS_MB = 200          # 每个进程预估内存占用（MB），基于实际测试和监控
+MEMORY_USAGE_RATIO = 0.7             # 可用内存使用比例，保留30%内存给系统和其他应用
+
+# 数据量配置常量
+TARGET_EVENTS_PER_PROCESS = 400000   # 每个进程理想处理的事件数量，基于性能测试得出
+MIN_CHUNK_SIZE = 50000               # 最小分块大小，确保每个进程有足够的工作量
+LARGE_CHUNK_THRESHOLD = 600000       # 大分块阈值，超过此值需要增加进程数
+CHUNK_SIZE_BASELINE = 400000         # 分块大小基准，用于计算需要增加的进程数
+DEFAULT_BATCH_SIZE = 100000  # 默认批次大小，平衡性能与内存使用
+PROGRESS_REPORT_FREQUENCY = 5  # 进度报告频率，每5个批次报告一次进度
+MIN_BATCH_SIZE = 10000  # 最小批次大小，确保基本的批量写入效率
+MAX_BATCH_SIZE = 200000  # 最大批次大小，防止内存溢出
+
 
 TRACE_TABLE_DEFINITIONS = {
     'process': """CREATE TABLE process 
@@ -205,7 +230,7 @@ def trans_trace_meta_event(event, cursor):
                 "INSERT INTO thread (track_id, thread_sort_index) VALUES (?, ?)",
                 (track_id, event_data.get('args_sort_index'))
             )
-            logger.warning(
+            logger.debug(
                 f"Created empty thread record with track_id={track_id}, sort_index={event_data.get('args_sort_index')}")
     else:
         logger.warning(f'Trans trace M event to db failed due to unknown event name {event_name}')
@@ -299,13 +324,13 @@ def reset_track_id_manager():
     """重置TrackIdManager状态"""
     TrackIdManager.pid_tid_map.clear()
     TrackIdManager.current_max = 1
-    logger.warning("TrackIdManager reset")
+    logger.debug("TrackIdManager reset")
 
 
 def reset_process_table_manager():
     """重置ProcessTableManager状态"""
     ProcessTableManager.process_table.clear()
-    logger.warning("ProcessTableManager reset")
+    logger.debug("ProcessTableManager reset")
 
 
 def clear_data_cache():
@@ -313,4 +338,160 @@ def clear_data_cache():
     CacheTableManager.cache_list['slice'].clear()
     CacheTableManager.cache_list['counter'].clear()
     CacheTableManager.cache_list['flow'].clear()
-    logger.warning("Data cache cleared")
+    logger.debug("Data cache cleared")
+
+
+def calculate_smart_process_config(total_events):
+    """
+    智能计算进程数和分块大小配置
+    """
+    # 获取系统信息
+    cpu_count = mp.cpu_count()
+    memory_info = psutil.virtual_memory()
+    total_memory_gb = memory_info.total / (1024 ** 3)
+    available_memory_gb = memory_info.available / (1024 ** 3)
+
+    logger.debug(f"System: {cpu_count} CPUs, {total_memory_gb:.1f}GB RAM, {available_memory_gb:.1f}GB available")
+
+    # 基于CPU的进程数
+    cpu_based = max(MIN_SAFE_PROCESSES, cpu_count - RESERVED_CPUS)  # 保留一个核心用于系统任务
+
+    # 基于内存的进程数
+    memory_based = int(available_memory_gb * 1024 / MEMORY_PER_PROCESS_MB * MEMORY_USAGE_RATIO)  # 使用70%可用内存
+
+    # 基于数据量的进程数
+    data_based = max(MIN_PROCESSES, min(MAX_PROCESSES, math.ceil(total_events / TARGET_EVENTS_PER_PROCESS)))
+
+    # 计算最优进程数（取三者最小值）
+    optimal_processes = min(cpu_based, memory_based, data_based)
+
+    # 确保进程数在合理范围内
+    optimal_processes = max(MIN_PROCESSES, min(optimal_processes, MAX_PROCESSES))
+
+    # 计算分块大小
+    chunk_size = max(MIN_CHUNK_SIZE, math.ceil(total_events / optimal_processes))
+
+    # 如果分块太大，增加进程数
+    if chunk_size > LARGE_CHUNK_THRESHOLD:
+        additional_processes = math.ceil(chunk_size / CHUNK_SIZE_BASELINE)
+        optimal_processes = min(MAX_PROCESSES, optimal_processes + additional_processes)
+        chunk_size = math.ceil(total_events / optimal_processes)
+
+    logger.debug(f"Process config: CPU={cpu_based}, Memory={memory_based}, Data={data_based}, "
+                   f"Final={optimal_processes} processes, {chunk_size} chunk size")
+
+    return optimal_processes, chunk_size
+
+
+def write_all_data_smart(data_results):
+    """
+    智能批量写入数据 - 动态调整批次大小
+    """
+    conn = get_db_connection()
+    if not conn:
+        logger.warning("Failed to get database connection for final write")
+        return
+
+    cursor = None
+    try:
+        cursor = conn.cursor()
+
+        # 数据库优化设置
+        cursor.execute("PRAGMA journal_mode = WAL")  # 改回WAL模式，更稳定
+        cursor.execute("PRAGMA cache_size = -100000")  # 增大缓存
+        cursor.execute("PRAGMA synchronous = NORMAL")
+        cursor.execute("PRAGMA temp_store = MEMORY")
+
+        # 动态计算批次大小，考虑内存限制
+        batch_size = _calculate_batch_size(data_results)
+
+        # 使用公共函数写入不同类型的数据
+        _write_data_batch(cursor, "slice", data_results['slice'], batch_size, """
+            INSERT INTO slice (timestamp, duration, name, track_id, cat, args, cname, end_time, flag_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """)
+
+        _write_data_batch(cursor, "counter", data_results['counter'], batch_size, """
+            INSERT INTO counter (name, pid, timestamp, cat, args)
+            VALUES (?, ?, ?, ?, ?)
+        """)
+
+        _write_data_batch(cursor, "flow", data_results['flow'], batch_size, """
+            INSERT INTO flow (flow_id, name, track_id, timestamp, cat, type)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """)
+
+        conn.commit()
+        total_written = len(data_results['slice']) + len(data_results['counter']) + len(data_results['flow'])
+        logger.debug(f"Successfully written {total_written} data records")
+
+    except Exception as e:
+        logger.warning(f"Error during data writing: {e}")
+        if conn:
+            conn.rollback()
+    finally:
+        # 确保资源正确释放：先关闭cursor，再关闭conn
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+def _calculate_batch_size(data_results):
+    """
+    动态计算批次大小，考虑数据量和可用内存
+    """
+    # 计算总数据量
+    total_records = sum(len(data) for data in data_results.values())
+
+    # 基础批次大小
+    batch_size = DEFAULT_BATCH_SIZE
+
+    # 根据数据量调整批次大小
+    if total_records > 1000000:  # 超过100万条记录
+        batch_size = min(MAX_BATCH_SIZE, batch_size * 2)
+    elif total_records < 100000:  # 少于10万条记录
+        batch_size = max(MIN_BATCH_SIZE, batch_size // 2)
+
+    # 检查可用内存，如果内存紧张则减小批次大小
+    try:
+        memory_info = psutil.virtual_memory()
+        available_memory_gb = memory_info.available / (1024 ** 3)
+
+        # 如果可用内存小于2GB，减小批次大小
+        if available_memory_gb < 2:
+            batch_size = max(MIN_BATCH_SIZE, batch_size // 2)
+            logger.debug(f"Low memory detected ({available_memory_gb:.1f}GB), reducing batch size to {batch_size}")
+    except Exception as e:
+        logger.debug(f"Unable to check memory info: {e}, using default batch size")
+
+    logger.debug(f"Using batch size: {batch_size}")
+    return batch_size
+
+
+def _write_data_batch(cursor, data_type, data, batch_size, insert_sql):
+    """
+    公共函数：批量写入数据
+
+    Args:
+        cursor: 数据库游标
+        data_type: 数据类型名称（用于日志）
+        data: 要写入的数据列表
+        batch_size: 批次大小
+        insert_sql: 插入SQL语句
+    """
+    if not data:
+        logger.debug(f"No {data_type} data to write")
+        return
+
+    logger.debug(f"Writing {len(data)} {data_type} records")
+
+    for i in range(0, len(data), batch_size):
+        batch = data[i:i + batch_size]
+        cursor.executemany(insert_sql, batch)
+
+        # 进度报告
+        if (i // batch_size) % PROGRESS_REPORT_FREQUENCY == 0:
+            logger.debug(f"Written {min(i + batch_size, len(data))}/{len(data)} {data_type} records")
+
+    logger.debug(f"Completed writing {len(data)} {data_type} records")

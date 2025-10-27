@@ -2,8 +2,6 @@
 
 import os
 import time
-import psutil
-import math
 import multiprocessing as mp
 import json
 from dataclasses import dataclass
@@ -25,8 +23,25 @@ from ms_service_profiler.utils.trace_to_db import (
     TRACE_TABLE_DEFINITIONS, trans_trace_meta_event,
     trans_trace_slice_data, trans_trace_counter_data, trans_trace_flow_data,
     write_to_process_thread_table, reset_track_id_manager,
-    reset_process_table_manager, clear_data_cache
+    reset_process_table_manager, clear_data_cache, calculate_smart_process_config,
+    write_all_data_smart
 )
+
+
+# 常量定义
+LARGE_EVENTS_THRESHOLD = 5000000  # 当事件数量超过500万时，启用大数据量处理模式
+MAX_PROCESSES_LARGE = 8  # 大数据量处理时的最大进程数限制，避免过多进程导致系统资源耗尽
+MIN_CHUNK_SIZE_LARGE = 200000  # 大数据量处理时每个数据块的最小事件数量，确保每个进程有足够的工作量
+PROGRESS_REPORT_INTERVAL = 10  # 进度报告间隔，每处理10个数据块报告一次进度（仅限debug模式）
+
+# 全局变量用于worker进程共享数据
+_worker_track_id_map = None
+
+
+def _init_worker_shared(track_id_map):
+    """初始化worker进程，共享track_id映射"""
+    global _worker_track_id_map
+    _worker_track_id_map = track_id_map
 
 
 class ExporterTrace(TaskExporterBase):
@@ -429,32 +444,49 @@ def add_trace_events(valid_name_df):
     """将有效名称数据转换为跟踪事件列表"""
     # 添加基本跟踪事件字段
     trace_event_df = _add_basic_trace_fields(valid_name_df)
-    
+
     # 确保所有必需的列都存在
     valid_name_df = _ensure_required_columns(valid_name_df)
-    
+
     # 构建参数列表
     args_list = _build_args_list(valid_name_df)
 
-    # 直接构建结果列表
-    names = trace_event_df['name'].tolist()
-    phs = trace_event_df['ph'].tolist()
-    tss = trace_event_df['ts'].tolist()
-    durs = trace_event_df['dur'].tolist()
-    pids = trace_event_df['pid'].tolist()
-    tids = trace_event_df['tid'].tolist()
+    # 定义字段映射和默认值
+    field_defaults = {
+        'name': '',
+        'ph': 'X',
+        'ts': 0.0,
+        'dur': 0.0,
+        'pid': 0,
+        'tid': 0
+    }
+
+    # 安全地获取所有字段的值
+    fields = {}
+    for field, default in field_defaults.items():
+        if field in trace_event_df.columns:
+            fields[field] = trace_event_df[field].tolist()
+        else:
+            # 如果字段缺失，创建默认值列表
+            fields[field] = [default] * len(trace_event_df)
+
+    # 确保所有列表长度一致
+    max_length = max(len(lst) for lst in fields.values())
+    for field in fields:
+        if len(fields[field]) < max_length:
+            fields[field] = fields[field] + [field_defaults[field]] * (max_length - len(fields[field]))
 
     trace_events = [
         {
-            'name': names[i],
-            'ph': phs[i],
-            'ts': tss[i],
-            'dur': durs[i],
-            'pid': pids[i],
-            'tid': tids[i],
-            'args': args_list[i]
+            'name': fields['name'][i],
+            'ph': fields['ph'][i],
+            'ts': fields['ts'][i],
+            'dur': fields['dur'][i],
+            'pid': fields['pid'][i],
+            'tid': fields['tid'][i],
+            'args': args_list[i] if i < len(args_list) else {}
         }
-        for i in range(len(trace_event_df))
+        for i in range(max_length)
     ]
 
     return trace_events
@@ -749,8 +781,6 @@ def export_event_from_df(df, channel_name, tid):
     return tarce_events_list
 
 
-# 优化一下，不行就上上一版
-
 def save_trace_data_into_db(trace_data):
     """
     使用智能进程数设置的多进程优化方案 - 性能优化版
@@ -762,19 +792,19 @@ def save_trace_data_into_db(trace_data):
         return
 
     start_time = time.time()
-    logger.warning(f"=== SMART MULTI-PROCESS: PROCESSING {total} EVENTS ===")
+    logger.debug(f"=== SMART MULTI-PROCESS: PROCESSING {total} EVENTS ===")
 
-    # 重置状态（复用b.py中的函数）
+    # 重置状态
     reset_track_id_manager()
     reset_process_table_manager()
     clear_data_cache()
 
     # 第一步：单进程构建track_id映射
-    logger.warning("=== STEP 1: BUILDING TRACK_ID MAPPING ===")
+    logger.debug("=== STEP 1: BUILDING TRACK_ID MAPPING ===")
     track_id_map = _build_track_id_mapping_smart(events)
 
     # 第二步：智能多进程数据准备
-    logger.warning("=== STEP 2: SMART MULTI-PROCESS DATA PREPARATION ===")
+    logger.debug("=== STEP 2: SMART MULTI-PROCESS DATA PREPARATION ===")
     other_events = [e for e in events if e.get('ph') != 'M']
 
     if other_events:
@@ -783,24 +813,25 @@ def save_trace_data_into_db(trace_data):
         data_results = {'slice': [], 'counter': [], 'flow': []}
 
     # 第三步：单进程批量写入
-    logger.warning("=== STEP 3: BATCH WRITE ===")
-    _write_all_data_smart(data_results)
+    logger.debug("=== STEP 3: BATCH WRITE ===")
+    write_all_data_smart(data_results)
 
     elapsed = time.time() - start_time
-    logger.warning(f"✅ Smart multi-process completed in {elapsed:.3f}s")
+    logger.debug(f"Smart multi-process completed in {elapsed:.3f}s")
 
 
 def _build_track_id_mapping_smart(events):
     """
-    优化的track_id映射构建 - 复用b.py中的函数
+    优化的track_id映射构建
     """
     track_id_map = {}
 
     conn = get_db_connection()
     if not conn:
-        logger.warning("❌ Failed to get database connection for track_id mapping")
+        logger.warning("Failed to get database connection for track_id mapping")
         return track_id_map
 
+    cursor = None
     try:
         cursor = conn.cursor()
         _setup_database_optimizations(cursor)
@@ -810,13 +841,25 @@ def _build_track_id_mapping_smart(events):
         _process_pid_tid_batch(events, unique_pid_tid, track_id_map, cursor)
 
         conn.commit()
-        logger.warning(f"✅ Built track_id mapping with {len(track_id_map)} entries")
+        logger.debug(f"Built track_id mapping with {len(track_id_map)} entries")
 
+    except sqlite3.Error as e:
+        logger.warning(f"Database error during track_id mapping: {e}")
+        conn.rollback()
     except Exception as e:
-        logger.warning(f"❌ Error during track_id mapping: {e}")
+        logger.warning(f"Unexpected error during track_id mapping: {e}")
         conn.rollback()
     finally:
-        conn.close()
+        # 确保游标和连接都被关闭
+        if cursor:
+            try:
+                cursor.close()
+            except sqlite3.Error:
+                pass
+        try:
+            conn.close()
+        except sqlite3.Error:
+            pass
 
     return track_id_map
 
@@ -890,20 +933,19 @@ def _prepare_data_smart_parallel(events, track_id_map):
         return {'slice': [], 'counter': [], 'flow': []}
 
     # 优化的进程数和分块大小配置 - 针对大数据量
-    if total_events > 5000000:  # 超过500万事件
-        optimal_processes = min(mp.cpu_count() - 1, 8)  # 限制最大8个进程
-        chunk_size = max(200000, total_events // optimal_processes)
+    if total_events > LARGE_EVENTS_THRESHOLD:  # 超过500万事件
+        optimal_processes = min(mp.cpu_count() - 1, MAX_PROCESSES_LARGE)  # 限制最大8个进程
+        chunk_size = max(MIN_CHUNK_SIZE_LARGE, total_events // optimal_processes)
     else:
-        num_processes, chunk_size = _calculate_smart_process_config(total_events)
+        num_processes, chunk_size = calculate_smart_process_config(total_events)
         optimal_processes = num_processes
 
     # 创建分块
     chunks = [events[i:i + chunk_size] for i in range(0, total_events, chunk_size)]
 
-    logger.warning(f"Smart config: {len(chunks)} processes, {chunk_size} chunk size for {total_events} events")
+    logger.debug(f"Smart config: {optimal_processes} processes, {chunk_size} chunk size for {total_events} events")
 
-    # 使用进程池处理
-    with mp.Pool(processes=len(chunks),
+    with mp.Pool(processes=optimal_processes,
                  initializer=_init_worker_shared,
                  initargs=(track_id_map,)) as pool:
 
@@ -916,8 +958,8 @@ def _prepare_data_smart_parallel(events, track_id_map):
             completed += 1
 
             # 进度报告
-            if completed % 10 == 0 or completed == len(chunks):
-                logger.warning(f"Processed {completed}/{len(chunks)} chunks")
+            if completed % PROGRESS_REPORT_INTERVAL == 0 or completed == len(chunks):
+                logger.debug(f"Processed {completed}/{len(chunks)} chunks")
 
     # 合并结果
     final_result = {'slice': [], 'counter': [], 'flow': []}
@@ -926,58 +968,14 @@ def _prepare_data_smart_parallel(events, track_id_map):
         final_result['counter'].extend(result['counter'])
         final_result['flow'].extend(result['flow'])
 
-    logger.warning(f"Data preparation completed: {len(final_result['slice'])} slices, "
+    logger.debug(f"Data preparation completed: {len(final_result['slice'])} slices, "
                    f"{len(final_result['counter'])} counters, {len(final_result['flow'])} flows")
     return final_result
 
 
-def _calculate_smart_process_config(total_events):
-    """
-    智能计算进程数和分块大小配置
-    """
-    # 获取系统信息
-    cpu_count = mp.cpu_count()
-    memory_info = psutil.virtual_memory()
-    total_memory_gb = memory_info.total / (1024 ** 3)
-    available_memory_gb = memory_info.available / (1024 ** 3)
-
-    logger.warning(f"System: {cpu_count} CPUs, {total_memory_gb:.1f}GB RAM, {available_memory_gb:.1f}GB available")
-
-    # 基于CPU的进程数
-    cpu_based = max(2, cpu_count - 1)  # 保留一个核心用于系统任务
-
-    # 基于内存的进程数
-    memory_per_process_mb = 200  # 保守估计每个进程200MB
-    memory_based = int(available_memory_gb * 1024 / memory_per_process_mb * 0.7)  # 使用70%可用内存
-
-    # 基于数据量的进程数
-    target_events_per_process = 400000
-    data_based = max(4, min(32, math.ceil(total_events / target_events_per_process)))
-
-    # 计算最优进程数（取三者最小值）
-    optimal_processes = min(cpu_based, memory_based, data_based)
-
-    # 确保进程数在合理范围内
-    optimal_processes = max(4, min(optimal_processes, 32))
-
-    # 计算分块大小
-    chunk_size = max(50000, math.ceil(total_events / optimal_processes))
-
-    # 如果分块太大，增加进程数
-    if chunk_size > 600000:
-        additional_processes = math.ceil(chunk_size / 400000)
-        optimal_processes = min(32, optimal_processes + additional_processes)
-        chunk_size = math.ceil(total_events / optimal_processes)
-
-    logger.warning(f"Process config: CPU={cpu_based}, Memory={memory_based}, Data={data_based}, "
-                   f"Final={optimal_processes} processes, {chunk_size} chunk size")
-
-    return optimal_processes, chunk_size
-
-
 def _process_chunk_smart(events_chunk):
     """
-    智能处理数据块 - 复用b.py中的转换函数
+    智能处理数据块
 
     Args:
         events_chunk: 事件数据块
@@ -1020,10 +1018,10 @@ def _process_single_event(event, slice_data, counter_data, flow_data):
                 flow_data.append(data)
 
     except (ValueError, KeyError, TypeError) as e:
-        logger.debug(f"处理事件时遇到数据异常: {e}, 事件: {event.get('name', 'unknown')}")
+        logger.debug(f"error when _process_single_event: {e}, event: {event.get('name', 'unknown')}")
 
     except Exception as e:
-        logger.error(f"处理事件时遇到意外错误: {e}, 事件: {event.get('name', 'unknown')}")
+        logger.error(f"unexpect error when _process_single_event: {e}, 事件: {event.get('name', 'unknown')}")
 
 
 def _is_slice_event(ph_type, event):
@@ -1074,7 +1072,7 @@ class FlowData(NamedTuple):
 
 
 def _prepare_slice_data_smart(event: dict) -> Optional[SliceData]:
-    """智能slice数据处理 - 复用b.py的转换函数
+    """智能slice数据处理
 
     Args:
         event: 原始事件数据
@@ -1107,7 +1105,7 @@ def _prepare_slice_data_smart(event: dict) -> Optional[SliceData]:
 
 
 def _prepare_counter_data_smart(event: dict) -> Optional[CounterData]:
-    """智能counter数据处理 - 复用b.py的转换函数
+    """智能counter数据处理
 
     Args:
         event: 原始事件数据
@@ -1130,7 +1128,7 @@ def _prepare_counter_data_smart(event: dict) -> Optional[CounterData]:
 
 
 def _prepare_flow_data_smart(event: dict, ph_type: str) -> Optional[FlowData]:
-    """智能flow数据处理 - 复用b.py的转换函数
+    """智能flow数据处理
 
     Args:
         event: 原始事件数据
@@ -1156,79 +1154,3 @@ def _prepare_flow_data_smart(event: dict, ph_type: str) -> Optional[FlowData]:
         category=event.get('cat'),
         phase_type=ph_type
     )
-
-def _write_all_data_smart(data_results):
-    """
-    智能批量写入数据 - 增大批次大小
-    """
-    conn = get_db_connection()
-    if not conn:
-        logger.warning("❌ Failed to get database connection for final write")
-        return
-
-    try:
-        cursor = conn.cursor()
-
-        # 数据库优化设置
-        cursor.execute("PRAGMA journal_mode = WAL")  # 改回WAL模式，更稳定
-        cursor.execute("PRAGMA cache_size = -100000")  # 增大缓存
-        cursor.execute("PRAGMA synchronous = NORMAL")
-        cursor.execute("PRAGMA temp_store = MEMORY")
-
-        # 增大批次大小以提高性能
-        batch_size = 100000  # 从50000增加到100000
-
-        # 写入slice数据
-        slice_data = data_results['slice']
-        if slice_data:
-            logger.warning(f"Writing {len(slice_data)} slice records")
-            for i in range(0, len(slice_data), batch_size):
-                batch = slice_data[i:i + batch_size]
-                cursor.executemany("""
-                    INSERT INTO slice (timestamp, duration, name, track_id, cat, args, cname, end_time, flag_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, batch)
-                if (i // batch_size) % 5 == 0:  # 调整进度报告频率
-                    logger.warning(f"Written {min(i + batch_size, len(slice_data))}/{len(slice_data)} slice records")
-
-        # 写入counter数据
-        counter_data = data_results['counter']
-        if counter_data:
-            logger.warning(f"Writing {len(counter_data)} counter records")
-            for i in range(0, len(counter_data), batch_size):
-                batch = counter_data[i:i + batch_size]
-                cursor.executemany("""
-                    INSERT INTO counter (name, pid, timestamp, cat, args)
-                    VALUES (?, ?, ?, ?, ?)
-                """, batch)
-
-        # 写入flow数据
-        flow_data = data_results['flow']
-        if flow_data:
-            logger.warning(f"Writing {len(flow_data)} flow records")
-            for i in range(0, len(flow_data), batch_size):
-                batch = flow_data[i:i + batch_size]
-                cursor.executemany("""
-                    INSERT INTO flow (flow_id, name, track_id, timestamp, cat, type)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, batch)
-
-        conn.commit()
-        total_written = len(slice_data) + len(counter_data) + len(flow_data)
-        logger.warning(f"✅ Written {total_written} data records")
-
-    except Exception as e:
-        logger.warning(f"❌ Error during data writing: {e}")
-        conn.rollback()
-    finally:
-        conn.close()
-
-
-# 全局变量用于worker进程共享数据
-_worker_track_id_map = None
-
-
-def _init_worker_shared(track_id_map):
-    """初始化worker进程，共享track_id映射"""
-    global _worker_track_id_map
-    _worker_track_id_map = track_id_map
