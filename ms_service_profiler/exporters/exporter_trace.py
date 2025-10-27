@@ -872,8 +872,12 @@ def _process_pid_tid_batch(events, unique_pid_tid, track_id_map, cursor):
 def _find_thread_sort_index(events, pid, tid):
     """查找线程排序索引"""
     for event in events:
-        if event.get('pid') == pid and event.get('tid') == tid:
-            return event.get('thread_sort_index', 0)
+        # 精确匹配：必须是thread_sort_index的M事件，且pid和tid匹配
+        if (event.get('pid') == pid and
+            event.get('tid') == tid and
+            event.get('name') == 'thread_sort_index' and
+            event.get('ph') == 'M'):
+            return event.get('args', {}).get('sort_index', 0)
     return 0
 
 

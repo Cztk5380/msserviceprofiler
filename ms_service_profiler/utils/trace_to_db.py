@@ -50,10 +50,11 @@ SIMULATION_UPDATE_PROCESS_NAME_SQL = """
 """
 SIMULATION_UPDATE_THREAD_NAME_SQL = """
     INSERT INTO thread (track_id, tid, pid, thread_name, thread_sort_index) VALUES (?, ?, ?, ?, ?) 
-    ON CONFLICT (track_id) DO UPDATE SET tid = CASE WHEN tid IS NULL OR tid = '' THEN EXCLUDED.tid ELSE tid END, 
-    pid = CASE WHEN pid IS NULL OR pid = '' THEN EXCLUDED.pid ELSE pid END, thread_name = CASE WHEN thread_name IS NULL 
-    OR thread_name = '' THEN EXCLUDED.thread_name ELSE thread_name END, thread_sort_index = CASE 
-    WHEN thread_sort_index IS NULL OR thread_sort_index = 0 THEN EXCLUDED.thread_sort_index ELSE thread_sort_index END;
+    ON CONFLICT (track_id) DO UPDATE SET 
+        tid = CASE WHEN tid IS NULL OR tid = '' OR tid = 'None' THEN EXCLUDED.tid ELSE tid END, 
+        pid = CASE WHEN pid IS NULL OR pid = '' THEN EXCLUDED.pid ELSE pid END, 
+        thread_name = CASE WHEN thread_name IS NULL OR thread_name = '' OR thread_name = 'None' THEN EXCLUDED.thread_name ELSE thread_name END, 
+        thread_sort_index = CASE WHEN thread_sort_index IS NULL OR thread_sort_index = 0 THEN EXCLUDED.thread_sort_index ELSE thread_sort_index END;
 """
 
 UPDATA_SQL_TEMPLATES = {
@@ -219,10 +220,11 @@ def write_to_process_thread_table(event_data, thread_sort_index, cursor):
         cursor.execute(SIMULATION_UPDATE_PROCESS_NAME_SQL, (pid, pid))
 
     # 创建三级泳道
-    track_id, exist = TrackIdManager.get_track_id(pid, tid)
+    track_id, _ = TrackIdManager.get_track_id(pid, tid)
 
-    if not exist:
-        cursor.execute(SIMULATION_UPDATE_THREAD_NAME_SQL, (track_id, tid, pid, tid, thread_sort_index))
+    # 通过Sql保证不会重复插入数据，但是要更新预插入的数据条目
+    cursor.execute(SIMULATION_UPDATE_THREAD_NAME_SQL, (track_id, tid, pid, tid, thread_sort_index))
+
     return track_id
 
 
