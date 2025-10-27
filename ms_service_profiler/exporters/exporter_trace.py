@@ -1,7 +1,13 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
 
-import json
 import os
+import time
+import multiprocessing as mp
+import json
+from dataclasses import dataclass
+from typing import Any, Optional, NamedTuple
+from multiprocessing import Queue, Process
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
@@ -14,8 +20,27 @@ from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.error import DatabaseError, key_except
 from ms_service_profiler.exporters.utils import get_db_connection, create_sqlite_tables
 from ms_service_profiler.utils.trace_to_db import (
-    trans_trace_event, save_cache_data_to_db, TRACE_TABLE_DEFINITIONS
+    TRACE_TABLE_DEFINITIONS, trans_trace_meta_event,
+    trans_trace_slice_data, trans_trace_counter_data, trans_trace_flow_data,
+    write_to_process_thread_table, reset_track_id_manager,
+    reset_process_table_manager, clear_data_cache, calculate_smart_process_config,
+    write_all_data_smart
 )
+
+# 常量定义
+LARGE_EVENTS_THRESHOLD = 5000000  # 当事件数量超过500万时，启用大数据量处理模式
+MAX_PROCESSES_LARGE = 8  # 大数据量处理时的最大进程数限制，避免过多进程导致系统资源耗尽
+MIN_CHUNK_SIZE_LARGE = 200000  # 大数据量处理时每个数据块的最小事件数量，确保每个进程有足够的工作量
+PROGRESS_REPORT_INTERVAL = 10  # 进度报告间隔，每处理10个数据块报告一次进度（仅限debug模式）
+
+# 全局变量用于worker进程共享数据
+_worker_track_id_map = None
+
+
+def _init_worker_shared(track_id_map):
+    """初始化worker进程，共享track_id映射"""
+    global _worker_track_id_map
+    _worker_track_id_map = track_id_map
 
 
 class ExporterTrace(TaskExporterBase):
@@ -119,10 +144,10 @@ class ExporterTrace(TaskExporterBase):
             save_trace_data_into_json(merged_data, output)
 
         if 'db' in cls.args.format:
-            logger.debug('Start write trace data to db')
+            logger.info('Start write trace data to db')
             create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
             save_trace_data_into_db(merged_data)
-            logger.debug('Write trace data to db success')
+            logger.info('Write trace data to db success')
 
 
 def prepare_domain_for_process(all_data_df):
@@ -188,29 +213,6 @@ def find_cann_pid(trace_events):
             if args.get("name") == "CANN":
                 return event.get("pid")
     return None
-
-
-def save_trace_data_into_db(trace_data):
-    events = trace_data.get("traceEvents", [])
-    try:
-        # 创建数据库连接
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # 写入db文件
-        for event in events:
-            trans_trace_event(event, cursor)
-
-        # 写入批量提交后剩余的缓存数据
-        save_cache_data_to_db(cursor)
-
-        conn.commit()
-    except Exception as ex:
-        conn.rollback()  # 失败时回滚
-        raise DatabaseError(f"Cannot update sqlite database when create trace table due to {ex}") from ex
-    finally:
-        if conn:
-            conn.close()
 
 
 def merge_json_data(trace_data, msprof_data_df):
@@ -446,9 +448,27 @@ def add_trace_events(valid_name_df):
     # 构建参数列表
     args_list = _build_args_list(valid_name_df)
 
-    # 添加参数到DataFrame并转换为记录
-    trace_event_df['args'] = args_list
-    trace_events = trace_event_df[['name', 'ph', 'ts', 'dur', 'pid', 'tid', 'args']].to_dict(orient='records')
+    # 安全地获取所有字段的值
+    names = trace_event_df.get('name', pd.Series([''] * len(trace_event_df))).tolist()
+    phs = trace_event_df.get('ph', pd.Series(['X'] * len(trace_event_df))).tolist()
+    tss = trace_event_df.get('ts', pd.Series([None] * len(trace_event_df))).tolist()
+    durs = trace_event_df.get('dur', pd.Series([0.0] * len(trace_event_df))).tolist()
+    pids = trace_event_df.get('pid', pd.Series([0] * len(trace_event_df))).tolist()
+    tids = trace_event_df.get('tid', pd.Series([0] * len(trace_event_df))).tolist()
+
+    trace_events = []
+    for i in range(len(trace_event_df)):
+        # 只有当ts有有效值时才添加这条记录
+        if tss[i] is not None:
+            trace_events.append({
+                'name': names[i],
+                'ph': phs[i],
+                'ts': tss[i],
+                'dur': durs[i],
+                'pid': pids[i],
+                'tid': tids[i],
+                'args': args_list[i] if i < len(args_list) else {}
+            })
 
     return trace_events
 
@@ -612,41 +632,64 @@ def add_npu_events(npu_data_df):
 
 
 def add_kvcache_events(kv_data_df, pid_label_map=None):
-    if 'deviceBlock=' not in kv_data_df:
+    if 'deviceBlock=' not in kv_data_df.columns:
         return []
-    kv_trace_df = kv_data_df.copy()
 
-    # 优先使用 pid_label_map 中的 dp_rank
-    if pid_label_map is not None and "pid" in kv_trace_df.columns:
-        def get_name(row):
-            pid = row['pid']
-            # 优先使用 pid_label_map 中的 dp_rank
-            if pid in pid_label_map and 'dp_rank' in pid_label_map[pid]:
-                dp_rank = pid_label_map[pid]['dp_rank']
-                return f"{row['domain']}-dp{dp_rank}"
-            # 回退到 scope#dp
-            elif "scope#dp" in kv_trace_df.columns:
-                scope_dp = row["scope#dp"]
-                if pd.notna(scope_dp):
-                    return f"{row['domain']}-dp{int(scope_dp)}"
-            # 都没有就只返回 domain
-            return row['domain']
+    # 预声明变量避免分支中重复检查
+    has_pid_map = pid_label_map is not None and "pid" in kv_data_df.columns
+    has_scope_dp = "scope#dp" in kv_data_df.columns
 
-        kv_trace_df['name'] = kv_trace_df.apply(get_name, axis=1)
-    elif "scope#dp" in kv_trace_df:
-        # 没有 pid_label_map 时使用 scope#dp
-        kv_trace_df['name'] = kv_trace_df['domain'] + '-dp' + kv_trace_df["scope#dp"].astype(int,
-                                                                                             errors='ignore').astype(
-            str)
+    # 向量化处理name列
+    name = _build_name_column(kv_data_df, pid_label_map, has_pid_map, has_scope_dp)
+
+    # 构建结果DataFrame
+    result_df = pd.DataFrame({
+        'name': name,
+        'ph': 'C',
+        'ts': kv_data_df['start_time'],
+        'pid': kv_data_df['pid'] if 'pid' in kv_data_df else None,
+        'tid': kv_data_df['domain'],
+        'args': [{'Device Block': x} for x in kv_data_df['deviceBlock=']]
+    })
+
+    # 使用itertuples加速字典转换
+    return [dict(name=r.name, ph=r.ph, ts=r.ts, pid=r.pid, tid=r.tid, args=r.args)
+            for r in result_df.itertuples(index=False)]
+
+
+def _build_name_column(kv_data_df, pid_label_map, has_pid_map, has_scope_dp):
+    """构建name列的逻辑"""
+    if has_pid_map:
+        return _build_name_with_pid_map(kv_data_df, pid_label_map, has_scope_dp)
+    elif has_scope_dp:
+        return (kv_data_df['domain'] + '-dp' +
+                kv_data_df['scope#dp'].astype(int, errors='ignore').astype(str))
     else:
-        # 都没有就只返回 domain
-        kv_trace_df['name'] = kv_trace_df['domain']
-    kv_trace_df['ph'] = 'C'
-    kv_trace_df['ts'] = kv_data_df['start_time']
-    kv_trace_df['tid'] = kv_data_df['domain']
-    kv_trace_df['args'] = [{'Device Block': usage} for usage in kv_data_df['deviceBlock=']]
-    kv_trace_events = kv_trace_df[['name', 'ph', 'ts', 'pid', 'tid', 'args']].to_dict(orient='records')
-    return kv_trace_events
+        return kv_data_df['domain']
+
+
+def _build_name_with_pid_map(kv_data_df, pid_label_map, has_scope_dp):
+    """当有pid_map时构建name列"""
+    # 构建pid到dp_rank的向量化映射
+    dp_rank_map = {pid: info['dp_rank'] for pid, info in pid_label_map.items()
+                   if 'dp_rank' in info}
+
+    dp_ranks = kv_data_df['pid'].map(dp_rank_map)
+    has_dp_rank = dp_ranks.notna()
+    name = kv_data_df['domain'].copy()
+
+    # 处理有dp_rank的情况
+    if has_dp_rank.any():
+        name.loc[has_dp_rank] = (kv_data_df.loc[has_dp_rank, 'domain'] + '-dp' +
+                                 dp_ranks[has_dp_rank].astype(int).astype(str))
+
+    # 处理scope#dp回退
+    if has_scope_dp:
+        scope_dp_mask = ~has_dp_rank & kv_data_df['scope#dp'].notna()
+        if scope_dp_mask.any():
+            name.loc[scope_dp_mask] = (kv_data_df.loc[scope_dp_mask, 'domain'] + '-dp' +
+                                       kv_data_df.loc[scope_dp_mask, 'scope#dp'].astype(int).astype(str))
+    return name
 
 
 def add_pull_kvcache_events(df):
@@ -717,3 +760,378 @@ def export_event_from_df(df, channel_name, tid):
         tarce_events_list.append(channel_event)
 
     return tarce_events_list
+
+
+def save_trace_data_into_db(trace_data):
+    """
+    使用智能进程数设置的多进程优化方案 - 性能优化版
+    """
+    events = trace_data.get("traceEvents", [])
+    total = len(events)
+    if total == 0:
+        logger.warning("no data to write")
+        return
+
+    start_time = time.time()
+    logger.debug(f"=== SMART MULTI-PROCESS: PROCESSING {total} EVENTS ===")
+
+    # 重置状态
+    reset_track_id_manager()
+    reset_process_table_manager()
+    clear_data_cache()
+
+    # 第一步：单进程构建track_id映射
+    logger.debug("=== STEP 1: BUILDING TRACK_ID MAPPING ===")
+    track_id_map = _build_track_id_mapping_smart(events)
+
+    # 第二步：智能多进程数据准备
+    logger.debug("=== STEP 2: SMART MULTI-PROCESS DATA PREPARATION ===")
+    other_events = [e for e in events if e.get('ph') != 'M']
+
+    if other_events:
+        data_results = _prepare_data_smart_parallel(other_events, track_id_map)
+    else:
+        data_results = {'slice': [], 'counter': [], 'flow': []}
+
+    # 第三步：单进程批量写入
+    logger.debug("=== STEP 3: BATCH WRITE ===")
+    write_all_data_smart(data_results)
+
+    elapsed = time.time() - start_time
+    logger.debug(f"Smart multi-process completed in {elapsed:.3f}s")
+
+
+def _build_track_id_mapping_smart(events):
+    """
+    优化的track_id映射构建
+    """
+    track_id_map = {}
+
+    conn = get_db_connection()
+    if not conn:
+        logger.warning("Failed to get database connection for track_id mapping")
+        return track_id_map
+
+    cursor = None
+    try:
+        cursor = conn.cursor()
+        _setup_database_optimizations(cursor)
+
+        unique_pid_tid, meta_events = _collect_pid_tid_and_meta_events(events)
+        _process_meta_events_batch(meta_events, cursor)
+        _process_pid_tid_batch(events, unique_pid_tid, track_id_map, cursor)
+
+        conn.commit()
+        logger.debug(f"Built track_id mapping with {len(track_id_map)} entries")
+
+    except sqlite3.Error as e:
+        logger.warning(f"Database error during track_id mapping: {e}")
+        conn.rollback()
+    except Exception as e:
+        logger.warning(f"Unexpected error during track_id mapping: {e}")
+        conn.rollback()
+    finally:
+        # 确保游标和连接都被关闭
+        if cursor:
+            try:
+                cursor.close()
+            except sqlite3.Error:
+                pass
+        try:
+            conn.close()
+        except sqlite3.Error:
+            pass
+
+    return track_id_map
+
+
+def _setup_database_optimizations(cursor):
+    """设置数据库优化参数"""
+    cursor.execute("PRAGMA journal_mode = WAL")
+    cursor.execute("PRAGMA cache_size = 10000")
+    cursor.execute("PRAGMA synchronous = NORMAL")
+
+
+def _collect_pid_tid_and_meta_events(events):
+    """收集所有需要的pid,tid对和meta事件"""
+    unique_pid_tid = set()
+    meta_events = []
+
+    for event in events:
+        ph_type = event.get('ph')
+        if ph_type == 'M':
+            meta_events.append(event)
+        else:
+            pid = event.get('pid')
+            tid = _get_tid_from_event(event, ph_type)
+            if pid is not None and tid is not None:
+                unique_pid_tid.add((pid, tid))
+
+    return unique_pid_tid, meta_events
+
+
+def _get_tid_from_event(event, ph_type):
+    """从事件中提取tid"""
+    if ph_type == 'C':
+        return event.get('name')
+    return event.get('tid')
+
+
+def _process_meta_events_batch(meta_events, cursor):
+    """批量处理meta事件"""
+    for event in meta_events:
+        trans_trace_meta_event(event, cursor)
+
+
+def _process_pid_tid_batch(events, unique_pid_tid, track_id_map, cursor):
+    """批量处理pid,tid对"""
+    for pid, tid in unique_pid_tid:
+        thread_sort_index = _find_thread_sort_index(events, pid, tid)
+        track_id = write_to_process_thread_table(
+            {'pid': pid, 'tid': tid}, thread_sort_index, cursor
+        )
+        track_id_map[(pid, tid)] = track_id
+
+
+def _find_thread_sort_index(events, pid, tid):
+    """查找线程排序索引"""
+    for event in events:
+        # 精确匹配：必须是thread_sort_index的M事件，且pid和tid匹配
+        if (event.get('pid') == pid and
+                event.get('tid') == tid and
+                event.get('name') == 'thread_sort_index' and
+                event.get('ph') == 'M'):
+            return event.get('args', {}).get('sort_index', 0)
+    return 0
+
+
+def _prepare_data_smart_parallel(events, track_id_map):
+    """
+    智能多进程数据准备 - 优化进程配置
+    """
+    total_events = len(events)
+    if total_events == 0:
+        return {'slice': [], 'counter': [], 'flow': []}
+
+    # 优化的进程数和分块大小配置 - 针对大数据量
+    if total_events > LARGE_EVENTS_THRESHOLD:  # 超过500万事件
+        optimal_processes = min(mp.cpu_count() - 1, MAX_PROCESSES_LARGE)  # 限制最大8个进程
+        chunk_size = max(MIN_CHUNK_SIZE_LARGE, total_events // optimal_processes)
+    else:
+        num_processes, chunk_size = calculate_smart_process_config(total_events)
+        optimal_processes = num_processes
+
+    # 创建分块
+    chunks = [events[i:i + chunk_size] for i in range(0, total_events, chunk_size)]
+
+    logger.debug(f"Smart config: {optimal_processes} processes, {chunk_size} chunk size for {total_events} events")
+
+    with mp.Pool(processes=optimal_processes,
+                 initializer=_init_worker_shared,
+                 initargs=(track_id_map,)) as pool:
+
+        results = []
+        completed = 0
+
+        # 使用imap_unordered提高效率
+        for result in pool.imap_unordered(_process_chunk_smart, chunks, chunksize=1):
+            results.append(result)
+            completed += 1
+
+            # 进度报告
+            if completed % PROGRESS_REPORT_INTERVAL == 0 or completed == len(chunks):
+                logger.debug(f"Processed {completed}/{len(chunks)} chunks")
+
+    # 合并结果
+    final_result = {'slice': [], 'counter': [], 'flow': []}
+    for result in results:
+        final_result['slice'].extend(result['slice'])
+        final_result['counter'].extend(result['counter'])
+        final_result['flow'].extend(result['flow'])
+
+    logger.debug(f"Data preparation completed: {len(final_result['slice'])} slices, "
+                 f"{len(final_result['counter'])} counters, {len(final_result['flow'])} flows")
+    return final_result
+
+
+def _process_chunk_smart(events_chunk):
+    """
+    智能处理数据块
+
+    Args:
+        events_chunk: 事件数据块
+
+    Returns:
+        dict: 包含三种类型数据的字典
+    """
+    slice_data = []
+    counter_data = []
+    flow_data = []
+
+    for event in events_chunk:
+        _process_single_event(event, slice_data, counter_data, flow_data)
+
+    return {
+        'slice': slice_data,
+        'counter': counter_data,
+        'flow': flow_data
+    }
+
+
+def _process_single_event(event, slice_data, counter_data, flow_data):
+    """处理单个事件"""
+    try:
+        ph_type = event.get('ph')
+
+        if _is_slice_event(ph_type, event):
+            data = _prepare_slice_data_smart(event)
+            if data:
+                slice_data.append(data)
+
+        elif _is_counter_event(ph_type, event):
+            data = _prepare_counter_data_smart(event)
+            if data:
+                counter_data.append(data)
+
+        elif _is_flow_event(ph_type, event):
+            data = _prepare_flow_data_smart(event, ph_type)
+            if data:
+                flow_data.append(data)
+
+    except (ValueError, KeyError, TypeError) as e:
+        logger.debug(f"error when _process_single_event: {e}, event: {event.get('name', 'unknown')}")
+
+    except Exception as e:
+        logger.error(f"unexpect error when _process_single_event: {e}, 事件: {event.get('name', 'unknown')}")
+
+
+def _is_slice_event(ph_type, event):
+    """判断是否为切片事件"""
+    return ph_type in ('X', 'I') and event.get('ts') is not None and event.get('dur') is not None
+
+
+def _is_counter_event(ph_type, event):
+    """判断是否为计数器事件"""
+    return ph_type == 'C' and event.get('ts') is not None
+
+
+def _is_flow_event(ph_type, event):
+    """判断是否为流事件"""
+    return ph_type in ('s', 't', 'f') and event.get('ts') is not None
+
+
+class SliceData(NamedTuple):
+    """slice数据的命名元组"""
+    timestamp: float
+    duration: float
+    name: str
+    track_id: int
+    category: Optional[str]
+    args: Optional[dict]
+    color_name: Optional[str]
+    end_timestamp: float
+    flag_id: Optional[int]
+
+
+class CounterData(NamedTuple):
+    """counter数据的命名元组"""
+    name: str
+    process_id: int
+    timestamp: float
+    category: Optional[str]
+    args: Optional[dict]
+
+
+class FlowData(NamedTuple):
+    """flow数据的命名元组"""
+    flow_id: str
+    name: str
+    track_id: int
+    timestamp: float
+    category: Optional[str]
+    phase_type: str
+
+
+def _prepare_slice_data_smart(event: dict) -> Optional[SliceData]:
+    """智能slice数据处理
+
+    Args:
+        event: 原始事件数据
+
+    Returns:
+        Optional[SliceData]: 切片数据对象，如果track_id无效则返回None
+    """
+    event_data = trans_trace_slice_data(event)
+
+    pid = event.get('pid')
+    tid = event.get('tid')
+    track_id = _worker_track_id_map.get((pid, tid), 0)
+
+    if track_id == 0:
+        return None
+
+    end_timestamp = event_data['ts'] + event_data['dur']
+
+    return SliceData(
+        timestamp=event_data.get('ts'),
+        duration=event_data.get('dur'),
+        name=event_data.get('name'),
+        track_id=track_id,
+        category=event.get('cat'),
+        args=event_data.get('args'),
+        color_name=event.get('cname'),
+        end_timestamp=end_timestamp,
+        flag_id=event.get('flag_id')
+    )
+
+
+def _prepare_counter_data_smart(event: dict) -> Optional[CounterData]:
+    """智能counter数据处理
+
+    Args:
+        event: 原始事件数据
+
+    Returns:
+        Optional[CounterData]: 计数器数据对象，如果时间戳为0则返回None
+    """
+    event_data = trans_trace_counter_data(event)
+
+    if event_data.get('ts') == 0:
+        return None
+
+    return CounterData(
+        name=event_data.get('name'),
+        process_id=event_data.get('pid'),
+        timestamp=event_data.get('ts'),
+        category=event.get('cat'),
+        args=event_data.get('args')
+    )
+
+
+def _prepare_flow_data_smart(event: dict, ph_type: str) -> Optional[FlowData]:
+    """智能flow数据处理
+
+    Args:
+        event: 原始事件数据
+        ph_type: 事件阶段类型 ('s', 't', 'f')
+
+    Returns:
+        Optional[FlowData]: 流数据对象，如果track_id无效则返回None
+    """
+    event_data = trans_trace_flow_data(event)
+
+    pid = event.get('pid')
+    tid = event.get('tid')
+    track_id = _worker_track_id_map.get((pid, tid), 0)
+
+    if track_id == 0:
+        return None
+
+    return FlowData(
+        flow_id=event_data.get('flow_id'),
+        name=event_data.get('name'),
+        track_id=track_id,
+        timestamp=event_data.get('ts'),
+        category=event.get('cat'),
+        phase_type=ph_type
+    )
