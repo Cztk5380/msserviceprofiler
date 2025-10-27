@@ -94,6 +94,21 @@ UPDATA_SQL_TEMPLATES = {
         VALUES (:flow_id, :name, :track_id, :ts, :cat, :type)"""
 }
 
+SELECT_TID_SQL = "SELECT track_id FROM thread WHERE pid = ? AND tid = ?"
+INSERT_THREAD_SQL = "INSERT INTO thread (track_id, thread_sort_index) VALUES (?, ?)"
+INSERT_SLICE_SQL = """
+            INSERT INTO slice (timestamp, duration, name, track_id, cat, args, cname, end_time, flag_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+INSERT_COUNTER_SQL = """
+            INSERT INTO counter (name, pid, timestamp, cat, args)
+            VALUES (?, ?, ?, ?, ?)
+        """
+INSERT_FLOW_SQL = """
+            INSERT INTO flow (flow_id, name, track_id, timestamp, cat, type)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+
 
 def convert_ts_to_ns(ts):
     return int((Decimal(str(ts)) * NS_PER_US))
@@ -215,7 +230,7 @@ def trans_trace_meta_event(event, cursor):
         cursor.execute(UPDATE_PROCESS_SORTINDEX_SQL, (pid, event_data.get('args_sort_index')))
     elif event_name == "thread_sort_index":
         # 关键修复：检查数据库中是否已存在该线程记录
-        cursor.execute("SELECT track_id FROM thread WHERE pid = ? AND tid = ?", (pid, tid))
+        cursor.execute(SELECT_TID_SQL, (pid, tid))
         result = cursor.fetchone()
 
         if result:
@@ -227,7 +242,7 @@ def trans_trace_meta_event(event, cursor):
             # 使用TrackIdManager获取track_id，但不创建完整的线程记录
             track_id, _ = TrackIdManager.get_track_id(pid, tid)
             cursor.execute(
-                "INSERT INTO thread (track_id, thread_sort_index) VALUES (?, ?)",
+                INSERT_THREAD_SQL,
                 (track_id, event_data.get('args_sort_index'))
             )
             logger.debug(
@@ -406,20 +421,9 @@ def write_all_data_smart(data_results):
         batch_size = _calculate_batch_size(data_results)
 
         # 使用公共函数写入不同类型的数据
-        _write_data_batch(cursor, "slice", data_results['slice'], batch_size, """
-            INSERT INTO slice (timestamp, duration, name, track_id, cat, args, cname, end_time, flag_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """)
-
-        _write_data_batch(cursor, "counter", data_results['counter'], batch_size, """
-            INSERT INTO counter (name, pid, timestamp, cat, args)
-            VALUES (?, ?, ?, ?, ?)
-        """)
-
-        _write_data_batch(cursor, "flow", data_results['flow'], batch_size, """
-            INSERT INTO flow (flow_id, name, track_id, timestamp, cat, type)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """)
+        _write_data_batch(cursor, "slice", data_results['slice'], batch_size, INSERT_SLICE_SQL)
+        _write_data_batch(cursor, "counter", data_results['counter'], batch_size, INSERT_COUNTER_SQL)
+        _write_data_batch(cursor, "flow", data_results['flow'], batch_size, INSERT_FLOW_SQL)
 
         conn.commit()
         total_written = len(data_results['slice']) + len(data_results['counter']) + len(data_results['flow'])
