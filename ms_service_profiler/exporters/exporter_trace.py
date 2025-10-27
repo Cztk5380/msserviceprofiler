@@ -7,7 +7,7 @@ import math
 import multiprocessing as mp
 import json
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, NamedTuple
 from multiprocessing import Queue, Process
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
@@ -1037,9 +1037,8 @@ def _is_flow_event(ph_type, event):
     return ph_type in ('s', 't', 'f') and event.get('ts') is not None
 
 
-@dataclass
-class SliceData:
-    """切片数据的数据类"""
+class SliceData(NamedTuple):
+    """slice数据的命名元组"""
     timestamp: float
     duration: float
     name: str
@@ -1051,9 +1050,8 @@ class SliceData:
     flag_id: Optional[int]
 
 
-@dataclass
-class CounterData:
-    """计数器数据的数据类"""
+class CounterData(NamedTuple):
+    """counter数据的命名元组"""
     name: str
     process_id: int
     timestamp: float
@@ -1061,9 +1059,8 @@ class CounterData:
     args: Optional[dict]
 
 
-@dataclass
-class FlowData:
-    """流数据的数据类"""
+class FlowData(NamedTuple):
+    """flow数据的命名元组"""
     flow_id: str
     name: str
     track_id: int
@@ -1081,7 +1078,6 @@ def _prepare_slice_data_smart(event: dict) -> Optional[SliceData]:
     Returns:
         Optional[SliceData]: 切片数据对象，如果track_id无效则返回None
     """
-    # 复用b.py中的转换函数
     event_data = trans_trace_slice_data(event)
 
     pid = event.get('pid')
@@ -1115,7 +1111,6 @@ def _prepare_counter_data_smart(event: dict) -> Optional[CounterData]:
     Returns:
         Optional[CounterData]: 计数器数据对象，如果时间戳为0则返回None
     """
-    # 复用b.py中的转换函数
     event_data = trans_trace_counter_data(event)
 
     if event_data.get('ts') == 0:
@@ -1140,7 +1135,6 @@ def _prepare_flow_data_smart(event: dict, ph_type: str) -> Optional[FlowData]:
     Returns:
         Optional[FlowData]: 流数据对象，如果track_id无效则返回None
     """
-    # 复用b.py中的转换函数
     event_data = trans_trace_flow_data(event)
 
     pid = event.get('pid')
@@ -1158,7 +1152,6 @@ def _prepare_flow_data_smart(event: dict, ph_type: str) -> Optional[FlowData]:
         category=event.get('cat'),
         phase_type=ph_type
     )
-
 
 def _write_all_data_smart(data_results):
     """
