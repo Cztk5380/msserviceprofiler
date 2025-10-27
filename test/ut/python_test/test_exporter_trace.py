@@ -5,6 +5,9 @@ from unittest.mock import patch, mock_open
 import json
 import threading
 import tempfile
+import sqlite3
+import multiprocessing as mp
+
 import os
 import math
 
@@ -867,13 +870,6 @@ class TestTraceDataProcessing(unittest.TestCase):
             result = _prepare_flow_data_smart(event, 's')
 
             self.assertIsNone(result)
-
-
-# 需要导入sqlite3模块
-import sqlite3
-
-# 为测试多进程部分，需要模拟multiprocessing
-import multiprocessing as mp
 
 
 class TestTraceDataProcessingParallel(unittest.TestCase):
