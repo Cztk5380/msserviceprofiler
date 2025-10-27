@@ -451,43 +451,27 @@ def add_trace_events(valid_name_df):
     # 构建参数列表
     args_list = _build_args_list(valid_name_df)
 
-    # 定义字段映射和默认值
-    field_defaults = {
-        'name': '',
-        'ph': 'X',
-        'ts': 0.0,
-        'dur': 0.0,
-        'pid': 0,
-        'tid': 0
-    }
-
     # 安全地获取所有字段的值
-    fields = {}
-    for field, default in field_defaults.items():
-        if field in trace_event_df.columns:
-            fields[field] = trace_event_df[field].tolist()
-        else:
-            # 如果字段缺失，创建默认值列表
-            fields[field] = [default] * len(trace_event_df)
+    names = trace_event_df.get('name', pd.Series([''] * len(trace_event_df))).tolist()
+    phs = trace_event_df.get('ph', pd.Series(['X'] * len(trace_event_df))).tolist()
+    tss = trace_event_df.get('ts', pd.Series([None] * len(trace_event_df))).tolist()
+    durs = trace_event_df.get('dur', pd.Series([0.0] * len(trace_event_df))).tolist()
+    pids = trace_event_df.get('pid', pd.Series([0] * len(trace_event_df))).tolist()
+    tids = trace_event_df.get('tid', pd.Series([0] * len(trace_event_df))).tolist()
 
-    # 确保所有列表长度一致
-    max_length = max(len(lst) for lst in fields.values())
-    for field in fields:
-        if len(fields[field]) < max_length:
-            fields[field] = fields[field] + [field_defaults[field]] * (max_length - len(fields[field]))
-
-    trace_events = [
-        {
-            'name': fields['name'][i],
-            'ph': fields['ph'][i],
-            'ts': fields['ts'][i],
-            'dur': fields['dur'][i],
-            'pid': fields['pid'][i],
-            'tid': fields['tid'][i],
-            'args': args_list[i] if i < len(args_list) else {}
-        }
-        for i in range(max_length)
-    ]
+    trace_events = []
+    for i in range(len(trace_event_df)):
+        # 只有当ts有有效值时才添加这条记录
+        if tss[i] is not None:
+            trace_events.append({
+                'name': names[i],
+                'ph': phs[i],
+                'ts': tss[i],
+                'dur': durs[i],
+                'pid': pids[i],
+                'tid': tids[i],
+                'args': args_list[i] if i < len(args_list) else {}
+            })
 
     return trace_events
 

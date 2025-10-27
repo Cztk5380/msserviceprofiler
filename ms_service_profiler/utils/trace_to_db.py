@@ -229,7 +229,7 @@ def trans_trace_meta_event(event, cursor):
     elif event_name == "process_sort_index":
         cursor.execute(UPDATE_PROCESS_SORTINDEX_SQL, (pid, event_data.get('args_sort_index')))
     elif event_name == "thread_sort_index":
-        # 关键修复：检查数据库中是否已存在该线程记录
+        # 检查数据库中是否已存在该线程记录
         cursor.execute(SELECT_TID_SQL, (pid, tid))
         result = cursor.fetchone()
 
