@@ -30,6 +30,7 @@ class ReqStatus(Enum):
 class PluginReqStatus(PluginBase):
     name = "plugin_req_status"
     depends = ["plugin_common"]
+    _warned_no_request_status = False
 
     @classmethod
     @timer(logger.debug)
@@ -57,10 +58,11 @@ class PluginReqStatus(PluginBase):
             # 筛选出tx_data_df中真实存在的列
             valid_cols = [col for col in vllm_req_status if col in tx_data_df.columns]
 
-            if not valid_cols:
+            if not valid_cols and not cls._warned_no_request_status:
                 logger.warning(
                     "No 'request status' is found in prof data, if this is unexpected, please check"
                 )
+                cls._warned_no_request_status = True
                 return data
 
             tx_data_df = rename_req_status(tx_data_df, valid_cols)
