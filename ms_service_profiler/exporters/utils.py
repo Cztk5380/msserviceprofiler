@@ -452,7 +452,7 @@ def check_domain_valid(df, domain_list, exporter_name):
     # 检查domain_list中的每个domain是否都存在
     missing_domains = [domain for domain in domain_list if domain not in current_domains]
 
-    if missing_domains == len(domain_list):
+    if len(missing_domains) == len(domain_list):
         logger.warning(f"Exporter {exporter_name} will skip, the prof data of domain {missing_domains} is missing")
 
     return True
