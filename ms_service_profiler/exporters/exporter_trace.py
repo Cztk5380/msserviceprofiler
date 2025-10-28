@@ -486,14 +486,13 @@ def _add_basic_trace_fields(df):
 def _ensure_required_columns(df):
     """确保DataFrame包含所有必需的列，缺失的列使用默认值填充"""
     required_columns = [
-        'start_datetime', 'end_datetime', 'batch_type', 'batch_size',
+        'start_datetime', 'end_datetime', 'batch_size',
         'res_list', 'rid', 'message', 'tid'
     ]
 
     column_defaults = {
         'start_datetime': pd.NaT,
         'end_datetime': pd.NaT,
-        'batch_type': '',
         'batch_size': 0,
         'res_list': [],
         'rid': '',
