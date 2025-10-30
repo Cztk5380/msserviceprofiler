@@ -9,6 +9,11 @@ from test.st.checker.dump_checker import mindie_key_word_checker
 
 
 def test_domain_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
+    '''
+    测试 domain 过滤功能
+    校验内容包括：
+        1、最终数据只包含一个domain
+    '''
     try:
         workspace_path = tmp_workspace
 

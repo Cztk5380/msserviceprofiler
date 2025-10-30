@@ -13,6 +13,11 @@ from test.st.checker.dump_checker import mindie_key_word_checker
 
 
 def test_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
+    '''
+    基础采集测试，不带算子采集
+    校验内容包括：
+        1、数据是否正常
+    '''
     try:
         workspace_path = tmp_workspace
 

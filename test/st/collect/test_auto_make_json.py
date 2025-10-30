@@ -21,6 +21,12 @@ def simplified_ready_go(self):
 
 
 def test_auto_make_json_file(devices, mindie_path, dataset_path, model_path, tmp_workspace):
+    '''
+    测试如果没有配置，会自动生成json文件
+    校验内容包括：
+        1、校验自动生成了json 文件
+        2、校验自动生成json 内容
+    '''
     try:
         workspace_path = tmp_workspace
 

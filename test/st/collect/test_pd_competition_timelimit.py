@@ -5,6 +5,12 @@ from test.st.executor.exec_mindie_server import ExecMindIEServer
 
 
 def test_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
+    '''
+    测试 time-limit 功能
+    校验内容包括：
+        1、查看是否是到18秒之后停止的。
+        2、建议查看中间过程是否等了18秒 todo
+    '''
     try:
         workspace_path = tmp_workspace
 

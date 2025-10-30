@@ -14,6 +14,11 @@ from test.st.checker.dump_checker import mindie_key_word_checker
 
 
 def test_dynamic_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
+    '''
+    测试 动态开启 采集+开启算子采集
+    校验内容包括：
+        1、解析后最终数据是否正确
+    '''
     try:
         workspace_path = tmp_workspace
 

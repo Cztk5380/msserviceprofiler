@@ -10,6 +10,11 @@ from test.st.checker.trace_checker import check_chrome_tracing
 
 
 def test_mspti_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
+    '''
+    测试mspti 采集
+    校验内容包括：
+        1、不知道校验了啥和 mspti 有关系的
+    '''
     try:
         workspace_path = tmp_workspace
 
