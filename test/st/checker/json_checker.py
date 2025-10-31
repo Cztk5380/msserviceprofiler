@@ -2,6 +2,7 @@
 
 import json
 
+
 def validate_json_keys(file_path: str) -> bool:
     """
     校验JSON文件的键是否符合预期
