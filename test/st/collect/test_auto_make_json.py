@@ -5,6 +5,7 @@ import os
 from test.st.executor.exec_benchmark import ExecBenchmark
 from test.st.executor.exec_mindie_server import ExecMindIEServer
 from test.st.checker.dump_checker import mindie_key_word_checker
+from test.st.checker.json_checker import validate_json_keys
 
 
 def simplified_ready_go(self):
@@ -42,6 +43,8 @@ def test_auto_make_json_file(devices, mindie_path, dataset_path, model_path, tmp
         file_exists = os.path.exists(service_config_path)
 
         assert file_exists
+        assert validate_json_keys(service_config_path)
+
 
     finally:
         if mindie_server:
