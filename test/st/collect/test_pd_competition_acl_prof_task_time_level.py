@@ -9,6 +9,13 @@ from test.st.checker.csv_checker import has_op_statistic_csv, has_op_summary_csv
 
 
 def test_acl_prof_task_time_level_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
+    '''
+    测试 acl_prof_task_time_level 采集 L1 数据
+    校验内容包括：
+        1、解析后是否自动在18秒之后关闭了
+        2、采集数据文件夹中，是否是L1 级别
+        3、解析后是否自动生成了 op_summary*.csv 和 op_static*.csv 文件
+    '''
     try:
         workspace_path = tmp_workspace
         prof_path = os.path.join(workspace_path, "prof_data")

@@ -11,6 +11,11 @@ from test.st.checker.checker_utils import has_prof_folder
 
 
 def test_domain_acl_prof_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
+    '''
+    测试 domain 过滤功能,这个没必要，删除，使用 test_pd_competition_domain 就可以了
+    校验内容包括：
+        1、最终数据只包含一个domain
+    '''
     try:
         workspace_path = tmp_workspace
         prof_path = os.path.join(workspace_path, "prof_data")

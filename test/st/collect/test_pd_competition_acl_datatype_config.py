@@ -7,6 +7,11 @@ from test.st.checker.csv_checker import has_op_statistic_csv, has_op_summary_csv
 
 
 def test_acl_datatype_config_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
+    '''
+    测试 DataType 和 AicoreMetrics 
+    校验内容包括：
+        1、解析后是否自动生成了 op_summary*.csv 和 op_static*.csv 文件
+    '''
     try:
         workspace_path = tmp_workspace
         prof_path = os.path.join(workspace_path, "prof_data")
