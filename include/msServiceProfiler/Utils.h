@@ -5,6 +5,7 @@
 
 #include <string>
 #include <set>
+#include <sys/stat.h>
 
 namespace MsUtils {
 constexpr int STRING_TO_UINT_BASE = 10;
@@ -55,6 +56,20 @@ uint32_t GetTid();
 bool MakeDirs(const std::string &dirPath);
 uint64_t GetCurrentTimeInNanoseconds();
 const std::string &GetHostName();
+
+class UmaskGuard {
+public:
+    explicit UmaskGuard(mode_t new_umask) {
+        original_umask_ = umask(new_umask);
+    };
+    
+    ~UmaskGuard() {
+        umask(original_umask_);
+    };
+
+private:
+    mode_t original_umask_;
+};
 
 };  // namespace MsUtils
 

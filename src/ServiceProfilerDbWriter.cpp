@@ -81,15 +81,13 @@ void ServiceProfilerDbWriter::StartDump(const std::string &outputPath)
 
     std::string dbPath = outputPath + dbFileName_ + "_" + hostName + "-" + std::to_string(getpid()) + ".db";
 
-    mode_t new_umask = 0137; // dbPath权限改成640
-    mode_t old_umask = umask(new_umask);
+    MsUtils::UmaskGuard umaskGuard(0137); // dbPath权限改成640
     // 打开数据库连接
     int rc = sqlite3_open(dbPath.c_str(), &db_);
     if (rc != SQLITE_OK) {
         PROF_LOGE("Execution failed: %s, %s", SecurityUtils::ToSafeString(sqlite3_errmsg(db_)).c_str(), SecurityUtils::ToSafeString(dbPath).c_str());  // LCOV_EXCL_LINE
         return;
     }
-    umask(old_umask);
 
     ApplyOptimizations();
     inited = true;
