@@ -59,16 +59,18 @@ const std::string &GetHostName();
 
 class UmaskGuard {
 public:
-    explicit UmaskGuard(mode_t new_umask) {
-        original_umask_ = umask(new_umask);
+    explicit UmaskGuard(mode_t newUmask)
+    {
+        originalUmask_ = umask(newUmask);
     };
     
-    ~UmaskGuard() {
-        umask(original_umask_);
+    ~UmaskGuard()
+    {
+        umask(originalUmask_);
     };
 
 private:
-    mode_t original_umask_;
+    mode_t originalUmask_;
 };
 
 };  // namespace MsUtils
