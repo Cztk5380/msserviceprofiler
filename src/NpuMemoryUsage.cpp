@@ -62,6 +62,10 @@ int NpuMemoryUsage::DcmiGetCardList(int *paramCardNum, int *paramCardList, int p
         return EXITCODE_EMPTY_DCMI_HANDLER;
     }
     DcmiGetCardListFunc dcmiGetCardList = (DcmiGetCardListFunc)dlsym(handleDcmi, "dcmi_get_card_list");
+    if (dcmiGetCardList == nullptr) {
+        PROF_LOGE("ERROR: cannot get dcmi get card list interface.");
+        return EXITCODE_EMPTY_DLSYM_ADDR;
+    }
     int ret = dcmiGetCardList(paramCardNum, paramCardList, paramListLen);
     return ret;
 }
