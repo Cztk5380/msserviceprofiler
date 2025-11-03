@@ -642,12 +642,12 @@ bool Config::PrepareConfigAndPath(std::string& configPath) const
 
     if (configPath.size() < jsonSuffixSize ||
         configPath.substr(configPath.size() - jsonSuffixSize) != ".json") {
-        PROF_LOGW("Config path must end with .json: %s", SecurityUtils::ToSafeString(configPath.c_str()));  // LCOV_EXCL_LINE
+        PROF_LOGW("Config path must end with .json: %s", SecurityUtils::ToSafeString(configPath).c_str());  // LCOV_EXCL_LINE
         return false;
     }
 
     if (access(configPath.c_str(), F_OK) == 0) {
-        PROF_LOGD("Config path: %s already exists", SecurityUtils::ToSafeString(configPath.c_str()));  // LCOV_EXCL_LINE
+        PROF_LOGD("Config path: %s already exists", SecurityUtils::ToSafeString(configPath).c_str());  // LCOV_EXCL_LINE
         return false;
     }
     std::string dirPath = GetDirPath(configPath);
@@ -684,16 +684,16 @@ void Config::SetFileEnable(bool enable)
     auto configJson = ReadConfigFile();
     configJson["enable"] = 0;
     if (!SecurityUtils::IsPathLenLegal(configPath)) {
-        PROF_LOGE("Invalid config path due to excessive length: %s", SecurityUtils::ToSafeString(configPath.c_str())); // LCOV_EXCL_LINE
+        PROF_LOGE("Invalid config path due to excessive length: %s", SecurityUtils::ToSafeString(configPath).c_str()); // LCOV_EXCL_LINE
         return;
     }
     if (!SecurityUtils::IsPathDepthLegal(configPath)) {
-        PROF_LOGE("Invalid config path due to excessive depth: %s", SecurityUtils::ToSafeString(configPath.c_str())); // LCOV_EXCL_LINE
+        PROF_LOGE("Invalid config path due to excessive depth: %s", SecurityUtils::ToSafeString(configPath).c_str()); // LCOV_EXCL_LINE
         return;
     }
     std::ofstream outputFile(configPath.c_str());
     if (!outputFile.is_open()) {
-        PROF_LOGW("Automatic config file update failed %s", SecurityUtils::ToSafeString(configPath.c_str()));  // LCOV_EXCL_LINE
+        PROF_LOGW("Automatic config file update failed %s", SecurityUtils::ToSafeString(configPath).c_str());  // LCOV_EXCL_LINE
         return;
     }
     outputFile << configJson.dump(jsonIndentSize);
@@ -742,7 +742,7 @@ void Config::SaveConfigToJsonFile() const
             remove(realTempPath);
             return;
         }
-        PROF_LOGD("Successfully saved profiler configuration to: %s", SecurityUtils::ToSafeString(configPath.c_str()));  // LCOV_EXCL_LINE
+        PROF_LOGD("Successfully saved profiler configuration to: %s", SecurityUtils::ToSafeString(configPath).c_str());  // LCOV_EXCL_LINE
     } catch (const std::exception& e) {  // LCOV_EXCL_LINE
         PROF_LOGE("Failed to save config to JSON file: %s", e.what());  // LCOV_EXCL_LINE
     }
