@@ -118,7 +118,12 @@ public:
         return logManager;
     }
 
-    ~ServiceProfilerInterface() = default;
+    ~ServiceProfilerInterface()
+    {
+        if (handle) {
+            dlclose(handle);
+        }
+    };
 
     MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG SpanHandle CallStartSpanWithName(const char *name) const
     {
@@ -241,7 +246,7 @@ private:
             printf("File not readable: %s", soName.c_str());
             return;
         }
-        auto handle = dlopen(soName.c_str(), RTLD_LAZY);
+        handle = dlopen(soName.c_str(), RTLD_LAZY);
         if (handle) {
             ptrIsEnable_ = (decltype(IsEnable) *)dlsym(handle, "IsEnable");
             ptrStartSpanWithName_ = (decltype(StartSpanWithName) *)dlsym(handle, "StartSpanWithName");
@@ -270,6 +275,7 @@ private:
     decltype(GetValidDomain) *ptrValidDomain_ = nullptr;
     decltype(IsValidDomain) *ptrIsValidDomain_ = nullptr;
     decltype(AddMetaInfo) *ptrAddMetaInfo_ = nullptr;
+    void *handle = nullptr;
 };
 }  // namespace msServiceProfilerCompatible
 
