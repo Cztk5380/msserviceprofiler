@@ -628,10 +628,11 @@ void ServiceProfilerManager::StartAclProf(const std::string &profPath, uint32_t 
 
     MsUtils::FailAutoFree autoFree;
     autoFree.AddFreeFunction([]() {
-        if (aclprofFinalize() != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof finalize failed");  // LCOV_EXCL_LINE
-        }
-    }, "auto call finalize after acl prof init when start failed.");
+            if (aclprofFinalize() != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof finalize failed");  // LCOV_EXCL_LINE
+            }
+        },
+        "auto call finalize after acl prof init when start failed.");
 
     if (ret == ACL_ERROR_NONE && isMaster_) {
         SetAclProfHostSysConfig();
@@ -644,11 +645,12 @@ void ServiceProfilerManager::StartAclProf(const std::string &profPath, uint32_t 
     }
 
     autoFree.AddFreeFunction([this, profConfig]() {
-        if (aclprofDestroyConfig(profConfig) != ACL_ERROR_NONE) {
-            PROF_LOGE("acl prof destroy config failed");  // LCOV_EXCL_LINE
-        }
-        configHandle_ = nullptr;
-    }, "auto call destroy after acl prof create config when start failed.");
+            if (aclprofDestroyConfig(profConfig) != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof destroy config failed");  // LCOV_EXCL_LINE
+            }
+            configHandle_ = nullptr;
+        },
+        "auto call destroy after acl prof create config when start failed.");
 
     PROF_LOGD("begin to start profiling");  // LCOV_EXCL_LINE
     ret = aclprofStart(profConfig);
