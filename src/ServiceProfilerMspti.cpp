@@ -319,6 +319,13 @@ namespace msServiceProfiler {
             }
             return ret;
         }
+        MsUtils::FailAutoFree autoFree;
+        autoFree.AddFreeFunction([&subscriber]() {
+                if (msptiUnsubscribe(subscriber) != MSPTI_SUCCESS) {
+                    PROF_LOGE("Mspti Unsubscribe failed.");  // LCOV_EXCL_LINE
+                }
+            },
+            "auto call unsubscribe after subscribe when init failed.");
 
         // 注册空buffer申请回调函数 以及buffer满时的数据处理回调函数
         ret = msptiActivityRegisterCallbacks(UserBufferRequest, UserBufferComplete);
@@ -332,6 +339,8 @@ namespace msServiceProfiler {
             }
             return ret;
         }
+
+        autoFree.SetSuccess();
         ServiceProfilerMspti::GetInstance().InitOutputPath(profPath_);
         return 0;
     }
