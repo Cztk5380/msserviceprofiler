@@ -90,6 +90,9 @@ namespace msServiceProfiler {
     // 判断mspti上报的每条数据的名称是否在筛选目标中
     bool ServiceProfilerMspti::IsNameMatch(const std::set<std::string>& filterSet, const char* name)
     {
+        if (name == nullptr) {
+            return false;
+        }
         if (!filterSet.empty()) {
             for (auto it = filterSet.begin(); it!=filterSet.end(); ++it) {
                 if (std::strstr(name, it->c_str()) != nullptr) {
