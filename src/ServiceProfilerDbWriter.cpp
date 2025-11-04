@@ -86,7 +86,8 @@ void ServiceProfilerDbWriter::StartDump(const std::string &outputPath)
     // 打开数据库连接
     int rc = sqlite3_open(dbPath.c_str(), &db_);
     if (rc != SQLITE_OK) {
-        PROF_LOGE("Execution failed: %s, %s", SecurityUtils::ToSafeString(sqlite3_errmsg(db_)).c_str(), SecurityUtils::ToSafeString(dbPath).c_str());  // LCOV_EXCL_LINE
+        const char *errMsg = db_ ? sqlite3_errmsg(db_) : sqlite3_errstr(rc);
+        PROF_LOGE("Execution failed: %s, %s", SecurityUtils::ToSafeString(errMsg).c_str(), SecurityUtils::ToSafeString(dbPath).c_str());  // LCOV_EXCL_LINE
         return;
     }
     umask(old_umask);
