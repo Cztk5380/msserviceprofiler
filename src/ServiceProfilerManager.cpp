@@ -612,19 +612,30 @@ void ServiceProfilerManager::StartMsptiProf(const std::string &profPath)
 void ServiceProfilerManager::StartAclProf(const std::string &profPath, uint32_t deviceID)
 {
     if (aclProfStarted_) {
+        PROF_LOGD("StartAclProf aclProf is Started: %d", aclProfStarted_);  // LCOV_EXCL_LINE
         return;
     }
+    
+    PROF_LOGD("StartAclProf device_id: %u, is Master: %d", deviceID, isMaster_);  // LCOV_EXCL_LINE
     if (deviceID == INVALID_DEVICE_ID &&
         !(isMaster_ && (config_->GetHostCpuUsage() || config_->GetHostMemoryUsage()))) {
         // 不知道为啥，如果没有 device，就会卡死。算了，反正不设置 device 也没有什么意义。
         return;
     }
-    PROF_LOGD("StartAclProf device_id: %u", deviceID);  // LCOV_EXCL_LINE
+    PROF_LOGD("StartAclProf starting");  // LCOV_EXCL_LINE
     aclError ret = aclprofInit(profPath.c_str(), profPath.size());
     if (ret != ACL_ERROR_NONE) {
         PROF_LOGE("acl prof init failed, ret = %d", ret);  // LCOV_EXCL_LINE
         return;
     }
+
+    MsUtils::FailAutoFree autoFree;
+    autoFree.AddFreeFunction([]() {
+            if (aclprofFinalize() != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof finalize failed");  // LCOV_EXCL_LINE
+            }
+        },
+        "auto call finalize after acl prof init when start failed.");
 
     if (ret == ACL_ERROR_NONE && isMaster_) {
         SetAclProfHostSysConfig();
@@ -636,6 +647,14 @@ void ServiceProfilerManager::StartAclProf(const std::string &profPath, uint32_t 
         return;
     }
 
+    autoFree.AddFreeFunction([this, profConfig]() {
+            if (aclprofDestroyConfig(profConfig) != ACL_ERROR_NONE) {
+                PROF_LOGE("acl prof destroy config failed");  // LCOV_EXCL_LINE
+            }
+            configHandle_ = nullptr;
+        },
+        "auto call destroy after acl prof create config when start failed.");
+
     PROF_LOGD("begin to start profiling");  // LCOV_EXCL_LINE
     ret = aclprofStart(profConfig);
     if (ret != ACL_ERROR_NONE) {
@@ -644,6 +663,7 @@ void ServiceProfilerManager::StartAclProf(const std::string &profPath, uint32_t 
         return;
     }
 
+    autoFree.SetSuccess();
     aclProfStarted_ = true;
 }
 

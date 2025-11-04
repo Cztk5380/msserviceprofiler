@@ -5,6 +5,8 @@
 
 #include <string>
 #include <set>
+#include <functional>
+#include <vector>
 
 namespace MsUtils {
 constexpr int STRING_TO_UINT_BASE = 10;
@@ -49,6 +51,25 @@ inline unsigned long Str2Uint(const std::string &str)
     // 该函数仅将字符串转为数值，不会校验字符串，即使有问题的字符串，也会转为数值。
     char *endPtr;
     return std::strtoul(str.c_str(), &endPtr, STRING_TO_UINT_BASE);
+};
+
+class FailAutoFree {
+public:
+    void AddFreeFunction(std::function<void()>&& freeFunc, const char* freeMsg)
+    {
+        freeFuncArray.push_back(std::make_pair<std::function<void()>, std::string>(std::move(freeFunc), freeMsg));
+    };
+
+    void SetSuccess()
+    {
+        failed = false;
+    };
+
+    ~FailAutoFree();
+
+private:
+    bool failed = true;
+    std::vector<std::pair<std::function<void()>, std::string>> freeFuncArray;
 };
 
 uint32_t GetTid();

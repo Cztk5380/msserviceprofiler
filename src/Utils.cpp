@@ -69,4 +69,18 @@ const std::string &GetHostName()
     static std::string hostname = LocalGetHostName();
     return hostname;
 }
+
+FailAutoFree::~FailAutoFree()
+{
+    if (!failed) {
+        return;
+    }
+    for (auto freeFunc : freeFuncArray) {
+        if (freeFunc.first != nullptr) {
+            freeFunc.first();
+            PROF_LOGD("Auto Free: %s", freeFunc.second.c_str());
+        }
+    }
+}
+
 }  // namespace MsUtils
