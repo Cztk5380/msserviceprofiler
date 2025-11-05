@@ -216,16 +216,22 @@ def check_pd_split_communication_csv(output_path, complete_req_cnt=0):
         check_df_has_no_empty_line(df)
 
 
-def has_op_summary_csv(folder_path):
+def has_op_csv_files(folder_path):
     folder = Path(folder_path)
-    # 使用 rglob 递归查找所有 .csv 文件
-    for file in folder.rglob("op_summary*.csv"):
-        return True
-    return False
-
-def has_op_statistic_csv(folder_path):
-    folder = Path(folder_path)
-    # 使用 rglob 递归查找所有 .csv 文件
-    for file in folder.rglob("op_statistic*.csv"):
-        return True
-    return False
+    has_summary = False
+    has_statistic = False
+    
+    # 使用 rglob 递归查找所有匹配的文件
+    for file in folder.rglob("*.csv"):
+        filename = file.name
+        if filename.startswith("op_summary"):
+            has_summary = True
+        elif filename.startswith("op_statistic"):
+            has_statistic = True
+        
+        # 如果两种文件都已找到，可以提前返回True
+        if has_summary and has_statistic:
+            return True
+    
+    # 如果循环结束，检查是否两种文件都存在
+    return has_summary and has_statistic

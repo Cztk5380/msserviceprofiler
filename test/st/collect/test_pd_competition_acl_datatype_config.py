@@ -3,7 +3,7 @@ import os
 from test.st.executor.exec_benchmark import ExecBenchmark
 from test.st.executor.exec_mindie_server import ExecMindIEServer
 from test.st.executor.exec_parse import ExecParse
-from test.st.checker.csv_checker import has_op_statistic_csv, has_op_summary_csv
+from test.st.checker.csv_checker import has_op_csv_files
 
 
 def test_acl_datatype_config_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
@@ -46,8 +46,7 @@ def test_acl_datatype_config_example(devices, mindie_path, dataset_path, model_p
         assert parser.ready_go()
 
         # 解析完了，开始校验相关文件的生成
-        assert has_op_statistic_csv(os.path.join(workspace_path, "prof_data_out"))
-        assert has_op_summary_csv(os.path.join(workspace_path, "prof_data_out"))
+        assert has_op_csv_files(os.path.join(workspace_path, "prof_data_out"))
 
     finally:
         if mindie_server:
