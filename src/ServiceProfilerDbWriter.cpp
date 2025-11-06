@@ -81,7 +81,7 @@ void ServiceProfilerDbWriter::StartDump(const std::string &outputPath)
 
     std::string dbPath = outputPath + dbFileName_ + "_" + hostName + "-" + std::to_string(getpid()) + ".db";
 
-    MsUtils::UmaskGuard umaskGuard(0137); // dbPath权限改成640
+    MsUtils::UmaskGuard umaskGuard();
     // 打开数据库连接
     int rc = sqlite3_open(dbPath.c_str(), &db_);
     if (rc != SQLITE_OK) {

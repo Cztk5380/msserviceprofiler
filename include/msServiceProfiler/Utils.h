@@ -59,16 +59,15 @@ const std::string &GetHostName();
 
 class UmaskGuard {
 public:
-    explicit UmaskGuard(mode_t newUmask)
+    static constexpr mode_t RESTRICTIVE_UMASK = 0137;   // 权限最大为 640
+    explicit UmaskGuard(mode_t newUmask=RESTRICTIVE_UMASK): originalUmask_(umask(newUmask))
     {
-        originalUmask_ = umask(newUmask);
     };
     
     ~UmaskGuard()
     {
         umask(originalUmask_);
     };
-
 private:
     mode_t originalUmask_;
 };
