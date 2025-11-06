@@ -116,13 +116,24 @@ bool IsPathDepthLegal(const std::string &absPath)
     return true;
 }
 
-bool IsFileSizeLegal(const std::string &absPath, long long maxSize)
+bool IsFileSizeLegal(const std::string &absPath, uint64_t maxSize)
 {
     struct stat fileStat;
-    if (stat(absPath.c_str(), &fileStat) != 0 || !S_ISREG(fileStat.st_mode) || fileStat.st_size >= maxSize) {
-        LogWarn("File size is not legal, path: %s", absPath.c_str());  // LCOV_EXCL_LINE
+    if (stat(absPath.c_str(), &fileStat) != 0 || !S_ISREG(fileStat.st_mode)) {
+        LogWarn("File does not exist or not a regular file, path: %s", absPath.c_str());
         return false;
     }
+
+    if (fileStat.st_size < 0) {
+        LogWarn("File size unexpectedly negative, path: %s", absPath.c_str());
+        return false;
+    }
+
+    if (static_cast<uint64_t>(fileStat.st_size) > maxSize) {
+        LogWarn("File too large: %lld > %llu, path: %s", fileStat.st_size, maxSize, absPath.c_str());  // LCOV_EXCL_LINE
+        return false;
+    }
+
     return true;
 }
 
