@@ -46,6 +46,14 @@ TEST(ServiceProfilerMsptiTest, IsNameMatchEmptyFilterSet)
     EXPECT_TRUE(ServiceProfilerMspti::IsNameMatch(filterSet, name));
 }
 
+// Test suite for IsNameMatchTest function
+TEST(ServiceProfilerMsptiTest, IsNameMatchEmptyName)
+{
+    std::set<std::string> filterSet;
+    const char *name = nullptr;
+    EXPECT_FALSE(ServiceProfilerMspti::IsNameMatch(filterSet, name));
+}
+
 TEST(ServiceProfilerMsptiTest, IsNameMatchNameContainsFilter)
 {
     std::set<std::string> filterSet = {"amp"};
