@@ -48,6 +48,36 @@ namespace msServiceProfiler {
             return config_->GetEnable() && config_->GetLevel() >= level;
         }
 
+        inline std::string GetAclTaskTimeLevel() const
+        {
+            return config_->GetAclTaskTimeLevel();
+        }
+
+        inline int GetAclProfAicoreMetricsValue() const
+        {
+            return static_cast<int>(config_->GetAclProfAicoreMetrics());
+        }
+
+        inline bool GetTorchProfStack() const
+        {
+            return config_->GetTorchProfStack();
+        }
+
+        inline bool GetTorchProfModules() const
+        {
+            return config_->GetTorchProfModules();
+        }
+    
+        inline int GetTorchProfStepNum() const
+        {
+            return config_->GetTorchProfStepNum();
+        }
+
+        inline bool GetTorchProfilerEnable() const
+        {
+            return config_->GetTorchProfilerEnable();
+        }
+
         inline bool GetEnableDomainFilter() const { return config_->GetEnableDomainFilter(); }
 
         const std::set<std::string>& GetValidDomain() const { return config_->GetValidDomain(); }

@@ -19,6 +19,7 @@ namespace msServiceProfiler {
 constexpr int MILLISECONDS_IN_SECOND = 1000;
 constexpr int ACL_PROF_ENABLE_TASK_TIME = 1;
 constexpr int MSPTI_ENABLE_TASK_TIME = 2;
+constexpr int TORCH_PROFILER_ENABLE_TASK_TIME = 3;
 constexpr int MAX_TIME_LIMIT = 7200;
 
 static std::string TrimWhitespace(const std::string& str)
@@ -129,8 +130,70 @@ void Config::ParseConfig(const Json& configJson)
     ParseMspti(configJson);
     ParseAicoreMetrics(configJson);
     ParseDataTypeConfig(configJson);
+    ParseTorchProfStack(configJson);
+    ParseTorchProfModules(configJson);
+    ParseTorchProfStepNum(configJson);
     ParseEnable(configJson);  // enable 值最后变化，可以【稍微】保护一下上面的值在开启后都已经赋值成功了。
 }
+
+bool Config::ParseTorchProfStack(const Json& config, bool justParse)
+{
+    bool torch_prof_stack = false;  // 默认值为 false
+    if (config.contains("torch_prof_stack")) {
+        if (config["torch_prof_stack"].is_boolean()) {
+            torch_prof_stack = config["torch_prof_stack"];
+        } else {
+            PROF_LOGW("torch_prof_stack value is not a boolean, will set false.");  // LCOV_EXCL_LINE
+        }
+    }
+    
+    if (!justParse) {
+        torch_prof_stack_ = torch_prof_stack;
+        PROF_LOGD("torch_prof_stack_: %s", torch_prof_stack_ ? "true" : "false");  // LCOV_EXCL_LINE
+    }
+    
+    return torch_prof_stack;
+}
+
+bool Config::ParseTorchProfModules(const Json& config, bool justParse)
+{
+    bool torch_prof_modules = false;  // 默认值为 false
+    if (config.contains("torch_prof_modules")) {
+        if (config["torch_prof_modules"].is_boolean()) {
+            torch_prof_modules = config["torch_prof_modules"];
+        } else {
+            PROF_LOGW("torch_prof_modules value is not a boolean, will set false.");  // LCOV_EXCL_LINE
+        }
+    }
+    
+    if (!justParse) {
+        torch_prof_modules_ = torch_prof_modules;
+        PROF_LOGD("torch_prof_modules_: %s", torch_prof_modules_ ? "true" : "false");  // LCOV_EXCL_LINE
+    }
+    
+    return torch_prof_modules;
+}
+
+void Config::ParseTorchProfStepNum(const Json& config)
+{
+    int torch_prof_step_num = 0;  // 默认值为0
+    if (config.contains("torch_prof_step_num")) {
+        if (config["torch_prof_step_num"].is_number_integer()) {
+            torch_prof_step_num = config["torch_prof_step_num"];
+            if (torch_prof_step_num < 1) {
+                PROF_LOGD("Torch Profiler will collect all steps data.");
+                torch_prof_step_num = 0;
+            }
+        } else {
+            PROF_LOGW("torch_prof_step_num is not an integer, "  // LCOV_EXCL_LINE
+            "using default value 0 (collect all steps)");  // LCOV_EXCL_LINE
+            torch_prof_step_num = 0;
+        }
+    }
+    torch_prof_step_num_ = torch_prof_step_num;
+    PROF_LOGD("torch_prof_step_num_: %d", torch_prof_step_num_);  // LCOV_EXCL_LINE
+}
+
 
 void Config::ParseAicoreMetrics(const Json& config)
 {
@@ -389,50 +452,58 @@ void Config::ParseAclTaskTime(const Json &config)
             }
             msptiEnable_ = config["acl_task_time"] == MSPTI_ENABLE_TASK_TIME;
             CheckAclKernelConflict();
+            torchProfilerEnable_ = config["acl_task_time"] == TORCH_PROFILER_ENABLE_TASK_TIME;
         } else {
             PROF_LOGW("Unknown acl_task_time type. acl_task_time disabled.");  // LCOV_EXCL_LINE
         }
     }
     PROF_LOGD("profile enableAclTaskTime_: %s", enableAclTaskTime_ ? "true" : "false");  // LCOV_EXCL_LINE
     PROF_LOGD("profile msptiEnable_: %s", msptiEnable_ ? "true" : "false");  // LCOV_EXCL_LINE
+    PROF_LOGD("profile torchProfilerEnable_: %s", torchProfilerEnable_? "true" : "false");  // LCOV_EXCL_LINE
 
     if (config.contains("acl_prof_task_time_level")) {
-        auto aclProfTaskTimeLevel = MsUtils::SplitStr(config["acl_prof_task_time_level"], ';');
-        // parser aclTaskTimeLevel
-        if (aclProfTaskTimeLevel.first.empty()) {
-            aclProfTaskTimeLevel.first = "L0";
-        } else if (aclProfTaskTimeLevel.first != "L0" && aclProfTaskTimeLevel.first != "L1") {
-            // LCOV_EXCL_START
-            PROF_LOGW("aclProfTaskTimeLevel should be L0 or L1, now it is %s, default to L0",
-                aclProfTaskTimeLevel.first.c_str());
-            // LCOV_EXCL_STOP
-            aclProfTaskTimeLevel.first = "L0";
-        }
-        aclTaskTimeLevel_ = aclProfTaskTimeLevel.first;
-        PROF_LOGD("profile aclTaskTimeLevel: %s", aclTaskTimeLevel_.c_str());  // LCOV_EXCL_LINE
-        // parser aclTaskTimeDuration
-        if (aclProfTaskTimeLevel.second == "") {
-            PROF_LOGD("Not set aclTaskTimeDuration value");  // LCOV_EXCL_LINE
-            return;
-        }
-        try {
-            aclTaskTimeDuration_ = std::stoi(aclProfTaskTimeLevel.second);
-        } catch (const std::invalid_argument& e) {
-            PROF_LOGW("aclTaskTimeDuration value is Invalid argument, now it is %s",  // LCOV_EXCL_LINE
-                aclProfTaskTimeLevel.second.c_str());  // LCOV_EXCL_LINE
-            return;
-        } catch (const std::out_of_range& e) {
-            PROF_LOGW("aclTaskTimeDuration value is Out of range, now it is %s",  // LCOV_EXCL_LINE
-                      aclProfTaskTimeLevel.second.c_str());  // LCOV_EXCL_LINE
-            return;
-        }
-        constexpr int maxAclTaskTimeDuration = 999; // 采集时长上线为999s
-        if (aclTaskTimeDuration_ > maxAclTaskTimeDuration || aclTaskTimeDuration_ < 1) {
-            PROF_LOGW("aclTaskTimeDuration value should between 1 ~ 999, now it is %d",  // LCOV_EXCL_LINE
-                      aclTaskTimeDuration_);  // LCOV_EXCL_LINE
-        }
-        PROF_LOGD("profile aclTaskTimeDuration: %d", aclTaskTimeDuration_);  // LCOV_EXCL_LINE
+        ParseAclProfTaskTimeLevel(config["acl_prof_task_time_level"]);
     }
+}
+
+void Config::ParseAclProfTaskTimeLevel(const Json &configValue)
+{
+    auto aclProfTaskTimeLevel = MsUtils::SplitStr(configValue, ';');
+    // parser aclTaskTimeLevel
+    if (aclProfTaskTimeLevel.first.empty()) {
+        aclProfTaskTimeLevel.first = "L0";
+    } else if (aclProfTaskTimeLevel.first != "L0" && aclProfTaskTimeLevel.first != "L1") {
+        // LCOV_EXCL_START
+        PROF_LOGW("aclProfTaskTimeLevel should be L0 or L1, now it is %s, default to L0",
+            aclProfTaskTimeLevel.first.c_str());
+        // LCOV_EXCL_STOP
+        aclProfTaskTimeLevel.first = "L0";
+    }
+    aclTaskTimeLevel_ = aclProfTaskTimeLevel.first;
+    PROF_LOGD("profile aclTaskTimeLevel: %s", aclTaskTimeLevel_.c_str());  // LCOV_EXCL_LINE
+    
+    // parser aclTaskTimeDuration
+    if (aclProfTaskTimeLevel.second == "") {
+        PROF_LOGD("Not set aclTaskTimeDuration value");  // LCOV_EXCL_LINE
+        return;
+    }
+    try {
+        aclTaskTimeDuration_ = std::stoi(aclProfTaskTimeLevel.second);
+    } catch (const std::invalid_argument& e) {
+        PROF_LOGW("aclTaskTimeDuration value is Invalid argument, now it is %s",  // LCOV_EXCL_LINE
+            aclProfTaskTimeLevel.second.c_str());  // LCOV_EXCL_LINE
+        return;
+    } catch (const std::out_of_range& e) {
+        PROF_LOGW("aclTaskTimeDuration value is Out of range, now it is %s",  // LCOV_EXCL_LINE
+                  aclProfTaskTimeLevel.second.c_str());  // LCOV_EXCL_LINE
+        return;
+    }
+    constexpr int maxAclTaskTimeDuration = 999; // 采集时长上线为999s
+    if (aclTaskTimeDuration_ > maxAclTaskTimeDuration || aclTaskTimeDuration_ < 1) {
+        PROF_LOGW("aclTaskTimeDuration value should between 1 ~ 999, now it is %d",  // LCOV_EXCL_LINE
+                  aclTaskTimeDuration_);  // LCOV_EXCL_LINE
+    }
+    PROF_LOGD("profile aclTaskTimeDuration: %d", aclTaskTimeDuration_);  // LCOV_EXCL_LINE
 }
 
 void Config::ParseLevel(const Json &config)

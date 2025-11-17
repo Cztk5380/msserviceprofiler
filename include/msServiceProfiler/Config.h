@@ -17,6 +17,9 @@ public:
     Config();
     void ReadAndSaveConfig();
     MS_SERVICE_INLINE_FLAG bool GetEnable() const { return enable_; }
+    MS_SERVICE_INLINE_FLAG bool GetTorchProfStack() const { return torch_prof_stack_; }
+    MS_SERVICE_INLINE_FLAG bool GetTorchProfModules() const { return torch_prof_modules_; }
+    MS_SERVICE_INLINE_FLAG int GetTorchProfStepNum() const { return torch_prof_step_num_; }
     MS_SERVICE_INLINE_FLAG uint32_t GetTimeLimit() const { return timeLimit_; }
     MS_SERVICE_INLINE_FLAG uint32_t GetLevel() const { return level_; }
     MS_SERVICE_INLINE_FLAG bool GetEnableAclTaskTime() const { return enableAclTaskTime_; }
@@ -54,7 +57,13 @@ public:
     MS_SERVICE_INLINE_FLAG const std::string GetApiFilter() const { return apiFilter_; }
     MS_SERVICE_INLINE_FLAG const std::string GetKernelFilter() const { return kernelFilter_; }
 
+    MS_SERVICE_INLINE_FLAG bool GetTorchProfilerEnable() const { return torchProfilerEnable_; }
+
     bool ParseEnable(const Json& config, bool justParse = false);
+    bool ParseTorchProfStack(const Json& config, bool justParse = false);
+    bool ParseTorchProfModules(const Json& config, bool justParse = false);
+    void ParseTorchProfStepNum(const Json& config);
+
 private:
     std::string GetEnvAsString(const std::string& envName) const;
     void ReadConfigPath();
@@ -62,6 +71,7 @@ private:
     void ParseAicoreMetrics(const Json& config);
     void ParseDataTypeConfig(const Json& config);
     void ParseAclTaskTime(const Json& config);
+    void ParseAclProfTaskTimeLevel(const Json& config);
     void CheckMsptiConflict();
     void CheckAclKernelConflict();
     std::string GetDefaultProfPath() const;
@@ -81,6 +91,9 @@ private:
 
     bool isServiceProfConfigPathSet = false;
     bool enable_ = false;
+    bool torch_prof_stack_ = false;
+    bool torch_prof_modules_ = false;
+    int torch_prof_step_num_ = 1;  // 默认值为1
     uint32_t level_ = Level::INFO;
     uint32_t timeLimit_ = 0;
     bool enableAclTaskTime_ = false;
@@ -107,6 +120,8 @@ private:
     uint32_t npuMemorySleepMilliseconds_ = 100;
 
     bool msptiEnable_ = false;
+
+    bool torchProfilerEnable_ = false;
 
     std::string apiFilter_;
     std::string kernelFilter_;
