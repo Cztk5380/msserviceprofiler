@@ -48,7 +48,7 @@ namespace msServiceProfiler {
             return config_->GetEnable() && config_->GetLevel() >= level;
         }
 
-        inline std::string GetAclTaskTimeLevel() const
+        inline std::string &GetAclTaskTimeLevel()
         {
             return config_->GetAclTaskTimeLevel();
         }
