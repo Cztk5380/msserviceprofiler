@@ -157,11 +157,54 @@ bool IsEnable(uint32_t level)
     return msServiceProfiler::ServiceProfilerManager::GetInstance().IsEnable(level);
 }
 
+const char* GetProfPath()
+{
+    // 对外接口，用户线程，用户线程只读取，工作线程会变更，为了速度，不做保护
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetProfPath().c_str();
+}
+
+int GetAclProfAicoreMetrics()
+{
+    // 对外接口，用户线程，用户线程只读取，工作线程会变更，为了速度，不做保护
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetAclProfAicoreMetricsValue();
+}
+
+bool GetTorchProfStack()
+{
+    // 对外接口，用户线程只读取，工作线程会变更，为了速度，不做保护
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetTorchProfStack();
+}
+
 bool IsValidDomain(const char *domainName)
 {
     // 对外接口，用户线程，用户线程只读取，工作线程会变更，有一定风险，做了部分消减
     const std::set<std::string> &allowNames = msServiceProfiler::ServiceProfilerManager::GetInstance().GetValidDomain();
     return allowNames.empty() || allowNames.find(std::string(domainName)) != allowNames.end();
+}
+
+bool GetTorchProfModules()
+{
+    // 对外接口，用户线程只读取，工作线程会变更，为了速度，不做保护
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetTorchProfModules();
+}
+
+int GetTorchProfStepNum()
+{
+    // 对外接口，用户线程只读取，工作线程会变更，为了速度，不做保护
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetTorchProfStepNum();
+}
+
+
+const char* GetAclTaskTimeLevel()
+{
+    // 对外接口，用户线程只读取，工作线程会变更，为了速度，不做保护
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetAclTaskTimeLevel().c_str();
+}
+
+bool GetTorchProfilerEnable()
+{
+    // 对外接口，用户线程只读取，工作线程会变更，为了速度，不做保护
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetTorchProfilerEnable();
 }
 
 bool GetEnableDomainFilter()
@@ -586,6 +629,8 @@ void ServiceProfilerManager::StartAclProfiler(const std::string &profPath, uint3
     if (config_->GetMsptiEnable()) {
         // mspti 数据开始采集
         StartMsptiProf(profPath);
+    } else if (config_->GetTorchProfilerEnable()) {
+        // torch profiler 不开启算子采集 在python侧打点开始采集
     } else if (config_->IsAclProf()) {
         // msprof 数据开始采集
         StartAclProf(profPath, deviceID);
