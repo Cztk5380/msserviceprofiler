@@ -93,7 +93,7 @@ private:
     bool enable_ = false;
     bool torch_prof_stack_ = false;
     bool torch_prof_modules_ = false;
-    int torch_prof_step_num_ = 0;  // 默认值为0
+    int torch_prof_step_num_ = 1;  // 默认值为1
     uint32_t level_ = Level::INFO;
     uint32_t timeLimit_ = 0;
     bool enableAclTaskTime_ = false;
