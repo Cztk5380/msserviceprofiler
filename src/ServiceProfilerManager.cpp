@@ -630,7 +630,7 @@ void ServiceProfilerManager::StartAclProfiler(const std::string &profPath, uint3
         // mspti 数据开始采集
         StartMsptiProf(profPath);
     } else if (config_->GetTorchProfilerEnable()) {
-        // 无算子采集
+        // torch profiler 不开启算子采集 在python侧打点开始采集
     } else if (config_->IsAclProf()) {
         // msprof 数据开始采集
         StartAclProf(profPath, deviceID);
