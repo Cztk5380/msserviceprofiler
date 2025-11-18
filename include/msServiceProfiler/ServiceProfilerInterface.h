@@ -90,7 +90,7 @@ MS_SERVICE_PROFILER_API const char* GetProfPath();
     * @brief 获取ACL任务时间级别配置
     * @return ACL任务时间级别配置字符串
 */
-MS_SERVICE_PROFILER_API const char* GetAclTaskTimeLevel();
+MS_SERVICE_PROFILER_API const std::string& GetAclTaskTimeLevel();
 
 /**
     * @brief 获取ACL性能分析AICore指标配置

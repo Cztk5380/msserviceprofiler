@@ -195,10 +195,10 @@ int GetTorchProfStepNum()
 }
 
 
-const char* GetAclTaskTimeLevel()
+const std::string& GetAclTaskTimeLevel()
 {
     // 对外接口，用户线程只读取，工作线程会变更，为了速度，不做保护
-    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetAclTaskTimeLevel().c_str();
+    return msServiceProfiler::ServiceProfilerManager::GetInstance().GetAclTaskTimeLevel();
 }
 
 bool GetTorchProfilerEnable()

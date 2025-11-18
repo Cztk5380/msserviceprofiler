@@ -256,7 +256,7 @@ uint32_t Config::ConvertStringToAclDataType(const std::string& configStr) const
 uint32_t Config::GetProfilingSwitch() const
 {
     uint32_t profSwitch = aclDataTypeConfig_ | ACL_PROF_MSPROFTX;
-    const std::string taskTimeLevel = GetAclTaskTimeLevel();
+    const std::string& taskTimeLevel = GetAclTaskTimeLevel();
 
     PROF_LOGD("In GetProfilingSwitch, taskTimeLevel: %s", taskTimeLevel.c_str());  // LCOV_EXCL_LINE
     if (taskTimeLevel == "L0") {
