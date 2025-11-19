@@ -168,7 +168,6 @@ void msServiceProfiler::ServiceProfilerDbWriter::RecvDbExecutor(std::unique_ptr<
         cachePopExecutors_.emplace(level, std::vector<std::unique_ptr<DbExecutorInterface>>());
     }
     cachePopExecutors_.at(level).emplace_back(std::move(dbExecutor));
-
 }
 
 void msServiceProfiler::ServiceProfilerDbWriter::ExecutorDumpToDb()

@@ -91,8 +91,10 @@ using DBExecBuffer = DbBuffer<DbExecutorInterface>;
 class ServiceProfilerDbWriter {
 public:
     explicit ServiceProfilerDbWriter(const char *fileName) : dbFileName_(fileName),
-          bufferManger_{std::bind(&ServiceProfilerDbWriter::RecvDbExecutor, this, std::placeholders::_1),
-              std::bind(&ServiceProfilerDbWriter::ExecutorDumpToDb, this)} {};
+        bufferManger_{
+            std::bind(&ServiceProfilerDbWriter::RecvDbExecutor, this, std::placeholders::_1),
+            std::bind(&ServiceProfilerDbWriter::ExecutorDumpToDb, this)
+        } {};
 
     ~ServiceProfilerDbWriter()
     {
