@@ -81,6 +81,48 @@ MS_SERVICE_PROFILER_API bool IsEnable(uint32_t level);
 MS_SERVICE_PROFILER_API bool IsValidDomain(const char *domainName);
 
 /**
+    * @brief 获取profiling数据存储路径
+    * @return profiling数据路径
+*/
+MS_SERVICE_PROFILER_API const char* GetProfPath();
+ 
+/**
+    * @brief 获取ACL任务时间级别配置
+    * @return ACL任务时间级别配置字符串
+*/
+MS_SERVICE_PROFILER_API const char* GetAclTaskTimeLevel();
+ 
+/**
+    * @brief 获取ACL性能分析AICore指标配置
+    * @return ACL性能分析AICore指标配置值
+*/
+MS_SERVICE_PROFILER_API int GetAclProfAicoreMetrics();
+ 
+/**
+    * @brief 检查是否启用Torch Profiler分析堆栈
+    * @return true : 启用Torch堆栈，false: 不启用
+*/
+MS_SERVICE_PROFILER_API bool GetTorchProfStack();
+ 
+/**
+    * @brief 检查是否启用Torch性能分析模块
+    * @return true : 启用Torch模块，false: 不启用
+*/
+MS_SERVICE_PROFILER_API bool GetTorchProfModules();
+ 
+/**
+    * @brief 获取Torch性能分析step数量配置
+    * @return Torch性能分析step数量
+*/
+MS_SERVICE_PROFILER_API int GetTorchProfStepNum();
+ 
+/**
+    * @brief 检查是否启用Torch性能分析功能
+    * @return true : 启用Torch性能分析，false: 不启用
+*/
+MS_SERVICE_PROFILER_API bool GetTorchProfilerEnable();
+
+/**
  * @brief 查询是否启用了域名过滤功能
  * @return true : 域名过滤已启用（仅允许指定域名），false: 域名过滤未启用（允许所有域名）
  */
