@@ -158,101 +158,24 @@ void ServiceProfilerDbWriter::Execute(const char *sql) const
     }
 }
 
-std::shared_ptr<DBExecBuffer> ServiceProfilerDbWriter::Register(uintptr_t pThreadIns)
+void msServiceProfiler::ServiceProfilerDbWriter::RecvDbExecutor(std::unique_ptr<DbExecutorInterface> dbExecutor)
 {
-    std::lock_guard<std::mutex> lock(mtx_);
-    auto pBuffer = std::make_shared<DBExecBuffer>();
-    mapBuffer_[pThreadIns] = pBuffer;
-    workingDbBuffers_.push_back(pBuffer);
-    return pBuffer;
+    if (!inited) {
+        return ;
+    }
+    const int level = dbExecutor->Level();
+    if (cachePopExecutors_.find(level) == cachePopExecutors_.end()) {
+        cachePopExecutors_.emplace(level, std::vector<std::unique_ptr<DbExecutorInterface>>());
+    }
+    cachePopExecutors_.at(level).emplace_back(std::move(dbExecutor));
+
 }
 
-void ServiceProfilerDbWriter::Unregister(uintptr_t pThreadIns)
+void msServiceProfiler::ServiceProfilerDbWriter::ExecutorDumpToDb()
 {
-    std::lock_guard<std::mutex> lock(mtx_);
-    if (lifeEndFlag_) {
-        return;
+    if (db_ == nullptr || !inited) {
+        return ;
     }
-    if (mapBuffer_.find(pThreadIns) != mapBuffer_.end()) {
-        auto pBuffer = mapBuffer_.at(pThreadIns);
-        mapBuffer_.erase(pThreadIns);
-        disableDbBuffers_.insert(pBuffer);
-    }
-}
-
-void ServiceProfilerDbWriter::DumpThread()
-{
-    constexpr int SUITABLE_DUMP_SIZE = 1000;
-    constexpr int MAX_WAIT_US = 50000;  // 50ms
-    constexpr int MIN_WAIT_US = 50;     // 50us
-    int waitUs = MIN_WAIT_US;
-    std::set<std::shared_ptr<DBExecBuffer>> disableDbBuffers;
-    std::vector<std::shared_ptr<DBExecBuffer>> workingDbBuffers;
-    while (!threadExitFlag_) {
-        std::this_thread::sleep_for(std::chrono::microseconds(waitUs));
-        {
-            // 获取锁，并且看下列表是否有变化，有的话同步到函数变量中，处理的时候就可以释放锁
-            std::lock_guard<std::mutex> lock(mtx_);
-            if (workingDbBuffers.size() != workingDbBuffers_.size() ||
-                disableDbBuffers.size() != disableDbBuffers_.size()) {
-                disableDbBuffers = disableDbBuffers_;
-                workingDbBuffers = workingDbBuffers_;
-            }
-        }
-        std::vector<DBExecBuffer *> freeDbBuffers;
-        auto popCount = PopAndInsert2DB(workingDbBuffers, disableDbBuffers, freeDbBuffers);
-
-        // 更科学的从min和max之间转换
-        double diff = std::max(std::min((SUITABLE_DUMP_SIZE - popCount) / 400.0, 2.5), -2.5);
-        int diff_exp = static_cast<int>(exp(diff));  // 因为 diff 限制了范围，所以 exp diff 也不会超过 int 的范围
-        waitUs = std::min(std::max(waitUs * diff_exp, MIN_WAIT_US), MAX_WAIT_US);  // 维持在写入1000条每次左右
-        {
-            std::lock_guard<std::mutex> lock(mtx_);
-
-            for (auto *pBuffer : freeDbBuffers) {
-                std::shared_ptr<DBExecBuffer> pTempBuffer(pBuffer, [](DBExecBuffer *) {});
-                workingDbBuffers_.erase(std::remove(workingDbBuffers_.begin(), workingDbBuffers_.end(), pTempBuffer),
-                    workingDbBuffers_.end());
-                disableDbBuffers_.erase(pTempBuffer);
-            }
-            workingDbBuffers = workingDbBuffers_;
-            disableDbBuffers = disableDbBuffers_;
-        }
-        if (popCount > 0) {
-            PROF_LOGD("db write thread pop %d items", popCount);
-        }
-    }
-}
-}  // namespace msServiceProfiler
-
-int msServiceProfiler::ServiceProfilerDbWriter::PopAndInsert2DB(
-    const std::vector<std::shared_ptr<DBExecBuffer>> &workingDbBuffers,
-    std::set<std::shared_ptr<DBExecBuffer>> &disableDbBuffers, std::vector<DBExecBuffer *> &freeDbBuffers)
-{
-    int popCount = 0;
-    std::unique_ptr<DbExecutorInterface> *pMarkers = pPopMarkerBuffer.get();
-    // pop
-    for (const auto &pBuffer : workingDbBuffers) {
-        size_t popSize = pBuffer->Pop(MAX_POP_SIZE, pMarkers);
-        for (size_t i = 0; i < popSize; ++i) {
-            if (pMarkers[i] == nullptr) {
-                continue;
-            }
-            const int level = pMarkers[i]->Level();
-            if (cachePopExecutors_.find(level) == cachePopExecutors_.end()) {
-                cachePopExecutors_.emplace(level, std::vector<std::unique_ptr<DbExecutorInterface>>());
-            }
-            cachePopExecutors_.at(level).emplace_back(std::move(pMarkers[i]));
-
-            pMarkers[i] = nullptr;
-        }
-        popCount += static_cast<int>(popSize);  // 数值不会太大，直接加没关系
-
-        if (popSize == 0 && disableDbBuffers.find(pBuffer) != disableDbBuffers.end()) {
-            freeDbBuffers.push_back(pBuffer.get());
-        }
-    }
-
     std::vector<int> levels;
     for (const auto &pair : cachePopExecutors_) {
         levels.push_back(pair.first);
@@ -278,5 +201,5 @@ int msServiceProfiler::ServiceProfilerDbWriter::PopAndInsert2DB(
             started = false;
         }
     }
-    return popCount;
 }
+}  // namespace msServiceProfiler
