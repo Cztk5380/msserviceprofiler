@@ -24,13 +24,13 @@
 #include <mutex>
 #include <sqlite3.h>
 
+#include "Log.h"
 #include "DBExecutor/DbDefines.h"
 #include "DbBuffer.h"
-#include "Log.h"
+#include "MultiThreadBufferManager.h"
 
 namespace msServiceProfiler {
 
-constexpr size_t MAX_POP_SIZE = 2000;
 enum DBPriorityLevel : int {
     PRIORITY_START_PROF = -10,
     PRIORITY_NORMAL = 0,
@@ -90,32 +90,30 @@ using DBExecBuffer = DbBuffer<DbExecutorInterface>;
 
 class ServiceProfilerDbWriter {
 public:
-    explicit ServiceProfilerDbWriter(const char *fileName) : dbFileName_(fileName)
-    {
-        this->thread_ = std::thread(&ServiceProfilerDbWriter::DumpThread, this);
-        pPopMarkerBuffer = std::make_unique<std::unique_ptr<DbExecutorInterface>[]>(MAX_POP_SIZE);
-    };
+    explicit ServiceProfilerDbWriter(const char *fileName) : dbFileName_(fileName),
+        bufferManger_{
+            std::bind(&ServiceProfilerDbWriter::RecvDbExecutor, this, std::placeholders::_1),
+            std::bind(&ServiceProfilerDbWriter::ExecutorDumpToDb, this)
+        } {};
+
     ~ServiceProfilerDbWriter()
     {
-        if (this->thread_.joinable()) {
-            threadExitFlag_ = true;
-            this->thread_.join();
-        }
-        std::lock_guard<std::mutex> lock(mtx_);
+        inited = false;
         StopDump();
-        lifeEndFlag_ = true;
-        workingDbBuffers_.clear();
-        disableDbBuffers_.clear();
     };
 
     void StartDump(const std::string &outputPath);
     void StopDump();
 
-    void DumpThread();
+    std::shared_ptr<DBExecBuffer> Register(uintptr_t pThreadIns)
+    {
+        return bufferManger_.Register(pThreadIns);
+    }
 
-    // 只有register 和 unregister 是多线程竞争，其他都是通过 DBBuffer 过来的 Executor 执行，保证顺序，且不需要保护。
-    std::shared_ptr<DBExecBuffer> Register(uintptr_t pThreadIns);
-    void Unregister(uintptr_t pThreadIns);
+    void Unregister(uintptr_t pThreadIns)
+    {
+        bufferManger_.Unregister(pThreadIns);
+    }
 
 public:
     sqlite3_stmt *GetStmt(const size_t stmtIndex) const
@@ -150,21 +148,8 @@ private:
     void ApplyOptimizations() const;
     bool StartTransAction() const;
     void Flash() const;
-
-private:
-    int PopAndInsert2DB(const std::vector<std::shared_ptr<DBExecBuffer>> &workingDbBuffers,
-        std::set<std::shared_ptr<DBExecBuffer>> &disableDbBuffers, std::vector<DBExecBuffer *> &freeDbBuffers);
-
-private:
-    std::mutex mtx_;
-    std::thread thread_;
-    bool lifeEndFlag_ = false;
-    bool threadExitFlag_ = false;
-
-private:
-    std::map<uintptr_t, std::shared_ptr<DBExecBuffer>> mapBuffer_{};
-    std::set<std::shared_ptr<DBExecBuffer>> disableDbBuffers_{};
-    std::vector<std::shared_ptr<DBExecBuffer>> workingDbBuffers_{};
+    void RecvDbExecutor(std::unique_ptr<DbExecutorInterface> dbExecutor);
+    void ExecutorDumpToDb();
 
 private:
     const char *dbFileName_ = nullptr;
@@ -173,7 +158,7 @@ private:
     std::vector<std::unique_ptr<DbExecutorInterface>> cachedExecutor{};
     std::array<sqlite3_stmt *, DB_STMT_CNT> enableStmts_{nullptr};
     std::map<int, std::vector<std::unique_ptr<DbExecutorInterface>>> cachePopExecutors_;
-    std::unique_ptr<std::unique_ptr<DbExecutorInterface>[]> pPopMarkerBuffer;
+    MultiThreadBufferManager<DbExecutorInterface> bufferManger_;  // 优先析构，析构会停止内部 thread
 };
 
 template <DBFile dbFile>
