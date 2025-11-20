@@ -65,7 +65,6 @@ public:
     void ParseTorchProfStepNum(const Json& config);
 
 private:
-    std::string GetEnvAsString(const std::string& envName) const;
     void ReadConfigPath();
     void ParseTimeLimit(const Json& config);
     void ParseAicoreMetrics(const Json& config);

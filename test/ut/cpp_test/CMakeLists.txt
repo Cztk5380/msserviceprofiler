@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 project(ms_service_profiler_test)
 message("building test of msServiceProfiler")
 
+add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
 set(CMAKE_SKIP_RPATH TRUE)
 set(CMAKE_CXX_STANDARD 14)
 set(PROJECT_TOP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
@@ -59,6 +60,8 @@ include_directories(
         ${TOOLKIT_BASE_PATH}/include
         ${TOOLKIT_BASE_PATH}/aarch64-linux/include
         ${TOOLKIT_BASE_PATH}/x86_64-linux/include
+        ${PROJECT_TOP_DIR}/opensource
+        ${PROJECT_TOP_DIR}/opensource/protobuf/include
 )
 
 link_directories(
@@ -67,6 +70,7 @@ link_directories(
         ${TOOLKIT_BASE_PATH}/lib64
         ${TOOLKIT_BASE_PATH}/aarch64-linux/devlib
         ${TOOLKIT_BASE_PATH}/x86_64-linux/devlib
+        ${PROJECT_TOP_DIR}/opensource/protobuf/lib
 )
 
 set(TEST_LIBS
@@ -84,6 +88,7 @@ set(TEST_LIBS
         libgmock.a
         libgmock_main.a
         libmockcpp.a
+        libprotobuf.a
 )
 
 add_link_options(
@@ -96,6 +101,10 @@ add_subdirectory(${PROJECT_TOP_DIR}/platform platform)
 add_executable(ut_server_profiler
         ${PROFILER_SRC}
         ${PROFILER_TEST_SRC}
+        ${PROJECT_TOP_DIR}/opensource/opentelemetry/proto/common/v1/common.pb.cc
+        ${PROJECT_TOP_DIR}/opensource/opentelemetry/proto/resource/v1/resource.pb.cc
+        ${PROJECT_TOP_DIR}/opensource/opentelemetry/proto/trace/v1/trace.pb.cc
+        ${PROJECT_TOP_DIR}/opensource/opentelemetry/proto/collector/trace/v1/trace_service.pb.cc
 )
 
 target_link_libraries(ut_server_profiler
@@ -108,6 +117,10 @@ target_compile_options(ut_server_profiler PRIVATE
 
 add_executable(st_server_profiler
         test.cpp
+        ${PROJECT_TOP_DIR}/opensource/opentelemetry/proto/common/v1/common.pb.cc
+        ${PROJECT_TOP_DIR}/opensource/opentelemetry/proto/resource/v1/resource.pb.cc
+        ${PROJECT_TOP_DIR}/opensource/opentelemetry/proto/trace/v1/trace.pb.cc
+        ${PROJECT_TOP_DIR}/opensource/opentelemetry/proto/collector/trace/v1/trace_service.pb.cc
         ${PROFILER_SRC}
 )
 

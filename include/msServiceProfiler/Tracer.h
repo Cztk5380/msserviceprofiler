@@ -195,6 +195,19 @@ public:
     }
 
     /**
+     * @brief 设置激活Span
+     * @param startTime [in] 开始事件，默认为0，表示当前事件。也可以用户主动输入一个时间
+     */
+    MS_SERVICE_PROFILER_HIDDEN inline Span &Activate(uint64_t startTime = 0)
+    {
+        if (!isSampled_) {
+            return *this;
+        }
+        INTERFACE_CALL(SpanActivate, span_data, startTime);
+        return *this;
+    }
+
+    /**
      * @brief 设置属性
      * @param attrName [in] 属性名
      * @param value [in] 属性值

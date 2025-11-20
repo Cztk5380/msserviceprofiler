@@ -16,6 +16,8 @@ include_directories(
         include
         opensource/json/include
         platform/securec/include
+        opensource
+        opensource/protobuf/include
 )
 
 if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
@@ -42,6 +44,9 @@ else ()
     )
 endif ()
 
+link_directories(
+        opensource/protobuf/lib
+)
 
 add_compile_options(
         -fPIC
@@ -67,6 +72,10 @@ add_subdirectory(platform)
 add_library(ms_service_profiler
         SHARED
         ${PROFILER_SRC}
+        opensource/opentelemetry/proto/common/v1/common.pb.cc
+        opensource/opentelemetry/proto/resource/v1/resource.pb.cc
+        opensource/opentelemetry/proto/trace/v1/trace.pb.cc
+        opensource/opentelemetry/proto/collector/trace/v1/trace_service.pb.cc
 )
 
 target_compile_options(ms_service_profiler PRIVATE
@@ -84,6 +93,7 @@ target_link_libraries(ms_service_profiler
         securec
         mspti
         sqlite3
+        libprotobuf.a
 )
 
 install(TARGETS ms_service_profiler

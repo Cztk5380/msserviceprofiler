@@ -14,6 +14,7 @@
 #include <thread>
 #include <cmath>
 #include <algorithm>
+#include <memory>
 #include <sqlite3.h>
 
 #include "Log.h"

@@ -22,16 +22,15 @@ inline std::pair<std::string, std::string> SplitStr(const std::string &str, char
     }
 };
 
-// 分割字符串并存入set 输入字符串格式为"xxxx;xxx;xxx"或"xxx;xxx;"均可
-inline std::set<std::string> SplitStringToSet(const std::string &str, char splitSymbol)
+inline std::vector<std::string> SplitStrToVector(const std::string &str, char splitSymbol)
 {
-    std::set<std::string> result;
+    std::vector<std::string> result;
     std::string token;
 
     for (char c : str) {
         if (c == splitSymbol) {
             if (!token.empty()) {  // 非空子串才插入
-                result.insert(token);
+                result.push_back(token);
                 token.clear();  // 清空临时 token
             }
         } else {
@@ -41,10 +40,23 @@ inline std::set<std::string> SplitStringToSet(const std::string &str, char split
 
     // 处理最后一个子串（如果末尾没有分号）
     if (!token.empty()) {
-        result.insert(token);
+        result.push_back(token);
     }
 
     return result;
+};
+
+// 分割字符串并存入set 输入字符串格式为"xxxx;xxx;xxx"或"xxx;xxx;"均可
+inline std::set<std::string> SplitStringToSet(const std::string &str, char splitSymbol)
+{
+    std::vector<std::string> vec = SplitStrToVector(str, splitSymbol);
+    return std::set<std::string>(vec.begin(), vec.end());
+};
+
+inline std::string GetEnvAsString(const std::string& envName)
+{
+    const char* value = getenv(envName.c_str());
+    return std::string((value != nullptr) ? value : "");
 };
 
 inline unsigned long Str2Uint(const std::string &str)

@@ -195,6 +195,7 @@ using TraceContextInfo = std::tuple<TraceId, SpanId, bool>;
 DEFINE_FUNCTION(bool, IsTraceEnable);
 DEFINE_FUNCTION(void, ResAddAttr, const char *, const char *);
 DEFINE_FUNCTION(TRACE_SPAN_DATA, NewSpanData, const char *);
+DEFINE_FUNCTION(void, SpanActivate, TRACE_SPAN_DATA, uint64_t);
 DEFINE_FUNCTION(void, SpanFillCtxData, TRACE_SPAN_DATA, TraceId, SpanId, SpanId);
 DEFINE_FUNCTION(void, SpanAddAttribute, TRACE_SPAN_DATA, const char *, const char *);
 DEFINE_FUNCTION(void, SpanSetStatus, TRACE_SPAN_DATA, const bool isSuccess, const std::string &msg);

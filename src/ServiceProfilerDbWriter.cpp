@@ -81,7 +81,7 @@ void ServiceProfilerDbWriter::StartDump(const std::string &outputPath)
 
     std::string dbPath = outputPath + dbFileName_ + "_" + hostName + "-" + std::to_string(getpid()) + ".db";
 
-    MsUtils::UmaskGuard umaskGuard();
+    MsUtils::UmaskGuard umaskGuard;
     // 打开数据库连接
     int rc = sqlite3_open(dbPath.c_str(), &db_);
     if (rc != SQLITE_OK) {
@@ -160,9 +160,6 @@ void ServiceProfilerDbWriter::Execute(const char *sql) const
 
 void msServiceProfiler::ServiceProfilerDbWriter::RecvDbExecutor(std::unique_ptr<DbExecutorInterface> dbExecutor)
 {
-    if (!inited) {
-        return ;
-    }
     const int level = dbExecutor->Level();
     if (cachePopExecutors_.find(level) == cachePopExecutors_.end()) {
         cachePopExecutors_.emplace(level, std::vector<std::unique_ptr<DbExecutorInterface>>());
@@ -172,9 +169,6 @@ void msServiceProfiler::ServiceProfilerDbWriter::RecvDbExecutor(std::unique_ptr<
 
 void msServiceProfiler::ServiceProfilerDbWriter::ExecutorDumpToDb()
 {
-    if (db_ == nullptr || !inited) {
-        return ;
-    }
     std::vector<int> levels;
     for (const auto &pair : cachePopExecutors_) {
         levels.push_back(pair.first);

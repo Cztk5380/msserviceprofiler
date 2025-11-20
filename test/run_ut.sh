@@ -4,6 +4,8 @@
 
 set -e
 
+export _GLIBCXX_USE_CXX11_ABI=0
+unset ASCEND_TOOLKIT_HOME
 CUR_DIR=$(dirname $(readlink -f $0))
 TOP_DIR=$(readlink -f ${CUR_DIR}/..)
 TEST_DIR=${TOP_DIR}/"test"
@@ -37,7 +39,7 @@ function fn_build_googletest()
     fi
     if [ ! -d "$GTEST_DIR/googletest-1.12.1" ]; then
         cd googletest
-        cmake -S . -DCMAKE_INSTALL_PREFIX=$GTEST_DIR/googletest-1.12.1 -B gtest_build
+        cmake -S . -DCMAKE_INSTALL_PREFIX=$GTEST_DIR/googletest-1.12.1 -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0" -B gtest_build
         cmake --build gtest_build -j 20
         cmake --install gtest_build
     fi
@@ -58,7 +60,7 @@ function fn_build_mock_cpp()
     cd mock_cpp
     mkdir -p build
     cd build
-    cmake -DCMAKE_INSTALL_PREFIX=$MOCK_CPP_DIR/mockcpp -DMOCKCPP_XUNIT=gtest \
+    cmake -DCMAKE_INSTALL_PREFIX=$MOCK_CPP_DIR/mockcpp -DMOCKCPP_XUNIT=gtest  -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0" \
       -DMOCKCPP_XUNIT_HOME=${CUR_DIR}/../opensource/googletest ..
     make -j20
     make install

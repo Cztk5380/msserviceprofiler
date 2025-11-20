@@ -10,6 +10,8 @@
 #include "msServiceProfiler/ServiceProfilerDbWriter.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
+#include "msServiceProfiler/Tracer.h"
+#include "msServiceProfiler/ServiceTracer.h"
 
 using namespace msServiceProfiler;
 
@@ -321,8 +323,27 @@ void ViolentSpeedTestMspti()
     ServiceProfilerMspti::GetInstance().Close();
 }
 
+void TestTrace()
+{
+    // init 一次
+    TraceContext::addResAttribute("telemetry.sdk.language", "cpp");
+    TraceContext::addResAttribute("service.name", "mindie.service.test");
+ 
+    auto span = msServiceProfiler::Tracer::StartSpanAsActive("spanName", "motor", true);
+    span.SetAttribute("db.operation", "Insert");
+    span.SetAttribute("db.table", "user_data");
+ 
+    std::this_thread::sleep_for(std::chrono::nanoseconds(500 * 1000));  // sleep 一会会
+ 
+    span.SetStatus(false, "what's wrong? ");
+    span.End();
+}
+
 int main()
 {
+    msServiceProfiler::TraceContext::GetTraceCtx().Attach({0, 0}, 0, true);
+    TestTrace();
+
     msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallStartServerProfiler();
 
     SmokeTest();
@@ -335,5 +356,6 @@ int main()
     SmokeTest();
     SpeedTest();
     msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallStopServerProfiler();
+
     return 0;
 }
