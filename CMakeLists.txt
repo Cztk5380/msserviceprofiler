@@ -44,9 +44,6 @@ else ()
     )
 endif ()
 
-link_directories(
-        opensource/protobuf/lib
-)
 
 add_compile_options(
         -fPIC
@@ -68,6 +65,15 @@ add_link_options(
 
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/ PROFILER_SRC)
 add_subdirectory(platform)
+
+# 定义选项
+option(protobuf_BUILD_TESTS "Build tests" OFF)
+option(BUILD_SHARED_LIBS "Build shared protobuf libraries" OFF)
+
+# 映射到 protobuf 的变量
+set(protobuf_BUILD_TESTS ${protobuf_BUILD_TESTS})
+set(protobuf_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+add_subdirectory(opensource/protobuf-3.21.9)
 
 add_library(ms_service_profiler
         SHARED
@@ -93,7 +99,6 @@ target_link_libraries(ms_service_profiler
         securec
         mspti
         sqlite3
-        libprotobuf.a
 )
 
 install(TARGETS ms_service_profiler

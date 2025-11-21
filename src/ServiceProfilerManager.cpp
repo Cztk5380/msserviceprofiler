@@ -43,7 +43,15 @@ namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
 constexpr int SPAN_CACHE_LEN = 64;
-using LibraryHandle = std::unique_ptr<void, decltype(&dlclose)>;
+struct DlCloser {
+    void operator()(void* handle) const noexcept
+    {
+        if (handle) {
+            dlclose(handle);
+        }
+    }
+};
+using LibraryHandle = std::unique_ptr<void, DlCloser>;
 }  // end of anonymous namespace
 
 std::atomic<u_int64_t> g_markIndex(0);
@@ -252,7 +260,7 @@ static LibraryHandle RegisterSetDeviceCallback()
     if (handle == nullptr) {
         PROF_LOGW("Failed to dlopen libprofapi.so. Will be not able to get device profiling data. "  // LCOV_EXCL_LINE
                   "Check whether a NPU server or if cann toolkit installed.");                       // LCOV_EXCL_LINE
-        return LibraryHandle(nullptr, dlclose);
+        return LibraryHandle(nullptr);
     }
 
     using ProfSetDeviceHandle = void (*)(DATA_PTR, uint32_t);
@@ -264,10 +272,10 @@ static LibraryHandle RegisterSetDeviceCallback()
                   "Will be not able to get device profiling data."                // LCOV_EXCL_LINE
                   " Check whether a NPU server or if cann toolkit installed.");   // LCOV_EXCL_LINE
         
-        return LibraryHandle(nullptr, dlclose);
+        return LibraryHandle(nullptr);
     }
     profRegDeviceStateCallback(MsprofSetDeviceCallbackImpl);
-    return LibraryHandle(handle, dlclose);
+    return LibraryHandle(handle);
 }
 
 namespace msServiceProfiler {

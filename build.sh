@@ -1,4 +1,5 @@
 #!/bin/bash
+
 CUR_DIR=$(dirname $(readlink -f $0))
 echo "CUR_DIR=$CUR_DIR"
 export _GLIBCXX_USE_CXX11_ABI=0
