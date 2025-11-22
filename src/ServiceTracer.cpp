@@ -2,11 +2,99 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 
+#include <cstring>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <stdexcept>
+#include <arpa/inet.h>
+#include <iostream>
 #include "msServiceProfiler/Log.h"
+#include "msServiceProfiler/Utils.h"
 #include "msServiceProfiler/ServiceTracer.h"
+#include "msServiceProfiler/ServiceProfilerDbWriter.h"
 #include "msServiceProfiler/ServiceProfilerInterface.h"
 
 namespace msServiceProfiler {
+
+UnixSocketSender::UnixSocketSender(const std::string& abstract_socket_name)
+    : sockfd_(-1), isConnected_(false)
+{
+    sockfd_ = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sockfd_ == -1) {
+        throw std::runtime_error("Failed to create socket: " + std::string(strerror(errno)));
+    }
+
+    addr_ = {};
+    addr_.sun_family = AF_UNIX;
+    size_t max_len = sizeof(addr_.sun_path) - 2;
+    std::copy_n(abstract_socket_name.begin(), std::min(abstract_socket_name.size(), max_len), addr_.sun_path + 1);
+}
+
+bool UnixSocketSender::Connect()
+{
+    errorMsg_.clear();
+    if (isConnected_) {
+        return true;
+    }
+
+    if (sockfd_ == -1) {
+        errorMsg_ = "Socket not initialized.";
+        return false;
+    }
+
+    socklen_t addr_len = sizeof(sa_family_t) + strlen(addr_.sun_path + 1) + 1;
+    if (::connect(sockfd_, (struct sockaddr*)&addr_, addr_len) == -1) {
+        errorMsg_ = std::string(strerror(errno));
+        return false;
+    }
+
+    isConnected_ = true;
+    return true;
+}
+
+bool UnixSocketSender::Send(const std::string& data)
+{
+    errorMsg_.clear();
+    if (!isConnected_) {
+        errorMsg_ = "Not connected to server, call connect() first.";
+        return false;
+    }
+    if (data.empty()) {
+        errorMsg_ = "Invalid trace data.";
+        return false;
+    }
+
+    size_t total_size = sizeof(uint32_t) + data.size();
+    std::vector<char> buffer(total_size);
+    uint32_t len = htonl(static_cast<uint32_t>(data.size()));
+
+    std::copy(reinterpret_cast<char*>(&len), reinterpret_cast<char*>(&len) + sizeof(len), buffer.begin());
+    std::copy(data.begin(), data.end(), buffer.begin() + sizeof(len));
+
+    const char* buffer_ptr = buffer.data();
+    size_t buffer_remaining = buffer.size();
+
+    while (buffer_remaining > 0) {
+        ssize_t sent = ::send(sockfd_, buffer_ptr, buffer_remaining, 0);
+        if (sent == -1) {
+            errorMsg_ = std::string(strerror(errno));
+            isConnected_ = false;
+            return false;
+        }
+        buffer_ptr += sent;
+        buffer_remaining -= sent;
+    }
+
+    return true;
+}
+
+UnixSocketSender::~UnixSocketSender()
+{
+    if (sockfd_ != -1) {
+        close(sockfd_);
+    }
+}
+
 
 bool IsTraceEnvEnable()
 {
@@ -14,10 +102,24 @@ bool IsTraceEnvEnable()
     return traceEnable;
 };
 
+
 void TraceSender::Execute()
 {
-    PROF_LOGD("Execute");  // LCOV_EXCL_LINE
+    UnixSocketSender sender("OTLP_SOCKET");
+    if (!sender.IsConnected()) {
+        if (!sender.Connect()) {
+            PROF_LOGW("[TraceSender:Connect] Failed to connect socket: %s", sender.GetErrorMsg().c_str());
+            return;
+        }
+    }
+
+    if (!sender.Send(msg_)) {
+        PROF_LOGW("[TraceSender:Send] Failed to send trace: %s", sender.GetErrorMsg().c_str());
+    }
+
+    PROF_LOGD("[TraceSender] Send trace successfully: %zu bytes.", msg_.size());
 }
+
 
 void SendTracer(std::string &&traceMsg)
 {

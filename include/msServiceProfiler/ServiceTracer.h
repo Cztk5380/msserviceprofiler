@@ -7,6 +7,8 @@
 
 #include <iostream>
 #include <fstream>
+#include <cstddef>
+#include <sys/un.h>
 #include "Utils.h"
 #include "MultiThreadBufferManager.h"
 
@@ -89,6 +91,23 @@ private:
 };
 
 void SendTracer(std::string &&traceMsg);
+
+class UnixSocketSender {
+public:
+    explicit UnixSocketSender(const std::string& abstract_socket_name);
+    bool Connect();
+    bool Send(const std::string& data);
+    std::string GetErrorMsg() const { return errorMsg_; }
+    bool IsConnected() const { return isConnected_; }
+
+    ~UnixSocketSender();
+
+private:
+    int sockfd_;
+    struct sockaddr_un addr_;
+    std::string errorMsg_;
+    bool isConnected_;
+};
 
 }  // namespace msServiceProfiler
 
