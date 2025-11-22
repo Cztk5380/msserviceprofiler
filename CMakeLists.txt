@@ -99,6 +99,7 @@ target_link_libraries(ms_service_profiler
         securec
         mspti
         sqlite3
+        protobuf::libprotobuf
 )
 
 install(TARGETS ms_service_profiler
