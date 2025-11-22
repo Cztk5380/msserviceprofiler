@@ -129,7 +129,7 @@ void SpanEndAndFree(TRACE_SPAN_DATA spanData, std::string &&moduleName_)
     auto scopeSpan = resourceSpans->add_scope_spans();
 
     opentelemetry::proto::common::v1::InstrumentationScope instrumentation_scope_proto;
-    *instrumentation_scope_proto.mutable_name() = std::move(moduleName_);
+    *instrumentation_scope_proto.mutable_name() = moduleName_;
     *scopeSpan->mutable_scope() = std::move(instrumentation_scope_proto);
 
     *scopeSpan->add_spans() = std::move(*spanPb);
