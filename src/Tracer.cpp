@@ -159,7 +159,11 @@ TraceId hexStr2TraceId(const std::string &traceStr)
 {
     TraceId traceId = {0, 0};
     if (traceStr.size() == 32) {
-        hexStringToBytes<16>(traceStr, traceId.as_char);
+        try {
+            hexStringToBytes<16>(traceStr, traceId.as_char);
+        } catch (const std::exception& e) {
+            PROF_LOGE("cannot parse hex str %s, %s ", traceStr.c_str(), e.what()); // LCOV_EXCL_LINE
+        }
     }
     return traceId;
 }
@@ -168,28 +172,40 @@ SpanId hexStr2SpanId(const std::string &spanStr)
 {
     SpanId spanId(0);
     if (spanStr.size() == 16) {
-        hexStringToBytes<8>(spanStr, spanId.as_char);
+        try {
+            hexStringToBytes<8>(spanStr, spanId.as_char);
+        } catch (const std::exception& e) {
+            PROF_LOGE("cannot parse hex str %s, %s ", spanStr.c_str(), e.what()); // LCOV_EXCL_LINE
+        }
     }
     return spanId;
 }
 
 TraceContextInfo ParseHttpCtx(const std::string &traceParent, const std::string &traceB3)
 {
-    if (!traceParent.empty()) {
+    std::string strTraceParent = traceParent.c_str();
+    std::string strTraceB3 = traceB3.c_str();
+
+    constexpr decltype(strTraceParent.length()) MAX_TRACE_LENGTH = 256;
+    if (strTraceParent.length() > MAX_TRACE_LENGTH || strTraceB3.length() > MAX_TRACE_LENGTH) {
+        return TraceContextInfo{{0, 0}, 0, false};
+    }
+
+    if (!strTraceParent.empty()) {
         // traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01
         // <version>-<trace-id>-<parent-id>-<trace-flags>
 
-        auto splitValues = MsUtils::SplitStrToVector(traceParent, '-');
+        auto splitValues = MsUtils::SplitStrToVector(strTraceParent, '-');
         if (splitValues.size() != 4) {
             return TraceContextInfo{{0, 0}, 0, false};
         }
         return TraceContextInfo{
             hexStr2TraceId(splitValues.at(1)), hexStr2SpanId(splitValues.at(2)), splitValues.at(3) == "01"};
-    } else if (!traceB3.empty()) {
+    } else if (!strTraceB3.empty()) {
         // b3: 0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-1-a0a0a0a0a0a0a0a0
         // b3: <TraceId>-<SpanId>-<Sampled>-<ParentSpanId>
 
-        auto splitValues = MsUtils::SplitStrToVector(traceB3, '-');
+        auto splitValues = MsUtils::SplitStrToVector(strTraceB3, '-');
         if (splitValues.size() == 2) {
             return TraceContextInfo{hexStr2TraceId(splitValues.at(0)), hexStr2SpanId(splitValues.at(1)), false};
         } else if (splitValues.size() == 3 || splitValues.size() == 4) {
