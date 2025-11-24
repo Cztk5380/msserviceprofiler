@@ -162,7 +162,7 @@ TraceId hexStr2TraceId(const std::string &traceStr)
         try {
             hexStringToBytes<16>(traceStr, traceId.as_char);
         } catch (const std::exception& e) {
-            PROF_LOGE("cannot parse hex str %s, %s ", hex.c_str(), e.what()); // LCOV_EXCL_LINE
+            PROF_LOGE("cannot parse hex str %s, %s ", traceStr.c_str(), e.what()); // LCOV_EXCL_LINE
         }
     }
     return traceId;
@@ -175,7 +175,7 @@ SpanId hexStr2SpanId(const std::string &spanStr)
         try {
             hexStringToBytes<8>(spanStr, spanId.as_char);
         } catch (const std::exception& e) {
-            PROF_LOGE("cannot parse hex str %s, %s ", hex.c_str(), e.what()); // LCOV_EXCL_LINE
+            PROF_LOGE("cannot parse hex str %s, %s ", spanStr.c_str(), e.what()); // LCOV_EXCL_LINE
         }
     }
     return spanId;
