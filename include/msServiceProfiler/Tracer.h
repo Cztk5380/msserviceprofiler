@@ -143,9 +143,9 @@ public:
      */
     static MS_SERVICE_PROFILER_HIDDEN uint64_t GenTraceId()
     {
-        static uint32_t uint32Random = GenRandom();
-        static uint64_t traceHigh = static_cast<uint64_t>(uint32Random) << 32;
-        static uint64_t traceHighTime = TraceContext::GetCurrentTimeInNanoseconds();
+        static const uint32_t uint32Random = GenRandom();
+        static const uint64_t traceHigh = static_cast<uint64_t>(uint32Random) << 32;
+        static const uint64_t traceHighTime = TraceContext::GetCurrentTimeInNanoseconds();
 
         return traceHigh ^ (TraceContext::GetCurrentTimeInNanoseconds() - traceHighTime);
     }
