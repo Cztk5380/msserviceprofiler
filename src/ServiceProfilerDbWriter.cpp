@@ -101,6 +101,7 @@ void ServiceProfilerDbWriter::StartDump(const std::string &outputPath)
 void ServiceProfilerDbWriter::StopDump()
 {
     // 释放资源
+    PROF_LOGD("Service Profiler DbWriter StopDump");
     for (auto &enableStmt : enableStmts_) {
         auto *stmt = enableStmt;
         if (stmt != nullptr) {
@@ -175,6 +176,7 @@ void msServiceProfiler::ServiceProfilerDbWriter::ExecutorDumpToDb()
     }
     std::sort(levels.begin(), levels.end());
     // insert
+    std::lock_guard<std::mutex> lock(mtx_);
     bool started = false;
     for (int level : levels) {
         if (!started && level == PRIORITY_NORMAL) {

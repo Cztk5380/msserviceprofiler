@@ -50,7 +50,9 @@ class TestOTLPForwarderService:
             socket_name="OTLP_SOCKET",
             buffer_size=4096,
             max_listen_num=8,
-            socket_timeout=1
+            socket_timeout=1,
+            max_queue_size=1000000,
+            warning_queue_size=100000
         )
         mock_scheduler_cls.assert_called_with(
             interval=1,

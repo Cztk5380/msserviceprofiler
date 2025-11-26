@@ -341,6 +341,9 @@ void TestTrace()
 
 int main()
 {
+    msServiceProfiler::TraceContext::GetTraceCtx().Attach({0, 0}, 0, true);
+    TestTrace();
+    
     msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallStartServerProfiler();
 
     SmokeTest();
@@ -353,6 +356,5 @@ int main()
     SmokeTest();
     SpeedTest();
     msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallStopServerProfiler();
-
     return 0;
 }

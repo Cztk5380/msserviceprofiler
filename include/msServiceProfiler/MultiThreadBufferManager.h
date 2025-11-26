@@ -35,10 +35,12 @@ public:
 
     ~MultiThreadBufferManager()
     {
+        PROF_LOGD("Multi Thread Buffer Manager free");
+        threadExitFlag_ = true;
         if (this->thread_.joinable()) {
-            threadExitFlag_ = true;
             this->thread_.join();
         }
+        PROF_LOGD("Multi Thread Buffer Manager free thread over");
         std::lock_guard<std::mutex> lock(mtx_);
         lifeEndFlag_ = true;
         workingDbBuffers_.clear();

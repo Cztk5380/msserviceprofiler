@@ -3,6 +3,7 @@
 import socket
 import ctypes
 import os
+import time
 from typing import Optional
 import queue
 import threading
@@ -11,6 +12,9 @@ from ms_service_profiler.utils.log import logger
 
 # Length field size for OTLP protocol
 OTEL_Length_Field = 4
+
+# interval of warning log
+WARNING_INTERVAL = 3600
 
 
 # define ucred
@@ -29,17 +33,22 @@ class AbstractSocketServer:
         socket_name: str,
         buffer_size: int,
         max_listen_num: int,
-        socket_timeout: int
+        socket_timeout: int,
+        max_queue_size=1000,
+        warning_queue_size=100
     ):
         """Initialize the socket server."""
         self.socket_name = '\0' + socket_name # Use abstract namespace
         self.buffer_size = buffer_size
         self.max_listen_num = max_listen_num
         self.socket_timeout = socket_timeout
-        self.data_queue = queue.Queue()
+        self.data_queue = queue.Queue(max_queue_size)
+        self.warning_queue_size = warning_queue_size
         self.running = False
         self.server_socket: Optional[socket.socket] = None
         self.thread: Optional[threading.Thread] = None
+        self.last_stack_warning_time = 0
+        self.last_full_warning_time = 0
 
     def _create_socket(self) -> socket.socket:
         """Create and bind the socket."""
@@ -58,10 +67,15 @@ class AbstractSocketServer:
             raise
 
     @staticmethod
-    def _validate_peer_cred(client_sock):
+    def _get_namespace_inode(pid, ns_type):
+        """Get namespace inode by pid."""
+        ns_path = f"/proc/{pid}/ns/{ns_type}"
+        return os.stat(ns_path).st_ino
+
+    def _validate_peer_cred(self, client_sock):
+        """Validate peer cred by uid, pid, gid."""
         cred = Ucred()
         cred_size = ctypes.sizeof(cred)
-
         try:
             # Get peer cred (SO_PEERCRED 17)
             cred_data = client_sock.getsockopt(socket.SOL_SOCKET, 17, cred_size)
@@ -71,10 +85,24 @@ class AbstractSocketServer:
             return False
 
         self_uid = os.getuid()
+        self_gid = os.getgid()
+        self_pid = os.getpid()
         peer_uid = cred.uid
+        peer_gid = cred.gid
+        peer_pid = cred.pid
 
-        if peer_uid != self_uid:
-            logger.debug(f"Current user {self_uid}, connect with unexpected user {cred.uid}.")
+        if peer_uid != self_uid or peer_gid != self_gid:
+            logger.debug(f"Current user {self_uid} group {self_gid}, "
+                         f"connect with unexpected user {peer_uid} group {peer_gid}.")
+            return False
+
+        try:
+            if (self._get_namespace_inode(self_pid, "pid") != self._get_namespace_inode(peer_pid, "pid") or
+                    self._get_namespace_inode(self_pid, "user") != self._get_namespace_inode(peer_pid, "user")):
+                logger.debug(f"Connect with unexpected pid {peer_pid}.")
+                return False
+        except Exception as e:
+            logger.debug(f"Validate peer cred failed: {e}")
             return False
 
         return True
@@ -84,7 +112,8 @@ class AbstractSocketServer:
         try:
             logger.debug(f"New connection...")
             if not self._validate_peer_cred(client_sock):
-                logger.warning(f"Unexpected connection.")
+                logger.warning(f"Unexpected connection: The user who runs the program must be the same as the user "
+                               f"who runs the MindIE.")
                 return
 
             buffer = self._handle_recv(client_sock, length_field_size)
@@ -103,15 +132,48 @@ class AbstractSocketServer:
 
             # Process data frames
             while len(buffer) >= length_field_size:
-                length = int.from_bytes(buffer[:length_field_size], byteorder='big')
-                if len(buffer) >= length_field_size + length:
-                    data = buffer[length_field_size:length_field_size + length]
-                    buffer = buffer[length_field_size + length:]
-                    logger.debug(f"Receive data: {len(data)} bytes.")
-                    self.data_queue.put(data)
+                data, buffer = self._process_data_frame(buffer, length_field_size)
+                if data is not None:
+                    self._handle_data(data)
                 else:
                     break
         return buffer
+
+    @staticmethod
+    def _process_data_frame(buffer, length_field_size):
+        """Process a single data frame from the buffer."""
+        length = int.from_bytes(buffer[:length_field_size], byteorder='big')
+        if len(buffer) >= length_field_size + length:
+            data = buffer[length_field_size:length_field_size + length]
+            buffer = buffer[length_field_size + length:]
+            logger.debug(f"Receive data: {len(data)} bytes.")
+            return data, buffer
+        return None, buffer
+
+    def _handle_data(self, data):
+        """Handle the data by putting it into the queue."""
+        try:
+            self._check_queue_size()
+            self.data_queue.put(data, block=False)
+        except queue.Full:
+            self._handle_queue_full(data)
+
+    def _check_queue_size(self):
+        """Check if the queue size exceeds the warning threshold."""
+        if self.data_queue.qsize() > self.warning_queue_size:
+            current_time = time.time()
+            if current_time - self.last_stack_warning_time >= WARNING_INTERVAL:
+                logger.warning(f"Trace data is being stacked: current stacked data count {self.data_queue.qsize()}")
+                self.last_stack_warning_time = current_time
+
+    def _handle_queue_full(self, data):
+        """Handle the case when the queue is full."""
+        current_time = time.time()
+        if current_time - self.last_full_warning_time >= WARNING_INTERVAL:
+            logger.warning("Trace data queue is full, discarding the oldest data.")
+            self.last_full_warning_time = current_time
+        self.data_queue.get()
+        self.data_queue.put(data, block=False)
 
     def _server_loop(self):
         """Main server loop."""
@@ -145,6 +207,13 @@ class AbstractSocketServer:
         """Get data from the queue."""
         try:
             return self.data_queue.get(block=False, timeout=timeout)
+        except queue.Empty:
+            return None
+
+    def clear_data(self) -> Optional[bytes]:
+        """Clear all data from the queue."""
+        try:
+            return self.data_queue.queue.clear()
         except queue.Empty:
             return None
 

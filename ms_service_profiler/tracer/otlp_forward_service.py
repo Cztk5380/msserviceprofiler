@@ -1,7 +1,5 @@
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
 
-import sys
-import time
 import signal
 import queue
 from ms_service_profiler.utils.log import logger
@@ -15,6 +13,8 @@ SOCKET_NAME = "OTLP_SOCKET"
 SOCKET_BUFFER_SIZE = 4096
 SOCKET_TIMEOUT = 1
 MAX_LISTEN_NUM = 8
+MAX_QUEUE_SIZE = 1000000
+WARNING_QUEUE_SIZE = 100000
 
 # Constants for scheduler configuration
 INTERVAL_SECONDS = 1
@@ -32,7 +32,9 @@ class OTLPForwarderService:
             socket_name=SOCKET_NAME,
             buffer_size=SOCKET_BUFFER_SIZE,
             max_listen_num=MAX_LISTEN_NUM,
-            socket_timeout=SOCKET_TIMEOUT
+            socket_timeout=SOCKET_TIMEOUT,
+            max_queue_size=MAX_QUEUE_SIZE,
+            warning_queue_size=WARNING_QUEUE_SIZE
         )
         self.scheduler = Scheduler(
             interval=INTERVAL_SECONDS,
@@ -69,4 +71,3 @@ class OTLPForwarderService:
         self.scheduler.stop()
         self.socket_server.stop()
         logger.info("Stop OTLPForwarderService success.")
-

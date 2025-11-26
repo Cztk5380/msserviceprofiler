@@ -98,6 +98,7 @@ public:
 
     ~ServiceProfilerDbWriter()
     {
+        std::lock_guard<std::mutex> lock(mtx_);
         inited = false;
         StopDump();
     };
@@ -152,6 +153,7 @@ private:
     void ExecutorDumpToDb();
 
 private:
+    std::mutex mtx_;
     const char *dbFileName_ = nullptr;
     bool inited = false;
     sqlite3 *db_ = nullptr;

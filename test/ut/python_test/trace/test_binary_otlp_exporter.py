@@ -8,40 +8,19 @@ from ms_service_profiler.tracer.binary_otlp_exporter import (
 
 
 class TestBinaryOTLPSpanExporter:
-    def test_normalize_endpoint(self):
-        """Test _normalize_endpoint method"""
-        # Scenario 1: http/protobuf protocol without http prefix
-        result = BinaryOTLPSpanExporter._normalize_endpoint("test-endpoint", "http/protobuf")
-        assert result == "http://test-endpoint"
-        # Scenario 2: http/protobuf protocol with http prefix
-        result = BinaryOTLPSpanExporter._normalize_endpoint("http://test-endpoint", "http/protobuf")
-        assert result == "http://test-endpoint"
-        # Scenario 3: grpc protocol
-        result = BinaryOTLPSpanExporter._normalize_endpoint("test-endpoint", "grpc")
-        assert result == "test-endpoint"
-
-    def test_infer_protocol(self):
-        """Test _infer_protocol method"""
-        # Scenario 1: no specified protocol, endpoint starts with http
-        result = BinaryOTLPSpanExporter._infer_protocol("http://test-endpoint", None)
-        assert result == "http/protobuf"
-        # Scenario 2: no specified protocol, endpoint does not start with http
-        result = BinaryOTLPSpanExporter._infer_protocol("test-endpoint", None)
-        assert result == "grpc"
-
     def test_init_grpc_exporter(self):
         """Test initializing GRPC exporter"""
         with patch('ms_service_profiler.tracer.binary_otlp_exporter.GRPCBinaryExporter') as mock_grpc_exporter:
-            exporter = BinaryOTLPSpanExporter(endpoint="test-endpoint", protocol="grpc")
+            exporter = BinaryOTLPSpanExporter(endpoint="http://test-endpoint:port", protocol="grpc")
             assert exporter.protocol == "grpc"
-            mock_grpc_exporter.assert_called_once_with("test-endpoint")
+            mock_grpc_exporter.assert_called_once_with("http://test-endpoint:port")
 
     def test_init_http_exporter(self):
         """Test initializing HTTP exporter"""
         with patch('ms_service_profiler.tracer.binary_otlp_exporter.HTTPBinaryExporter') as mock_http_exporter:
-            exporter = BinaryOTLPSpanExporter(endpoint="test-endpoint", protocol="http/protobuf")
+            exporter = BinaryOTLPSpanExporter(endpoint="http://test-endpoint:port/v1/traces", protocol="http/protobuf")
             assert exporter.protocol == "http/protobuf"
-            mock_http_exporter.assert_called_once_with("http://test-endpoint")
+            mock_http_exporter.assert_called_once_with("http://test-endpoint:port/v1/traces")
 
     def test_init_exporter_failure(self):
         """Test exporter initialization failure scenario"""
@@ -113,7 +92,7 @@ class TestGlobalFunctions:
         """Test create_exporter_from_env singleton behavior"""
         with patch('ms_service_profiler.tracer.binary_otlp_exporter.BinaryOTLPSpanExporter') as mock_exporter_cls:
             with patch.dict(os.environ, {
-                "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "test-endpoint",
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "http://test-endpoint:1000",
                 "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc"
             }):
                 # First creation
@@ -121,11 +100,37 @@ class TestGlobalFunctions:
                 # Second creation (reuse singleton)
                 exporter2 = create_exporter_from_env()
                 assert exporter1 is exporter2
-                mock_exporter_cls.assert_called_once_with("test-endpoint", "grpc")
+                mock_exporter_cls.assert_called_once_with("http://test-endpoint:1000", "grpc")
 
     def test_create_exporter_no_endpoint(self):
         """Test creating exporter without endpoint"""
         with patch.dict(os.environ, {}, clear=True):
+            exporter = create_exporter_from_env()
+            assert exporter is None
+
+    def test_create_exporter_endpoint_no_port(self):
+        """Test creating exporter without port in endpoint"""
+        with patch.dict(os.environ, {
+            "OTEL_EXPORTER_OTLP_ENDPOINT": "http://test-endpoint",
+            "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc"
+        }):
+            exporter = create_exporter_from_env()
+            assert exporter is None
+
+    def test_create_exporter_endpoint_error_scheme(self):
+        """Test creating exporter without correct scheme in endpoint"""
+        with patch.dict(os.environ, {
+            "OTEL_EXPORTER_OTLP_ENDPOINT": "httpss://test-endpoint",
+        }):
+            exporter = create_exporter_from_env()
+            assert exporter is None
+
+    def test_create_exporter_endpoint_error_protocol(self):
+        """Test creating exporter without correct protocol in endpoint"""
+        with patch.dict(os.environ, {
+            "OTEL_EXPORTER_OTLP_ENDPOINT": "httpss://test-endpoint",
+            "OTEL_EXPORTER_OTLP_PROTOCOL": "grpcs"
+        }):
             exporter = create_exporter_from_env()
             assert exporter is None
 
@@ -137,13 +142,28 @@ class TestGlobalFunctions:
                 exporter = create_exporter_from_env()
                 assert exporter is None
 
+    def test_create_exporter_with_unsupported_tls_config(self):
+        """Test creating exporter with tls config failure unsupported env"""
+        with patch.dict(os.environ, {"OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE": "/client/cert"}):
+            exporter = create_exporter_from_env()
+            assert exporter is None
+
+    def test_create_exporter_with_tls_config_missing_cert(self):
+        """Test creating exporter with tls config failure missing cert"""
+        with patch.dict(os.environ, {"OTEL_EXPORTER_OTLP_CERTIFICATE": "/ca/cert"}):
+            exporter = create_exporter_from_env()
+            assert exporter is None
+
     def test_check_export_initialization_success(self):
         """Test check_export_initialization success"""
         with patch('ms_service_profiler.tracer.binary_otlp_exporter.BinaryOTLPSpanExporter') as mock_exporter_cls:
             mock_exporter = MagicMock()
             mock_exporter.is_initialized.return_value = True
             mock_exporter_cls.return_value = mock_exporter
-            with patch.dict(os.environ, {"OTEL_EXPORTER_OTLP_ENDPOINT": "test-endpoint"}):
+            with patch.dict(os.environ, {
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "http://test-endpoint:1000",
+                "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc"
+            }):
                 result = check_export_initialization()
                 assert result is True
 
@@ -159,7 +179,10 @@ class TestGlobalFunctions:
             mock_exporter = MagicMock()
             mock_exporter.export.return_value = True
             mock_exporter_cls.return_value = mock_exporter
-            with patch.dict(os.environ, {"OTEL_EXPORTER_OTLP_ENDPOINT": "test-endpoint"}):
+            with patch.dict(os.environ, {
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "http://test-endpoint:1000",
+                "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc"
+            }):
                 result = export_binary_data(b"test-data")
                 assert result is True
 

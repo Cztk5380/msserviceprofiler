@@ -1,8 +1,11 @@
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
 
 import os
+import stat
 import threading
 from typing import Optional, Union
+from urllib.parse import urlparse
+
 from ms_service_profiler.utils.log import logger
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter as HTTPExporter
@@ -13,6 +16,8 @@ from opentelemetry.sdk.trace.export import SpanExportResult
 # Global exporter instance and lock
 _global_exporter: Optional["BinaryOTLPSpanExporter"] = None
 _exporter_lock = threading.Lock()
+PROTOCOLS = ("http/protobuf", "grpc")
+SCHEME = ("http", "https")
 
 
 class GRPCBinaryExporter(GRPCExporter):
@@ -58,28 +63,9 @@ class BinaryOTLPSpanExporter:
                  protocol: Optional[str] = None,
                  *args, **kwargs):
         """Initialize the binary OTLP exporter."""
-        self.endpoint = self._normalize_endpoint(endpoint, protocol)
-        self.protocol = self._infer_protocol(endpoint, protocol)
+        self.endpoint = endpoint
+        self.protocol = protocol
         self.exporter = self._init_exporter(*args, **kwargs)
-
-
-    @staticmethod
-    def _normalize_endpoint(endpoint: str, protocol: Optional[str]) -> str:
-        """Normalize endpoint URL by adding HTTP prefix if needed."""
-        if protocol == "http/protobuf" and not endpoint.startswith(("http://", "https://")):
-            return f"http://{endpoint}"
-        return endpoint
-
-    @staticmethod
-    def _infer_protocol(endpoint: str, protocol: Optional[str]) -> str:
-        """Infer communication protocol based on endpoint and protocol."""
-        if protocol in ("grpc", "http/protobuf"):
-            return protocol
-
-        if endpoint.startswith(("http://", "https://")):
-            return "http/protobuf"
-
-        return "grpc"
 
     def _init_exporter(self, *args, **kwargs):
         """Initialize appropriate exporter based on protocol."""
@@ -120,23 +106,74 @@ class BinaryOTLPSpanExporter:
 
 def create_exporter_from_env() -> Union[BinaryOTLPSpanExporter, None]:
     """Create exporter instance using OpenTelemetry environment variables."""
+
+    def _validation_endpoint(url: str) -> bool:
+        try:
+            parsed = urlparse(url)
+            port = parsed.port
+            if parsed.scheme not in SCHEME:
+                logger.warning("Unexpected endpoint scheme (choose from 'http', 'https')")
+                return False
+            if not port or not isinstance(port, int):
+                logger.warning("Unexpected endpoint port (0 < port <= 65535)")
+                return False
+        except Exception as e:
+            logger.warning(f"Unexpected endpoint: {e}")
+            return False
+        return True
+
+    def _get_endpoint_and_protocol_from_env():
+        protocol = os.environ.get("OTEL_EXPORTER_OTLP_PROTOCOL")
+        if not protocol or protocol not in PROTOCOLS:
+            raise Exception("No correct protocol configuration found, "
+                            "need check OTEL_EXPORTER_OTLP_PROTOCOL (choose from 'http/protobuf', 'grpc')")
+
+        endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+        if not endpoint or not _validation_endpoint(endpoint):
+            raise Exception("No correct endpoint configuration found, need check OTEL_EXPORTER_OTLP_ENDPOINT.")
+        return endpoint, protocol
+
+    def _check_tls_config_from_env():
+        client_key_file = (os.environ.get("OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY") or
+                           os.environ.get("OTEL_EXPORTER_OTLP_CLIENT_KEY"))
+        client_certificate_file = (os.environ.get("OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE") or
+                                   os.environ.get("OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE"))
+        if client_key_file or client_certificate_file:
+            raise Exception("TLS client configuration found (OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY/"
+                           "OTEL_EXPORTER_OTLP_CLIENT_KEY/OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE/"
+                           "OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE), but mTLS communication is not supported.")
+
+        certificate_file = os.environ.get("OTEL_EXPORTER_OTLP_CERTIFICATE")
+        if certificate_file:
+            if not os.path.exists(certificate_file) or not os.path.isfile(certificate_file):
+                raise Exception(f"No correct certificate configuration found, need check OTEL_EXPORTER_OTLP_CERTIFICATE.")
+
+            cert_dir = os.path.dirname(certificate_file)
+            if not cert_dir:
+                cert_dir = os.getcwd()
+
+            dir_stat = os.stat(cert_dir)
+            dir_mode = stat.S_IMODE(dir_stat.st_mode)
+            file_stat = os.stat(certificate_file)
+            file_mode = stat.S_IMODE(file_stat.st_mode)
+            if (dir_mode != 0o700 or dir_stat.st_uid != os.getuid() or
+                    file_mode != 0o600 or file_stat.st_uid != os.getuid()):
+                raise PermissionError("No correct certificate file found: "
+                                      "The permission on the directory of certificate must be 700, "
+                                      "the permission on the certificate must be 600, "
+                                      "and the owner must be the same as that of the current user, "
+                                      "need check OTEL_EXPORTER_OTLP_CERTIFICATE.")
+
+
     global _global_exporter
 
     with _exporter_lock:
         if _global_exporter is not None:
             return _global_exporter
 
-        protocol = os.environ.get("OTEL_EXPORTER_OTLP_PROTOCOL")
-        traces_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
-        global_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
-        endpoint = traces_endpoint or global_endpoint
-
-        if not endpoint:
-            logger.warning(
-                "No endpoint configured - set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT or OTEL_EXPORTER_OTLP_ENDPOINT.")
-            return None
-
         try:
+            _check_tls_config_from_env()
+            endpoint, protocol = _get_endpoint_and_protocol_from_env()
             _global_exporter = BinaryOTLPSpanExporter(endpoint, protocol)
             logger.info(f"Start {protocol} exporter, endpoint: {endpoint}")
             return _global_exporter
@@ -158,6 +195,6 @@ def export_binary_data(data: Union[bytearray, bytes]) -> bool:
     """Convenience function to export binary data."""
     exporter = create_exporter_from_env()
     if not exporter:
-        logger.warning("Export aborted - no exporter available.")
+        logger.warning("Export aborted, no exporter available.")
         return False
     return exporter.export(data)

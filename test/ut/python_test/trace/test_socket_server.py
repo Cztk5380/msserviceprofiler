@@ -1,3 +1,5 @@
+# Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
+
 import socket
 import ctypes
 import queue
@@ -58,11 +60,16 @@ class TestSocketServer:
             server._create_socket()
         mock_sock.close.assert_called_once()
 
-
+    @patch.object(AbstractSocketServer, "_get_namespace_inode")
+    @patch("os.getpid")
+    @patch("os.getgid")
     @patch("os.getuid")
-    def test_validate_peer_cred_success(self, mock_getuid):
+    def test_validate_peer_cred_success(self, mock_getuid, mock_getgid, mock_getpid, mock_get_namespace_inode):
         """Test successful peer credential validation scenario"""
         mock_getuid.return_value = 1000
+        mock_getgid.return_value = 1000
+        mock_getpid.return_value = 2345
+        mock_get_namespace_inode.side_effect = ["22", "22", "33", "33"]
         mock_client_sock = Mock()
         mock_cred = Ucred()
         mock_cred.pid = 1234
@@ -93,6 +100,29 @@ class TestSocketServer:
         mock_client_sock = Mock()
         mock_client_sock.getsockopt.side_effect = Exception("Get cred failed")
         result = server._validate_peer_cred(mock_client_sock)
+        assert result is False
+
+
+    @patch.object(AbstractSocketServer, "_get_namespace_inode")
+    @patch("os.getpid")
+    @patch("os.getgid")
+    @patch("os.getuid")
+    def test_validate_peer_cred_namespace_mismatch(
+            self, mock_getuid, mock_getgid, mock_getpid, mock_get_namespace_inode):
+        """Test peer credential namespace mismatch scenario"""
+        mock_getuid.return_value = 1000
+        mock_getgid.return_value = 1000
+        mock_getpid.return_value = 2345
+        mock_get_namespace_inode.side_effect = ["22", "22", "33", "44"]
+        mock_client_sock = Mock()
+        mock_cred = Ucred()
+        mock_cred.pid = 1234
+        mock_cred.uid = 1000
+        mock_cred.gid = 1000
+        cred_data = bytes(mock_cred)
+        mock_client_sock.getsockopt.return_value = cred_data
+        result = server._validate_peer_cred(mock_client_sock)
+        mock_client_sock.getsockopt.assert_called_once_with(socket.SOL_SOCKET, 17, ctypes.sizeof(Ucred))
         assert result is False
 
 
