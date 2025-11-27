@@ -12,7 +12,6 @@
 #include <random>
 #include <mutex>
 #include <unistd.h>
-#include <sys/stat.h>
 #include <sys/syscall.h>
 
 #include "ServiceProfilerInterface.h"

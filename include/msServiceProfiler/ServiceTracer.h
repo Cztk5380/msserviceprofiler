@@ -7,7 +7,6 @@
 
 #include <iostream>
 #include <fstream>
-#include <cstddef>
 #include <sys/un.h>
 #include "Utils.h"
 #include "MultiThreadBufferManager.h"
