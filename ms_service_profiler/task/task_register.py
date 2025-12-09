@@ -27,6 +27,18 @@ class TaskDag:
         self.dag_task_flow = dag_task_flow
         self.head_tasks_name = head_tasks_name
         self.ordered_tasks_name = ordered_tasks_name
+
+    @staticmethod
+    def get_depends_data_names(task_name):
+        return get_register_by_name(task_name).data_depends
+    
+    @staticmethod
+    def get_outputs_data_names(task_name):
+        return get_register_by_name(task_name).data_outputs
+    
+    @staticmethod
+    def get_task_reg_info(task_name):
+        return get_register_by_name(task_name)
     
     def get_next_task_names(self, task_name):
         return self.dag_task_flow.get(task_name, {}).get("next_task_name", [])
@@ -40,18 +52,13 @@ class TaskDag:
     def get_to_task_names(self, data_name):
         return self.dag_data_flow.get(data_name, {}).get("to_task_name", [])
     
-    def get_depends_data_names(self, task_name):
-        return get_register_by_name(task_name).data_depends
-    
-    def get_outputs_data_names(self, task_name):
-        return get_register_by_name(task_name).data_outputs
-    
-    def get_task_reg_info(self, task_name):
-        return get_register_by_name(task_name)
-    
     def get_ordered_task_names(self):
-        return ((self.ordered_tasks_name[i], self.ordered_tasks_name[i + 1] if i + 1 < len(self.ordered_tasks_name) else None) 
-            for i in range(len(self.ordered_tasks_name)))
+        return (
+            (self.ordered_tasks_name[i], self.ordered_tasks_name[i + 1] 
+              if i + 1 < len(self.ordered_tasks_name) else None
+            ) 
+            for i in range(len(self.ordered_tasks_name))
+        )
 
 
 def get_register_by_name(name: str):
@@ -83,7 +90,10 @@ def get_task_run_order(head_tasks, dag_task_flow):
         task_name = walking_queue.popleft()
         if task_name in done_tasks:
             continue
-        if all(prev_task_name in done_tasks for prev_task_name in dag_task_flow.get(task_name, {}).get("prev_task_name", [])):
+        if all(
+            prev_task_name in done_tasks 
+            for prev_task_name in dag_task_flow.get(task_name, {}).get("prev_task_name", [])
+        ):
             ordered_tasks.append(task_name)
             done_tasks.add(task_name)
             walking_queue.extend(dag_task_flow.get(task_name, {}).get("next_task_name", []))
@@ -155,7 +165,8 @@ def get_dag(exporter_names):
 
 def filter_dag(dag, data_source_name):
     # 获取某个类型的输入对应的dag 图
-    dag_data_flow, dag_task_flow, head_tasks_name, ordered_tasks_name = dag.dag_data_flow, dag.dag_task_flow, dag.head_tasks_name, dag.ordered_tasks_name
+    dag_data_flow, dag_task_flow, head_tasks_name, ordered_tasks_name = \
+        dag.dag_data_flow, dag.dag_task_flow, dag.head_tasks_name, dag.ordered_tasks_name
 
     filterd_tasks = set([data_source_name])
     walk_tasks = list([data_source_name])

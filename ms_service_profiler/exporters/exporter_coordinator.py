@@ -2,12 +2,11 @@
 
 from datetime import datetime
 import pandas as pd
-from typing import List, Tuple
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.exporters.utils import (
     write_result_to_csv, write_result_to_db,
-    check_domain_valid, CURVE_VIEW_NAME_LIST
+    check_domain_valid, TableConfig, CurveViewConfig
 )
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.error import key_except
@@ -331,8 +330,8 @@ class ExporterCoordinator(ExporterBase):
             freq = '5s'  # 默认 5 秒
         else:
             # 推断时间间隔（取最小差值作为频率）
-            time_diffs = sorted([(all_times[i] - all_times[i-1]).total_seconds()
-                               for i in range(1, len(all_times))])
+            time_diffs = sorted([(all_times[i] - all_times[i - 1]).total_seconds()
+                for i in range(1, len(all_times))])
             # 取最常见的间隔（避免异常点）
             from collections import Counter
             freq_sec = Counter(time_diffs).most_common(1)[0][0]
@@ -386,8 +385,8 @@ class ExporterCoordinator(ExporterBase):
             node_type = row['node_type']
             addr = row['address']
             col_alias = f"{node_type} {addr}"
-            clause = f'''    MAX(CASE WHEN node_type = '{node_type}' AND address = '{addr}' 
-            THEN add_count ELSE NULL END) AS "{col_alias}"'''
+            clause = f"""    MAX(CASE WHEN node_type = '{node_type}' AND address = '{addr}' 
+            THEN add_count ELSE NULL END) AS "{col_alias}\""""
             columns.append(clause)
 
         # 拼接 SQL
@@ -412,20 +411,20 @@ class ExporterCoordinator(ExporterBase):
         将 coordinator 数据导出到 DB 或 CSV（根据 self 属性 args 中的 format）
         """
         if 'db' in cls.args.format:
-            df_param_list = [
-                [final_stats, 'coordinator']
-            ]
-
             view_sql = cls.generate_coordinator_view_sql(
                 final_stats,
-                CURVE_VIEW_NAME_LIST['coordinator']
+                COORDINATOR_CURVE_VIEW_NAME
             )
 
-            write_result_to_db(
-                df_param_list=df_param_list,
-                create_view_sql=[view_sql],
-                table_name='coordinator',
+            view_config = CurveViewConfig(
+                view_name=COORDINATOR_CURVE_VIEW_NAME,
+                sql=view_sql,
+                description={
+                    "en": "Variation in request count on each node during PD-separated inference", 
+                    "zh": "PD分离场景下各个节点上请求数量的变化情况"
+                }
             )
+            write_result_to_db(CREATE_COORDINATOR_TABLE_CONFIG, final_stats, view_config)
 
         if 'csv' in cls.args.format:
             write_result_to_csv(
@@ -434,3 +433,15 @@ class ExporterCoordinator(ExporterBase):
                 'coordinator',
                 {}
             )
+
+
+CREATE_COORDINATOR_TABLE_CONFIG = TableConfig(
+    table_name="coordinator",
+    create_view=True,
+    view_name="coordinator_info",
+    description={
+        "en": "Variation in Request Distribution Across Nodes During PD-Separated Inference",
+        "zh": "PD分离推理过程的请求分发到各个节点数量变化情况"
+    }
+)
+COORDINATOR_CURVE_VIEW_NAME = "Coordinator_curve"

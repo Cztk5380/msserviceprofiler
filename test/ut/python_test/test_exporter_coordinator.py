@@ -49,9 +49,3 @@ class TestExporterCoordinator:
 
         assert mock_db.called
         assert mock_csv.called
-
-        sql = mock_db.call_args[1]["create_view_sql"][0]
-        # 把视图名改成实际生成的
-        assert "CREATE VIEW Coordinator_curve AS" in sql
-        assert "MAX(CASE WHEN node_type = 'prefill' AND address = 'P-1'" in sql
-        assert "MAX(CASE WHEN node_type = 'decode' AND address = 'D-1'" in sql

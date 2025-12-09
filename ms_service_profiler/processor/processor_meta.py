@@ -25,7 +25,7 @@ class ProcessorMeta(ProcessorBase):
 
         if "hostname" not in data_df or "pid" not in data_df or "name" not in data_df:
             return dict()
-        
+
         if "from" in data_df:
             rid_map = data_df[data_df['from'].notna()].set_index("to").to_dict(orient='dict')["from"]
             rid_map = (
@@ -44,7 +44,7 @@ class ProcessorMeta(ProcessorBase):
             ppid_info_df = data_df[data_df["ppid"].notna()]
             if not ppid_info_df.empty:
                 ppid = ppid_info_df.iloc[-1]["ppid"]
-        
+
         if "deviceid" in data_df:
             deviceid_info_df = data_df[data_df["deviceid"].notna()]
             if not deviceid_info_df.empty:

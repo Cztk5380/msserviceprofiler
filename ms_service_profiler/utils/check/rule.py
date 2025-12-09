@@ -69,4 +69,3 @@ class Rule:
     @staticmethod
     def anti(rule: Checker) -> Checker:
         return Checker().anti(rule)
-

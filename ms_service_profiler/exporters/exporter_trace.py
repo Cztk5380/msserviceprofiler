@@ -54,31 +54,6 @@ class ExporterTrace(TaskExporterBase):
     def depends(cls):
         return ["pipeline:service", "pipeline:mspti"]
 
-    def do_export(self):
-        data, mspti = self.get_depends_result("pipeline:service", None), self.get_depends_result("pipeline:mspti", None)
-
-        if self.task_index == 0 and (data is not None or mspti is not None):
-            data_list = self.gather((None, None), dst=0)
-        else:
-            data_list = self.gather((data, mspti), dst=0)
-
-        if data_list is None:
-            return None
-
-        if self.task_index == 0 and (data is not None or mspti is not None):
-            data_list[0] = (data, mspti)
-
-        # 使用列表推导式过滤并提取非None值
-        all_data = [item[0] for item in data_list if item is not None and item[0] is not None]
-        all_mspti = [item[1] for item in data_list if item is not None and item[1] is not None]
-
-        # 获取第一个非None的值
-        valid_data = all_data[0] if all_data else None
-        valid_mspti = all_mspti[0] if all_mspti else None
-
-        self.export(valid_data, valid_mspti)
-        return None
-
     @classmethod
     @timer(logger.debug)
     def export(cls, data, mspti) -> None:
@@ -149,6 +124,31 @@ class ExporterTrace(TaskExporterBase):
             save_trace_data_into_db(merged_data)
             logger.info('Write trace data to db success')
 
+    def do_export(self):
+        data, mspti = self.get_depends_result("pipeline:service", None), self.get_depends_result("pipeline:mspti", None)
+
+        if self.task_index == 0 and (data is not None or mspti is not None):
+            data_list = self.gather((None, None), dst=0)
+        else:
+            data_list = self.gather((data, mspti), dst=0)
+
+        if data_list is None:
+            return None
+
+        if self.task_index == 0 and (data is not None or mspti is not None):
+            data_list[0] = (data, mspti)
+
+        # 使用列表推导式过滤并提取非None值
+        all_data = [item[0] for item in data_list if item is not None and item[0] is not None]
+        all_mspti = [item[1] for item in data_list if item is not None and item[1] is not None]
+
+        # 获取第一个非None的值
+        valid_data = all_data[0] if all_data else None
+        valid_mspti = all_mspti[0] if all_mspti else None
+
+        self.export(valid_data, valid_mspti)
+        return None
+
 
 def prepare_domain_for_process(all_data_df):
     # 如果只采集到了python数据而没有采集到cpp数据，则直接认为name为domain，确保domain列存在
@@ -159,8 +159,12 @@ def prepare_domain_for_process(all_data_df):
     meta_mask = all_data_df['domain'].isin(['Meta'])
     all_data_df.drop(all_data_df[meta_mask].index, inplace=True)
 
+    # 适配vllm解析特殊打点字段
+    if (all_data_df['name'] == 'outputSync').any():
+        all_data_df = all_data_df[~all_data_df['name'].isin(['httpReq', 'httpRes', "getOutputAsync"])]
+
     # 对于非Request, RequestState, KVCache泳道区分tid显示
-    mask = ~all_data_df['domain'].isin(['Request', 'RequestState', 'KVCache'])
+    mask = ~all_data_df['domain'].isin(['Request', 'RequestState', 'Schedule.KVCache', 'KVCache'])
     all_data_df.loc[mask, 'domain'] = (
             all_data_df.loc[mask, 'domain'].astype(str)
             + '('
@@ -301,7 +305,7 @@ def add_flow_event(flow_event_df):
 
 
 def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
-    metric_event = ['npu', 'KVCache', 'PullKVCache']
+    metric_event = ['npu', 'Schedule.KVCache', 'KVCache', 'PullKVCache', 'Queue']
 
     # name 非空
     name_notna_condition = all_data_df['name'].notna()
@@ -325,8 +329,14 @@ def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
         npu_trace_events = add_npu_events(all_data_df[all_data_df['name'] == 'npu'])
         trace_events.extend(npu_trace_events)
 
-        kv_trace_events = add_kvcache_events(all_data_df[all_data_df['domain'] == 'KVCache'], pid_label_map)
+        kv_trace_events = add_kvcache_events(
+            all_data_df[all_data_df['domain'].isin(['Schedule.KVCache', 'KVCache'])],
+            pid_label_map
+        )
         trace_events.extend(kv_trace_events)
+
+        queue_trace_events = add_queue_events(all_data_df[all_data_df['name'] == 'Queue'])
+        trace_events.extend(queue_trace_events)
 
         pull_kvcache_events = add_pull_kvcache_events(all_data_df[all_data_df['domain'] == 'PullKVCache'])
         trace_events.extend(pull_kvcache_events)
@@ -392,8 +402,8 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None):
             args=dict(sort_index=index))
         )
         labels = []
-        if pid_label_map is not None and "host_name" in pid_label_map.get(pid, []):
-            labels.append(pid_label_map.get(pid).get("host_name"))
+        if pid_label_map is not None and "hostname" in pid_label_map.get(pid, []):
+            labels.append(pid_label_map.get(pid).get("hostname"))
         if pid_label_map is not None and "dp" in pid_label_map.get(pid, []):
             labels.append(f"dp{pid_label_map.get(pid).get('dp')}")
         elif pid_label_map is not None and "dp_rank" in pid_label_map.get(pid, []):
@@ -411,7 +421,8 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None):
 
 
 def sort_trace_events_by_tid(trace_events):
-    tid_sorting_order = ['KVCache', 'Communication', 'BatchSchedule', 'ModelExecute', 'Request', 'Api', 'Kernel']
+    tid_sorting_order = ['Schedule.KVCache', 'KVCache', 'Communication',
+                         'Schedule', 'Execute', 'Engine', 'Api', 'Kernel']
     main_pid = 0
     for event_info in trace_events:
         if event_info.get("tid") in tid_sorting_order:
@@ -631,8 +642,16 @@ def add_npu_events(npu_data_df):
 
 
 def add_kvcache_events(kv_data_df, pid_label_map=None):
-    if 'deviceBlock=' not in kv_data_df.columns:
+    # 检查是否包含所需的列
+    has_free_blocks_cal = 'free_blocks' in kv_data_df.columns
+    has_device_block = 'deviceBlock=' in kv_data_df.columns
+    has_free_blocks = 'FreeBlocks=' in kv_data_df.columns
+
+    if not has_free_blocks_cal and not has_free_blocks and not has_device_block:
+        logger.warning('No KVCache related columns found')
         return []
+
+    logger.debug('KVCache columns found, proceeding with event generation')
 
     # 预声明变量避免分支中重复检查
     has_pid_map = pid_label_map is not None and "pid" in kv_data_df.columns
@@ -641,6 +660,21 @@ def add_kvcache_events(kv_data_df, pid_label_map=None):
     # 向量化处理name列
     name = _build_name_column(kv_data_df, pid_label_map, has_pid_map, has_scope_dp)
 
+    # 根据条件设置args值，优先使用FreeBlocks=，否则使用deviceBlock=
+    args_values = []
+    if has_free_blocks_cal:
+        # 优先使用插件计算的新列 free_blocks
+        logger.debug("Using free_blocks column for KVCache events")
+        args_values = [{'Device Block': x} for x in kv_data_df['free_blocks']]
+    elif has_free_blocks:
+        # 其次使用vllm的采集落盘 FreeBlocks=
+        logger.debug("Using FreeBlocks= column for KVCache events")
+        args_values = [{'Device Block': x} for x in kv_data_df['FreeBlocks=']]
+    else:
+        # 兼容旧版 deviceBlock=
+        logger.debug("Using deviceBlock= column for KVCache events")
+        args_values = [{'Device Block': x} for x in kv_data_df['deviceBlock=']]
+
     # 构建结果DataFrame
     result_df = pd.DataFrame({
         'name': name,
@@ -648,12 +682,27 @@ def add_kvcache_events(kv_data_df, pid_label_map=None):
         'ts': kv_data_df['start_time'],
         'pid': kv_data_df['pid'] if 'pid' in kv_data_df else None,
         'tid': kv_data_df['domain'],
-        'args': [{'Device Block': x} for x in kv_data_df['deviceBlock=']]
+        'args': args_values
     })
 
     # 使用itertuples加速字典转换
     return [dict(name=r.name, ph=r.ph, ts=r.ts, pid=r.pid, tid=r.tid, args=r.args)
             for r in result_df.itertuples(index=False)]
+
+
+def add_queue_events(queue_data_df):
+    if 'QueueSize=' not in queue_data_df or 'scope#QueueName' not in queue_data_df:
+        return []	
+    queue_data_df.loc[queue_data_df['scope#QueueName'] == 'WAITING', ['name', 'domain']] = 'WaitingQueue'	
+    queue_data_df.loc[queue_data_df['scope#QueueName'] == 'RUNNING', ['name', 'domain']] = 'RunningQueue'	
+
+    queue_trace_df = queue_data_df.copy()	
+    queue_trace_df['ph'] = 'C'	
+    queue_trace_df['ts'] = queue_trace_df['start_time']	
+    queue_trace_df['tid'] = queue_trace_df['domain']	
+    queue_trace_df['args'] = [{'Queue Size': size} for size in queue_trace_df['QueueSize=']]	
+    queue_trace_events = queue_trace_df[['name', 'ph', 'ts', 'pid', 'tid', 'args']].to_dict(orient='records')	
+    return queue_trace_events	
 
 
 def _build_name_column(kv_data_df, pid_label_map, has_pid_map, has_scope_dp):
@@ -670,8 +719,7 @@ def _build_name_column(kv_data_df, pid_label_map, has_pid_map, has_scope_dp):
 def _build_name_with_pid_map(kv_data_df, pid_label_map, has_scope_dp):
     """当有pid_map时构建name列"""
     # 构建pid到dp_rank的向量化映射
-    dp_rank_map = {pid: info['dp_rank'] for pid, info in pid_label_map.items()
-                   if 'dp_rank' in info}
+    dp_rank_map = {pid: info['dp_rank'] for pid, info in pid_label_map.items() if 'dp_rank' in info}
 
     dp_ranks = kv_data_df['pid'].map(dp_rank_map)
     has_dp_rank = dp_ranks.notna()
@@ -894,13 +942,22 @@ def _process_pid_tid_batch(events, unique_pid_tid, track_id_map, cursor):
 
 def _find_thread_sort_index(events, pid, tid):
     """查找线程排序索引"""
+    
     for event in events:
         # 精确匹配：必须是thread_sort_index的M事件，且pid和tid匹配
-        if (event.get('pid') == pid and
-                event.get('tid') == tid and
-                event.get('name') == 'thread_sort_index' and
-                event.get('ph') == 'M'):
-            return event.get('args', {}).get('sort_index', 0)
+        # 先检查是否是元事件(M事件)
+        if event.get('ph') != 'M':
+            continue
+            
+        # 检查事件名称
+        if event.get('name') != 'thread_sort_index':
+            continue
+            
+        # 检查进程和线程ID匹配
+        if event.get('pid') == pid and event.get('tid') == tid:
+            args = event.get('args', {})
+            return args.get('sort_index', 0)
+    
     return 0
 
 

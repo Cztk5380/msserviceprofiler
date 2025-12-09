@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
-import multiprocessing as mp
-import psutil
 import math
+import multiprocessing as mp
 from decimal import Decimal
 from collections import defaultdict
+import psutil
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.file_open_check import safe_json_dump
 from ms_service_profiler.exporters.utils import get_db_connection
@@ -176,8 +176,8 @@ class ProcessTableManager:
     def is_need_write_to_db(cls, pid, name):
         if (pid, name) not in cls.process_table:
             cls.process_table.add((pid, name))
-            return False
-        return True
+            return True
+        return False
 
 
 class CacheTableManager:
@@ -350,9 +350,10 @@ def reset_process_table_manager():
 
 def clear_data_cache():
     """清空数据缓存"""
-    CacheTableManager.cache_list['slice'].clear()
-    CacheTableManager.cache_list['counter'].clear()
-    CacheTableManager.cache_list['flow'].clear()
+    cache = CacheTableManager.get_cache()
+    cache['slice'].clear()
+    cache['counter'].clear()
+    cache['flow'].clear()
     logger.debug("Data cache cleared")
 
 

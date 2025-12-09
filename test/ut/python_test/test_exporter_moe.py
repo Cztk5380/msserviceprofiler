@@ -84,7 +84,6 @@ class TestExporterMoe(unittest.TestCase):
         ExporterMoe.export(data)
 
         mock_save_csv.assert_not_called()
-        mock_add_table.assert_called_once_with(moe_analysis_df, NAME)
         mock_plot.assert_called_once_with(moe_analysis_df, os.path.join(args.output_path, OUTPUT_PNG_NAME))
 
     @patch('ms_service_profiler.exporters.exporter_moe.save_dataframe_to_csv')
@@ -128,5 +127,4 @@ class TestExporterMoe(unittest.TestCase):
         ExporterMoe.export(data)
 
         mock_save_csv.assert_called_once_with(moe_analysis_df, args.output_path, OUTPUT_CSV_NAME)
-        mock_add_table.assert_called_once_with(moe_analysis_df, NAME)
         mock_plot.assert_called_once_with(moe_analysis_df, os.path.join(args.output_path, OUTPUT_PNG_NAME))

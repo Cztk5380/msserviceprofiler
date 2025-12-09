@@ -2,7 +2,8 @@
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.exporters.utils import (
-    write_result_to_csv, write_result_to_db, check_domain_valid
+    write_result_to_csv, write_result_to_db,
+    check_domain_valid, TableConfig
 )
 from ms_service_profiler.constant import US_PER_MS
 from ms_service_profiler.utils.log import logger
@@ -10,9 +11,9 @@ from ms_service_profiler.utils.timer import timer
 
 
 REQUIED_NAME = set(["forward"])
-REMAME_COLUMNS = {
-    "start_time": "start_time(ms)",
-    "end_time": "end_time(ms)",
+FORWARD_REMAME_COLUMNS = {
+    "start_datetime": "start_time",
+    "end_datetime": "end_time",
     "during_time": "during_time(ms)",
     "relative_start_time": "relative_start_time(ms)",
     "bubble_time": "bubble_time(ms)"
@@ -61,6 +62,7 @@ class ExporterForwardData(ExporterBase):
         forward_df = forward_df.drop(columns=DELETE_COLUMNS)
         forward_df["forward_iter"] = forward_df.groupby("prof_id").cumcount() + 1
         forward_df = forward_df.sort_values(by=["start_time"]).reset_index(drop=True)
+        forward_df = forward_df.drop(columns=['start_time', 'end_time'])
 
         data_link_df = pd.DataFrame({
             'source_name': ['rid'],
@@ -69,18 +71,11 @@ class ExporterForwardData(ExporterBase):
         })
 
         if 'db' in cls.args.format:
-            write_result_to_db(
-                df_param_list=[[forward_df, "forward"]],
-                table_name="forward",
-                rename_cols=REMAME_COLUMNS
-            )
-            write_result_to_db(
-                df_param_list=[[data_link_df, "data_link"]],
-                table_name="data_link"
-            )
+            write_result_to_db(CREATE_FORWARD_TABLE_CONFIG, forward_df)
+            write_result_to_db(TableConfig(table_name="data_link"), data_link_df)
 
         if 'csv' in cls.args.format:
-            write_result_to_csv(forward_df, output, "forward", REMAME_COLUMNS)
+            write_result_to_csv(forward_df, output, "forward", FORWARD_REMAME_COLUMNS)
 
 
 # 按 hostname 分组，并计算每个分组的相对时间
@@ -104,11 +99,11 @@ def get_batch_name(dataframe):
 def get_filter_forward_df(required_name, forward_df):
     mask = forward_df["name"].isin(required_name)
 
-    ori_columns = ["name", "relative_start_time", "start_time", "end_time",
-                    "during_time", "bubble_time", "batch_size", "batch_type",
-                    "forward_iter", "rid", "rid_list", "dp_rank", "prof_id", "hostname",
-                    "pid", "tid"]
-    
+    ori_columns = ["name", "relative_start_time", "start_datetime", "end_datetime", "start_time", "end_time",
+                   "during_time", "bubble_time", "batch_size", "batch_type",
+                   "forward_iter", "rid", "rid_list", "dp_rank", "prof_id", "hostname",
+                   "pid", "tid"]
+
     missing_columns = set(ori_columns) - set(forward_df.columns)
     for col in missing_columns:
         forward_df.loc[mask, col] = None
@@ -157,3 +152,15 @@ def get_relative_and_bubble(forward_df):
     forward_df.loc[mask, "bubble_time"] = pd.NA
 
     return forward_df
+
+
+CREATE_FORWARD_TABLE_CONFIG = TableConfig(
+    table_name="forward",
+    create_view=True,
+    view_name="forward_info",
+    view_rename_cols=FORWARD_REMAME_COLUMNS,
+    description={
+        "en": "Detailed data for the forward execution during servitized inference",
+        "zh": "服务化推理模型前向执行过程的详细数据"
+    }
+)

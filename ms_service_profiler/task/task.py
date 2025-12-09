@@ -19,6 +19,7 @@ class Task():
         self.task_index = None
         self.recv_queue = None
         self.send_queue = None
+        self.recv_msg = None
 
     @classmethod
     def depends(cls):

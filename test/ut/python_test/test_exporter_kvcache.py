@@ -13,26 +13,28 @@ from ms_service_profiler.exporters.exporter_kvcache import ExporterKVCacheData
 
 
 PD_SEPARATE_PULL_KV_DATA = \
-""",pid,tid,event_type,start_time,end_time,mark_id,ori_msg,message,name,type,domain,rid,Queu\
-eSize=,scope#queue,deviceBlock=,scope#dp,RUNNING+,WAITING+,PENDING+,replyTokenSize=,END+,span_id,during_time,start_\
-datetime,end_datetime,recvTokenSize=,PREFILL_HOLD+,rank,batch_seq_len,block_tables,res_list,rid_list,token_id_list,\
-batch_type,batch_size,prefill_batch_size,decode_batch_size
+""",pid,tid,event_type,start_time,end_time,mark_id,ori_msg,message,name,type,domain,rid,QueueSize=,scope#que\
+ue,deviceBlock=,scope#dp,RUNNING+,WAITING+,PENDING+,replyTokenSize=,END+,span_id,during_time,start_datetime,end_\
+datetime,recvTokenSize=,PREFILL_HOLD+,rank,batch_seq_len,block_tables,res_list,rid_list,token_id_list,batch_type,\
+batch_size,prefill_batch_size,decode_batch_size,total_blocks,used_blocks,free_blocks,blocks_allocated,blocks_freed,\
+kvcache_usage_rate
 9765,17329,18655,start/end,1739329372248722.8,1739329372252357.0,1,,"{'name': 'PullKVCache', 'type': 2, 'domain': \
 'KVCache', 'rid': [0], 'rank': 1, 'batch_seq_len': [7], 'block_tables': [[2886795281, [0], [0]]]}",PullKVCache,2,\
-KVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252357,,,1.0,[7],"[[2886795281, [0\
-], [0]]]",[0],[0],[None],Decode,1,,
+KVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252357,,,1.0,[7],\
+"[[2886795281, [0], [0]]]",[0],[0],[None],Decode,1,,1,1,0,1,0,1.0
 """
 
 
 PD_SEPARATE_PULL_KV_DATA_MISSING_KEY = \
-""",pid,tid,event_type,start_time,end_time,mark_id,ori_msg,message,name,type,domain,rid,Queu\
-eSize=,scope#queue,deviceBlock=,scope#dp,RUNNING+,WAITING+,PENDING+,replyTokenSize=,END+,span_id,during_time,start_\
-datetime,end_datetime,recvTokenSize=,PREFILL_HOLD+,rank,seq_len,block_tables,res_list,rid_list,token_id_list,\
-batch_type,batch_size,prefill_batch_size,decode_batch_size
+"""pid,tid,event_type,start_time,end_time,mark_id,ori_msg,message,name,type,domain,rid,QueueSize=,scope#queue,\
+deviceBlock=,scope#dp,RUNNING+,WAITING+,PENDING+,replyTokenSize=,END+,span_id,during_time,start_datetime,end_\
+datetime,recvTokenSize=,PREFILL_HOLD+,rank,batch_seq_len,seq_len,block_tables,res_list,rid_list,token_id_list,\
+batch_type,batch_size,prefill_batch_size,decode_batch_size,total_blocks,used_blocks,free_blocks,blocks_allocated,\
+blocks_freed,kvcache_usage_rate
 9765,17329,18655,start/end,1739329372248722.8,1739329372252357.0,1,,"{'name': 'PullKVCache', 'type': 2, 'domain': \
-'KVCache', 'rid': [0], 'rank': 1, 'batch_seq_len': [7], 'block_tables': [[2886795281, [0], [0]]]}",PullKVCache,2,\
-KVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252357,,,1.0,[7],"[[2886795281, [0\
-], [0]]]",[0],[0],[None],Decode,1,,
+'KVCache', 'rid': [0], 'rank': 1, 'batch_seq_len': [7], 'block_tables': [[2886795281, [0], [0]]]}",PullKVCache,\
+KVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252357,,,1.0,[7],\
+"[[2886795281, [0], [0]]]",[0],[0],[None],Decode,1,,0,0,0,0,0,0.0
 """
 
 
@@ -54,7 +56,13 @@ class TestExporterBatchData(unittest.TestCase):
             'name': ['Allocate', 'Free', 'AppendSlot', 'AppendSlot'],
             'deviceBlock=': [1978, 1977, 1976, 1975],
             'during_time': ['0', '0', '0', '0'],
-            'start_datetime': ['2024-12-25', '2024-12-25', '2024-12-25', '2024-12-25']
+            'start_datetime': ['2024-12-25', '2024-12-25', '2024-12-25', '2024-12-25'],
+            'total_blocks': ['one', 'two', 'three', 'four'],
+            'used_blocks': ['one', 'one', 'three', 'three'],
+            'free_blocks': ['two', 'two', 'four', 'four'],
+            'blocks_allocated': ['one', 'one', 'three', 'three'],
+            'blocks_freed': ['two', 'two', 'four', 'four'],
+            'kvcache_usage_rate': ['twenty', 'forty', 'fifty', 'eighty']
         }
         return pd.DataFrame(data)
 
@@ -98,7 +106,7 @@ class TestExporterBatchData(unittest.TestCase):
         os.makedirs(test_path, exist_ok=True)
         os.chmod(test_path, 0o740)
         file_path_kvcache = Path(test_path, 'kvcache.csv')
-        file_path_pd_separate_kvcache = Path(test_path, 'pd_split_kvcache.csv')
+        file_path_pd_separate_kvcache = Path(test_path, 'kvcache.csv')
         data = {'tx_data_df': pd.read_csv(io.StringIO(PD_SEPARATE_PULL_KV_DATA_MISSING_KEY))}
         try:
             # 初始化args

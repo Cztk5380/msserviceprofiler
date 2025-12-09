@@ -30,6 +30,13 @@ class LibServiceProfiler:
         self.func_is_valid_dommain = None
         self.func_add_meta_info = None
 
+        self.func_get_prof_path = None
+        self.func_get_acl_task_time_level = None
+        self.func_get_acl_prof_aicore_metrics = None
+        self.func_get_torch_prof_step_num = None
+        self.func_get_torch_prof_stack = None
+        self.func_get_torch_prof_modules = None
+        self.func_get_torch_profiler_enable = None
 
     def init(self) -> None:
         if self.is_initialized:
@@ -64,16 +71,45 @@ class LibServiceProfiler:
             self.func_is_enable = self.lib.IsEnable
             self.func_is_enable.argtypes = (ctypes.c_ulong,)
             self.func_is_enable.restype = ctypes.c_bool
+            self._init()
 
-            if hasattr(self.lib, "IsValidDomain"):
-                self.func_is_valid_dommain = self.lib.IsValidDomain
-                self.func_is_valid_dommain.argtypes = (ctypes.c_char_p,)
-                self.func_is_valid_dommain.restype = ctypes.c_bool
-            
-            if hasattr(self.lib, "AddMetaInfo"):
-                self.func_add_meta_info = self.lib.AddMetaInfo
-                self.func_add_meta_info.argtypes = (ctypes.c_char_p, ctypes.c_char_p)
+    def _init(self):
+        if hasattr(self.lib, "IsValidDomain"):
+            self.func_is_valid_dommain = self.lib.IsValidDomain
+            self.func_is_valid_dommain.argtypes = (ctypes.c_char_p,)
+            self.func_is_valid_dommain.restype = ctypes.c_bool
 
+        if hasattr(self.lib, "AddMetaInfo"):
+            self.func_add_meta_info = self.lib.AddMetaInfo
+            self.func_add_meta_info.argtypes = (ctypes.c_char_p, ctypes.c_char_p)
+
+        if hasattr(self.lib, "GetProfPath"):
+            self.func_get_prof_path = self.lib.GetProfPath
+            self.func_get_prof_path.restype = ctypes.c_char_p
+
+        if hasattr(self.lib, "GetAclTaskTimeLevel"):
+            self.func_get_acl_task_time_level = self.lib.GetAclTaskTimeLevel
+            self.func_get_acl_task_time_level.restype = ctypes.c_char_p
+
+        if hasattr(self.lib, "GetAclProfAicoreMetrics"):
+            self.func_get_acl_prof_aicore_metrics = self.lib.GetAclProfAicoreMetrics
+            self.func_get_acl_prof_aicore_metrics.restype = ctypes.c_int
+
+        if hasattr(self.lib, "GetTorchProfStepNum"):
+            self.func_get_torch_prof_step_num = self.lib.GetTorchProfStepNum
+            self.func_get_torch_prof_step_num.restype = ctypes.c_int
+
+        if hasattr(self.lib, "GetTorchProfStack"):
+            self.func_get_torch_prof_stack = self.lib.GetTorchProfStack
+            self.func_get_torch_prof_stack.restype = ctypes.c_bool
+
+        if hasattr(self.lib, "GetTorchProfModules"):
+            self.func_get_torch_prof_modules = self.lib.GetTorchProfModules
+            self.func_get_torch_prof_modules.restype = ctypes.c_bool
+
+        if hasattr(self.lib, "GetTorchProfilerEnable"):
+            self.func_get_torch_profiler_enable = self.lib.GetTorchProfilerEnable
+            self.func_get_torch_profiler_enable.restype = ctypes.c_bool
 
     def start_span(self, name=None):
         self.init()
@@ -123,6 +159,53 @@ class LibServiceProfiler:
         self.init()
         if self.func_add_meta_info is not None:
             self.func_add_meta_info(bytes(key, encoding="utf-8"), bytes(value, encoding="utf-8"))
+    
+    def get_prof_path(self):
+        self.init()
+        if self.func_get_prof_path is None:
+            return ""
+        result = self.func_get_prof_path()
+        if result:
+            return result.decode("utf-8")
+        return ""
+    
+    def is_torch_profiler_enable(self, profiler_level):
+        self.init()
+        if self.func_get_torch_profiler_enable is None or self.func_is_enable is None:
+            return False
+        return self.func_get_torch_profiler_enable() and self.func_is_enable(profiler_level)
 
+    def get_acl_task_time_level(self):
+        self.init()
+        if self.func_get_acl_task_time_level is None:
+            return "L0"
+        result = self.func_get_acl_task_time_level()
+        if result:
+            return result.decode("utf-8")
+        return "L0"
+
+    def get_acl_prof_aicore_metrics(self):
+        self.init()
+        if self.func_get_acl_prof_aicore_metrics is None:
+            return -1
+        return self.func_get_acl_prof_aicore_metrics()
+
+    def get_torch_prof_step_num(self):
+        self.init()
+        if self.func_get_torch_prof_step_num is None:
+            return 0
+        return self.func_get_torch_prof_step_num()
+
+    def is_torch_prof_stack(self):
+        self.init()
+        if self.func_get_torch_prof_stack is None:
+            return False
+        return self.func_get_torch_prof_stack()
+
+    def is_torch_prof_modules(self):
+        self.init()
+        if self.func_get_torch_prof_modules is None:
+            return False
+        return self.func_get_torch_prof_modules()
 
 service_profiler = LibServiceProfiler()

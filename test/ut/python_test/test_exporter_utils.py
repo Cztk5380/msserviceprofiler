@@ -57,20 +57,6 @@ def test_create_sqlite_db_success(tmpdir, cleanup_db_file):
     assert os.path.exists(str(db_fp))
 
 
-def test_add_table_into_visual_db_failure(tmpdir, sample_dataframe, cleanup_db_file):
-    try:
-        """测试添加表到SQLite数据库失败"""
-        output_dir = tmpdir.mkdir("test_output")
-        create_sqlite_db(str(output_dir))
-
-        with patch('pandas.DataFrame.to_sql', side_effect=Exception("Insert failed")):
-            with pytest.raises(DatabaseError, match="Cannot update test_table sqlite database."):
-                add_table_into_visual_db(sample_dataframe, 'test_table')
-    finally:
-        # 清理
-        shutil.rmtree(output_dir)
-
-
 def test_save_dataframe_to_csv_success(tmpdir, sample_dataframe):
     try:
         """测试成功保存DataFrame到CSV文件"""

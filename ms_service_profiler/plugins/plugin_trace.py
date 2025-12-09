@@ -1,12 +1,11 @@
 # Copyright (c) 2024-2024 Huawei Technologies Co., Ltd.
-
+from enum import IntEnum, auto
 import pandas as pd
 
 from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import KeyExcept
-from enum import IntEnum, auto
 
 
 class HostRole(IntEnum):
@@ -147,5 +146,4 @@ def extract_batch_size_when_pd_mixed(token_list):
     prefill_batch_size = token_list.count(0)
     decode_batch_size = len(token_list) - prefill_batch_size
     return prefill_batch_size, decode_batch_size
-
 

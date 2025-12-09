@@ -245,9 +245,9 @@ def test_sort_trace_events_by_tid():
 
     # 验证事件是否按正确顺序排序
     assert sorted_trace_events[0]['tid'] == 'KVCache'
-    assert sorted_trace_events[1]['tid'] == 'BatchSchedule'
-    assert sorted_trace_events[2]['tid'] == 'Api'
-    assert sorted_trace_events[3]['tid'] == 'Kernel'
+    assert sorted_trace_events[1]['tid'] == 'Api'
+    assert sorted_trace_events[2]['tid'] == 'Kernel'
+    assert sorted_trace_events[3]['tid'] == 'BatchSchedule'
 
 
 def test_add_mem_events_valid_data():

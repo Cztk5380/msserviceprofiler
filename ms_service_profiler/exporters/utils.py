@@ -6,8 +6,9 @@ import sqlite3
 import argparse
 from pathlib import Path
 import multiprocessing
-import numpy as np
+from typing import List, Dict, Any, Optional
 
+from pydantic import BaseModel, validator
 import pandas as pd
 
 from ms_service_profiler.utils.check.rule import Rule
@@ -20,50 +21,61 @@ visual_db_fp = ''
 db_write_lock = multiprocessing.Lock()
 CSV_BLACK_LIST = r'^[＋－＝％＠\+\-=%@]|;[＋－＝％＠\+\-=%@]'
 MAX_ITERATIONS = 10000
-DATA_TABLE_NAME = 'data_table'
-CREATE_DATA_TABLE_SQL = """
-    CREATE TABLE data_table (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,view_name TEXT);
-"""
-UPDATA_DATA_TABLE_SQL = """
-    INSERT INTO data_table (name, view_name) VALUES (?,?);
-"""
-CURVE_VIEW_NAME_LIST = {
-    # 折线图原始表名: 视图名称
-    'batch': 'Batch_Size_by_Batch_ID_curve',
-    'kvcache': 'Kvcache_Usage_Percent_curve',
-    'prefill_gen_speed': 'Prefill_Generate_Speed_Latency_curve',
-    'req_latency': 'Request_Latency_curve',
-    'decode_gen_speed': 'Decode_Generate_Speed_Latency_curve',
-    'first_token_latency': 'First_Token_Latency_curve',
-    'request_status': 'Request_Status_curve',
-    'coordinator': 'Coordinator_curve',
-}
 
-CURVE_VIEW_NAME_LIST_COMPETITION = {
-    # 折线图原始表名: 视图名称
-    'batch': 'Batch_Size_by_Batch_ID_curve',
-    'kvcache': 'Kvcache_Usage_Percent_curve',
-    'prefill_gen_speed': 'Prefill_Generate_Speed_Latency_curve',
-    'req_latency': 'Request_Latency_curve',
-    'decode_gen_speed': 'Decode_Generate_Speed_Latency_curve',
-    'first_token_latency': 'First_Token_Latency_curve',
-    'request_status': 'Request_Status_curve'
-}
-
-TABLE_DATA_VIEW_NAME_LIST = {
-    # 需要以纯表显示的db中的表名: data_table中的视图名称
-    # data_table中(name, view_name)都为视图名称
-    'batch': 'batch_info',
-    'kvcache': 'kvcache_usage',
-    'pd_split_communication': 'pd_communication_info',
-    'request': 'request_data',
-    'pd_split_kvcache': 'pd_split_pull_kvcache',
-    'forward': 'forward_info',
-    'coordinator': 'coordinator_info',
+INSIGHT_TABLE_OPERATIONS = {
+    'data_table': {
+        # data_table中(name, view_name)都为视图名称
+        'create_sql': """
+            CREATE TABLE data_table (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, view_name TEXT);
+        """,
+        'update_sql': """
+            INSERT INTO data_table (name, view_name) VALUES (?,?);
+        """
+    },
+    'translate': {
+        'create_sql': """
+            CREATE TABLE translate (key TEXT NOT NULL PRIMARY KEY, value_en TEXT, value_zh TEXT);
+        """,
+        'update_sql': """
+            INSERT INTO translate (key, value_en, value_zh) VALUES (?,?,?);
+        """
+    }
 }
 
 
-class COLUMN_CONST:
+class TableConfig(BaseModel):
+    """单个表的配置信息"""
+    table_name: str   # 数据库表名
+    create_view: bool = False  # 是否需要创建视图
+    view_name: Optional[str] = None  # 视图名称（如果需要创建视图）
+    view_rename_cols: Optional[Dict[str, str]] = None  # 列重命名映射（如果需要创建视图）
+    description: Optional[Dict[str, str]] = None  # 中英文说明 { "en": "English", "zh": "中文" }
+
+    # 验证逻辑：如果需要创建视图，必须提供视图名称
+    @classmethod
+    @validator('view_name')
+    def validate_view_name(cls, v, values):
+        if values.get('create_view') and not v:
+            raise ValueError('view_name is required when create_view is True')
+        return v
+    
+    # 验证逻辑：提供重命名但无需创建视图，则告警提示
+    @classmethod
+    @validator('create_view')
+    def validate_view_name(cls, v, values):
+        if values.get('view_rename_cols') and not v:
+            logger.warning('The view_rename_cols will not take effect because create_view is not True.')
+        return v
+
+
+class CurveViewConfig(BaseModel):
+    """视图配置信息"""
+    view_name: str    # 视图名称
+    sql: str          # 创建视图的SQL语句
+    description: Dict[str, str]  # 中英文说明
+
+
+class ColumnConst:
     HOSTUID_COLUMN = 'hostuid'
     PID_COLUMN = 'pid'
     START_TIME_COLUMN = 'start_time'
@@ -78,25 +90,17 @@ class COLUMN_CONST:
     SCOPE_QUEUE_NAME_COLUMN = "scope#QueueName"
 
 
-def write_result_to_db(df_param_list, create_view_sql=None, table_name="", rename_cols=None):
-    """
-        df_param_list: [[需要存入db中table的df, table name], [...]]
-        create_view_sql: 需要创建用于折线图展示的视图的sql语句列表
-        table_name: 需要以纯表显示的db中的表名(df_param_list中最多只有一个表需要以纯表形式展示)
-        rename_cols: 纯表展示数据需要修改的列名，该视图创建语句动态生成
-    """
+def write_result_to_db(table_config: TableConfig, df, view_configs=None):
+    # view_configs 支持传入单个 CurveViewConfig 实例变量，或该实例变量的列表
     try:
-        create_view_sql = create_view_sql or []
-        rename_cols = rename_cols or []
-        table_add_success = True
-        for df, df_name in df_param_list:
-            table_add_success = add_table_into_visual_db(df, df_name) and table_add_success
-
+        table_add_success = add_table_into_visual_db(table_config, df)
         if table_add_success:
-            create_sqlite_views(table_name, create_view_sql, rename_cols)
+            create_sqlite_views(table_config, view_configs)
+
+        logger.info(f"Write {table_config.table_name} table into profiler.db success.")
 
     except Exception as error:
-        logger.warning(f"{table_name} write to db table failed due to {error}")
+        logger.warning(f"{table_config.table_name} write to db table failed due to {error}")
 
 
 def write_result_to_csv(df, output, csv_name, rename_col):
@@ -115,25 +119,18 @@ def create_view_with_renamed_column(cursor, table_name, view_name, rename_cols):
         if col in rename_cols:
             select_parts.append(f'"{col}" AS "{rename_cols[col]}"')
         else:
-            select_parts.append(col)
+            select_parts.append(f'"{col}"')
 
     select_clause = ", ".join(select_parts)
 
     # 创建视图
     create_view_sql = f"""
-    CREATE VIEW IF NOT EXISTS {view_name} AS
+    CREATE VIEW {view_name} AS
     SELECT {select_clause}
     FROM {table_name}
     """
+    cursor.execute(f"DROP VIEW IF EXISTS {view_name};")
     cursor.execute(create_view_sql)
-
-
-def del_all_visual_table(views, cursor):
-    for view in views:
-        if not view or len(view) < 1:
-            continue
-        if view[0] in CURVE_VIEW_NAME_LIST.values() or view[0] in TABLE_DATA_VIEW_NAME_LIST.values():
-            cursor.execute(f"DROP VIEW IF EXISTS {view[0]};")
 
 
 def create_sqlite_db(output):
@@ -155,16 +152,11 @@ def create_sqlite_db(output):
         conn.isolation_level = None
         cursor = conn.cursor()
 
-        # 创建data_table
-        cursor.execute(f"DROP TABLE IF EXISTS {DATA_TABLE_NAME}")
-        cursor.execute(CREATE_DATA_TABLE_SQL)
+        # 创建 data_table translate 表
+        for table_name, operation in INSIGHT_TABLE_OPERATIONS.items():
+            cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+            cursor.execute(operation['create_sql'])
 
-        # 获取所有视图名称
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='view';")
-        views = cursor.fetchall()
-
-        # 删除所有视图
-        del_all_visual_table(views, cursor)
     except Exception as ex:
         conn.rollback()  # 失败时回滚
         raise DatabaseError("Cannot create sqlite database.") from ex
@@ -175,30 +167,39 @@ def create_sqlite_db(output):
             conn.close()
 
 
-def create_views_with_sqls(cursor, create_view_sql):
-    for sql in create_view_sql:
-        cursor.execute(sql)
+def create_views_with_sqls(cursor, view_configs):
+    if view_configs is None:
+        return
+
+    if not isinstance(view_configs, list):
+        view_configs = [view_configs]
+
+    for config in view_configs:
+        cursor.execute(f"DROP VIEW IF EXISTS {config.view_name};")
+        cursor.execute(config.sql)
+        cursor.execute(INSIGHT_TABLE_OPERATIONS['translate']['update_sql'],
+            (config.view_name, config.description['en'], config.description['zh']))
 
 
-def create_views_with_table_name(cursor, table_name, rename_cols):
-    if table_name in TABLE_DATA_VIEW_NAME_LIST.keys():
-        create_view_with_renamed_column(cursor, table_name,
-            TABLE_DATA_VIEW_NAME_LIST[table_name], rename_cols)
+def create_views_with_table_name(cursor, table_config: TableConfig):
+    if table_config.create_view:
+        create_view_with_renamed_column(cursor, table_config.table_name,
+            table_config.view_name, table_config.view_rename_cols)
 
 
-def create_sqlite_views(table_name, create_view_sql, rename_cols):
+def create_sqlite_views(table_config: TableConfig, view_configs):
     with db_write_lock:
         with ms_open(visual_db_fp, "a"):
             try:
                 conn = sqlite3.connect(visual_db_fp)
                 cursor = conn.cursor()
-                create_views_with_sqls(cursor, create_view_sql)
-                create_views_with_table_name(cursor, table_name, rename_cols)
+                create_views_with_sqls(cursor, view_configs)
+                create_views_with_table_name(cursor, table_config)
                 conn.commit()
                 conn.close()
             except Exception as ex:
                 conn.rollback()  # 失败时回滚
-                raise DatabaseError(f"Cannot update sqlite {table_name} views. due to {ex}") from ex
+                raise DatabaseError(f"Cannot update sqlite {table_config.table_name}'s views. due to {ex}") from ex
 
 
 def handle_sqlite_table_list(table_list, cursor):
@@ -231,15 +232,21 @@ def get_db_connection():
             return sqlite3.connect(visual_db_fp)
 
 
-def add_record_to_data_table(table_name, conn):
-    if table_name in TABLE_DATA_VIEW_NAME_LIST.keys():
+def add_record_to_data_table(table_config: TableConfig, conn):
+    if table_config.create_view:
         cursor = conn.cursor()
-        view_name = TABLE_DATA_VIEW_NAME_LIST[table_name]
-        cursor.execute(UPDATA_DATA_TABLE_SQL, (view_name, view_name))
+        view_name = table_config.view_name
+        cursor.execute(INSIGHT_TABLE_OPERATIONS['data_table']['update_sql'], (view_name, view_name))
+        cursor.execute(INSIGHT_TABLE_OPERATIONS["translate"]['update_sql'],
+            (view_name, table_config.description['en'], table_config.description['zh']))
 
 
-def add_table_into_visual_db(df, table_name, allow_empty=False):
-    if df is None or not isinstance(df, pd.DataFrame) or df.empty or len(df.columns) == 0:
+
+def add_table_into_visual_db(table_config: TableConfig, df, allow_empty=False):
+    table_name = table_config.table_name
+
+    is_vaild_df = df is None or not isinstance(df, pd.DataFrame)
+    if is_vaild_df or df.empty or len(df.columns) == 0:
         logger.debug("nothing to write to table %r. due to dataframe is:%s", table_name, df)
         if not allow_empty:
             logger.warning("nothing to write to table %r.", table_name)
@@ -258,7 +265,8 @@ def add_table_into_visual_db(df, table_name, allow_empty=False):
                 df.to_sql(table_name, conn, if_exists='replace', index=False)
 
                 # 判断如果此表需要在Insight中用纯表展示，则刷新data_table中记录
-                add_record_to_data_table(table_name, conn)
+                add_record_to_data_table(table_config, conn)
+
                 conn.commit()
                 conn.close()
             except Exception as ex:
@@ -268,7 +276,8 @@ def add_table_into_visual_db(df, table_name, allow_empty=False):
 
 
 def save_dataframe_to_csv(filtered_df, output, file_name, check_columns=None, allow_empty=False):
-    if filtered_df is None or not isinstance(filtered_df, pd.DataFrame) or filtered_df.empty or output is None:
+    is_vaild_df = filtered_df is None or not isinstance(filtered_df, pd.DataFrame)
+    if is_vaild_df or filtered_df.empty or output is None:
         logger.debug("nothing to write to %r due to empty data : %s", file_name, filtered_df)
         if not allow_empty:
             logger.warning("nothing to write to %r .", file_name)
@@ -440,9 +449,9 @@ def delete_dir_safely(path):
         logger.error(f"Delete {path} failed, due to : {e}")
 
 
-def truncate_timestamp_np(s: pd.Series) -> pd.Series:
-    arr = s.to_numpy(dtype='str')
-    return pd.Series(np.core.defchararray.ljust(arr, len(arr[0])-3))
+def truncate_timestamp(s: pd.Series) -> pd.Series:
+    """ 安全截断时间戳，去掉微秒部分"""
+    return s.astype(str).str.rsplit(':', n=1).str[0]
 
 
 def check_domain_valid(df, domain_list, exporter_name):
@@ -467,7 +476,3 @@ def check_columns_valid(df, column_list, exporter_name):
         logger.warning(f"Exporter {exporter_name} will skip. the attribute {missing_columns} in prof data is missing")
         return False
     return True
-
-
-def is_root():
-    return os.name != "nt" and os.getuid() == 0

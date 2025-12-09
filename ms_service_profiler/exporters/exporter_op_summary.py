@@ -21,14 +21,6 @@ class ExporterOpSummaryCopier(ExporterBase):
         cls.args = args
 
     @classmethod
-    def _get_prof_dirs(cls, source_root: str) -> List[str]:
-        prof_dirs = []
-        for path in Path(source_root).glob("**/PROF_*"):
-            if path.is_dir():
-                prof_dirs.append(str(path))
-        return prof_dirs
-
-    @classmethod
     def export(cls, data) -> None:
         """
         Execute copy operation
@@ -79,3 +71,11 @@ class ExporterOpSummaryCopier(ExporterBase):
                     logger.error(f"Copy failed: %r -> %r | %s", src_path, dest_path, str(e))
 
         return copied_count
+
+    @classmethod
+    def _get_prof_dirs(cls, source_root: str) -> List[str]:
+        prof_dirs = []
+        for path in Path(source_root).glob("**/PROF_*"):
+            if path.is_dir():
+                prof_dirs.append(str(path))
+        return prof_dirs

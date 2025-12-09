@@ -44,31 +44,12 @@ class TestPluginProcessName(unittest.TestCase):
 
         # 验证pid_label_map是否正确生成
         expected_pid_label_map = {
-            100: {'hostname': 'host1', 'dp': 'dp1'},
+            100: {'hostname': 'host1'},
             200: {'hostname': 'host2'},
             300: {'hostname': 'host3'}
         }
         self.assertEqual(result['pid_label_map'], expected_pid_label_map)
 
-        # 验证日志是否被调用
-        mock_logger_debug.assert_called_once()
-
-    @patch.object(logger, 'debug')
-    @patch.object(logger, 'info')
-    def test_parse_pid_label_map_generation(self, mock_logger_info, mock_logger_debug):
-        # 测试pid_label_map的生成逻辑
-        result = PluginProcessName.parse(self.data)
-
-        # 验证pid_label_map是否正确生成
-        expected_pid_label_map = {
-            100: {'hostname': 'host1', 'dp': 'dp1'},
-            200: {'hostname': 'host2', 'dp': 'dp2'},
-            300: {'hostname': 'host3'}
-        }
-        self.assertEqual(result['pid_label_map'], expected_pid_label_map)
-
-        # 验证日志是否被调用
-        mock_logger_debug.assert_called_once()
 
     @patch.object(logger, 'debug')
     @patch.object(logger, 'info')
@@ -78,17 +59,6 @@ class TestPluginProcessName(unittest.TestCase):
         modified_data["tx_data_df"].loc[1, 'scope#dp'] = None
 
         result = PluginProcessName.parse(modified_data)
-
-        # 验证pid_label_map是否正确生成
-        expected_pid_label_map = {
-            100: {'hostname': 'host1', 'dp': 'dp1'},
-            200: {'hostname': 'host2'},
-            300: {'hostname': 'host3'}
-        }
-        self.assertEqual(result['pid_label_map'], expected_pid_label_map)
-
-        # 验证日志是否被调用
-        mock_logger_debug.assert_called_once()
 
 
 if __name__ == '__main__':

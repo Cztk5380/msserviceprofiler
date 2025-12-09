@@ -4,7 +4,7 @@ from abc import abstractmethod
 from typing import Dict
 
 from ms_service_profiler.exporters.base import TaskExporterBase
-from ms_service_profiler.exporters.utils import save_dataframe_to_csv, add_table_into_visual_db
+from ms_service_profiler.exporters.utils import save_dataframe_to_csv, add_table_into_visual_db, TableConfig
 from ms_service_profiler.utils.file_open_check import UmaskWrapper
 from ms_service_profiler.utils.timer import Timer
 
@@ -41,7 +41,7 @@ class ExporterEpBalance(TaskExporterBase):
             save_dataframe_to_csv(ep_balance_df, output, OUTPUT_CSV_NAME)
 
         if "db" in cls.args.format:
-            add_table_into_visual_db(ep_balance_df, NAME)
+            add_table_into_visual_db(TableConfig(table_name=NAME), ep_balance_df)
 
         heat_map = ep_balance_df.values
 

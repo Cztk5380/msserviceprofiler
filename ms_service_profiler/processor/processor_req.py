@@ -31,9 +31,8 @@ class ProcessorReq(ProcessorBase):
     @classmethod
     def batch_token_iter_to_batch_type(cls, token_iter_list):
         # 统一处理空值和非列表/元组类型
-        if (token_iter_list is None
-                or (np.isscalar(token_iter_list) and pd.isna(token_iter_list))
-                or not isinstance(token_iter_list, (list, tuple))):
+        token_iter_list_con = np.isscalar(token_iter_list) and pd.isna(token_iter_list)
+        if (token_iter_list is None or token_iter_list_con or not isinstance(token_iter_list, (list, tuple))):
             if not cls._batch_token_iter_warning_issued:
                 logger.warning(f"Warning: Skipping invalid row type {type(token_iter_list)}: {token_iter_list}")
                 cls._batch_token_iter_warning_issued = True
@@ -62,8 +61,10 @@ class ProcessorReq(ProcessorBase):
 
         if data_df is None or data_df.empty:
             return batch_event_df, batch_attr_df
-        
-        if "name" not in data_df or "res_list" not in data_df or "token_id_list" not in data_df or "rid_list" not in data_df:
+
+        name_or_res_list_not = "name" not in data_df or "res_list" not in data_df
+
+        if (name_or_res_list_not or "token_id_list" not in data_df or "rid_list" not in data_df):
             return batch_event_df, batch_attr_df
         role_dict = self.parse_node_role(data_df)
 
@@ -123,45 +124,71 @@ class ProcessorReq(ProcessorBase):
 
         if data_df is None or data_df.empty:
             return req_event_df, req_attr_df, req_queue_df
-        
-        if "name" not in data_df or "res_list" not in data_df or "token_id_list" not in data_df or "rid_list" not in data_df:
+
+        if not self._validate_data_columns(data_df):
             return req_event_df, req_attr_df, req_queue_df
 
-        # 1. 取httpReq 和 httpRes 
-        # 有问题，P 节点 和D 节点的 httpReq 和 http Res 需要区分开。需要修复 todo 
+        # 处理HTTP事件
+        req_event_df = self._process_http_events(data_df, req_event_df)
+
+        # 处理请求属性
+        req_attr_df = self._process_request_attributes(data_df)
+
+        # 处理请求队列
+        req_queue_df = self._process_request_queue(data_df)
+
+        # 处理批次事件
+        req_event_df = self._process_batch_events(req_event_df, batch_event_df, batch_attr_df)
+
+        # 处理批次调度事件
+        req_event_df = self._process_batch_schedule_events(req_event_df, batch_event_df, batch_attr_df)
+
+        return req_event_df, req_attr_df, req_queue_df
+
+    def _validate_data_columns(self, data_df: pd.DataFrame) -> bool:
+        """验证数据框是否包含必要的列"""
+        required_columns = ["name", "res_list", "token_id_list", "rid_list"]
+        return all(col in data_df for col in required_columns)
+
+    def _process_http_events(self, data_df: pd.DataFrame, req_event_df: pd.DataFrame) -> pd.DataFrame:
+        """处理HTTP事件"""
         http_event_df = data_df[data_df["name"].isin(["httpReq", "httpRes", "decode",
-                                                      "detokenize", "DecodeEnd", "sendResponse"])]
+                                                      "detokenize", "DecodeEnd", "sendResponse", "FINISHED"])]
         req_event_df["rid"] = http_event_df["rid"]
         req_event_df["event"] = http_event_df["name"]
         req_event_df["start_time"] = http_event_df["start_time"]
         req_event_df["end_time"] = http_event_df["end_time"]
         req_event_df["end_flag"] = http_event_df.get("endFlag", None)
-        
-        rid_recv_token_map = dict()
-        rid_reply_token_map = dict()
+        return req_event_df
+
+    def _process_request_attributes(self, data_df: pd.DataFrame) -> pd.DataFrame:
+        """处理请求属性"""
+        rid_recv_token_map = {}
+        rid_reply_token_map = {}
 
         if "recvTokenSize=" in data_df:
             recv_token_df = data_df[data_df["recvTokenSize="].notna()]
             rid_recv_token_map = recv_token_df.set_index('rid')['recvTokenSize='].to_dict()
+
         if "replyTokenSize=" in data_df:
             reply_token_df = data_df[data_df["replyTokenSize="].notna()]
             rid_reply_token_map = reply_token_df.set_index('rid')['replyTokenSize='].to_dict()
-        
+
         req_attr_df = pd.DataFrame({'recv_token': rid_recv_token_map, 'reply_token': rid_reply_token_map})
         req_attr_df['rid'] = req_attr_df.index
+        return req_attr_df
 
-        # 2. 构建请求队列用于后续计算队列等待时长
+    def _process_request_queue(self, data_df: pd.DataFrame) -> pd.DataFrame:
+        """处理请求队列"""
         status_col = data_df.get('status')
         if status_col is not None:
             mask = data_df['name'].isin(['Dequeue', 'Enqueue']) & (data_df['status'] == 'waiting')
         else:
-            # 处理列不存在的情况
-            mask = data_df['name'].isin(['Dequeue', 'Enqueue'])  # 或者其他逻辑
+            mask = data_df['name'].isin(['Dequeue', 'Enqueue'])
 
-        # loc 一次性赋值，不触发警告
-        tmp = data_df.loc[mask, :].copy(deep=False)  # 浅拷贝，内存开销小
+        tmp = data_df.loc[mask, :].copy(deep=False)
         tmp['rid'] = tmp['rid'].astype(str).str.strip().str.split(r'\s*,\s*')
-        # 在构造 req_queue_df 时
+
         status_col = tmp.get('status')
         selected_columns = ['rid', 'start_time', 'end_time', 'event']
         if status_col is not None:
@@ -174,10 +201,12 @@ class ProcessorReq(ProcessorBase):
             .rename(columns={'name': 'event'})
             [selected_columns]
         )
+        return req_queue_df
 
-        # 3. 拆解Batch
+    def _process_batch_events(self, req_event_df: pd.DataFrame, batch_event_df: pd.DataFrame,
+                              batch_attr_df: pd.DataFrame) -> pd.DataFrame:
+        """处理批次事件"""
         model_exec_df = batch_event_df[batch_event_df["event"].isin(["modelExec", "Execute"])]
-        # 根据 batch id 找到 req_id_list， 拆解开
 
         batch_attr_explode_by_req_df = batch_attr_df.explode('req_list')
         batch_attr_explode_by_req_df['rid'] = batch_attr_explode_by_req_df['req_list'].map(
@@ -186,11 +215,66 @@ class ProcessorReq(ProcessorBase):
         batch_attr_explode_by_req_df['iter'] = batch_attr_explode_by_req_df['req_list'].map(
             lambda x: x.get("iter") if isinstance(x, dict) else None
         )
+        batch_attr_explode_by_req_df['num_scheduled_tokens='] = batch_attr_explode_by_req_df['req_list'].map(
+            lambda x: x.get("num_scheduled_tokens=") if isinstance(x, dict) else None
+        )
 
         merged = batch_attr_explode_by_req_df.join(model_exec_df.set_index('batch_id'), on='batch_id')
 
-        req_event_df = pd.concat([req_event_df, merged[["rid", "event", "iter", "start_time", "end_time", "batch_id"]]], ignore_index=True)
-        return req_event_df, req_attr_df, req_queue_df
+        new_events = merged[
+            ["rid", "event", "iter", "start_time", "end_time", "batch_id", "batch_size", "num_scheduled_tokens="]
+        ]
+
+        req_event_df = pd.concat([req_event_df, new_events], ignore_index=True)
+        return req_event_df
+
+    def _process_batch_schedule_events(self, req_event_df: pd.DataFrame, batch_event_df: pd.DataFrame,
+                                       batch_attr_df: pd.DataFrame) -> pd.DataFrame:
+        """处理批次调度事件"""
+        batch_schedule_events = batch_event_df[batch_event_df["event"] == "BatchSchedule"]
+        if batch_schedule_events.empty:
+            return req_event_df
+
+        original_schedule_data_df = batch_event_df.join(
+            batch_attr_df.set_index('batch_id'), on='batch_id', rsuffix='_attr'
+        )
+        schedule_data_joined = original_schedule_data_df[
+            original_schedule_data_df["event"] == "BatchSchedule"
+            ]
+        if schedule_data_joined.empty:
+            return req_event_df
+
+        exploded_schedule = schedule_data_joined.explode('req_list')
+        exploded_schedule['rid'] = exploded_schedule['req_list'].map(
+            lambda x: x.get("rid") if isinstance(x, dict) else None
+        )
+        exploded_schedule['iter'] = exploded_schedule['req_list'].map(
+            lambda x: x.get("iter") if isinstance(x, dict) else None
+        )
+        exploded_schedule['num_scheduled_tokens='] = exploded_schedule['req_list'].map(
+            lambda x: x.get("num_scheduled_tokens=") if isinstance(x, dict) else None
+        )
+
+        prefill_schedule = exploded_schedule[exploded_schedule['iter'] == 0].copy()
+        if prefill_schedule.empty:
+            return req_event_df
+
+        prefill_start_df = pd.DataFrame({
+            'rid': prefill_schedule['rid'],
+            'event': 'BatchSchedule',
+            'iter': prefill_schedule['iter'],
+            'start_time': prefill_schedule['start_time'],
+            'end_time': prefill_schedule['end_time'],
+            'batch_id': prefill_schedule['batch_id'],
+            'num_scheduled_tokens=': prefill_schedule['num_scheduled_tokens='],
+            'batch_size': prefill_schedule['batch_size']
+        })
+
+        prefill_start_df = prefill_start_df.dropna(subset=['rid', 'num_scheduled_tokens='])
+        prefill_start_df = prefill_start_df[prefill_start_df['num_scheduled_tokens='] > 0]
+
+        req_event_df = pd.concat([req_event_df, prefill_start_df], ignore_index=True)
+        return req_event_df
 
     @timer(logger.debug)
     def calc_ttft(self, req_event_df: pd.DataFrame):
@@ -214,11 +298,11 @@ class ProcessorReq(ProcessorBase):
         non_empty_dfs = [df for df in [calc_df, first_decode] if not df.empty]
         calc_df = pd.concat(non_empty_dfs, ignore_index=True) if non_empty_dfs else calc_df
 
-        # 取最后一个 sendResponse
+        # 之前ttft算的有问题，应该是取第一个 sendResponse
         last_send_response = (
             req_event_df[req_event_df["event"] == "sendResponse"]
             .groupby("rid")
-            .last()
+            .first()
             .reset_index()
         )
         if not last_send_response.empty:
@@ -288,9 +372,9 @@ class ProcessorReq(ProcessorBase):
         # ttft 和 que_wait_time为原始数据，单位为微秒，需要exporter中调用时进行单位转换
 
         return {
-            "req_event_df": req_event_df, 
+            "req_event_df": req_event_df,
             "req_attr_df": req_attr_df,
-            "batch_event_df": batch_event_df, 
+            "batch_event_df": batch_event_df,
             "batch_attr_df": batch_attr_df,
             "req_ttft_df": req_ttft_df,
             "req_que_wait_df": req_queue_wait_time_df

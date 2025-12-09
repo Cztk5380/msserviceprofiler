@@ -4,7 +4,7 @@ from abc import abstractmethod
 from typing import Dict
 
 from ms_service_profiler.exporters.base import TaskExporterBase
-from ms_service_profiler.exporters.utils import save_dataframe_to_csv, add_table_into_visual_db
+from ms_service_profiler.exporters.utils import save_dataframe_to_csv, add_table_into_visual_db, TableConfig
 from ms_service_profiler.utils.file_open_check import UmaskWrapper
 from ms_service_profiler.utils.timer import Timer
 
@@ -38,7 +38,7 @@ class ExporterMoe(TaskExporterBase):
             save_dataframe_to_csv(moe_analysis_df, output, OUTPUT_CSV_NAME)
 
         if "db" in cls.args.format:
-            add_table_into_visual_db(moe_analysis_df, NAME)
+            add_table_into_visual_db(TableConfig(table_name=NAME), moe_analysis_df)
 
         plt_output_path = os.path.join(output, OUTPUT_PNG_NAME)
         plot_confidence_interval(moe_analysis_df, plt_output_path)

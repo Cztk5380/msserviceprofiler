@@ -72,6 +72,7 @@ def test_export_with_csv_format():
             'hostuid': [1, 2, 3],
             'pid': [101, 101, 102],
             'start_time': [1000, 1010, 1020],
+            'start_datetime': [1696321692, 1696321693, 1696321694],
             'domain': ['Schedule', 'Schedule', 'Schedule'],
             'name': ['Queue', 'Queue', 'Queue'],
             'status': ['waiting', 'running', 'swapped'],
@@ -92,7 +93,7 @@ def test_export_with_csv_format():
         expected_df = pd.DataFrame({
             'hostuid': [1, 2, 3],
             'pid': [101, 101, 102],
-            'timestamp(ms)': [1.0, 1.01, 1.02],
+            'start_datetime': [1696321692, 1696321693, 1696321694],
             'relative_timestamp(ms)': [0, 0.01, 0],
             'waiting': np.array([10, None, None]),
             'running': np.array([None, 15, None]),
@@ -107,7 +108,8 @@ def test_map_and_encode_status():
     # 准备测试数据
     data = {
         'status': ['waiting', 'running', 'waiting'],
-        'other_column': [1, 2, 3]
+        'other_column': [1, 2, 3],
+        'QueueSize=': [12, 13, 14]
     }
     df = pd.DataFrame(data)
     metrics = {'start_datetime': '2023-10-01 12:00:00'}
@@ -118,6 +120,7 @@ def test_map_and_encode_status():
     # 预期结果
     expected_data = {
         'timestamp': ['2023-10-01 12:00:00', '2023-10-01 12:00:00', '2023-10-01 12:00:00'],
+        'QueueSize=': [12, 13, 14],
         'WAITING': [True, False, True],
         'RUNNING': [False, True, False],
         'PENDING': [0, 0, 0]

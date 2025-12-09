@@ -34,14 +34,14 @@ class ProcessorRes(ProcessorBase):
             ppid_info_df = data_df[data_df["ppid"].notna()]
             if not ppid_info_df.empty:
                 ppid = ppid_info_df.iloc[-1]["ppid"]
-        
+
         if "deviceid" in data_df:
             deviceid_info_df = data_df[data_df["deviceid"].notna()]
             if not deviceid_info_df.empty:
                 device_id = deviceid_info_df.iloc[-1]["deviceid"]
 
         return dict(hostname=hostname, pid=str(pid), index=index,
-                    ppid=ppid, device_id=device_id, is_forward=is_forward, 
+                    ppid=ppid, device_id=device_id, is_forward=is_forward,
                     df=data_df)
 
     def convert_to_format_str(self, x):
@@ -128,7 +128,7 @@ class ProcessorRes(ProcessorBase):
         data_df = data.get("tx_data_df")
         if data_df is None:
             return data
-        
+
         rid_map = dict()
         if meta_data.get("is_forward", False) is False:
             rid_map = meta_data.get("rid_map")

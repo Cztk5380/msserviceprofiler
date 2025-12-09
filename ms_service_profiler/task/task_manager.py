@@ -71,7 +71,7 @@ class TaskManager:
         queues = process_info.get_queues()
         self.init_task_waiting_pool(src_dag, pool_index)
         # 启动进程
-        for index, data in enumerate(single_data_list):
+        for _, data in enumerate(single_data_list):
             process_info.new_process(self.manager_recv_queue, (data, src_dag, pool_index, args))
 
         task_manager_info.get("queues").extend(queues)
@@ -285,7 +285,7 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
         try:
             _, task_index = recv()
         
-            task_info = src_dag.get_task_reg_info(task_name)
+            task_info = TaskDag.get_task_reg_info(task_name)
             if isinstance(task_info.task_cls, Task):
                 task_ins = task_info.task_cls
             else:
@@ -293,12 +293,12 @@ def task_run(input_data, src_dag, pool_index, args, recv_queue, send_queue):
             
             task_ins.init(task_name, task_index, recv, send_queue)
             
-            for depends_name in src_dag.get_depends_data_names(task_name):
+            for depends_name in TaskDag.get_depends_data_names(task_name):
                 if depends_name in run_res_data:
                     task_ins.set_depends_result(depends_name, run_res_data.get(depends_name, None))
             task_res = task_ins.run()
             
-            for output_name in src_dag.get_outputs_data_names(task_name):
+            for output_name in TaskDag.get_outputs_data_names(task_name):
                 run_res_data.setdefault(output_name, task_res)
             
             # 等所有进程全部结束

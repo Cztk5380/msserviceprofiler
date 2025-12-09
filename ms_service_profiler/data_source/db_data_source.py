@@ -3,8 +3,9 @@
 import json
 import re
 
-import pandas as pd
+
 from pathlib import Path
+import pandas as pd
 
 
 from ms_service_profiler.data_source.base_data_source import BaseDataSource, Task

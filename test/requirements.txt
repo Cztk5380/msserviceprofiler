@@ -4,4 +4,6 @@ pandas>=2.2
 coverage
 scipy
 matplotlib
+pytest-asyncio
+pyyaml
 

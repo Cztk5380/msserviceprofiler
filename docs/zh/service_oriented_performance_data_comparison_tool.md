@@ -1,103 +1,84 @@
 # 服务化性能数据比对工具使用指南
-## 概述 (Overview)
-### 工具定位
-大模型推理服务化不同版本，不同框架之间可能存在性能差异，服务化性能数据比对工具支持对使用msserviceprofiler工具采集的性能数据进行差异比对，通过比对快速识别可能存在的问题点。
-
-### 关键特性
-- 轻量级  
-
-- 可视化报告  
-  - Excel 表格
-  - Grafana 仪表盘
-
-- 多维度指标
-  - 服务总体维度  
-  - Request 维度  
-  - Batch 维度  
+## 工具定位
+本工具基于 msserviceprofiler 工具采集的性能数据拆解服务化 Batch 执行中各阶段耗时，如组Batch、数据下发、模型执行、数据接收等。通过拆解识别性能瓶颈，方便开发人员优化框架。
 
 ## 版本配套关系
-ms_service_profiler_ext 作为扩展包，依赖 Ascend-cann-toolkit 中的 ms_service_profiler 工具。
+此工具能力依赖 Ascend-cann-toolkit 中的 ms_service_profiler 工具。
 
-| 服务化性能数据比对工具 |     CANN     |     MindIE     |
+| 服务化拆解工具 |     CANN     |     MindIE     |
 |:-------------:|:------------:|:--------------:|
-|     依赖版本      | ≥ CANN 8.1.RC1 | ≥ MindIE 2.0.RC1 |
+|     依赖版本      | CANN 8.1.RC1 | MindIE 2.0.RC1 |
 
+## 工具安装
+- **pip 安装**
+  ```sh
+  pip install -U msserviceprofiler
+  msserviceprofiler split -h
+  ```
+- **如果希望通过源码方式使用**
+  ```sh
+  git clone https://gitcode.com/Ascend/msit.git
+  cd msit/msserviceprofiler
+  pip install .[real] # 安装必要的依赖
+  export PYTHONPATH=$PWD:$PYTHONPATH
+  python msserviceprofiler/__main__.py split -h
+  ```
+## 命令行参数
 
-### Python环境依赖  
-```
-python>=3.7  
-pandas>=2.2  
-numpy>=1.24.3  
-```
+  | 参数                 | 说明                                                            |是否必选|
+  | -------------------- | --------------------------------------------------------------- |-----|
+  | --input-path | 指定性能数据所在路径  |是|
+  | --output-path | 指定拆解后文件生成路径，默认为当前路径下 output 文件夹 |否|
+  | --log-level  | 日志级别，可选值 debug,info,warning,error,fatal,critical，默认info  |否|
+  | --prefill-batch-size  | 指定拆解的 Prefill batch 的 batch_size 大小，该值可以从 batch.csv 中的 batch_size 字段中获取，默认值为0 ，代表不执行 prefill 性能拆解 |否|
+  | --prefill-number  | 指定拆解的 Prefill batch 的数量，用于统计执行时间的最大值、最小值、平均值和标准差，默认值为1 |否|
+  | --prefill-rid  | 指定拆解的 Prefill batch 的请求 id，该值可以从 request.csv 中的 http_rid 字段中获取，默认值为-1，代表不执行 prefill 性能拆解 |否|
+  | --decode-batch-size  | 指定拆解的 Decode batch 的 batch_size 大小，该值可以从 batch.csv 中的 batch_size 字段中获取，默认值为0，代表不执行 decode 性能拆解 |否|
+  | --decode-number  | 指定拆解的 Decode batch 的数量，用于统计执行时间的最大值、最小值、平均值和标准差，默认值为1 |否|
+  | --decode-rid  | 指定拆解的 Decode batch 的请求 id，该值可以从 request.csv 中的 http_rid 字段中获取，默认值为-1，代表不执行 decode 性能拆解 |否|
+## 使用方式
+- **使用场景 1，指定 `batch_size` 大小拆解**
+  - 如拆解100个`batch_size`为1的`prefill batch`数据，可执行：
+    ```sh
+    python msserviceprofiler/__main__.py split --input-path=/path/to/input --output-path=/path/to/output/ --prefill-batch-size=1 --prefill-number=100
+    ```
+    执行完毕在结果路径下生成输出文件 `prefill.csv`。
+  - 拆解50个`batch_size`为10的`decode batch`数据，可执行：
+    ```sh
+    python msserviceprofiler/__main__.py split --input-path=/path/to/input --output-path=/path/to/output/ --decode-batch-size=10 --decode-number=50
+    ```
+    执行完毕在结果路径下生成输出文件 `decode.csv`。
+- **使用场景 2，指定 `rid` 拆解**
+  - 拆解 prefill 数据:
+    ```sh
+    python msserviceprofiler/__main__.py split --input-path=/path/to/input --output-path=/path/to/output/ --prefill-rid=efcas2d
+    ```
+    执行完毕在结果路径下生成输出文件 `prefill.csv`。
+  - 拆解 decode 数据:
+    ```sh
+    python msserviceprofiler/__main__.py split --input-path=/path/to/input --output-path=/path/to/output/ --decode-rid=efcas2d
+    ```
+    执行完毕在结果路径下生成输出文件 `decode.csv`。
 
-## 快速入门 (Quick Start)
-目前工具支持pip装包后调用和源码下载，脚本调用两种方式。
-#### pip 安装 msserviceprofiler
-```shell
-pip install -U msserviceprofiler
-
-msserviceprofiler compare input_path golden_path
-```
-#### 或通过源码方式使用 msserviceprofiler
-
-```shell
-git clone https://gitcode.com/Ascend/msit.git
-
-export PYTHONPATH=$PWD/msit/msserviceprofiler/:$PYTHONPATH
-
-cd msit/msserviceprofiler/
-
-python msserviceprofiler/__main__.py compare input_path golden_path
-```
-
-|参数|说明|是否必选|
-|---|---|---|
-|input_path|输入数据目录|是|
-|golden_path|标杆数据目录|是|
-|--output-path|比对结果输出目录，默认为当前目录下创建一个compare_result目录|否|
-|--log-level|设置日志级别，默认为info。取值为：debug info warning error fatal critical|否|
-
-其中 input_path 与 golden_path 数据需通过解析工具生成，具体参考 ms_service_profiler_ext/analyze.py  
-### 输出结果
-#### 输出文件说明
-比对结果支持 Excel 直接展示和 Grafana 可视化
-```
-|- output_path
-    |- compare_result.xlsx
-    |- compare_result.db
-    |- compare_visualization.json
-```
-|结果文件|说明|
-|---|---|
-|compare_result.xlsx|展示所有数据 pair 的绝对误差和相对误差。包含有多个标签页，每个标签页以不同维度展示服务化数据|
-|compare_result.db|比对结果数据库，用于Grafana数据源|
-|compare_visualization.json|用于创建 Grafana 仪表盘|
-
-Grafana可视化参考 https://grafana.org.cn/
-#### 比对结果说明
-比对结果围绕以下几个维度展示： 
- 
-- 服务总体维度  
-- Request 维度  
-- Batch 维度  
-
-比对结果示例如下：
-
-|Metric|Data Source|value1|value2|
-|---|---|---|---|
-|Metric1|input_data|0.9|1.2|
-|Metric1|golden_data|1.0|1.0|
-|Metric1|Difference|0.1\|-10%|0.2\|20%|
-|Metric2|input_data|0.9|1.2|
-|Metric2|golden_data|1.0|1.0|
-|Metric2|Difference|0.1\|-10%|0.2\|20%|
-
-
-## 常见问题 (FAQ)
-
-## 附录 (Appendix)
-版本更新日志
-2025.2.21：比对工具上线
-
-
-
+## **结果说明**
+- `prefill.csv`
+   | 字段                 | 说明                                            |
+  | -------------------- | ----------------------------------------------- |
+  | name | 标注batch内事件名称  |
+  | during_time(ms) | 当前batch事件的执行时间，单位ms |
+  | max  | 事件的最大执行时间，单位ms  |
+  | min  | 事件的最小执行时间，单位ms  |
+  | mean  | 事件的平均执行时间，单位ms  |
+  | std  | 事件执行时间的标准差，单位ms  |
+  | pid  | 事件的进程号  |
+  | tid  | 事件的线程号  |
+  | start_time(ms)  | 当前batch事件的开始时间，显示为时间戳，单位ms  |
+  | end_time(ms)  | 当前batch事件的结束时间，显示为时间戳，单位ms  |
+  | rid  | 请求ID  |
+- `decode.csv`
+与 `prefill.csv` 格式相同， `decode.csv` 不含 `rid` 列。
+- 采集domain域与解析结果对照表
+  | 解析结果                 | 采集domain域                                 |
+  | -------------------- | ----------------------------------------------- |
+  | prefill.csv | "Request; BatchSchedule; ModelExecute"  |
+  | decode.csv | "BatchSchedule; ModelExecute"  |

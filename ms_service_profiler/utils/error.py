@@ -6,7 +6,7 @@ from ms_service_profiler.utils.log import logger
 
 class ExportError(Exception):
     def __init__(self, message):
-        super().__init__(message)  
+        super().__init__(message)
         self.message = message
 
     def __str__(self):
@@ -15,7 +15,7 @@ class ExportError(Exception):
 
 class ParseError(Exception):
     def __init__(self, message):
-        super().__init__(message) 
+        super().__init__(message)
         self.message = message
 
     def __str__(self):
@@ -24,7 +24,7 @@ class ParseError(Exception):
 
 class OtherTaskError(Exception):
     def __init__(self, message):
-        super().__init__(message) 
+        super().__init__(message)
         self.message = message
 
     def __str__(self):
@@ -42,8 +42,8 @@ class DatabaseError(Exception):
 class ValidationError(ParseError):
     def __init__(self, key, message="Failed to parse data"):
         super().__init__(message)
-        self.key = key  
-        self.message = message 
+        self.key = key
+        self.message = message
 
     def __str__(self):
         return f"{self.message}: {self.key}."
@@ -77,8 +77,8 @@ class ColumnMissingError(KeyMissingError):
 class LoadDataError(ParseError):
     def __init__(self, path, message="Failed to load data"):
         super().__init__(message)
-        self.path = path  
-        self.message = message  
+        self.path = path
+        self.message = message
 
     def __str__(self):
         # 返回详细的错误信息

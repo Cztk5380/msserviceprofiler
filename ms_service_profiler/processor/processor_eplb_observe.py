@@ -1,4 +1,5 @@
 # Copyright Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+from enum import IntEnum, auto
 from collections import defaultdict
 import numpy as np
 import pandas as pd
@@ -7,7 +8,6 @@ from ms_service_profiler.processor.processor_base import ProcessorBase
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.error import KeyExcept
-from enum import IntEnum, auto
 
 MOE_HOT_DOMAIN_NAME = "eplb_observe"
 EXPERT_ROUTING_NAME = "expert_routing"
@@ -18,6 +18,80 @@ class ProcessorEplbObserve(ProcessorBase):
     @property
     def name(self):
         return "ProcessorEplbObserve"
+
+    @staticmethod
+    def mapping_expert_hot(expert_hot_by_instance, instance_pod_map, expert_routing):
+        # 每个instance对应的专家映射表是一致的 根据各卡的路由表 生成专家映射表
+        expert_map = {}
+        for instance_name, pod_name_list in instance_pod_map.items():
+            pod_name = pod_name_list[0]
+
+            # 每个instance的专家数 = instance中的rank数 * 每个rank的专家数
+            instance_expert_num = len(expert_hot_by_instance[instance_name]) * \
+                len(expert_hot_by_instance[instance_name][0][0][0][0])
+
+            layer_num = len(list(expert_routing[pod_name].values())[0][0])
+
+            rank = list(expert_routing[pod_name].keys())[0]
+
+            eplb_iteration_num = len(expert_routing[pod_name][rank])
+
+            instance_expert_map = []
+
+            for _ in range(eplb_iteration_num):
+                instance_expert_map.append(-np.ones([layer_num, instance_expert_num], dtype=np.int32))
+
+            for pod_name in pod_name_list:
+                for _, routing_list in expert_routing[pod_name].items():
+                    instance_expert_map = update_expert_map(instance_expert_map, routing_list)
+
+                expert_map[instance_name] = instance_expert_map
+        return expert_map
+
+    @staticmethod
+    def process_expert_hot(df_by_pid):
+        if EXPERT_ROUTING_NAME in df_by_pid.columns:
+            logger.debug("profiling data with eplb.")
+            expert_routing_df_by_pid = df_by_pid.loc[df_by_pid[EXPERT_ROUTING_NAME].dropna().index]
+        else:
+            logger.debug("profiling data without eplb.")
+            expert_routing_df_by_pid = pd.DataFrame()
+
+        if len(expert_routing_df_by_pid) == 0:
+            # 没开负载均衡
+            split_expert_hot = [df_by_pid]
+            expert_routing_by_pid = []
+        else:
+            # 静态负载均衡 or 动态负载均衡
+            # expert_routing_by_pid shape: list: [eplb_perid][layer][instance_expert_num]
+            expert_routing_by_pid = expert_routing_df_by_pid[EXPERT_ROUTING_NAME].values.tolist()
+
+            mark_id_list = expert_routing_df_by_pid["markId"].values.tolist()
+            for item in mark_id_list:
+                if not isinstance(item, int):
+                    raise ValueError("Illegal markId type, please check profiling input.")
+            mark_id_list.append(len(df_by_pid) - 1)
+            mark_id_list = list(set(mark_id_list))
+            mark_id_list.sort()
+            split_expert_hot = []
+            for i in range(len(mark_id_list) - 1):
+                up_mark_id = mark_id_list[i]
+                down_mark_id = mark_id_list[i + 1]
+                split_expert_hot.append(
+                    df_by_pid[(df_by_pid["markId"] > up_mark_id) & (df_by_pid["markId"] < down_mark_id)])
+
+        # 检查rank的格式
+        rank_list = list(set(df_by_pid["rank"].values.tolist()))
+        if len(rank_list) != 1 or not isinstance(rank_list[0], int):
+            raise ValueError("Expert hot map format illegal. Value rank in one file not same.")
+
+        # split_expert_hot shape: [eplb_period][dataframe]
+        # expert_hot shape: [eplb_period][iteration * layer * expert_per_rank]
+        expert_hot = transfer_hot_df_to_list(split_expert_hot)
+
+        rank = rank_list[0]
+
+        return expert_hot, rank, expert_routing_by_pid
 
     def parse(self, data):
         if data is None:
@@ -86,80 +160,6 @@ class ProcessorEplbObserve(ProcessorBase):
         res["expert_map"] = expert_map
         return res
 
-    @staticmethod
-    def mapping_expert_hot(expert_hot_by_instance, instance_pod_map, expert_routing):
-        # 每个instance对应的专家映射表是一致的 根据各卡的路由表 生成专家映射表
-        expert_map = {}
-        for instance_name, pod_name_list in instance_pod_map.items():
-            pod_name = pod_name_list[0]
-
-            # 每个instance的专家数 = instance中的rank数 * 每个rank的专家数
-            instance_expert_num = len(expert_hot_by_instance[instance_name]) * \
-                len(expert_hot_by_instance[instance_name][0][0][0][0])
-
-            layer_num = len(list(expert_routing[pod_name].values())[0][0])
-
-            rank = list(expert_routing[pod_name].keys())[0]
-
-            eplb_iteration_num = len(expert_routing[pod_name][rank])
-
-            instance_expert_map = []
-
-            for _ in range(eplb_iteration_num):
-                instance_expert_map.append(-np.ones([layer_num, instance_expert_num], dtype=np.int32))
-
-            for pod_name in pod_name_list:
-                for rank, routing_list in expert_routing[pod_name].items():
-                    instance_expert_map = update_expert_map(instance_expert_map, routing_list)
-
-                expert_map[instance_name] = instance_expert_map
-        return expert_map
-
-    @staticmethod
-    def process_expert_hot(df_by_pid):
-        if EXPERT_ROUTING_NAME in df_by_pid.columns:
-            logger.debug("profiling data with eplb.")
-            expert_routing_df_by_pid = df_by_pid.loc[df_by_pid[EXPERT_ROUTING_NAME].dropna().index]
-        else:
-            logger.debug("profiling data without eplb.")
-            expert_routing_df_by_pid = pd.DataFrame()
-
-        if len(expert_routing_df_by_pid) == 0:
-            # 没开负载均衡
-            split_expert_hot = [df_by_pid]
-            expert_routing_by_pid = []
-        else:
-            # 静态负载均衡 or 动态负载均衡
-            # expert_routing_by_pid shape: list: [eplb_perid][layer][instance_expert_num]
-            expert_routing_by_pid = expert_routing_df_by_pid[EXPERT_ROUTING_NAME].values.tolist()
-
-            mark_id_list = expert_routing_df_by_pid["markId"].values.tolist()
-            for item in mark_id_list:
-                if not isinstance(item, int):
-                    raise ValueError("Illegal markId type, please check profiling input.")
-            mark_id_list.append(len(df_by_pid) - 1)
-            mark_id_list = list(set(mark_id_list))
-            mark_id_list.sort()
-            split_expert_hot = []
-            for i in range(len(mark_id_list) - 1):
-                up_mark_id = mark_id_list[i]
-                down_mark_id = mark_id_list[i + 1]
-                split_expert_hot.append(
-                    df_by_pid[(df_by_pid["markId"] > up_mark_id) & (df_by_pid["markId"] < down_mark_id)])
-
-        # 检查rank的格式
-        rank_list = list(set(df_by_pid["rank"].values.tolist()))
-        if len(rank_list) != 1 or not isinstance(rank_list[0], int):
-            raise ValueError("Expert hot map format illegal. Value rank in one file not same.")
-
-        # split_expert_hot shape: [eplb_period][dataframe]
-        # expert_hot shape: [eplb_period][iteration * layer * expert_per_rank]
-        expert_hot = transfer_hot_df_to_list(split_expert_hot)
-
-        rank = rank_list[0]
-
-        return expert_hot, rank, expert_routing_by_pid
-
 
 def transfer_hot_df_to_list(dataframe_list):
     # 将dataframe中的专家热点数据转换为np.array数据
@@ -210,7 +210,8 @@ def transfer_expert_hot(expert_hot, instance_pod_map):
         for pod_name in pod_name_list:
             instance_expert_hot_dict.update(expert_hot[pod_name])
 
-        instance_expert_hot_list = [instance_expert_hot_dict.get(rank, None) for rank in sorted(instance_expert_hot_dict)]
+        instance_expert_hot_list = [instance_expert_hot_dict.get(rank, None) \
+            for rank in sorted(instance_expert_hot_dict)]
         res[instance_name] = instance_expert_hot_list
     return res
 

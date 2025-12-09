@@ -3,12 +3,11 @@
 import os
 import json
 import subprocess
-
-import pandas as pd
 from pathlib import Path
+from json import JSONDecodeError
 import sqlite3
 
-from json import JSONDecodeError
+import pandas as pd
 
 from ms_service_profiler.data_source.base_data_source import BaseDataSource, Task
 from ms_service_profiler.utils.error import LoadDataError
@@ -147,20 +146,6 @@ class MsprofDataSource(BaseDataSource):
         )
 
     @classmethod
-    def _parse_value(cls, line, key):
-        if f"{key}:" not in line:
-            return None
-
-        parts = line.strip().split(": ")
-        if len(parts) < 2:
-            return None
-
-        try:
-            return int(parts[1])
-        except (ValueError, IndexError):
-            return None
-
-    @classmethod
     def load_start_cnt(cls, config_path):
         cntvct = 0
         clock_monotonic_raw = 0
@@ -295,6 +280,20 @@ class MsprofDataSource(BaseDataSource):
             return True
 
         return False
+
+    @classmethod
+    def _parse_value(cls, line, key):
+        if f"{key}:" not in line:
+            return None
+
+        parts = line.strip().split(": ")
+        if len(parts) < 2:
+            return None
+
+        try:
+            return int(parts[1])
+        except (ValueError, IndexError):
+            return None
 
     def load(self, prof_path):
         file_filter = {

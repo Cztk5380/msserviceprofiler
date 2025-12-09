@@ -3,7 +3,9 @@
 import pandas as pd
 from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.exporters.utils import write_result_to_db, write_result_to_csv, check_domain_valid
+from ms_service_profiler.exporters.utils import (
+    TableConfig, write_result_to_db, write_result_to_csv, check_domain_valid
+)
 from ms_service_profiler.utils.timer import timer
 
 
@@ -76,11 +78,7 @@ class ExporterPDComm(ExporterBase):
 
         result_df = pd.DataFrame(cls.req_result_list)
         if 'db' in cls.args.format:
-            write_result_to_db(
-                df_param_list=[[result_df, 'pd_split_communication']],
-                table_name='pd_split_communication',
-                rename_cols=PD_SPLIT_COMM_RENAME_COLS
-            )
+            write_result_to_db(CREATE_PD_COMM_TABLE_CONFIG, result_df)
 
         if 'csv' in cls.args.format:
             write_result_to_csv(result_df, output, "pd_split_communication", PD_SPLIT_COMM_RENAME_COLS)
@@ -91,3 +89,14 @@ PD_SPLIT_COMM_RENAME_COLS = {
     'send_request_succ_time': 'send_request_succ_time(ms)', 'prefill_res_time': 'prefill_res_time(ms)',
     'request_end_time': 'request_end_time(ms)'
 }
+
+CREATE_PD_COMM_TABLE_CONFIG = TableConfig(
+    table_name="pd_split_communication",
+    create_view=True,
+    view_name="pd_communication_info",
+    view_rename_cols=PD_SPLIT_COMM_RENAME_COLS,
+    description={
+        "en": "PD Node Communication Data in PD-Separated Deployment",
+        "zh": "PD分离部署场景PD节点间通信类数据信息"
+    }
+)
