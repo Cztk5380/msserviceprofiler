@@ -1,8 +1,5 @@
 # MindStudio Service Profiler
 
-## 最新消息
-- [2025.11.28]：初始化
-
 ## 📖简介
 本文介绍推理服务化性能数据采集工具，本工具主要使用msServiceProfiler接口，在MindIE和vLLM推理服务化进程中，采集关键过程的开始和结束时间点，识别关键函数或迭代等信息，记录关键事件，支持多样的信息采集，对性能问题快速定界。
 
@@ -35,18 +32,18 @@
 ## 🛠️工具安装
 安装msServiceProfiler工具，详情请参见《[msServiceProfiler工具安装指南](docs/zh/msserviceprofiler_install_guide.md)》。
 
-## 🚀[快速入门](docs/zh/quickstart.md)
-msServiceProfiler服务化调优工具快速入门，包含MindIE框架和vLLM框架。
+## 🚀[快速入门](docs/zh/quick_start.md)
+msServiceProfiler服务化调优工具快速入门。
 
 ## 🧰 功能介绍
 
-### [msServiceProfiler服务化调优工具](docs/zh/msServiceProfiler_service_oriented_tuning_tool.md)
+### [msServiceProfiler服务化调优](docs/zh/msserviceprofiler_serving_tuning_instruct.md)
 msServiceProfiler服务化调优工具使用msServiceProfiler接口，采集关键过程的开始和结束时间点，识别关键函数或迭代等信息，记录关键事件，支持多样的信息采集，对性能问题快速定界。
 
 ### [vLLM服务化性能采集工具](docs/zh/vLLM_service_oriented_performance_collection_tool.md)
 vLLM服务化性能采集工具采集vllm-ascend的服务化框架性能数据以及算子性能数据。
 
-### [Trace数据监控工具](docs/zh/Trace_data_monitoring_tool.md)
+### [Trace数据监控工具](docs/zh/msserviceprofiler_trace_data_monitoring_instruct.md)
 Trace数据监控工具采集MindIE-Motor服务中的请求响应时间、响应状态、客户端IP/端口、服务端IP/端口等数据，最后将采集到的数据推送至Jaeger等支持OTLP协议的开源监控平台进行可视化分析。
 
 ### [服务化性能数据比对工具](docs/zh/service_oriented_performance_data_comparison_tool.md)
