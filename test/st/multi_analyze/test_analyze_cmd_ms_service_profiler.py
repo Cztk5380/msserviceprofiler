@@ -353,27 +353,21 @@ class TestAnalyzeCmd(TestCase):
 
     def test_analyze_ms_service_profiler_data(self):
         # 校验msserviceprofiler打点采集数据解析功能是否正常解析，校验输出文件及内容
-        cmd = [
-            "python", self.ANALYZE_PROFILER, "analyze",
-            "--input-path", self.INPUT_PATH_MSSERVICEPROFILER,
-            "--output-path", self.OUTPUT_PATH
-        ]
+        cmd = ["python", self.ANALYZE_PROFILER, "analyze",
+            "--input-path", self.INPUT_PATH_MSSERVICEPROFILER, "--output-path", self.OUTPUT_PATH]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
-            self.assertFalse(
-                True, msg="enable ms service profiler analyze task failed.")
+            self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
 
-        request_columns = ['Metric', 'Average',
-                           'Max', 'Min', 'P50', 'P90', 'P99']
-        request_numeric_columns = ['Average',
-                                   'Max', 'Min', 'P50', 'P90', 'P99']
+        request_columns = ['Metric', 'Average', 'Max', 'Min', 'P50', 'P90', 'P99']
+        request_numeric_columns = ['Average', 'Max', 'Min', 'P50', 'P90', 'P99']
 
         service_columns = ['Metric', 'Value']
         service_numeric_columns = ['Value']
 
         with self.subTest("Check request_summary.csv content"):
             try:
-                result = check_csv_content(
-                    self.OUTPUT_PATH, self.REQUEST_SUM_CSV, request_columns, request_numeric_columns)
+                result = check_csv_content(self.OUTPUT_PATH, self.REQUEST_SUM_CSV, request_columns,
+                                           request_numeric_columns)
                 self.assertTrue(result, f"检查 {self.REQUEST_SUM_CSV} 失败")
             except Exception as e:
                 self.fail(f"检查 {self.REQUEST_SUM_CSV} 时发生异常: {e}")
@@ -401,31 +395,7 @@ class TestAnalyzeCmd(TestCase):
             except Exception as e:
                 self.fail(f"检查 {self.CHROME_TRACE} 时发生异常: {e}")
 
-        with self.subTest("Check profiler.db content"):
-            try:
-                check_latency_db_content(self.OUTPUT_PATH, self.PROFILER_DB)
-                check_kvcache_db_content(self.OUTPUT_PATH, self.PROFILER_DB)
-                check_req_status_db_content(self.OUTPUT_PATH, self.PROFILER_DB)
-            except Exception as e:
-                self.fail(f"检查 {self.PROFILER_DB} 时发生异常: {e}")
-
-        with self.subTest("Check kvcache.csv content"):
-            try:
-                check_kvcache_csv_content(self.OUTPUT_PATH, self.KVCACHE_CSV)
-            except Exception as e:
-                self.fail(f"检查 {self.KVCACHE_CSV} 时发生异常: {e}")
-
-        with self.subTest("Check batch.csv content"):
-            try:
-                check_batch_csv_content(self.OUTPUT_PATH, self.BATCH_CSV)
-            except Exception as e:
-                self.fail(f"检查 {self.BATCH_CSV} 时发生异常: {e}")
-
-        with self.subTest("Check request.csv content"):
-            try:
-                check_request_csv_content(self.OUTPUT_PATH, self.REQUEST_CSV)
-            except Exception as e:
-                self.fail(f"检查 {self.REQUEST_CSV} 时发生异常: {e}")
+        self.check_db_kvcache_batch_request()
 
     def test_parse_data_in_pd_separate(self):
         # 校验msserviceprofiler打点PD分离数据解析功能是否正常解析，校验输出文件及内容
@@ -445,13 +415,10 @@ class TestAnalyzeCmd(TestCase):
             "--output-path", self.OUTPUT_PATH
         ]
         if execute_cmd(cmd) != self.COMMAND_SUCCESS or not os.path.exists(self.OUTPUT_PATH):
-            self.assertFalse(
-                True, msg="enable ms service profiler analyze task failed.")
+            self.assertFalse(True, msg="enable ms service profiler analyze task failed.")
 
-        request_columns = ['Metric', 'Average',
-                           'Max', 'Min', 'P50', 'P90', 'P99']
-        request_numeric_columns = ['Average',
-                                   'Max', 'Min', 'P50', 'P90', 'P99']
+        request_columns = ['Metric', 'Average', 'Max', 'Min', 'P50', 'P90', 'P99']
+        request_numeric_columns = ['Average', 'Max', 'Min', 'P50', 'P90', 'P99']
 
         service_columns = ['Metric', 'Value']
         service_numeric_columns = ['Value']
@@ -487,6 +454,9 @@ class TestAnalyzeCmd(TestCase):
             except Exception as e:
                 self.fail(f"检查 {self.CHROME_TRACE} 时发生异常: {e}")
 
+        self.check_db_kvcache_batch_request()
+
+    def check_db_kvcache_batch_request(self):
         with self.subTest("Check profiler.db content"):
             try:
                 check_latency_db_content(self.OUTPUT_PATH, self.PROFILER_DB)
@@ -494,19 +464,16 @@ class TestAnalyzeCmd(TestCase):
                 check_req_status_db_content(self.OUTPUT_PATH, self.PROFILER_DB)
             except Exception as e:
                 self.fail(f"检查 {self.PROFILER_DB} 时发生异常: {e}")
-
         with self.subTest("Check kvcache.csv content"):
             try:
                 check_kvcache_csv_content(self.OUTPUT_PATH, self.KVCACHE_CSV)
             except Exception as e:
                 self.fail(f"检查 {self.KVCACHE_CSV} 时发生异常: {e}")
-
         with self.subTest("Check batch.csv content"):
             try:
                 check_batch_csv_content(self.OUTPUT_PATH, self.BATCH_CSV)
             except Exception as e:
                 self.fail(f"检查 {self.BATCH_CSV} 时发生异常: {e}")
-
         with self.subTest("Check request.csv content"):
             try:
                 check_request_csv_content(self.OUTPUT_PATH, self.REQUEST_CSV)
