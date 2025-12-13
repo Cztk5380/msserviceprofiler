@@ -2,7 +2,7 @@
 
 ## 简介<a name="ZH-CN_TOPIC_0000002171752224"></a>
 
-本文介绍推理服务化性能数据采集工具，本工具主要使用msServiceProfiler接口，在MindIE Motor推理服务化进程中，采集关键过程的开始和结束时间点，识别关键函数或迭代等信息，记录关键事件，支持多样的信息采集，对性能问题快速定界。
+本文介绍推理服务化性能数据采集工具，本工具主要使用msServiceProfiler接口，在MindIE Motor推理服务化进程中，采集关键过程的开始和结束时间点，识别关键函数或迭代等信息，记录关键事件，支持多样的信息采集，对性能问题快速定位。
 
 -   msServiceProfiler服务化调优接口包括“ [服务化调优 C++](./cpp_api/serving_tuning/README.md)”和“  [服务化调优 Python](./python_api/README.md)”。
 -   有关MindIE Motor相关介绍请参见《MindIE Motor开发指南》。
@@ -737,7 +737,7 @@ cd grafana-v11.3.0/bin/
 
 MindIE-Motor推理服务化框架中默认已添加性能数据采集代码，当前步骤可选。
 
-若需要自定义采集更多性能数据，可以参照如下示例代码对服务化框架中的性能采集代码进行修改，可以使用的接口请参见[API参考（C++）](./cpp_api/serving_tuning/README.md)或[API参考（Python](./python_api/README.md)。
+若需要自定义采集更多性能数据，可以参照如下示例代码对服务化框架中的性能采集代码进行修改，可以使用的接口请参见[API参考（C++）](./cpp_api/serving_tuning/README.md)或[API参考（Python）](./python_api/README.md)。
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >下列示例使用C++接口。

@@ -7,11 +7,11 @@
 
 |AI处理器类型|是否支持|
 |--|:-:|
-|Ascend 910C|x|
+|Ascend 910C|×|
 |Ascend 910B|√|
-|Ascend 310B|x|
+|Ascend 310B|×|
 |Ascend 310P|√|
-|Ascend 910|x|
+|Ascend 910|×|
 
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
@@ -34,8 +34,8 @@ Span& SetAttribute(const char* attrName, const char* value)
 
 |参数名|输入/输出|说明|
 |--|--|--|
-|attrName|输入|属性名 |。|
-|value|输入|属性值。|
+|attrName|输入|属性名 |
+|value|输入|属性值|
 
 
 ## 返回值说明<a name="section16621124213476"></a>
