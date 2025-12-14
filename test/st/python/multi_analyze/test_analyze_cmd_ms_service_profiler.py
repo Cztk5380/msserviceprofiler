@@ -21,7 +21,7 @@ import ast
 import pytest
 import pandas as pd
 from jsonschema import validate, ValidationError
-from test.st.utils import execute_cmd, check_column_actual, check_row
+from utils import execute_cmd, check_column_actual, check_row
 from ms_service_profiler.msguard.security import open_s
 
 

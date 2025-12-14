@@ -2,10 +2,10 @@
 
 import os
 
-from test.st.executor.exec_benchmark import ExecBenchmark
-from test.st.executor.exec_mindie_server import ExecMindIEServer
-from test.st.checker.dump_checker import mindie_key_word_checker
-from test.st.checker.json_checker import validate_json_keys
+from executor.exec_benchmark import ExecBenchmark
+from executor.exec_mindie_server import ExecMindIEServer
+from checker.dump_checker import mindie_key_word_checker
+from checker.json_checker import validate_json_keys
 
 
 def simplified_ready_go(self):

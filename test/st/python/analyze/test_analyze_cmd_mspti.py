@@ -6,7 +6,7 @@ import sqlite3
 import random
 import pytest
 
-from test.st.executor.exec_parse import ExecParse
+from executor.exec_parse import ExecParse
 from pytest_check import check
 
 

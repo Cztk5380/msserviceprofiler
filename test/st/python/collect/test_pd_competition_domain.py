@@ -2,10 +2,10 @@
 
 import os
 
-from test.st.executor.exec_benchmark import ExecBenchmark
-from test.st.executor.exec_mindie_server import ExecMindIEServer
-from test.st.checker.domain_checker import check_db_domain
-from test.st.checker.dump_checker import mindie_key_word_checker
+from executor.exec_benchmark import ExecBenchmark
+from executor.exec_mindie_server import ExecMindIEServer
+from checker.domain_checker import check_db_domain
+from checker.dump_checker import mindie_key_word_checker
 
 
 def test_domain_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):

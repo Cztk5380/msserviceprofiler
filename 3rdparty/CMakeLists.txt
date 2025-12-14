@@ -11,6 +11,7 @@ FetchContent_Declare(
 
     DOWNLOAD_DIR ${PROTOBUF_DIR}
     SOURCE_DIR ${PROTOBUF_DIR}
+    TLS_VERIFY OFF
 )
 FetchContent_Declare(
     securec_external
@@ -18,6 +19,7 @@ FetchContent_Declare(
     GIT_TAG "tag_Huawei_Secure_C_V100R001C01SPC012B002_00001"
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
+    TLS_VERIFY OFF
 
     DOWNLOAD_DIR ${SECUREC_DIR}
     SOURCE_DIR ${SECUREC_DIR}
@@ -74,6 +76,7 @@ message(STATUS "Preparing opentelemtry - done")
 
 if(ms_service_profiler_BUILD_TESTS)
     set(GOOGLETEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/googletest)
+    set(BOOST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/boost)
     set(MOCK_CPP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/mock_cpp)
 
     FetchContent_Declare(
@@ -82,9 +85,21 @@ if(ms_service_profiler_BUILD_TESTS)
         GIT_TAG release-1.12.1
         GIT_SHALLOW TRUE
         GIT_PROGRESS TRUE
+    	TLS_VERIFY OFF
 
         DOWNLOAD_DIR ${GOOGLETEST_DIR}
         SOURCE_DIR ${GOOGLETEST_DIR}
+    )
+    FetchContent_Declare(
+        boost_external
+        GIT_REPOSITORY https://codehub-dg-y.huawei.com/OpenSourceCenter/boostorg/boost.git
+        GIT_TAG 1.72.0-h1
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+    	TLS_VERIFY OFF
+
+        DOWNLOAD_DIR ${BOOST_DIR}
+        SOURCE_DIR ${BOOST_DIR}
     )
     FetchContent_Declare(
         mock_cpp_external
@@ -101,8 +116,27 @@ if(ms_service_profiler_BUILD_TESTS)
     FetchContent_MakeAvailable(googletest_external)
     message(STATUS "Preparing googletest - done")
 
+    message(STATUS "Preparing boost")
+    if(EXISTS ${BOOST_DIR})
+        message(STATUS "Found boost - ${BOOST_DIR}")
+    else()
+        FetchContent_GetProperties(boost_external)
+        if(NOT boost_external_POPULATED)
+            FetchContent_Populate(boost_external)
+        endif()
+    endif()
+    message(STATUS "Preparing boost - done")
+
     message(STATUS "Preparing mock_cpp")
-    FetchContent_MakeAvailable(mock_cpp_external)
+    if(EXISTS ${MOCK_CPP_DIR})
+        message(STATUS "Found mock_cpp - ${MOCK_CPP_DIR}")
+        add_subdirectory(${MOCK_CPP_DIR})
+    else()
+        FetchContent_MakeAvailable(mock_cpp_external)
+    endif()
+    target_include_directories(mockcpp PUBLIC
+        ${BOOST_DIR}
+    )
     message(STATUS "Preparing mock_cpp - done")
 endif()
 
@@ -133,18 +167,20 @@ target_compile_options(opentelemetry PRIVATE
     -fPIC
 )
 
+
 include(ExternalProject)
 ExternalProject_Add(
     json_external
     URL "https://cmc-szver-artifactory.cmc.tools.huawei.com/artifactory/cmc-software-release/Baize%20C/AscendTransformerBoost/1.0.0/asdops_dependency/common/nlohmannjson-v3.11.2.tar.gz"
     SOURCE_DIR "${THIRD_PARTY_DIR}/json"
     DOWNLOAD_DIR "nlohmann-json"
+    TLS_VERIFY OFF
 
     DOWNLOAD_NO_PROGRESS
-    DOWNLOAD_NO_EXTRACT FALSE
     TLS_VERIFY FALSE
 
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
     INSTALL_COMMAND ""
 )
+

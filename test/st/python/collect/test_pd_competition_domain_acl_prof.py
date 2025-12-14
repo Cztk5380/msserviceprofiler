@@ -3,11 +3,11 @@
 import os
 from pytest_check import check
 
-from test.st.executor.exec_benchmark import ExecBenchmark
-from test.st.executor.exec_mindie_server import ExecMindIEServer
-from test.st.checker.domain_checker import check_db_domain
-from test.st.checker.dump_checker import mindie_key_word_checker
-from test.st.checker.checker_utils import has_prof_folder
+from executor.exec_benchmark import ExecBenchmark
+from executor.exec_mindie_server import ExecMindIEServer
+from checker.domain_checker import check_db_domain
+from checker.dump_checker import mindie_key_word_checker
+from checker.checker_utils import has_prof_folder
 
 
 def test_domain_acl_prof_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):

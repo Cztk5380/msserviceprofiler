@@ -5,7 +5,7 @@ from contextlib import contextmanager, ExitStack
 
 import pandas as pd
 from ms_service_profiler.exporters.utils import CURVE_VIEW_NAME_LIST_COMPETITION
-from test.st.checker.checker_utils import check_df_has_no_empty_line, check_df_expected_column
+from checker.checker_utils import check_df_has_no_empty_line, check_df_expected_column
 
 
 @contextmanager

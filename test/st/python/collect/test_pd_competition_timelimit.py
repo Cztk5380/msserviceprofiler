@@ -1,7 +1,7 @@
 import json
 import os
 
-from test.st.executor.exec_mindie_server import ExecMindIEServer
+from executor.exec_mindie_server import ExecMindIEServer
 
 
 def test_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):

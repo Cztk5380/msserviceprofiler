@@ -1,8 +1,8 @@
 import uuid
 import os
 import json
-from test.st.utils import change_dict
-from test.st.executor.exec_command import CommandExecutor
+from utils import change_dict
+from executor.exec_command import CommandExecutor
 
 
 class ExecMindIEServer(CommandExecutor):

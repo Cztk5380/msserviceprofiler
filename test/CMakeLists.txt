@@ -23,11 +23,11 @@ add_compile_options(
     --coverage
 )
 
-add_executable(${UT_TARGET}
+add_executable(${UT_TARGET} EXCLUDE_FROM_ALL
     ${UT_SRC}
     ${CMAKE_SOURCE_DIR}/cpp/src/Tracer.cpp # getResourceProto has no extern header
 )
-add_executable(${ST_TARGET}
+add_executable(${ST_TARGET} EXCLUDE_FROM_ALL
     ${ST_SRC}
     ${CMAKE_SOURCE_DIR}/cpp/src/ServiceProfilerMspti.cpp # 'CallShowApiInfo' has no extern header
 )

@@ -16,7 +16,7 @@ import os
 import shutil
 from unittest import TestCase
 import pandas as pd
-from test.st.utils import execute_cmd, check_split_csv_content
+from utils import execute_cmd, check_split_csv_content
 
 
 class TestSplitVllmCmd(TestCase):

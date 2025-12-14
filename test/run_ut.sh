@@ -2,97 +2,98 @@
 # This script is used to run ut and st testcase.
 # Copyright Huawei Technologies Co., Ltd. 2021-2022. All rights reserved.
 
-set -e
+set -eu
 
-export _GLIBCXX_USE_CXX11_ABI=0
-unset ASCEND_TOOLKIT_HOME
 CUR_DIR=$(dirname $(readlink -f $0))
+COV_DIR=${CUR_DIR}/coverage
 PROJECT_DIR=$(readlink -f ${CUR_DIR}/..)
-TEST_LANG=$1
-ENABLE_CACHE=$2
-ret=0
+BUILD_DIR=${PROJECT_DIR}/build
+
+TEST_LANG="${1:-}"
+ENABLE_CACHE="${2:-0}"
 
 clean() {
-  cd ${TEST_DIR}
-  if [ -e ${TEST_DIR}/coverage.xml ]; then
-    rm coverage.xml
-    echo "remove last coverage.xml success"
-  fi
-  cd -
-}
-
-run_test_cpp() {
-    local BUILD_DIR=${PROJECT_DIR}/build
-    local BUILD_TEST_DIR=${BUILD_DIR}/test
-
-    local UT_BUILD_CACHE_DIR=${BUILD_TEST_DIR}/CMakeFiles/ms_service_profiler_run_uts.dir
-    local ST_BUILD_CACHE_DIR=${BUILD_TEST_DIR}/CMakeFiles/ms_service_profiler_run_sts.dir
-    local COV_DIR=${CUR_DIR}/coverage
-
-    if [ "$ENABLE_CACHE" != "1" ]; then
-        [ -d "${BUILD_DIR}" ] && rm -rf "${BUILD_DIR}"
-        cmake -S ${PROJECT_DIR}/ . -B ${BUILD_DIR} && cmake --build ${BUILD_DIR} -j$(nproc)
-    fi
-    if [ $? -ne 0 ]; then
-        echo "build ut or st failed"
-        exit 1
-    fi
-
-    ${BUILD_TEST_DIR}/ms_service_profiler_run_uts
-    if [ $? -ne 0 ]; then
-        echo "failed to run uts"
-        exit 1
-    fi
-    ${BUILD_TEST_DIR}/ms_service_profiler_run_sts
-    if [ $? -ne 0 ]; then
-        echo "failed to run sts"
-        exit 1
-    fi
+    [[ "${ENABLE_CACHE}" != "1" && -d "${BUILD_DIR}" ]] && rm -rf "${BUILD_DIR}"
 
     if [ ! -d ${COV_DIR} ]; then
         mkdir -p ${COV_DIR}
     else
         rm -rf ${COV_DIR}/*
     fi
-
-    lcov_opt="--rc lcov_branch_coverage=1 --rc geninfo_no_exception_branch=1"
-    lcov -c -d ${UT_BUILD_CACHE_DIR} -o ${COV_DIR}/ut_server_profiler.info -b ${COV_DIR} $lcov_opt
-    lcov -c -d ${ST_BUILD_CACHE_DIR} -o ${COV_DIR}/st_server_profiler.info -b ${COV_DIR} $lcov_opt
-    if [ -f "${COV_DIR}/st_server_profiler.info " ]; then
-        lcov -a ${COV_DIR}/ut_server_profiler.info  -a ${COV_DIR}/st_server_profiler.info  -o ${COV_DIR}/test_server_profiler.info  $lcov_opt
-    else
-        lcov -a ${COV_DIR}/ut_server_profiler.info  -o ${COV_DIR}/test_server_profiler.info  $lcov_opt
-    fi
-
-    lcov -r ${COV_DIR}/test_server_profiler.info '*cpp*' -o ${COV_DIR}/test_server_profiler.info $lcov_opt -q
-    lcov -r ${COV_DIR}/test_server_profiler.info '*c++*' -o ${COV_DIR}/test_server_profiler.info $lcov_opt -q
-    lcov -r ${COV_DIR}/test_server_profiler.info '/usr/include/*' -o ${COV_DIR}/test_server_profiler.info $lcov_opt -q
-    lcov -r ${COV_DIR}/test_server_profiler.info '*nlohmann*' -o ${COV_DIR}/test_server_profiler.info $lcov_opt -q
-    lcov -r ${COV_DIR}/test_server_profiler.info '*mockcpp*' -o ${COV_DIR}/test_server_profiler.info $lcov_opt -q
-    lcov -r ${COV_DIR}/test_server_profiler.info '*googletest*' -o ${COV_DIR}/test_server_profiler.info $lcov_opt -q
-
-    genhtml ${COV_DIR}/test_server_profiler.info -o ${COV_DIR}/report --branch-coverage
-    tar -zcf ${COV_DIR}/report.tar.gz ${COV_DIR}/report
-    echo show report using cmd: python -m http.server -d ${COV_DIR}/report
 }
 
-run_test_python() {
-    pip3 install -r "${CUR_DIR}/requirements.txt" --default-timeout=20
-    export PYTHONPATH=${PROJECT_DIR}:${PYTHONPATH}
-    python3 -m coverage run --branch --source ${PROJECT_DIR}/'ms_service_profiler' -m pytest ${CUR_DIR}/ut/python
+run_test_cpp() {
+    local BUILD_TEST_DIR=${BUILD_DIR}/test
+    local UT_TARGET="ms_service_profiler_run_uts"
+    local ST_TARGET="ms_service_profiler_run_sts"
+    local UT_BUILD_CACHE_DIR=${BUILD_TEST_DIR}/CMakeFiles/${UT_TARGET}.dir
+    local ST_BUILD_CACHE_DIR=${BUILD_TEST_DIR}/CMakeFiles/${ST_TARGET}.dir
+    local UT_COV_INFO=${COV_DIR}/ut_server_profiler.info
+    local ST_COV_INFO=${COV_DIR}/st_server_profiler.info
+    local OVERALL_COV_INFO=${COV_DIR}/test_server_profiler.info
+    local COV_REPORT_DIR=${COV_DIR}/report
 
+    if [ "$ENABLE_CACHE" != "1" ]; then
+        cmake -S ${PROJECT_DIR}/ -B ${BUILD_DIR} -Dms_service_profiler_BUILD_TESTS=ON
+        cmake --build ${BUILD_DIR} --target ${UT_TARGET} ${ST_TARGET} -j$(nproc)
+
+        if [ $? -ne 0 ]; then
+            echo "failed to build tests project"
+            exit 1
+        fi
+    fi
+
+    ${BUILD_TEST_DIR}/${UT_TARGET}
     if [ $? -ne 0 ]; then
-        echo "UT Failure"
+        echo "failed to run uts"
+        exit 1
+    fi
+    ${BUILD_TEST_DIR}/${ST_TARGET}
+    if [ $? -ne 0 ]; then
+        echo "failed to run sts"
         exit 1
     fi
 
-    python3 -m coverage report -m
-    python3 -m coverage xml -o ${TEST_DIR}/coverage.xml
+    lcov_opt="--rc lcov_branch_coverage=1 --rc geninfo_no_exception_branch=1"
+    lcov -c -d ${UT_BUILD_CACHE_DIR} -o ${UT_COV_INFO} -b ${COV_DIR} $lcov_opt
+    lcov -c -d ${ST_BUILD_CACHE_DIR} -o ${ST_COV_INFO} -b ${COV_DIR} $lcov_opt
+    if [ -f "${ST_COV_INFO} " ]; then
+        lcov -a ${UT_COV_INFO} -a ${ST_COV_INFO}  -o ${OVERALL_COV_INFO}  $lcov_opt
+    else
+        lcov -a ${UT_COV_INFO} -o ${OVERALL_COV_INFO}  $lcov_opt
+    fi
+
+    lcov -r ${OVERALL_COV_INFO} '*cpp*' -o ${OVERALL_COV_INFO} $lcov_opt -q
+    lcov -r ${OVERALL_COV_INFO} '*c++*' -o ${OVERALL_COV_INFO} $lcov_opt -q
+    lcov -r ${OVERALL_COV_INFO} '/usr/include/*' -o ${OVERALL_COV_INFO} $lcov_opt -q
+    lcov -r ${OVERALL_COV_INFO} '*nlohmann*' -o ${OVERALL_COV_INFO} $lcov_opt -q
+    lcov -r ${OVERALL_COV_INFO} '*mockcpp*' -o ${OVERALL_COV_INFO} $lcov_opt -q
+    lcov -r ${OVERALL_COV_INFO} '*googletest*' -o ${OVERALL_COV_INFO} $lcov_opt -q
+
+    genhtml ${OVERALL_COV_INFO} -o ${COV_REPORT_DIR} --branch-coverage
+    tar -zcf ${COV_DIR}/report.tar.gz ${COV_REPORT_DIR}
+    echo "show report using cmd: python -m http.server -d ${COV_REPORT_DIR}"
+}
+
+run_test_python() {
+    local UT_PYTHON_DIR=${CUR_DIR}/ut/python
+
+    pip3 install "${PROJECT_DIR}[test]"
+
+    export PYTHONPATH=${PROJECT_DIR}:${PYTHONPATH:-}
+    coverage run --branch --source "${PROJECT_DIR}/ms_service_profiler" -m pytest ${UT_PYTHON_DIR}
+
+    if [ $? -ne 0 ]; then
+        echo "failed to run python uts"
+        exit 1
+    fi
+
+    coverage report -m
+    coverage xml -o ${COV_DIR}/coverage.xml
 }
 
 main() {
     export VERBOSE=1
-    cd ${TEST_DIR}
 
     clean
     if [ "$TEST_LANG" != "cpp" ]; then

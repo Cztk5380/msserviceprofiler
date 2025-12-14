@@ -1,9 +1,9 @@
 import os
 
-from test.st.executor.exec_benchmark import ExecBenchmark
-from test.st.executor.exec_mindie_server import ExecMindIEServer
-from test.st.executor.exec_parse import ExecParse
-from test.st.checker.csv_checker import has_op_csv_files
+from executor.exec_benchmark import ExecBenchmark
+from executor.exec_mindie_server import ExecMindIEServer
+from executor.exec_parse import ExecParse
+from checker.csv_checker import has_op_csv_files
 
 
 def test_acl_datatype_config_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):

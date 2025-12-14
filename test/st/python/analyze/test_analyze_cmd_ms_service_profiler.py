@@ -16,7 +16,7 @@ from pytest_check import check
 import pandas as pd
 from jsonschema import validate, ValidationError
 from ms_service_profiler.exporters.utils import CURVE_VIEW_NAME_LIST
-from test.st.executor.exec_parse import ExecParse
+from executor.exec_parse import ExecParse
 
 
 def check_kvcache_csv_content(output_path, csv_file_name):

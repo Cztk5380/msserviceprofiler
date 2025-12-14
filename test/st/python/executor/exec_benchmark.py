@@ -1,4 +1,4 @@
-from test.st.executor.exec_command import CommandExecutor
+from executor.exec_command import CommandExecutor
 
 
 class ExecBenchmark(CommandExecutor):
