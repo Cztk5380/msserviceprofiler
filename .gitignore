@@ -2,15 +2,11 @@
 *.pyc
 .vscode
 .idea
-output
-opensource
 build
 test/.coverage
 test/coverage
-platform/**
 *.xml
 *.db
 *.pickle
 *.coverage
 cmake-build-debug
-test/test_build/**

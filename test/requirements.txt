@@ -6,4 +6,6 @@ scipy
 matplotlib
 pytest-asyncio
 pyyaml
-
+openpyxl
+pydantic
+pytest-mock
