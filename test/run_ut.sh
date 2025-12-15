@@ -17,8 +17,6 @@ clean() {
 
     if [ ! -d ${COV_DIR} ]; then
         mkdir -p ${COV_DIR}
-    else
-        rm -rf ${COV_DIR}/*
     fi
 }
 
@@ -53,26 +51,6 @@ run_test_cpp() {
         echo "failed to run sts"
         exit 1
     fi
-
-    lcov_opt="--rc lcov_branch_coverage=1 --rc geninfo_no_exception_branch=1"
-    lcov -c -d ${UT_BUILD_CACHE_DIR} -o ${UT_COV_INFO} -b ${COV_DIR} $lcov_opt
-    lcov -c -d ${ST_BUILD_CACHE_DIR} -o ${ST_COV_INFO} -b ${COV_DIR} $lcov_opt
-    if [ -f "${ST_COV_INFO} " ]; then
-        lcov -a ${UT_COV_INFO} -a ${ST_COV_INFO}  -o ${OVERALL_COV_INFO}  $lcov_opt
-    else
-        lcov -a ${UT_COV_INFO} -o ${OVERALL_COV_INFO}  $lcov_opt
-    fi
-
-    lcov -r ${OVERALL_COV_INFO} '*cpp*' -o ${OVERALL_COV_INFO} $lcov_opt -q
-    lcov -r ${OVERALL_COV_INFO} '*c++*' -o ${OVERALL_COV_INFO} $lcov_opt -q
-    lcov -r ${OVERALL_COV_INFO} '/usr/include/*' -o ${OVERALL_COV_INFO} $lcov_opt -q
-    lcov -r ${OVERALL_COV_INFO} '*nlohmann*' -o ${OVERALL_COV_INFO} $lcov_opt -q
-    lcov -r ${OVERALL_COV_INFO} '*mockcpp*' -o ${OVERALL_COV_INFO} $lcov_opt -q
-    lcov -r ${OVERALL_COV_INFO} '*googletest*' -o ${OVERALL_COV_INFO} $lcov_opt -q
-
-    genhtml ${OVERALL_COV_INFO} -o ${COV_REPORT_DIR} --branch-coverage
-    tar -zcf ${COV_DIR}/report.tar.gz ${COV_REPORT_DIR}
-    echo "show report using cmd: python -m http.server -d ${COV_REPORT_DIR}"
 }
 
 run_test_python() {
