@@ -285,6 +285,9 @@ def custom_handler(original_func, this, *args, **kwargs):
 
 | 配套CANN版本 | vLLM-ascend V0 | vLLM-ascend V1 |
 |:--------:|:--------------:|:--------------:|
+| 8.3.RC1  |       /        |  v0.11.0.RC3   |
+| 8.3.RC1  |       /        |  v0.11.0.RC2   |
+| 8.3.RC1  |       /        |  v0.11.0.RC1   |
 | 8.2.RC1  |       /        |  v0.11.0.RC0   |
 | 8.2.RC1  |       /        |  v0.10.2.RC1   |
 | 8.2.RC1  |       /        |  v0.10.1.RC1   |
