@@ -75,7 +75,7 @@ def check_and_get_df_from_table(conn, cursor, table_name, col_names, allow_empty
 
 def check_latency_tables(conn, complete_req_cnt=0):
     with sqlite_cursor(conn) as cursor:
-        expected_header = ["avg", "p50", "p90", "p99", "timestamp"]
+        expected_header = ["p50", "p90", "p99", "timestamp", "p50_alltime"]
         with check("check table decode_gen_speed"):
             check_and_get_df_from_table(conn, cursor, "decode_gen_speed", expected_header, complete_req_cnt == 0)
         with check("check table:first_token_latency"):
@@ -91,7 +91,7 @@ def check_kvcache_table(conn, complete_req_cnt=0):
     with sqlite_cursor(conn) as cursor:
         with check(table_name):
             # 表头
-            expected_header = ["rid", "name", "start_datetime", "device_kvcache_left", "kvcache_usage_rate"]
+            expected_header = ["domain", "name", "start_datetime", "total_blocks", "kvcache_usage_rate"]
             check_and_get_df_from_table(conn, cursor, table_name, expected_header, complete_req_cnt == 0)
 
 
@@ -100,7 +100,7 @@ def check_req_status_table(conn, complete_req_cnt=0):
     with sqlite_cursor(conn) as cursor:
         with check(table_name):
             # 表头
-            expected_header = ["timestamp", "WAITING", "PENDING", "RUNNING"]
+            expected_header = ["timestamp", "QueueSize=", "status"]
             check_and_get_df_from_table(conn, cursor, table_name, expected_header, complete_req_cnt == 0)
 
 

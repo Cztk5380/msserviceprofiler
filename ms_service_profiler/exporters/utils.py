@@ -25,7 +25,7 @@ MAX_ITERATIONS = 10000
 
 CURVE_VIEW_NAME_LIST_COMPETITION = {
     # 折线图原始表名: 视图名称
-    'batch': 'Batch_Size_by_Batch_ID_curve',
+    'batch': 'Batch_Size_curve',
     'kvcache': 'Kvcache_Usage_Percent_curve',
     'prefill_gen_speed': 'Prefill_Generate_Speed_Latency_curve',
     'req_latency': 'Request_Latency_curve',
