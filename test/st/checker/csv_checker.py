@@ -22,7 +22,7 @@ def check_req_csv(output_path, complete_req_cnt=0):
         # 表头
         expected_header = [
             "http_rid",
-            "start_time(ms)",
+            "start_datetime",
             "recv_token_size",
             "reply_token_size",
             "execution_time(ms)",
@@ -58,10 +58,10 @@ def check_batch_csv(output_path):
         expected_header = [
             "name",
             "res_list",
-            "start_time(ms)",
-            "end_time(ms)",
+            "start_time",
+            "end_time",
             "batch_size",
-            "batch_type",
+            "total_batch_size",
             "during_time(ms)",
         ]
 
@@ -74,9 +74,9 @@ def check_batch_csv(output_path):
         # 每列是否有值
         check_df_col_has_no_nan_value(df, "name")
         check_df_col_has_no_nan_value(df, "res_list")
-        check_df_col_has_no_nan_value(df, "start_time(ms)")
-        check_df_col_has_no_nan_value(df, "end_time(ms)")
-        check_df_col_has_no_nan_value(df, "batch_size")
+        check_df_col_has_no_nan_value(df, "start_time")
+        check_df_col_has_no_nan_value(df, "end_time")
+        check_df_col_has_no_nan_value(df, "total_batch_size")
         check_df_col_has_no_nan_value(df, "batch_type")
         check_df_col_has_no_nan_value(df, "during_time(ms)")
 

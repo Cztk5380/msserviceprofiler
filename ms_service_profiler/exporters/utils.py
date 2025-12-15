@@ -22,6 +22,19 @@ db_write_lock = multiprocessing.Lock()
 CSV_BLACK_LIST = r'^[＋－＝％＠\+\-=%@]|;[＋－＝％＠\+\-=%@]'
 MAX_ITERATIONS = 10000
 
+
+CURVE_VIEW_NAME_LIST_COMPETITION = {
+    # 折线图原始表名: 视图名称
+    'batch': 'Batch_Size_by_Batch_ID_curve',
+    'kvcache': 'Kvcache_Usage_Percent_curve',
+    'prefill_gen_speed': 'Prefill_Generate_Speed_Latency_curve',
+    'req_latency': 'Request_Latency_curve',
+    'decode_gen_speed': 'Decode_Generate_Speed_Latency_curve',
+    'first_token_latency': 'First_Token_Latency_curve',
+    'request_status': 'Request_Status_curve'
+}
+
+
 INSIGHT_TABLE_OPERATIONS = {
     'data_table': {
         # data_table中(name, view_name)都为视图名称
