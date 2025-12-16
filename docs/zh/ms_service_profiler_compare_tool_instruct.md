@@ -6,8 +6,8 @@
 
 **基本概念**
 - 服务总体维度：包含服务级吞吐量、时延等核心指标
-- Request维度：单个请求的完整处理周期指标
-- Batch维度：批处理任务的分段性能指标
+- 请求维度：单个请求的完整处理周期指标
+- 批处理维度：批处理任务的分段性能指标
 
 ## 使用前准备
 
@@ -18,11 +18,11 @@
    ```
 2. 安装依赖包：
    ```bash
-   pip install pandas>=2.2 numpy>=1.24.3
+   pip install "pandas>=2.2" "numpy>=1.24.3"
    ```
 3. 安装性能数据采集工具：
    ```bash
-   pip install msserviceprofiler
+   pip install ms_service_profiler
    ```
 
 **约束**
@@ -39,18 +39,18 @@
 **操作步骤**
 1. 执行比对命令：
    ```bash
-   msserviceprofiler compare /path/to/input_data /path/to/golden_data
+   ms_service_profiler compare /path/to/input_data /path/to/golden_data
    ```
 2. 可选参数配置示例：
    ```bash
-   msserviceprofiler compare input_path golden_path \
+   ms_service_profiler compare input_path golden_path \
      --output-path ./custom_result \
      --log-level debug
    ```
 
 ## 功能介绍
 
-## 昇腾AI处理器支持情况
+### 昇腾AI处理器支持情况
 > **说明：** 
 >AI处理器与昇腾产品的对应关系，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
 
@@ -75,7 +75,7 @@
 ### 命令格式
 
 ```
-msserviceprofiler compare [options] input_path golden_path
+ms_service_profiler compare [options] input_path golden_path
 ```
 
 ### 参数说明
@@ -85,34 +85,39 @@ msserviceprofiler compare [options] input_path golden_path
 | input_path      | 必选      | 待分析数据目录（需包含ms_service_profiler解析后的数据）       |
 | golden_path     | 必选      | 基准数据目录                                                |
 | --output-path   | 可选      | 结果输出目录（默认：./compare_result）                      |
-| --log-level     | 可选      | 日志级别（默认：info，可选：debug/info/warning/error）       |
+| --log-level     | 可选      | 设置日志级别，取值为：<br>debug：调试级别。该级别的日志记录了调试信息，便于开发人员或维护人员定位问题。<br>info：正常级别。记录工具正常运行的信息。默认值。<br>warning：警告级别。记录工具和预期的状态不一致，但不影响整个进程运行的信息。<br>error：一般错误级别。<br>fatal：严重错误级别。<br>critical：致命错误级别。       |
 
 ### 使用示例
 
 ```bash
 # 执行默认比对
-msserviceprofiler compare ./profiling_data/v1 ./profiling_data/v2
+ms_service_profiler compare ./profiling_data/v1 ./profiling_data/v2
 
 # 带自定义输出的比对
-msserviceprofiler compare ./data/new ./data/base --output-path ./diff_analysis
+ms_service_profiler compare ./data/new ./data/base --output-path ./diff_analysis
 ```
 
 ### 输出结果文件说明
 
-比对结果支持 Excel 直接展示和 Grafana 可视化
+#### 输出目录说明
+
+输出目录结构如下：
+
 ```
 |- output_path
     |- compare_result.xlsx
     |- compare_result.db
     |- compare_visualization.json
 ```
+
+
 |结果文件|说明|
 |---|---|
 |compare_result.xlsx|展示所有数据 pair 的绝对误差和相对误差。包含有多个标签页，每个标签页以不同维度展示服务化数据|
 |compare_result.db|比对结果数据库，用于Grafana数据源|
 |compare_visualization.json|用于创建 Grafana 仪表盘|
 
-Grafana可视化参考 https://grafana.org.cn/
+比对结果支持 Excel 直接展示和 Grafana 可视化，Grafana 可视化参考 https://grafana.org.cn/
 
 #### compare_result.xlsx文件说明
 
@@ -128,10 +133,10 @@ Grafana可视化参考 https://grafana.org.cn/
 |---|---|---|---|
 |Metric1|input_data|0.9|1.2|
 |Metric1|golden_data|1.0|1.0|
-|Metric1|Difference|0.1\|-10%|0.2\|20%|
+|Metric1|Difference|0.1|-10%|0.2|20%|
 |Metric2|input_data|0.9|1.2|
 |Metric2|golden_data|1.0|1.0|
-|Metric2|Difference|0.1\|-10%|0.2\|20%|
+|Metric2|Difference|0.1|-10%|0.2|20%|
 
 #### Grafana可视化配置
 
