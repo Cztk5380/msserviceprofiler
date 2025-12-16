@@ -35,7 +35,7 @@ msServiceProfiler Trace采集MindIE-Motor服务中的请求响应时间、响应
 
 **环境准备<a name="section151144214396"></a>**
 
-1.  在昇腾NPU环境安装配套版本的CANN Toolkit开发套件包并配置CANN环境变量，具体请参见《CANN 软件安装指南》中“选择安装场景”章节的“训练&推理&开发调试”场景。
+1.  在昇腾NPU环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《CANN 软件安装指南》。
 2.  安装环境依赖，命令如下：
 
     ```
