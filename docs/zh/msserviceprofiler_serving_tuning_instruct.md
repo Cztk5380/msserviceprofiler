@@ -30,7 +30,7 @@
 
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
->针对Ascend 910B，当前仅支持该系列产品中的Atlas 800I A2 推理产品。
+>针对Ascend 910B，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Ascend 310P，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
 
 
@@ -39,8 +39,9 @@
 工具支持的硬件环境与MindIE一致，详细支持情况请参见《MindIE安装指南》的“安装说明”。
 
 1.  安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《CANN 软件安装指南》。
-2.  完成MindIE的安装和配置并确认MindIE-Motor可以正常运行，具体请参见《MindIE安装指南》。
-3.  完成以上环境准备后，可以进行一次配置预检动作，使用“[msprechecker](https://gitcode.com/Ascend/msit/tree/master/msprechecker)”工具，对环境变量和服务化配置等进行检查。
+2.  完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。
+3.  完成MindIE的安装和配置并确认MindIE-Motor可以正常运行，具体请参见《MindIE安装指南》。
+4.  完成以上环境准备后，可以进行一次配置预检动作，使用“[msprechecker](https://gitcode.com/Ascend/msit/tree/master/msprechecker)”工具，对环境变量和服务化配置等进行检查。
 
 
 ## 数据采集

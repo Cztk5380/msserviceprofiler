@@ -27,7 +27,7 @@ msServiceProfiler Trace采集MindIE-Motor服务中的请求响应时间、响应
 
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
->针对Ascend 910B，当前仅支持该系列产品中的Atlas 800I A2 推理产品。
+>针对Ascend 910B，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Ascend 310P，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
 
 
@@ -35,16 +35,20 @@ msServiceProfiler Trace采集MindIE-Motor服务中的请求响应时间、响应
 
 **环境准备<a name="section151144214396"></a>**
 
-1.  在昇腾环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《CANN 软件安装指南》。
-2.  安装环境依赖，命令如下：
+1. 在昇腾环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《CANN 软件安装指南》。
 
-    ```
-    pip install opentelemetry-exporter-otlp-proto-grpc==1.33.1
-    pip install opentelemetry-exporter-otlp-proto-http==1.33.1
-    ```
+2. 完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。
 
-3.  完成MindIE的安装和配置并确认MindIE-Motor可以正常运行，具体请参见《MindIE安装指南》。
-4.  MindIE-Motor服务所在的昇腾环境与OTLP采集器（Jaeger等）需建立稳定网络连接。
+3. 安装环境依赖，命令如下：
+
+   ```
+   pip install opentelemetry-exporter-otlp-proto-grpc==1.33.1
+   pip install opentelemetry-exporter-otlp-proto-http==1.33.1
+   ```
+
+4. 完成MindIE的安装和配置并确认MindIE-Motor可以正常运行，具体请参见《MindIE安装指南》。
+
+5. MindIE-Motor服务所在的昇腾环境与OTLP采集器（Jaeger等）需建立稳定网络连接。
 
 **约束<a name="section12833144412392"></a>**
 
