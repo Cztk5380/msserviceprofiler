@@ -96,7 +96,7 @@ msServiceProfiler Trace转发数据最大支持400并发，超过400并发可能
 
     ```
     export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
-    export OTEL_EXPORTER_OTLP_ENDPOINT=https://xxx:xxx/v1/traces    # 配置数据转发的IP和端口，例如http://localhost:4318/v1/traces
+    export OTEL_EXPORTER_OTLP_ENDPOINT=https://xxx:xxx/v1/traces    # 配置数据转发的IP和端口，例如https://localhost:4318/v1/traces
     export OTEL_EXPORTER_OTLP_CERTIFICATE=/home/certificates/ca/ca.crt    # 设置证书的绝对路径，该目录属主、文件属主和当前用户一致，目录权限700，文件权限600
     ```
 
@@ -279,13 +279,12 @@ curl http://127.0.0.1:1025/v1/chat/completions \
 |startTime|Span开始时间，int类型，单位us，示例值1763784983019248。|
 |duration|Span持续时间，int类型，单位us，示例值328。|
 
-
 **表 2**  服务信息
 
 |字段|说明|
 |--|--|
 |tags[key=otel.scope.name]|服务/模块名称，string类型，示例值LLM。|
-|tags[key=server.method]|HTTP请求方法，string类型，示例值POS。|
+|tags[key=server.method]|HTTP请求方法，string类型，示例值POST。|
 |tags[key=server.path]|请求路径，string类型，示例值/v1/chat/completions。|
 |tags[key=span.kind]|Span类型，string类型，示例值server。|
 

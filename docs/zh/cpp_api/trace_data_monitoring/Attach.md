@@ -7,11 +7,11 @@
 
 |AI处理器类型|是否支持|
 |--|:-:|
-|Ascend 910C|x|
+|Ascend 910C|×|
 |Ascend 910B|√|
-|Ascend 310B|x|
+|Ascend 310B|×|
 |Ascend 310P|√|
-|Ascend 910|x|
+|Ascend 910|×|
 
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
@@ -36,7 +36,7 @@ size_t Attach(const TraceId traceId, const SpanId spanId, const bool isSample = 
 |--|--|--|
 |traceId|输入|Trace ID。|
 |spanId|输入|跨度ID。|
-|isSample|输入|是否采样（默认true）|
+|isSample|输入|是否采样（默认true）。|
 
 
 ## 返回值说明<a name="section16621124213476"></a>

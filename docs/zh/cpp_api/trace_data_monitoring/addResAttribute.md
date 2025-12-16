@@ -7,11 +7,11 @@
 
 |AI处理器类型|是否支持|
 |--|:-:|
-|Ascend 910C|x|
+|Ascend 910C|×|
 |Ascend 910B|√|
-|Ascend 310B|x|
+|Ascend 310B|×|
 |Ascend 310P|√|
-|Ascend 910|x|
+|Ascend 910|×|
 
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
