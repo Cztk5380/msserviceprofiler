@@ -16,7 +16,7 @@
 
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
->针对Ascend 910B，当前仅支持该系列产品中的Atlas 800I A2 推理产品。
+>针对Ascend 910B，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Ascend 310P，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
 
 ## 函数功能<a name="section463019538153"></a>
