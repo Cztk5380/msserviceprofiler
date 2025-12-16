@@ -60,7 +60,6 @@ def check_batch_csv(output_path):
             "res_list",
             "start_time",
             "end_time",
-            "batch_size",
             "total_batch_size",
             "during_time(ms)",
         ]
@@ -77,7 +76,7 @@ def check_batch_csv(output_path):
         check_df_col_has_no_nan_value(df, "start_time")
         check_df_col_has_no_nan_value(df, "end_time")
         check_df_col_has_no_nan_value(df, "total_batch_size")
-        check_df_col_has_no_nan_value(df[df['batch_type'] != 'Execute'], "batch_type")
+        check_df_col_has_no_nan_value(df[df['name'] != 'Execute'], "batch_type")
         check_df_col_has_no_nan_value(df, "during_time(ms)")
 
 
