@@ -37,8 +37,8 @@ msServiceProfiler服务化调优工具的快速入门，包括必要的操作步
 
 ## 🧰 功能介绍
 
-### [msServiceProfiler服务化调优](docs/zh/msserviceprofiler_serving_tuning_instruct.md)
-msServiceProfiler服务化调优工具使用msServiceProfiler接口，采集关键过程的开始和结束时间点，识别关键函数或迭代等信息，记录关键事件，支持多样的信息采集，对性能问题快速定位。
+### [服务化调优工具](docs/zh/msserviceprofiler_serving_tuning_instruct.md)
+服务化调优工具使用msServiceProfiler接口，采集关键过程的开始和结束时间点，识别关键函数或迭代等信息，记录关键事件，支持多样的信息采集，对性能问题快速定位。
 
 ### [vLLM服务化性能采集工具](docs/zh/vLLM_service_oriented_performance_collection_tool.md)
 vLLM服务化性能采集工具采集vLLM-Ascend的服务化框架性能数据以及算子性能数据。
