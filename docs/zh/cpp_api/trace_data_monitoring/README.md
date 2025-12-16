@@ -2,9 +2,9 @@
 
 ## 接口简介
 
-Trace模块提供推理服务化性能数据采集（C++）接口，用于Trace数据监控。
+Trace模块提供推理服务化性能数据采集（C++）接口，用于Trace数据监测。
 
-Trace接口功能介绍和使用示例请参见[msServiceProfiler Trace数据监控](../../msserviceprofiler_trace_data_monitoring_instruct.md)。
+Trace接口功能介绍和使用示例请参见[msServiceProfiler Trace数据监测](../../msserviceprofiler_trace_data_monitoring_instruct.md)。
 
 头文件：$\{INSTALL\_DIR\}/include/Tracer.h
 
