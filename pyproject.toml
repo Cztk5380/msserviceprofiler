@@ -1,0 +1,39 @@
+[build-system]
+requires = ["scikit-build-core"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "ms_service_profiler"
+version = "8.3.0"
+authors = [
+    {name = "AvadaKedavrua", email = "anonymousdev@163.com"}
+]
+requires-python = ">=3.10"
+
+dependencies = [
+    "pandas>=2.2",
+    "openpyxl",
+    "numpy",
+    "pydantic",
+    "psutil",
+    "scipy",
+    "pyyaml",
+    "matplotlib"
+    # "msguard"
+]
+
+[project.optional-dependencies]
+profiler = ['torch', 'torch_npu']
+test = [
+    'coverage',
+    'pytest',
+    'pytest-mock',
+    'pytest_check', # st
+    'jsonschema', # st
+    'pytest-asyncio'
+]
+
+[tool.scikit-build]
+cmake.version = ">=3.11"
+build-dir = "build/{wheel_tag}"
+

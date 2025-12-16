@@ -2,155 +2,82 @@
 # This script is used to run ut and st testcase.
 # Copyright Huawei Technologies Co., Ltd. 2021-2022. All rights reserved.
 
-set -e
+set -eu
 
-export _GLIBCXX_USE_CXX11_ABI=0
-unset ASCEND_TOOLKIT_HOME
 CUR_DIR=$(dirname $(readlink -f $0))
-TOP_DIR=$(readlink -f ${CUR_DIR}/..)
-TEST_DIR=${TOP_DIR}/"test"
-SRC_DIR=${TOP_DIR}/"src"
-TEST_LANG=$1
-ENABLE_CACHE=$2
-ret=0
+COV_DIR=${CUR_DIR}/coverage
+PROJECT_DIR=$(readlink -f ${CUR_DIR}/..)
+BUILD_DIR=${PROJECT_DIR}/build
+
+TEST_LANG="${1:-}"
+ENABLE_CACHE="${2:-0}"
 
 clean() {
-  cd ${TEST_DIR}
-  if [ -e ${TEST_DIR}/coverage.xml ]; then
-    rm coverage.xml
-    echo "remove last coverage.xml success"
-  fi
-  cd -
-}
+    [[ "${ENABLE_CACHE}" != "1" && -d "${BUILD_DIR}" ]] && rm -rf "${BUILD_DIR}"
 
-function fn_build_googletest()
-{
-    OPENSOURCE_DIR=${CUR_DIR}/../opensource
-    if [ ! -d $OPENSOURCE_DIR ]; then
-        mkdir -p ${CUR_DIR}/../opensource
+    if [ ! -d ${COV_DIR} ]; then
+        mkdir -p ${COV_DIR}
     fi
-
-    cd ${OPENSOURCE_DIR}
-    GTEST_DIR="${OPENSOURCE_DIR}/googletest"
-    if [ ! -d "$GTEST_DIR" ]; then
-        git clone https://codehub-dg-y.huawei.com/OpenSourceCenter/googletest.git googletest -b release-1.12.1
-    else
-        echo "opensource/googletest already exists. no need to download."
-    fi
-    if [ ! -d "$GTEST_DIR/googletest-1.12.1" ]; then
-        cd googletest
-        cmake -S . -DCMAKE_INSTALL_PREFIX=$GTEST_DIR/googletest-1.12.1 -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0" -B gtest_build
-        cmake --build gtest_build -j 20
-        cmake --install gtest_build
-    fi
-}
-
-function fn_build_mock_cpp()
-{
-  mkdir -p ${CUR_DIR}/../opensource
-  cd ${CUR_DIR}/../opensource
-  MOCK_CPP_DIR="${CUR_DIR}/../opensource/mock_cpp"
-  if [ ! -d "$MOCK_CPP_DIR" ]; then
-    git clone https://szv-y.codehub.huawei.com/mindstudio/MindStudio_Opensource/mock_cpp.git mock_cpp -b msprof
-  else
-      echo "opensource/mock_cpp already exists. no need to download."
-  fi
-
-  if [ ! -d "$MOCK_CPP_DIR/mockcpp" ]; then
-    cd mock_cpp
-    mkdir -p build
-    cd build
-    cmake -DCMAKE_INSTALL_PREFIX=$MOCK_CPP_DIR/mockcpp -DMOCKCPP_XUNIT=gtest  -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0" \
-      -DMOCKCPP_XUNIT_HOME=${CUR_DIR}/../opensource/googletest ..
-    make -j20
-    make install
-  fi
 }
 
 run_test_cpp() {
-  cd ${TEST_DIR}/..
+    local BUILD_TEST_DIR=${BUILD_DIR}/test
+    local UT_TARGET="ms_service_profiler_run_uts"
+    local ST_TARGET="ms_service_profiler_run_sts"
+    local UT_BUILD_CACHE_DIR=${BUILD_TEST_DIR}/CMakeFiles/${UT_TARGET}.dir
+    local ST_BUILD_CACHE_DIR=${BUILD_TEST_DIR}/CMakeFiles/${ST_TARGET}.dir
+    local UT_COV_INFO=${COV_DIR}/ut_server_profiler.info
+    local ST_COV_INFO=${COV_DIR}/st_server_profiler.info
+    local OVERALL_COV_INFO=${COV_DIR}/test_server_profiler.info
+    local COV_REPORT_DIR=${COV_DIR}/report
 
-  if [ "$ENABLE_CACHE" != "1" ]; then
-    bash build.sh
-  fi
-  if [ $? -ne 0 ]; then
-    echo "Build ms_service_profiler failed"
-    exit 1
-  fi
-  cd ${TEST_DIR}
+    if [ "$ENABLE_CACHE" != "1" ]; then
+        cmake -S ${PROJECT_DIR}/ -B ${BUILD_DIR} -Dms_service_profiler_BUILD_TESTS=ON
+        cmake --build ${BUILD_DIR} --target ${UT_TARGET} ${ST_TARGET} -j$(nproc)
 
-  if [ "$ENABLE_CACHE" != "1" ]; then
-    mkdir -p test_build && cd test_build && rm * -rf && cmake ../ut/cpp_test && make -j 50
-  else
-    mkdir -p test_build && cd test_build && cmake ../ut/cpp_test && make -j 50
-  fi
-  if [ $? -ne 0 ]; then
-    echo "Build test failed"
-    exit 1
-  fi
-  cd ${TEST_DIR}
-  echo export LD_LIBRARY_PATH=${TEST_DIR}/test_build/3rdparty:$LD_LIBRARY_PATH
-  export LD_LIBRARY_PATH=${TEST_DIR}/test_build/3rdparty:$LD_LIBRARY_PATH
-  ./test_build/st_server_profiler & ./test_build/st_server_profiler
-  ./test_build/ut_server_profiler
+        if [ $? -ne 0 ]; then
+            echo "failed to build tests project"
+            exit 1
+        fi
+    fi
 
-  if [ $? -ne 0 ]; then
-    echo "Run test failed"
-    exit 1
-  fi
-
-  mkdir -p coverage
-  rm -rf ./coverage/*
-
-  lcov_opt="--rc lcov_branch_coverage=1 --rc geninfo_no_exception_branch=1"
-  lcov -c -d ./test_build/CMakeFiles/st_server_profiler.dir -o ./coverage/st_server_profiler.info -b ./coverage $lcov_opt
-  lcov -c -d ./test_build/CMakeFiles/ut_server_profiler.dir -o ./coverage/ut_server_profiler.info -b ./coverage $lcov_opt
-  if [ -f "./coverage/st_server_profiler.info " ]; then
-    lcov -a ./coverage/ut_server_profiler.info  -a ./coverage/st_server_profiler.info  -o ./coverage/test_server_profiler.info  $lcov_opt
-  else
-    lcov -a ./coverage/ut_server_profiler.info  -o ./coverage/test_server_profiler.info  $lcov_opt
-  fi
-
-  lcov -r ./coverage/test_server_profiler.info '*platform*' -o ./coverage/test_server_profiler.info $lcov_opt -q
-  lcov -r ./coverage/test_server_profiler.info '*opensource*' -o ./coverage/test_server_profiler.info $lcov_opt -q
-  lcov -r ./coverage/test_server_profiler.info '*cpp_test*' -o ./coverage/test_server_profiler.info $lcov_opt -q
-  lcov -r ./coverage/test_server_profiler.info '*c++*' -o ./coverage/test_server_profiler.info $lcov_opt -q
-  lcov -r ./coverage/test_server_profiler.info '/usr/include/*' -o ./coverage/test_server_profiler.info $lcov_opt -q
-  lcov -r ./coverage/test_server_profiler.info '*nlohmann*' -o ./coverage/test_server_profiler.info $lcov_opt -q
-  lcov -r ./coverage/test_server_profiler.info '*mockcpp*' -o ./coverage/test_server_profiler.info $lcov_opt -q
-  lcov -r ./coverage/test_server_profiler.info '*googletest*' -o ./coverage/test_server_profiler.info $lcov_opt -q
-
-  genhtml ./coverage/test_server_profiler.info -o ./coverage/report --branch-coverage
-  cd coverage
-  tar -zcf report.tar.gz ./report
-  echo show report using cmd: python -m http.server -d ./coverage/report
+    ${BUILD_TEST_DIR}/${UT_TARGET}
+    if [ $? -ne 0 ]; then
+        echo "failed to run uts"
+        exit 1
+    fi
+    ${BUILD_TEST_DIR}/${ST_TARGET}
+    if [ $? -ne 0 ]; then
+        echo "failed to run sts"
+        exit 1
+    fi
 }
 
 run_test_python() {
-  pip3 install -r "${CUR_DIR}/requirements.txt" --default-timeout=20
-  export PYTHONPATH=${TOP_DIR}:${PYTHONPATH}
-  python3 -m coverage run --branch --source ${TOP_DIR}/'ms_service_profiler' -m pytest ${TEST_DIR}/ut/python_test
+    local UT_PYTHON_DIR=${CUR_DIR}/ut/python
 
-  if [ $? -ne 0 ]; then
-    echo "UT Failure"
-    exit 1
-  fi
+    pip3 install "${PROJECT_DIR}[test]"
 
-  python3 -m coverage report -m
-  python3 -m coverage xml -o ${TEST_DIR}/coverage.xml
+    export PYTHONPATH=${PROJECT_DIR}:${PYTHONPATH:-}
+    coverage run --branch --source "${PROJECT_DIR}/ms_service_profiler" -m pytest ${UT_PYTHON_DIR}
+
+    if [ $? -ne 0 ]; then
+        echo "failed to run python uts"
+        exit 1
+    fi
+
+    coverage report -m
+    coverage xml -o ${COV_DIR}/coverage.xml
 }
 
 main() {
     export VERBOSE=1
-    cd ${TEST_DIR}
 
     clean
     if [ "$TEST_LANG" != "cpp" ]; then
         run_test_python
     fi
     if [ "$TEST_LANG" != "python" ]; then
-        fn_build_googletest
-        fn_build_mock_cpp
         run_test_cpp
     fi
     echo "UT Success"
