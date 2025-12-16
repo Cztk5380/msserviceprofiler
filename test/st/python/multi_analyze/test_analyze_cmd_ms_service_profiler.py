@@ -39,10 +39,8 @@ def check_csv_content(output_path, csv_file_name, expected_csv_columns, numeric_
 
 
 def check_kvcache_csv_content(output_path, csv_file_name):
-    expected_csv_columns = [
-        'domain', 'rid', 'timestamp(ms)',
-        'name', 'device_kvcache_left'
-    ]
+    expected_csv_columns = ['domain', 'name', 'start_time', 'total_blocks', 'used_blocks', 'free_blocks',
+                            'blocks_allocated', 'blocks_freed', 'kvcache_usage_rate']
     csv_file = os.path.join(output_path, csv_file_name)
     # 检查文件是否存在
     assert os.path.exists(csv_file)
@@ -52,8 +50,8 @@ def check_kvcache_csv_content(output_path, csv_file_name):
     actual_columns = df.columns.tolist()
     check_column_actual(actual_columns, expected_csv_columns, context=csv_file_name)
 
-    def is_whole_number(n):
-        if n == int(n):
+    def is_whole_float(n):
+        if n == float(n):
             return True
         else:
             return False
@@ -61,14 +59,14 @@ def check_kvcache_csv_content(output_path, csv_file_name):
     # 定义一个函数，用于检查res_list的格式
     def check_rows(df, row_index, columns):
         for column in columns:
-            if not is_whole_number(df.iloc[row_index][column]):
-                raise AssertionError(f"{row_index}行的{column}不是整数")
+            if not is_whole_float(df.iloc[row_index][column]):
+                raise AssertionError(f"{row_index}行的{column}不是小数")
 
     # 检查数据框的第一行和最后一行的特定列
     rows_to_check = [0, -1]
-    columns_to_check = ['device_kvcache_left']
+    columns_to_check = ['kvcache_usage_rate']
     for row_index in rows_to_check:
-        if df.iloc[row_index]['name'] != 'allocate':
+        if df.iloc[row_index]['name'] != 'Allocate':
             for column in columns_to_check:
                 check_rows(df, row_index, [column])
 
@@ -78,7 +76,7 @@ def check_batch_csv_content(output_path, csv_file_name):
     csv_file = os.path.join(output_path, csv_file_name)
     assert os.path.exists(csv_file)
     assert os.path.isfile(csv_file)
-    expected_header = ['name', 'res_list', 'start_time(ms)', 'end_time(ms)', 'batch_size', \
+    expected_header = ['name', 'res_list', 'start_time', 'end_time', 'total_batch_size', \
                        'batch_type', 'during_time(ms)']
     df = pd.read_csv(csv_file)
     # 检查列名是否正确
@@ -105,7 +103,7 @@ def check_request_csv_content(output_path, csv_file_name):
     assert os.path.exists(csv_file)
     assert os.path.isfile(csv_file)
     df = pd.read_csv(csv_file)
-    expected_header = ['http_rid', 'start_time(ms)', 'recv_token_size', 'reply_token_size', \
+    expected_header = ['http_rid', 'start_datetime', 'recv_token_size', 'reply_token_size', \
                        'execution_time(ms)', 'queue_wait_time(ms)']
     check_column_actual(df.columns.tolist(), expected_header, context='request.csv')
 
@@ -171,7 +169,7 @@ def check_latency_db_content(output_path, db_file_name):
     # 校验时延数据表
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    columns_to_check = ['avg', 'p50', 'p90', 'p99', 'timestamp']
+    columns_to_check = ['p50', 'p90', 'p99', 'timestamp', 'p50_alltime']
     check_has_vaild_table(cursor, 'decode_gen_speed', columns_to_check)
     check_has_vaild_table(cursor, 'first_token_latency', columns_to_check)
     check_has_vaild_table(cursor, 'prefill_gen_speed', columns_to_check)
@@ -184,10 +182,10 @@ def check_latency_db_content(output_path, db_file_name):
 def check_kvcache_db_content(output_path, db_file_name):
     db_file = os.path.join(output_path, db_file_name)
     expected_db_columns = [
-        'rid',
+        'domain',
         'name',
-        'real_start_time(ms)',
-        'device_kvcache_left',
+        'start_datetime',
+        'total_blocks',
         'kvcache_usage_rate'
     ]
     assert os.path.exists(db_file)
@@ -227,7 +225,7 @@ def check_req_status_db_content(output_path, db_file_name):
     conn.close()
 
     # 校验列存在
-    for col in ['timestamp', 'WAITING', 'PENDING', 'RUNNING']:
+    for col in ['timestamp', 'QueueSize=', 'status']:
         assert col in df.columns.tolist()
 
 
