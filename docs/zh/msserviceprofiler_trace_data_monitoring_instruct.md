@@ -1,14 +1,14 @@
-# msServiceProfiler Trace数据监控<a name="ZH-CN_TOPIC_0000002486322046"></a>
+# msServiceProfiler Trace数据监测<a name="ZH-CN_TOPIC_0000002486322046"></a>
 
 ## 简介<a name="ZH-CN_TOPIC_0000002518641903"></a>
 
-msServiceProfiler Trace提供基于OpenTelemetry Protocol（OTLP）协议的Trace数据转发服务，该服务用于接收、处理和转发分布式Trace数据，帮助用户监控和分析微服务架构的性能表现。
+msServiceProfiler Trace提供基于OpenTelemetry Protocol（OTLP）协议的Trace数据转发服务，该服务用于接收、处理和转发分布式Trace数据，帮助用户监测和分析微服务架构的性能表现。
 
-msServiceProfiler Trace采集MindIE-Motor服务中的请求响应时间、响应状态、客户端IP/端口、服务端IP/端口等数据，最后将采集到的数据推送至Jaeger等支持OTLP协议的开源监控平台进行可视化分析。
+msServiceProfiler Trace采集MindIE-Motor服务中的请求响应时间、响应状态、客户端IP/端口、服务端IP/端口等数据，最后将采集到的数据推送至Jaeger等支持OTLP协议的开源监测平台进行可视化分析。
 
 -   当前版本主要面向MindIE推理框架，支持单机及多机PD竞争部署模式。
--   当前仅支持对MindIE的[/v1/chat/completions](https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0078.html)和[/v1/completions](https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0323.html)两个请求发送的核心接口进行Trace监控。
--   msServiceProfiler Trace数据监控接口包括“msServiceProfiler API参考（C++） \>  [Trace数据监控](./cpp_api/trace_data_monitoring/README.md)”。
+-   当前仅支持对MindIE的[/v1/chat/completions](https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0078.html)和[/v1/completions](https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0323.html)两个请求发送的核心接口进行Trace监测。
+-   msServiceProfiler Trace数据监测接口包括“msServiceProfiler API参考（C++） \>  [Trace数据监测](./cpp_api/trace_data_monitoring/README.md)”。
 -   有关MindIE Motor相关介绍请参见《[MindIE Motor开发指南](https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0001.html)》。
 
 
@@ -35,7 +35,7 @@ msServiceProfiler Trace采集MindIE-Motor服务中的请求响应时间、响应
 
 **环境准备<a name="section151144214396"></a>**
 
-1.  在昇腾NPU环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《CANN 软件安装指南》。
+1.  在昇腾环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《CANN 软件安装指南》。
 2.  安装环境依赖，命令如下：
 
     ```
@@ -44,7 +44,7 @@ msServiceProfiler Trace采集MindIE-Motor服务中的请求响应时间、响应
     ```
 
 3.  完成MindIE的安装和配置并确认MindIE-Motor可以正常运行，具体请参见《MindIE安装指南》。
-4.  MindIE-Motor服务所在的昇腾NPU环境与OTLP采集器（Jaeger等）需建立稳定网络连接。
+4.  MindIE-Motor服务所在的昇腾环境与OTLP采集器（Jaeger等）需建立稳定网络连接。
 
 **约束<a name="section12833144412392"></a>**
 
@@ -240,7 +240,7 @@ X-B3-Sampled: 1
 
 **执行发送请求<a name="section113815183112"></a>**
 
-发送的HTTP请求头中必须添加上述三种HTTP请求头格式的其中一种，才可以执行发送请求并开启Trace数据监控功能。其中配置的SpanId和TraceId会作为每个请求的索引。
+发送的HTTP请求头中必须添加上述三种HTTP请求头格式的其中一种，才可以执行发送请求并开启Trace数据监测功能。其中配置的SpanId和TraceId会作为每个请求的索引。
 
 以在HTTP请求头添加W3C Trace Context \(traceparent\)格式为例，执行发送请求命令如下：
 
@@ -262,7 +262,7 @@ curl http://127.0.0.1:1025/v1/chat/completions \
 
 ## 输出结果说明<a name="ZH-CN_TOPIC_0000002486322050"></a>
 
-完成[发送请求](#发送请求)后，可以在支持OTLP协议的开源监控平台（例如Jaeger，须先开启Jaeger平台服务）查看可视化结果，示例如下。
+完成[发送请求](#发送请求)后，可以在支持OTLP协议的开源监测平台（例如Jaeger，须先开启Jaeger平台服务）查看可视化结果，示例如下。
 
 **图 1**  可视化结果<a name="fig485163113451"></a>  
 ![](figures/可视化结果.png "可视化结果")
