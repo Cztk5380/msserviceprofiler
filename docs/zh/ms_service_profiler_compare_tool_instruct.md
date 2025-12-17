@@ -9,26 +9,31 @@
 - 请求维度：单个请求的完整处理周期指标
 - 批处理维度：批处理任务的分段性能指标
 
+
+## AI处理器支持情况
+> **说明：** <br>
+>AI处理器与昇腾产品的对应关系，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
+
+|AI处理器类型|是否支持|
+|--|:-:|
+|Ascend 910C|√|
+|Ascend 910B|√|
+|Ascend 310B|√|
+|Ascend 310P|√|
+|Ascend 910|√|
+
+> **须知：** <br>
+>针对Ascend 910B，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。<br>
+>针对Ascend 310P，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
+
 ## 使用前准备
 
-**环境准备**
-1. 安装Python 3.7+环境：
-   ```bash
-   python --version  # 验证版本
-   ```
-2. 安装依赖包：
-   ```bash
-   pip install "pandas>=2.2" "numpy>=1.24.3"
-   ```
-3. 安装性能数据采集工具：
-   ```bash
-   pip install ms_service_profiler
-   ```
+完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。
 
 **约束**
-- 仅支持CANN 8.1.RC1及以上版本
-- 需配合MindIE 2.0.RC1及以上使用
-- 输入数据必须通过ms_service_profiler工具解析生成
+- 仅支持CANN 8.1.RC1及以上版本。
+- 需配合MindIE 2.0.RC1及以上使用。
+- 输入数据必须通过ms_service_profiler工具解析生成。
 
 ## 快速入门
 
@@ -49,21 +54,6 @@
    ```
 
 ## 功能介绍
-
-### 昇腾AI处理器支持情况
-> **说明：** 
->AI处理器与昇腾产品的对应关系，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
-
-|AI处理器类型|是否支持|
-|--|:-:|
-|Ascend 910C|√|
-|Ascend 910B|√|
-|Ascend 310B|√|
-|Ascend 310P|√|
-|Ascend 910|√|
-
-> **须知：** 
->针对Ascend 910B，当前仅支持该系列产品中的Atlas 800I A2 推理产品。
 
 ### 功能说明
 
@@ -137,20 +127,3 @@ ms_service_profiler compare ./data/new ./data/base --output-path ./diff_analysis
 |Metric2|input_data|0.9|1.2|
 |Metric2|golden_data|1.0|1.0|
 |Metric2|Difference|0.1|-10%|0.2|20%|
-
-#### Grafana可视化配置
-
-1. 导入compare_visualization.json
-2. 配置数据库源为compare_result.db
-3. 仪表盘包含：
-   - 服务健康度时序图
-   - 请求分布热力图
-   - 批处理效率对比柱状图
-
-## 附录
-
-### 版本更新日志
-
-| 版本       | 日期         | 更新内容                      |
-|-----------|-------------|-----------------------------|
-| 1.0.0     | 2025-02-21  | 首次发布基础比对功能            |
