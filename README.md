@@ -49,6 +49,18 @@ Trace数据监测工具采集MindIE-Motor服务中的请求响应时间、响应
 ### [服务化性能数据比对工具](docs/zh/service_oriented_performance_data_comparison_tool.md)
 服务化性能数据比对工具支持对使用msServiceProfiler工具采集的性能数据进行差异比对，通过比对快速识别可能存在的问题点。
 
+### [服务化自动寻优工具](docs/zh/service_oriented_performance_data_comparison_tool.md)
+基于msServiceProfiler工具采集的性能数据，提供服务化参数自动寻优能力，可以对服务化的参数以及测试工具的参数进行寻优。具体请参见服务化自动寻优工具。
+
+### [服务化专家建议工具](docs/zh/service_profiling_advisor_instruct.md)
+基于benchmark 输出结果以及 service 的 config.json 配置，提供分析提高 TTFT / Throughput 等的优化点能力。具体请参见服务化专家建议工具。
+
+### [服务化多维度解析工具](docs/zh/msserviceprofiler_multi_analyze_instruct.md)
+基于msServiceProfiler工具采集的性能数据，提供性能数据多维度分析能力，可以对性能数据进行batch维度、request维度和service维度分析。具体请参见服务化多维度解析工具。
+
+### [服务化拆解工具](docs/zh/service_performance_split_tool_instruct.md)
+基于msServiceProfiler工具采集的性能数据，提供性能数据拆解能力，可以对batch内各阶段耗时进行分析。具体请参见服务化拆解工具。
+
 ## ❗免责声明
 ### 致msServiceProfiler使用者
 
@@ -66,7 +78,7 @@ Trace数据监测工具采集MindIE-Motor服务中的请求响应时间、响应
 
 
 ## 🔑License
-msServiceProfiler产品的使用许可证，具体请参见[LICENSE文件](./LICENSE.md)。
+msServiceProfiler产品的使用许可证，具体请参见[LICENSE文件](./License)。
 
 ## 贡献声明
 1. 提交错误报告：如果您在msServiceProfiler中发现了一个不存在安全问题的漏洞，请在msServiceProfiler仓库中的Issues中搜索，以防该漏洞已被提交，如果找不到漏洞可以创建一个新的Issues。如果发现了一个安全问题请不要将其公开，请参阅安全问题处理方式。提交错误报告时应该包含完整信息。
