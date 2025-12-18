@@ -19,12 +19,12 @@ import argparse
 from collections import namedtuple
 from dataclasses import dataclass
 
-from msserviceprofiler.msservice_advisor.profiling_analyze.utils import TARGETS, LOG_LEVELS, SUGGESTION_TYPES
-from msserviceprofiler.msservice_advisor.profiling_analyze.utils import str_ignore_case, logger, set_log_level
-from msserviceprofiler.msservice_advisor.profiling_analyze.utils import get_latest_matching_file, read_csv_or_json
-from msserviceprofiler.msservice_advisor.profiling_analyze.utils import is_root
+from ms_service_profiler.msservice_advisor.profiling_analyze.utils import TARGETS, LOG_LEVELS, SUGGESTION_TYPES
+from ms_service_profiler.msservice_advisor.profiling_analyze.utils import str_ignore_case, logger, set_log_level
+from ms_service_profiler.msservice_advisor.profiling_analyze.utils import get_latest_matching_file, read_csv_or_json
+from ms_service_profiler.msservice_advisor.profiling_analyze.utils import is_root
 
-from msserviceprofiler.msguard import validate_args, Rule
+from ms_service_profiler.msguard import validate_args, Rule
 
 
 # 文件格式，字典："21559056a7ff44c88a891ecbb537c431"："0", ...
@@ -139,8 +139,8 @@ def parse_mindie_server_config(service_config_path):
 
 
 def analyze(mindie_service_config, benchmark_instance, params: ProfilingParameters):
-    import msserviceprofiler.msservice_advisor.profiling_analyze
-    from msserviceprofiler.msservice_advisor.profiling_analyze.register import REGISTRY, ANSWERS
+    import ms_service_profiler.msservice_advisor.profiling_analyze
+    from ms_service_profiler.msservice_advisor.profiling_analyze.register import REGISTRY, ANSWERS
 
     logger.info("")
     logger.info("<think>")

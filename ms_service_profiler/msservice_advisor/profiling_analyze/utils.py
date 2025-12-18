@@ -20,8 +20,8 @@ from pathlib import Path
 import logging
 from collections import namedtuple
 from glob import glob
-from msserviceprofiler.msguard.security.io import open_s
-from msserviceprofiler.msguard import validate_params, Rule
+from ms_service_profiler.msguard.security.io import open_s
+from ms_service_profiler.msguard import validate_params, Rule
 
 TARGETS = namedtuple("TARGETS", ["FirstTokenTime", "Throughput"])("FirstTokenTime", "Throughput")
 _SUGGESTION_TYPES = ["env", "system", "config"]
@@ -103,18 +103,24 @@ def get_latest_matching_file(instance_path, pattern):
     return max(files, key=os.path.getmtime) if files else None
 
 
+def _process_csv_rows(reader):
+    """Process rows from a CSV DictReader and return a dictionary of columns."""
+    result = {}
+    for row in reader:
+        for key, value in row.items():
+            result.setdefault(key, []).append(value)
+    return result
+
+
 def read_csv(file_path):
     logger.info("Reading CSV file: %r", file_path)
-    result = {}
     try:
-        with open_s(file_path, mode="r", newline="", encoding="utf-8") as ff:
-            reader = csv.DictReader(ff)
+        with open_s(file_path, mode="r", newline="", encoding="utf-8") as file:
+            reader = csv.DictReader(file)
             if not reader.fieldnames:
                 logger.error("CSV file %r has no headers or is empty.", file_path)
                 return None
-            for row in reader:
-                for kk, vv in row.items():
-                    result.setdefault(kk, []).append(vv)
+            result = _process_csv_rows(reader)
             if not result:
                 logger.error("CSV file %r is empty or has no valid data.", file_path)
                 return None

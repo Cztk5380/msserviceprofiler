@@ -22,7 +22,7 @@ import tempfile
 import shutil
 import pytest
 
-from msserviceprofiler.msservice_advisor.profiling_analyze import utils
+from ms_service_profiler.msservice_advisor.profiling_analyze import utils
 
 
 # Helper functions for file/directory testing
@@ -95,7 +95,8 @@ def test_get_directory_size_given_empty_dir_when_calculated_then_zero():
     temp_dir = tempfile.mkdtemp()
     try:
         size = utils.get_directory_size(temp_dir)
-        assert size == 0.0
+        import math
+        assert math.isclose(size, 0.0, abs_tol=1e-9)
     finally:
         os.rmdir(temp_dir)
 
@@ -121,7 +122,8 @@ def test_get_directory_size_given_symlinks_when_calculated_then_ignored():
     try:
         os.symlink(temp_file, os.path.join(temp_dir, "symlink"))
         size = utils.get_directory_size(temp_dir)
-        assert size == 0.0  # Symlinks should be ignored
+        import math
+        assert math.isclose(size, 0.0, abs_tol=1e-9)
     finally:
         os.unlink(temp_file)
         shutil.rmtree(temp_dir)

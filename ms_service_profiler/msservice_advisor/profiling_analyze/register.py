@@ -14,7 +14,7 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 
-from msserviceprofiler.msservice_advisor.profiling_analyze.utils import SUGGESTION_TYPES
+from ms_service_profiler.msservice_advisor.profiling_analyze.utils import SUGGESTION_TYPES
 
 # Global register list for analysers
 REGISTRY = {}

@@ -17,10 +17,10 @@
 import random
 import numpy as np
 
-from msserviceprofiler.msservice_advisor.profiling_analyze.register import register_analyze, cached, answer
-from msserviceprofiler.msservice_advisor.profiling_analyze.register import GLOBAL_DATA
-from msserviceprofiler.msservice_advisor.profiling_analyze.utils import TARGETS, SUGGESTION_TYPES, logger
-from msserviceprofiler.msservice_advisor.profiling_analyze.utils import get_dict_value_by_pos, UmaskWrapper
+from ms_service_profiler.msservice_advisor.profiling_analyze.register import register_analyze, cached, answer
+from ms_service_profiler.msservice_advisor.profiling_analyze.register import GLOBAL_DATA
+from ms_service_profiler.msservice_advisor.profiling_analyze.utils import TARGETS, SUGGESTION_TYPES, logger
+from ms_service_profiler.msservice_advisor.profiling_analyze.utils import get_dict_value_by_pos, UmaskWrapper
 
 try:
     import matplotlib.pyplot as plt

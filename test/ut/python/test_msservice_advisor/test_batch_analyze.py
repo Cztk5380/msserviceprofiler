@@ -19,9 +19,9 @@ import pytest
 import numpy as np
 
 # Import the module to test with proper error handling
-from msserviceprofiler.msservice_advisor.profiling_analyze import batch_analyze
-from msserviceprofiler.msservice_advisor.profiling_analyze.register import REGISTRY, ANSWERS
-from msserviceprofiler.msservice_advisor.profiling_analyze.utils import SUGGESTION_TYPES, logger
+from ms_service_profiler.msservice_advisor.profiling_analyze import batch_analyze
+from ms_service_profiler.msservice_advisor.profiling_analyze.register import REGISTRY, ANSWERS
+from ms_service_profiler.msservice_advisor.profiling_analyze.utils import SUGGESTION_TYPES, logger
 
 
 # Test fixtures

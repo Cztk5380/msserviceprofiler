@@ -20,12 +20,12 @@ import os
 import re
 import subprocess
 
-from msserviceprofiler.msservice_advisor.profiling_analyze.register import register_analyze, answer, GLOBAL_DATA
-from msserviceprofiler.msservice_advisor.profiling_analyze.utils import (
+from ms_service_profiler.msservice_advisor.profiling_analyze.register import register_analyze, answer, GLOBAL_DATA
+from ms_service_profiler.msservice_advisor.profiling_analyze.utils import (
     logger, SUGGESTION_TYPES, BYTES_TO_GB, MAX_DEVICE_ID_LIST_LENGTH
 )
-from msserviceprofiler.msservice_advisor.profiling_analyze.utils import get_directory_size, read_csv_or_json
-from msserviceprofiler.msguard import validate_params, Rule
+from ms_service_profiler.msservice_advisor.profiling_analyze.utils import get_directory_size, read_csv_or_json
+from ms_service_profiler.msguard import validate_params, Rule
 
 
 def get_benchmark_token_num(benchmark, info_name):

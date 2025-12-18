@@ -19,9 +19,9 @@ from unittest.mock import patch, MagicMock
 import pytest
 import numpy as np
 
-from msserviceprofiler.msservice_advisor.profiling_analyze import base_analyze
-from msserviceprofiler.msservice_advisor.profiling_analyze.register import REGISTRY, ANSWERS
-from msserviceprofiler.msservice_advisor.profiling_analyze.utils import TARGETS, SUGGESTION_TYPES
+from ms_service_profiler.msservice_advisor.profiling_analyze import base_analyze
+from ms_service_profiler.msservice_advisor.profiling_analyze.register import REGISTRY, ANSWERS
+from ms_service_profiler.msservice_advisor.profiling_analyze.utils import TARGETS, SUGGESTION_TYPES
 
 
 # Test fixtures

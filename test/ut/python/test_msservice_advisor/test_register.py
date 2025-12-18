@@ -17,7 +17,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from msserviceprofiler.msservice_advisor.profiling_analyze.register import (
+from ms_service_profiler.msservice_advisor.profiling_analyze.register import (
     register_analyze,
     cached,
     answer,

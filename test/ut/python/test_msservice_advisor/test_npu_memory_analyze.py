@@ -24,10 +24,10 @@ from unittest.mock import patch, MagicMock, mock_open
 import pytest
 
 # Import the module to test with proper error handling
-from msserviceprofiler.msservice_advisor.profiling_analyze import npu_memory_analyze
-from msserviceprofiler.msservice_advisor.profiling_analyze.register import REGISTRY, ANSWERS
-from msserviceprofiler.msservice_advisor.profiling_analyze.utils import SUGGESTION_TYPES, BYTES_TO_GB
-from msserviceprofiler.msguard import GlobalConfig
+from ms_service_profiler.msservice_advisor.profiling_analyze import npu_memory_analyze
+from ms_service_profiler.msservice_advisor.profiling_analyze.register import REGISTRY, ANSWERS
+from ms_service_profiler.msservice_advisor.profiling_analyze.utils import SUGGESTION_TYPES, BYTES_TO_GB
+from ms_service_profiler.msguard import GlobalConfig
 
 
 # Test fixtures
