@@ -100,37 +100,37 @@ MS_SERVICE_PROFILER_API bool IsValidDomain(const char *domainName);
     * @return profiling数据路径
 */
 MS_SERVICE_PROFILER_API const char* GetProfPath();
- 
+
 /**
     * @brief 获取ACL任务时间级别配置
     * @return ACL任务时间级别配置字符串
 */
 MS_SERVICE_PROFILER_API const char* GetAclTaskTimeLevel();
- 
+
 /**
     * @brief 获取ACL性能分析AICore指标配置
     * @return ACL性能分析AICore指标配置值
 */
 MS_SERVICE_PROFILER_API int GetAclProfAicoreMetrics();
- 
+
 /**
     * @brief 检查是否启用Torch Profiler分析堆栈
     * @return true : 启用Torch堆栈，false: 不启用
 */
 MS_SERVICE_PROFILER_API bool GetTorchProfStack();
- 
+
 /**
     * @brief 检查是否启用Torch性能分析模块
     * @return true : 启用Torch模块，false: 不启用
 */
 MS_SERVICE_PROFILER_API bool GetTorchProfModules();
- 
+
 /**
     * @brief 获取Torch性能分析step数量配置
     * @return Torch性能分析step数量
 */
 MS_SERVICE_PROFILER_API int GetTorchProfStepNum();
- 
+
 /**
     * @brief 检查是否启用Torch性能分析功能
     * @return true : 启用Torch性能分析，false: 不启用
@@ -155,6 +155,30 @@ MS_SERVICE_PROFILER_API const std::set<std::string> &GetValidDomain();  // 20260
  * @param value [in] 元数据值
  */
 MS_SERVICE_PROFILER_API void AddMetaInfo(const char *key, const char *value);
+
+/**
+ * @brief 为指定性能监测区间（Span）添加标记信息（简化版）
+ * @param name [in] 性能监测区间名称
+ * @param domain [in] 域名/分类
+ * @param msg [in] 标记信息（将写入 trace 的 args 字段）
+ * @param spanHandle [in] 目标 span 的唯一句柄标识
+ */
+MS_SERVICE_PROFILER_API void SpanEndEx(
+    const char* name,
+    const char* domain,
+    const char* msg,
+    SpanHandle spanHandle);
+
+/**
+ * @brief 记录一个带标记信息的独立事件（简化版）
+ * @param name [in] 事件名称
+ * @param domain [in] 域名/分类
+ * @param msg [in] 事件描述（将写入 trace 的 args 字段）
+ */
+MS_SERVICE_PROFILER_API void MarkEventEx(
+    const char* name,
+    const char* domain,
+    const char* msg);
 }
 
 #ifndef ENABLE_SERVICE_PROF_UNIT_TEST
@@ -315,6 +339,27 @@ public:
         }
     }
 
+    MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG void CallSpanEndEx(
+        const char* name,
+        const char* domain,
+        const char* msg,
+        SpanHandle spanHandle) const
+    {
+        if (ptrSpanEndEx_) {
+            ptrSpanEndEx_(name, domain, msg, spanHandle);
+        }
+    }
+
+    MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG void CallMarkEventEx(
+        const char* name,
+        const char* domain,
+        const char* msg) const
+    {
+        if (ptrMarkEventEx_) {
+            ptrMarkEventEx_(name, domain, msg);
+        }
+    }
+
 #ifndef ENABLE_SERVICE_PROF_UNIT_TEST
     template <typename Func, const char *funcName>
     auto get_function() -> Func *
@@ -379,6 +424,8 @@ private:
         ptrValidDomain_ = GetValidDomain;
         ptrIsValidDomain_ = IsValidDomain;
         ptrAddMetaInfo_ = AddMetaInfo;
+        ptrSpanEndEx_ = SpanEndEx;
+        ptrMarkEventEx_ = MarkEventEx;
     }
 #endif
 
@@ -422,6 +469,8 @@ private:
             ptrValidDomain_ = (decltype(GetValidDomain) *)dlsym(handle, "GetValidDomain");
             ptrIsValidDomain_ = (decltype(IsValidDomain) *)dlsym(handle, "IsValidDomain");
             ptrAddMetaInfo_ = (decltype(AddMetaInfo) *)dlsym(handle, "AddMetaInfo");
+            ptrSpanEndEx_ = (decltype(SpanEndEx) *)dlsym(handle, "SpanEndEx");
+            ptrMarkEventEx_ = (decltype(MarkEventEx) *)dlsym(handle, "MarkEventEx");
         }
 #endif
     }
@@ -438,6 +487,8 @@ private:
     decltype(GetValidDomain) *ptrValidDomain_ = nullptr;
     decltype(IsValidDomain) *ptrIsValidDomain_ = nullptr;
     decltype(AddMetaInfo) *ptrAddMetaInfo_ = nullptr;
+    decltype(SpanEndEx) *ptrSpanEndEx_ = nullptr;
+    decltype(MarkEventEx) *ptrMarkEventEx_ = nullptr;
     void *handle = nullptr;
 };
 }  // namespace msServiceProfilerCompatible

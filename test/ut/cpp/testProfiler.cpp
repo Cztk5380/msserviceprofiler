@@ -101,7 +101,7 @@ TEST_F(TestProfiler, NumArrayAttrProfEnable)
     int array[TEST_NUMER_ARRAY_LEN] = {TEST_NUMER_1, TEST_NUMER_2};
     int *pArray = array;
     auto prof = PROF(INFO, NumArrayAttr("key", pArray, pArray + TEST_NUMER_ARRAY_LEN));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:[1,2],");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"key\":[1,2],");
 }
 
 TEST_F(TestProfiler, NumArrayAttrProfEnableEmptyArray)
@@ -109,7 +109,7 @@ TEST_F(TestProfiler, NumArrayAttrProfEnableEmptyArray)
     int array[TEST_NUMER_ARRAY_LEN] = {TEST_NUMER_1, TEST_NUMER_2};
     int *pArray = array;
     auto prof = PROF(INFO, NumArrayAttr("key", pArray, pArray + 0));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:[],");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"key\":[],");
 }
 
 TEST_F(TestProfiler, NumArrayAttrProfDisable)
@@ -137,7 +137,8 @@ TEST_F(TestProfiler, ArrayAttrProfEnable)
             x->Attr("value", *y);
         }
     });
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^domain^:^test^,^key^:[{^value^:1},{}],");
+    EXPECT_EQ(prof.domain_, "test");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"key\":[{\"value\":1},{}],");
 
     auto prof2 =
         PROF(INFO, ArrayAttr("key", pArray, pArray + TEST_NUMER_ARRAY_LEN, [](decltype(prof) *x, int *y) -> void {
@@ -145,7 +146,8 @@ TEST_F(TestProfiler, ArrayAttrProfEnable)
                 x->Attr("value", *y);
             }
         }));
-    EXPECT_STREQ(prof2.GetMsg().c_str(), "^key^:[{^value^:1},{}],");
+    EXPECT_TRUE(prof2.domain_.empty());
+    EXPECT_STREQ(prof2.GetMsg().c_str(), "\"key\":[{\"value\":1},{}],");
 }
 
 TEST_F(TestProfiler, ArrayAttrProfEnableEmptyArray)
@@ -155,7 +157,7 @@ TEST_F(TestProfiler, ArrayAttrProfEnableEmptyArray)
     auto prof = PROF(INFO, Domain("test"));
 
     prof.ArrayAttr("key", pArray, pArray + 0, [](decltype(prof) *x, int *y) -> void { x->Attr("value", *y); });
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^domain^:^test^,^key^:[],");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"key\":[],");
 }
 
 TEST_F(TestProfiler, ArrayAttrProfDisable)
@@ -187,7 +189,7 @@ TEST_F(TestProfiler, AttrProfEnableString)
 {
     auto prof = PROF(INFO, Attr("key", "value"));
 
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:^value^,");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"key\":\"value\",");
 }
 
 TEST_F(TestProfiler, AttrProfEnableStdString)
@@ -195,7 +197,7 @@ TEST_F(TestProfiler, AttrProfEnableStdString)
     std::string value = "value";
     auto prof = PROF(INFO, Attr("key", value));
 
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:^value^,");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"key\":\"value\",");
 }
 
 TEST_F(TestProfiler, AttrProfDisableStdString)
@@ -209,37 +211,37 @@ TEST_F(TestProfiler, AttrProfDisableStdString)
 TEST_F(TestProfiler, AttrProfEnableNumber)
 {
     auto prof = PROF(INFO, Attr("key", 6));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:6,");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"key\":6,");
 }
 
 TEST_F(TestProfiler, AttrProfEnableUint)
 {
     auto prof = PROF(INFO, Attr("key", 6U));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:6,");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"key\":6,");
 }
 
 TEST_F(TestProfiler, AttrProfEnableUlong)
 {
     auto prof = PROF(INFO, Attr("key", 6UL));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:6,");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"key\":6,");
 }
 
 TEST_F(TestProfiler, AttrProfEnableFloat)
 {
     auto prof = PROF(INFO, Attr("key", TEST_NUMER_6));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:0.600000,");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"key\":0.600000,");
 }
 
 TEST_F(TestProfiler, AttrProfDisableNumber)
 {
     auto prof = PROF(INFO, Attr("key", TEST_NUMER_6));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:0.600000,");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"key\":0.600000,");
 
     auto prof_info_detailed = PROF(INFO, Attr<Level::DETAILED>("key", TEST_NUMER_6));
     EXPECT_STREQ(prof_info_detailed.GetMsg().c_str(), "");
 
     auto prof_info_info = PROF(INFO, Attr<Level::INFO>("key", TEST_NUMER_6));
-    EXPECT_STREQ(prof_info_info.GetMsg().c_str(), "^key^:0.600000,");
+    EXPECT_STREQ(prof_info_info.GetMsg().c_str(), "\"key\":0.600000,");
 
     auto prof_detailed = PROF(DETAILED, Attr("key", TEST_NUMER_6));
     EXPECT_STREQ(prof_detailed.GetMsg().c_str(), "");
@@ -248,7 +250,7 @@ TEST_F(TestProfiler, AttrProfDisableNumber)
     EXPECT_STREQ(prof_detailed_detailed.GetMsg().c_str(), "");
 
     auto prof_detailed_info = PROF(DETAILED, Attr<Level::INFO>("key", TEST_NUMER_6));
-    EXPECT_STREQ(prof_detailed_info.GetMsg().c_str(), "^key^:0.600000,");
+    EXPECT_STREQ(prof_detailed_info.GetMsg().c_str(), "\"key\":0.600000,");
 }
 
 TEST_F(TestProfiler, AttrProfDisableNull)
@@ -282,13 +284,13 @@ TEST_F(TestProfiler, AttrProfDisableNull)
 TEST_F(TestProfiler, AttrProfEnableResID)
 {
     auto prof = PROF(INFO, Attr("key", ResID(TEST_NUMER_2)));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:2,");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"key\":2,");
 }
 
 TEST_F(TestProfiler, AttrProfEnableResIDStr)
 {
     auto prof = PROF(INFO, Attr("key", ResID("2")));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:^2^,");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"key\":\"2\",");
 }
 
 TEST_F(TestProfiler, AttrProfDisAbleResID)
@@ -306,14 +308,16 @@ TEST_F(TestProfiler, SpanStartProfDisable)
 TEST_F(TestProfiler, SpanStartProfEnable)
 {
     auto prof = PROF(INFO, SpanStart("key"));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^name^:^key^,^type^:2,");
+    EXPECT_EQ(prof.name_, "key");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"type\":2,");
     EXPECT_TRUE(prof.autoEnd_);
 }
 
 TEST_F(TestProfiler, SpanStartProfEnableNotAutoEnd)
 {
     auto prof = PROF(INFO, SpanStart("key", false));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^name^:^key^,^type^:2,");
+    EXPECT_EQ(prof.name_, "key");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"type\":2,");
     EXPECT_FALSE(prof.autoEnd_);
 }
 
@@ -345,7 +349,7 @@ TEST_F(TestProfiler, MetricProfDisable)
 TEST_F(TestProfiler, MetricProfEnable)
 {
     auto prof = PROF(INFO, Metric("key", TEST_NUMER_123));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^key=^:123,");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"key=\":123,");
 }
 
 TEST_F(TestProfiler, Over128)
@@ -384,7 +388,7 @@ TEST_F(TestProfiler, MetricScopeProfDisable)
 TEST_F(TestProfiler, MetricScopeProfEnable)
 {
     auto prof = PROF(INFO, MetricScope("key", 12));
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^scope#key^:12,");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"scope#key\":12,");
 }
 
 TEST_F(TestProfiler, Launch)
@@ -402,7 +406,9 @@ TEST_F(TestProfiler, EventProfEnable)
 {
     auto prof = PROF(INFO, Domain("test"));
     prof.Event("12");
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^domain^:^test^,^name^:^12^,^type^:0,");
+    EXPECT_EQ(prof.domain_, "test");
+    EXPECT_EQ(prof.name_, "12");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"type\":3,");
 }
 
 TEST_F(TestProfiler, EventProfDisable)
@@ -428,7 +434,9 @@ TEST_F(TestProfiler, LinkProfEnable)
 {
     auto prof = PROF(INFO, Domain("test"));
     prof.Link("key", "key2");
-    EXPECT_STREQ(prof.GetMsg().c_str(), "^domain^:^test^,^type^:3,^from^:^key^,^to^:^key2^,");
+    EXPECT_EQ(prof.domain_, "test");
+    EXPECT_EQ(prof.name_, "Link");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "\"type\":3,\"from\":\"key\",\"to\":\"key2\",");
 }
 
 TEST_F(TestProfiler, LinkProfDisable)

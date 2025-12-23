@@ -50,7 +50,13 @@ class Profiler:
     def __init__(self, profiler_level) -> None:
         self._enable = service_profiler.is_enable(profiler_level)
         self._attr = dict()
+        self._name = None          # ← 单独存 name
+        self._domain = None        # ← 单独存 domain
         self._span_handle = None
+
+    @property
+    def enable(self):
+        return self._enable
 
     def __enter__(self):
         return self
@@ -58,17 +64,14 @@ class Profiler:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.span_end()
 
-    @property
-    def enable(self):
-        return self._enable
-
     def attr(self, key, value):
         self._attr[key] = value
         return self
 
     def domain(self, domain):
         self._enable = self._enable and service_profiler.is_domain_enable(domain)
-        return self.attr("domain", domain)
+        self._domain = domain
+        return self
 
     def res(self, res):
         return self.attr("rid", res)
@@ -85,33 +88,56 @@ class Profiler:
     def metric_scope_as_req_id(self):
         return self.attr("scope#", "req")
 
-    def launch(self):
+    def _get_attrs_json(self):
+        return json.dumps(self._attr) if self._attr else ""
+
+    def _mark_event_compat(self):
         if self._enable:
-            service_profiler.mark_event(self.get_msg())
+            service_profiler.mark_event(self._get_attrs_json())
+
+    def _mark_span_attr_compat(self):
+        if self._enable and self._span_handle is not None:
+            service_profiler.mark_span_attr(self._get_attrs_json(), self._span_handle)
+
+    def launch(self):
+        if not self._enable:
+            return
+        self._name = "Launch"
+        self._mark_event_compat()
 
     def get_msg(self):
-        return json.dumps(self._attr)
+        return self._get_attrs_json()
 
     def link(self, from_rid, to_rid):
-        if self._enable:
-            self.attr("type", MarkType.TYPE_LINK).attr("from", from_rid).attr("to", to_rid)
-            service_profiler.mark_event(self.get_msg())
+        if not self._enable:
+            return
+        self._name = "Link"
+        self._attr.clear()
+        self.attr("type", MarkType.TYPE_LINK).attr("from", from_rid).attr("to", to_rid)
+        self._mark_event_compat()
 
     def event(self, event_name):
-        if self._enable:
-            self.attr("type", MarkType.TYPE_EVENT).attr("name", event_name)
-            service_profiler.mark_event(self.get_msg())
+        if not self._enable:
+            return
+        self._name = event_name
+        self._attr["type"] = MarkType.TYPE_EVENT
+        self._mark_event_compat()
 
     def span_start(self, span_name):
-        if self._enable:
-            self.attr("name", span_name).attr("type", MarkType.TYPE_SPAN)
-            self._span_handle = service_profiler.start_span(span_name)
+        if not self._enable:
+            return self
+        self._name = span_name
+        self._attr["type"] = MarkType.TYPE_SPAN
+        self._span_handle = service_profiler.start_span(span_name)
         return self
 
     def span_end(self):
-        if self._enable:
-            service_profiler.mark_span_attr(self.get_msg(), self._span_handle)
+        if not self._enable:
+            return
+        self._mark_span_attr_compat()
+        if self._span_handle is not None:
             service_profiler.end_span(self._span_handle)
+            self._span_handle = None
 
     def add_meta_info(self, meta_key, meta_data):
         if self._enable:
