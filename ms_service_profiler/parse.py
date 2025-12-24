@@ -32,7 +32,8 @@ from ms_service_profiler.utils.log import logger, set_log_level
 from ms_service_profiler.utils.timer import Timer
 from ms_service_profiler.utils.error import ParseError, LoadDataError
 from ms_service_profiler.exporters.utils import (
-    create_sqlite_db, check_input_dir_valid, check_output_path_valid)
+    create_sqlite_db, check_input_dir_valid,
+    check_output_path_valid, is_root)
 from ms_service_profiler.task.task_register import get_dag
 from ms_service_profiler.task.task_manager import tasks_run
 from ms_service_profiler.task.task import register
@@ -40,6 +41,12 @@ from ms_service_profiler.task.task import register
 
 def parse(input_path, plugins, exporters, **kwargs):
     # Compatible with blue zone calls
+    if is_root():
+        logger.warning(
+            "Security Warning: Do not run this tool as root. "
+            "Running with elevated privileges may compromise system security. "
+            "Use a regular user account."
+        )
     parse_run(input_path=input_path, exporters=exporters, args=kwargs.get("args"))
 
 
