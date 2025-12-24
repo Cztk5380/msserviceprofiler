@@ -13,12 +13,15 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
+
 import os
 import unittest
-
+from unittest.mock import patch, MagicMock
 import numpy as np
 
-from ms_service_profiler.exporters.exporter_eplb_observe import draw_hot_map_from_arr, remap_expert_hot
+from ms_service_profiler.exporters.exporter_eplb_observe import (
+    draw_hot_map_from_arr, remap_expert_hot, get_x_ticks, draw_balance_ratio)
+
 
 class TestDrawHotMapFromArr(unittest.TestCase):
     def setUp(self):
@@ -91,3 +94,58 @@ class TestRemapExpertHot(unittest.TestCase):
         expert_hot_summed_expert = np.array([[1]])
         expected_output = np.array([[1]])
         self.assertTrue(np.array_equal(remap_expert_hot(expert_map_per_eplb, expert_hot_summed_expert), expected_output))
+
+
+class TestGetXticks(unittest.TestCase):
+    def test_x_less_than_100(self):
+        # 测试x小于100的情况
+        self.assertEqual(get_x_ticks(0), [0])
+        self.assertEqual(get_x_ticks(1), [0, 1])
+        self.assertEqual(get_x_ticks(99), [i for i in range(100)])
+
+    def test_x_greater_than_or_equal_to_100(self):
+        # 测试x大于等于100的情况
+        self.assertEqual(get_x_ticks(100), [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+        self.assertEqual(get_x_ticks(150), [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150])
+
+    def test_x_equal_to_1000(self):
+        # 测试x等于1000的情况
+        self.assertEqual(get_x_ticks(1000), [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000])
+
+    def test_x_greater_than_1000(self):
+        # 测试x大于1000的情况
+        self.assertEqual(get_x_ticks(1001), [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000])
+        self.assertEqual(get_x_ticks(2000), [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+                                             1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000])
+
+
+class TestDrawBalanceRatio(unittest.TestCase):
+    def setUp(self):
+        self.output_path = "test_hot_map.png"
+        self.std_balance_ratio = [0.5, 0.6, 0.7, 0.8, 0.9]
+        self.rebalanced_time_points = [1, 3]
+        self.d_time = ['2023-01-01 12:00:00', '2023-01-01 12:01:00']
+        self.figsize = (60, 8)
+        self.output_path = "balance_ratio.png"
+
+    def tearDown(self):
+        if os.path.exists(self.output_path):
+            os.remove(self.output_path)
+
+    def test_valid_input(self):
+        try:
+            draw_balance_ratio(self.std_balance_ratio, self.rebalanced_time_points, self.d_time, figsize=self.figsize,
+                               output_path=self.output_path)
+            self.assertTrue(os.path.exists(self.output_path))
+        except Exception as e:
+            self.fail(f"Test failed with exception: {e}")
+
+    def test_output_path(self):
+        custom_output_path = "custom_test_hot_map.png"
+        try:
+            draw_balance_ratio(self.std_balance_ratio, self.rebalanced_time_points, self.d_time, figsize=self.figsize,
+                               output_path=custom_output_path)
+            self.assertTrue(os.path.exists(custom_output_path))
+        finally:
+            if os.path.exists(custom_output_path):
+                os.remove(custom_output_path)
