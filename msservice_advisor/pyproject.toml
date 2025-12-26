@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = {find = {}}
+include-package-data = true
+
+[project]
+name = "msservice_advisor"
+version = '8.3.0'
+requires-python = ">=3.10"
+
+dependencies = [
+    'numpy',
+    'msguard',
+    'scipy',
+    'ms_service_profiler'
+]
+
+[project.optional-dependencies]
+plt = ['matplotlib']
+
+[project.entry-points."ms_service_profiler_plugins"]
+"advisor" = "msservice_advisor.advisor:arg_parse"

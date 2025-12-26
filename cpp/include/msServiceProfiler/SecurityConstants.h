@@ -1,0 +1,28 @@
+/* -------------------------------------------------------------------------
+ * This file is part of the MindStudio project.
+ * Copyright (c) 2025 Huawei Technologies Co.,Ltd.
+ *
+ * MindStudio is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *
+ *          http://license.coscl.org.cn/MulanPSL2
+ *
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ * -------------------------------------------------------------------------
+*/
+
+#ifndef MS_STANDARD_SECYRUTY_CONSTANTS_H
+#define MS_STANDARD_SECYRUTY_CONSTANTS_H
+
+#include <cstdint>
+
+constexpr const uint32_t PATH_DEPTH_MAX = 50;
+constexpr const char PATH_SEPARATOR = '/';
+constexpr uint64_t MAX_FILE_SIZE_10G = static_cast<uint64_t>(1024 * 1024 * 1024) * 10; // 10G
+constexpr const char* FILE_VALID_PATTERN = "(\\.|\\\\|/|:|_|-|[~0-9a-zA-Z])+";
+
+#endif // MS_STANDARD_SECYRUTY_CONSTANTS_H

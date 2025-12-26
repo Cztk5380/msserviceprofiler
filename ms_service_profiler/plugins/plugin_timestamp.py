@@ -1,0 +1,118 @@
+# -------------------------------------------------------------------------
+# This file is part of the MindStudio project.
+# Copyright (c) 2025 Huawei Technologies Co.,Ltd.
+#
+# MindStudio is licensed under Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
+#
+#          http://license.coscl.org.cn/MulanPSL2
+#
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+# MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
+# -------------------------------------------------------------------------
+
+import datetime
+
+from ms_service_profiler.constant import US_PER_SECOND, NS_PER_US, NS_PER_SECOND
+from ms_service_profiler.plugins.base import PluginBase
+from ms_service_profiler.utils.timer import timer
+from ms_service_profiler.utils.log import logger
+
+
+class PluginTimeStampHelper(PluginBase):
+    name = "plugin_timestamp_helper"
+    depends = []
+
+    @classmethod
+    def parse(cls, data):
+        tx_data_df = data.get('tx_data_df')
+        time_info = data.get('time_info')
+        msprof_data_df = data.get('msprof_data')
+
+        if time_info is None or tx_data_df is None:
+            return data
+        calculate_timestamp(tx_data_df, time_info, prof_type='system_count')
+        data = {
+            'tx_data_df': tx_data_df,
+            'msprof_data': msprof_data_df
+        }
+        return data
+
+
+class PluginTimeStamp(PluginBase):
+    name = "plugin_timestamp"
+    depends = []
+    helper = PluginTimeStampHelper()
+
+    @classmethod
+    @timer(logger.debug)
+    def parse(cls, data):
+        res = []
+        for data_single in data:
+            res.append(cls.helper.parse(data_single))
+        return res
+
+
+# system_count, 用于tx_data_df中时间戳转换计算
+def convert_syscnt_to_ts(cnt, time_info):
+    cpu_frequency = time_info.get('cpu_frequency')
+    collection_time_begin = time_info.get('collection_time_begin')
+    collection_cnt_begin = time_info.get('cntvct')
+    host_clock_monotonic_raw = time_info.get('host_clock_monotonic_raw')
+    start_clock_monotonic_raw = time_info.get('start_clock_monotonic_raw')
+
+    try:
+        '''
+            频率不为空，获取的是计数，需要除以频率；
+            频率为空，获取的是monotonic，可以直接计算
+            collection_time_begin单位为us，其他数据单位为ns
+            (cnt - collection_cnt_begin) / cpu_frequency 单位为s
+        '''
+        if cpu_frequency != 0:
+            return collection_time_begin + ((cnt - collection_cnt_begin) / cpu_frequency * NS_PER_SECOND + \
+                host_clock_monotonic_raw - start_clock_monotonic_raw) / NS_PER_US
+
+        return collection_time_begin + (cnt - start_clock_monotonic_raw) / NS_PER_US
+    except Exception as ex:
+        raise AttributeError("Timestamp format error.") from ex
+
+
+# system_timestamp, 用于cpu_data_df, memory_data_df中时间戳装换计算
+def convert_systs_to_ts(systs, time_info):
+    collection_time_begin = time_info.get('collection_time_begin')
+    collection_systs_begin = time_info.get('start_clock_monotonic_raw')
+    try:
+        # collection_time_begin 以微秒us为单位
+        # systs/start_systs 以纳秒ns为单位
+        # 返回值单位为微秒us
+        return collection_time_begin + (systs - collection_systs_begin) / NS_PER_US
+    except Exception as ex:
+        raise AttributeError("Timestamp format error.") from ex
+
+
+def timestamp_converter(timestamp):
+    date_time = datetime.datetime.fromtimestamp(timestamp / US_PER_SECOND)
+    return date_time.strftime("%Y-%m-%d %H:%M:%S:%f")
+
+
+def calculate_timestamp(df, time_info, prof_type='system_count'):
+    if df is None:
+        return
+
+    for column_name in ['start_time', 'end_time']:
+        if column_name not in df.columns:
+            raise KeyError(f'{column_name} not found. Timestamp parsing failed.')
+
+    if prof_type == 'system_count':
+        df['start_time'] = convert_syscnt_to_ts(df['start_time'], time_info)
+        df['end_time'] = convert_syscnt_to_ts(df['end_time'], time_info)
+    else:
+        df['start_time'] = convert_systs_to_ts(df['start_time'], time_info)
+        df['end_time'] = convert_systs_to_ts(df['end_time'], time_info)
+
+    df['during_time'] = df['end_time'] - df['start_time']
+    df['start_datetime'] = df['start_time'].apply(timestamp_converter)
+    df['end_datetime'] = df['end_time'].apply(timestamp_converter)

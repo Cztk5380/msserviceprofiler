@@ -1,0 +1,447 @@
+/* -------------------------------------------------------------------------
+ * This file is part of the MindStudio project.
+ * Copyright (c) 2025 Huawei Technologies Co.,Ltd.
+ *
+ * MindStudio is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *
+ *          http://license.coscl.org.cn/MulanPSL2
+ *
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ * -------------------------------------------------------------------------
+*/
+
+#include <iostream>
+#include <string>
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+#include "msServiceProfiler/msServiceProfiler.h"
+
+using namespace testing;
+using namespace msServiceProfilerCompatible;
+using namespace msServiceProfiler;
+
+constexpr int TEST_NUMER_1 = 1;
+constexpr int TEST_NUMER_2 = 2;
+constexpr int TEST_NUMER_ARRAY_LEN = 2;
+constexpr int TEST_NUMER_123 = 123;
+constexpr uint32_t TEST_NUMER_1234 = 1234U;
+constexpr float TEST_NUMER_6 = 0.6;
+
+namespace msServiceProfiler {
+
+bool MockedIsEnable(uint32_t itemLevel)
+{
+    return itemLevel <= msServiceProfiler::Level::INFO;
+}
+
+class TestProfiler : public ::testing::Test {
+protected:
+    void SetUp() override
+    {
+        ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
+        ServiceProfilerInterface::GetInstance().ptrStartSpanWithName_ = StartSpanWithName;
+        ServiceProfilerInterface::GetInstance().ptrMarkSpanAttr_ = MarkSpanAttr;
+        ServiceProfilerInterface::GetInstance().ptrEndSpan_ = EndSpan;
+        ServiceProfilerInterface::GetInstance().ptrMarkEvent_ = MarkEvent;
+        ServiceProfilerInterface::GetInstance().ptrStartServerProfiler_ = StartServerProfiler;
+        ServiceProfilerInterface::GetInstance().ptrStopServerProfiler_ = StopServerProfiler;
+    }
+};
+
+TEST_F(TestProfiler, Construction)
+{
+    ResID ridInt(TEST_NUMER_1);
+    EXPECT_EQ(ridInt.resValue.rid, TEST_NUMER_1);
+    EXPECT_EQ(ridInt.type, ResType::UINT64);
+
+    ResID ridUint32(TEST_NUMER_2);
+    EXPECT_EQ(ridUint32.resValue.rid, TEST_NUMER_2);
+    EXPECT_EQ(ridUint32.type, ResType::UINT64);
+
+    ResID ridStr("abc");
+    EXPECT_STREQ(ridStr.resValue.strRid, "abc");
+    EXPECT_EQ(ridStr.type, ResType::STRING);
+
+    ResID ridStrEmpty("");
+    EXPECT_STREQ(ridStrEmpty.resValue.strRid, "");
+    EXPECT_EQ(ridStr.type, ResType::STRING);
+
+    std::string dRidStr129("d", MAX_RES_STR_IZE + 1);
+    std::string dRidStr128("d", MAX_RES_STR_IZE);
+    ResID ridStrStd(dRidStr129.c_str());
+    EXPECT_STREQ(ridStrStd.resValue.strRid, dRidStr128.c_str());
+    EXPECT_EQ(ridStrStd.type, ResType::STRING);
+}
+
+TEST_F(TestProfiler, IsIllegal)
+{
+    ResID illegalRid = ResID::IllegalResource();
+    EXPECT_TRUE(illegalRid.IsIllegal());
+
+    ResID validRid(TEST_NUMER_1);
+    EXPECT_FALSE(validRid.IsIllegal());
+
+    ResID validRidStr("abc");
+    EXPECT_FALSE(validRidStr.IsIllegal());
+}
+
+TEST_F(TestProfiler, NumArrayAttrProfEnable)
+{
+    int array[TEST_NUMER_ARRAY_LEN] = {TEST_NUMER_1, TEST_NUMER_2};
+    int *pArray = array;
+    auto prof = PROF(INFO, NumArrayAttr("key", pArray, pArray + TEST_NUMER_ARRAY_LEN));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:[1,2],");
+}
+
+TEST_F(TestProfiler, NumArrayAttrProfEnableEmptyArray)
+{
+    int array[TEST_NUMER_ARRAY_LEN] = {TEST_NUMER_1, TEST_NUMER_2};
+    int *pArray = array;
+    auto prof = PROF(INFO, NumArrayAttr("key", pArray, pArray + 0));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:[],");
+}
+
+TEST_F(TestProfiler, NumArrayAttrProfDisable)
+{
+    int array[TEST_NUMER_ARRAY_LEN] = {TEST_NUMER_1, TEST_NUMER_2};
+    int *pArray = array;
+    auto prof_detailed = PROF(DETAILED, NumArrayAttr("key", pArray, pArray + TEST_NUMER_ARRAY_LEN));
+    EXPECT_STREQ(prof_detailed.GetMsg().c_str(), "");
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = nullptr;
+    auto prof_null_info = PROF(INFO, NumArrayAttr("key", pArray, pArray + TEST_NUMER_ARRAY_LEN));
+    EXPECT_STREQ(prof_null_info.GetMsg().c_str(), "");
+    auto prof_null_detailed = PROF(DETAILED, NumArrayAttr("key", pArray, pArray + TEST_NUMER_ARRAY_LEN));
+    EXPECT_STREQ(prof_null_detailed.GetMsg().c_str(), "");
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
+}
+
+TEST_F(TestProfiler, ArrayAttrProfEnable)
+{
+    int array[TEST_NUMER_ARRAY_LEN] = {TEST_NUMER_1, TEST_NUMER_2};
+    int *pArray = array;
+    auto prof = PROF(INFO, Domain("test"));
+
+    prof.ArrayAttr("key", pArray, pArray + TEST_NUMER_ARRAY_LEN, [](decltype(prof) *x, int *y) -> void {
+        if (*y == 1) {
+            x->Attr("value", *y);
+        }
+    });
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^domain^:^test^,^key^:[{^value^:1},{}],");
+
+    auto prof2 =
+        PROF(INFO, ArrayAttr("key", pArray, pArray + TEST_NUMER_ARRAY_LEN, [](decltype(prof) *x, int *y) -> void {
+            if (*y == 1) {
+                x->Attr("value", *y);
+            }
+        }));
+    EXPECT_STREQ(prof2.GetMsg().c_str(), "^key^:[{^value^:1},{}],");
+}
+
+TEST_F(TestProfiler, ArrayAttrProfEnableEmptyArray)
+{
+    int array[TEST_NUMER_ARRAY_LEN] = {TEST_NUMER_1, TEST_NUMER_2};
+    int *pArray = array;
+    auto prof = PROF(INFO, Domain("test"));
+
+    prof.ArrayAttr("key", pArray, pArray + 0, [](decltype(prof) *x, int *y) -> void { x->Attr("value", *y); });
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^domain^:^test^,^key^:[],");
+}
+
+TEST_F(TestProfiler, ArrayAttrProfDisable)
+{
+    int array[TEST_NUMER_ARRAY_LEN] = {TEST_NUMER_1, TEST_NUMER_2};
+    int *pArray = array;
+    auto prof = PROF(DETAILED, Domain("test"));
+
+    prof.ArrayAttr("key", pArray, pArray + TEST_NUMER_ARRAY_LEN,
+                   [](decltype(prof) *x, int y) -> void { x->Attr("value", y); });
+    EXPECT_STREQ(prof.GetMsg().c_str(), "");
+
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = nullptr;
+
+    auto prof_null_info = PROF(INFO, Domain("test"));
+    prof_null_info.ArrayAttr("key", pArray, pArray + TEST_NUMER_ARRAY_LEN,
+                             [](decltype(prof) *x, int y) -> void { x->Attr("value", y); });
+    EXPECT_STREQ(prof_null_info.GetMsg().c_str(), "");
+
+    auto prof_null_detailed = PROF(DETAILED, Domain("test"));
+    prof_null_detailed.ArrayAttr(
+        "key", pArray, pArray + TEST_NUMER_ARRAY_LEN,
+        [](decltype(prof) *x, int y) -> void { x->Attr("value", y); });
+    EXPECT_STREQ(prof_null_detailed.GetMsg().c_str(), "");
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
+}
+
+TEST_F(TestProfiler, AttrProfEnableString)
+{
+    auto prof = PROF(INFO, Attr("key", "value"));
+
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:^value^,");
+}
+
+TEST_F(TestProfiler, AttrProfEnableStdString)
+{
+    std::string value = "value";
+    auto prof = PROF(INFO, Attr("key", value));
+
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:^value^,");
+}
+
+TEST_F(TestProfiler, AttrProfDisableStdString)
+{
+    std::string value = "value";
+    auto prof = PROF(DETAILED, Attr("key", value));
+
+    EXPECT_STREQ(prof.GetMsg().c_str(), "");
+}
+
+TEST_F(TestProfiler, AttrProfEnableNumber)
+{
+    auto prof = PROF(INFO, Attr("key", 6));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:6,");
+}
+
+TEST_F(TestProfiler, AttrProfEnableUint)
+{
+    auto prof = PROF(INFO, Attr("key", 6U));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:6,");
+}
+
+TEST_F(TestProfiler, AttrProfEnableUlong)
+{
+    auto prof = PROF(INFO, Attr("key", 6UL));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:6,");
+}
+
+TEST_F(TestProfiler, AttrProfEnableFloat)
+{
+    auto prof = PROF(INFO, Attr("key", TEST_NUMER_6));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:0.600000,");
+}
+
+TEST_F(TestProfiler, AttrProfDisableNumber)
+{
+    auto prof = PROF(INFO, Attr("key", TEST_NUMER_6));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:0.600000,");
+
+    auto prof_info_detailed = PROF(INFO, Attr<Level::DETAILED>("key", TEST_NUMER_6));
+    EXPECT_STREQ(prof_info_detailed.GetMsg().c_str(), "");
+
+    auto prof_info_info = PROF(INFO, Attr<Level::INFO>("key", TEST_NUMER_6));
+    EXPECT_STREQ(prof_info_info.GetMsg().c_str(), "^key^:0.600000,");
+
+    auto prof_detailed = PROF(DETAILED, Attr("key", TEST_NUMER_6));
+    EXPECT_STREQ(prof_detailed.GetMsg().c_str(), "");
+
+    auto prof_detailed_detailed = PROF(DETAILED, Attr<Level::DETAILED>("key", TEST_NUMER_6));
+    EXPECT_STREQ(prof_detailed_detailed.GetMsg().c_str(), "");
+
+    auto prof_detailed_info = PROF(DETAILED, Attr<Level::INFO>("key", TEST_NUMER_6));
+    EXPECT_STREQ(prof_detailed_info.GetMsg().c_str(), "^key^:0.600000,");
+}
+
+TEST_F(TestProfiler, AttrProfDisableNull)
+{
+    auto prof_detailed = PROF(DETAILED, Attr("key", TEST_NUMER_6));
+    EXPECT_STREQ(prof_detailed.GetMsg().c_str(), "");
+
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = nullptr;
+
+    auto prof_null_info = PROF(INFO, Attr("key", TEST_NUMER_6));
+    EXPECT_STREQ(prof_null_info.GetMsg().c_str(), "");
+
+    auto prof_null_info_detailed = PROF(INFO, Attr<Level::DETAILED>("key", TEST_NUMER_6));
+    EXPECT_STREQ(prof_null_info_detailed.GetMsg().c_str(), "");
+
+    auto prof_null_info_info = PROF(INFO, Attr<Level::INFO>("key", TEST_NUMER_6));
+    EXPECT_STREQ(prof_null_info_info.GetMsg().c_str(), "");
+
+    auto prof_null_detailed = PROF(DETAILED, Attr("key", TEST_NUMER_6));
+    EXPECT_STREQ(prof_null_detailed.GetMsg().c_str(), "");
+
+    auto prof_null_detailed_detailed = PROF(DETAILED, Attr<Level::DETAILED>("key", TEST_NUMER_6));
+    EXPECT_STREQ(prof_null_detailed_detailed.GetMsg().c_str(), "");
+
+    auto prof_null_detailed_info = PROF(DETAILED, Attr<Level::INFO>("key", TEST_NUMER_6));
+    EXPECT_STREQ(prof_null_detailed_info.GetMsg().c_str(), "");
+
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
+}
+
+TEST_F(TestProfiler, AttrProfEnableResID)
+{
+    auto prof = PROF(INFO, Attr("key", ResID(TEST_NUMER_2)));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:2,");
+}
+
+TEST_F(TestProfiler, AttrProfEnableResIDStr)
+{
+    auto prof = PROF(INFO, Attr("key", ResID("2")));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^key^:^2^,");
+}
+
+TEST_F(TestProfiler, AttrProfDisAbleResID)
+{
+    auto prof = PROF(DETAILED, Attr("key", ResID(TEST_NUMER_2)));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "");
+}
+
+TEST_F(TestProfiler, SpanStartProfDisable)
+{
+    auto prof = PROF(DETAILED, SpanStart("key"));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "");
+}
+
+TEST_F(TestProfiler, SpanStartProfEnable)
+{
+    auto prof = PROF(INFO, SpanStart("key"));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^name^:^key^,^type^:2,");
+    EXPECT_TRUE(prof.autoEnd_);
+}
+
+TEST_F(TestProfiler, SpanStartProfEnableNotAutoEnd)
+{
+    auto prof = PROF(INFO, SpanStart("key", false));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^name^:^key^,^type^:2,");
+    EXPECT_FALSE(prof.autoEnd_);
+}
+
+TEST_F(TestProfiler, SpanEndProfDisable)
+{
+    auto prof = PROF(DETAILED, SpanStart("key"));
+    prof.SpanEnd();
+}
+
+TEST_F(TestProfiler, SpanEndProfEnable)
+{
+    auto prof = PROF(INFO, SpanStart("key"));
+    prof.SpanEnd();
+}
+
+TEST_F(TestProfiler, MetricProfDisable)
+{
+    auto prof = PROF(DETAILED, Metric("key", TEST_NUMER_123));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "");
+
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = nullptr;
+    auto prof_null_info = PROF(INFO, Metric("key", TEST_NUMER_123));
+    EXPECT_STREQ(prof_null_info.GetMsg().c_str(), "");
+    auto prof_null_detailed = PROF(DETAILED, Metric("key", TEST_NUMER_123));
+    EXPECT_STREQ(prof_null_detailed.GetMsg().c_str(), "");
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
+}
+
+TEST_F(TestProfiler, MetricProfEnable)
+{
+    auto prof = PROF(INFO, Metric("key", TEST_NUMER_123));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^key=^:123,");
+}
+
+TEST_F(TestProfiler, Over128)
+{
+    char src[MAX_RES_STR_IZE + 2];          // 129 字节
+    std::fill(src, src + 128, 'A'); // 0~127 共 128 个 'A'
+    src[MAX_RES_STR_IZE] = 'B';             // 第 129 字节，故意越界
+    src[MAX_RES_STR_IZE + 1] = '\0';        // 终止符
+
+    ResID rid(src);
+
+    // 1) 长度最多 127
+    EXPECT_EQ(std::strlen(rid.resValue.strRid), MAX_RES_STR_IZE - 1);
+
+    // 2) 第 128 字节一定是 '\0'
+    EXPECT_EQ(rid.resValue.strRid[MAX_RES_STR_IZE - 1], '\0');
+
+    // 3) 内容被正确截断
+    EXPECT_TRUE(std::all_of(rid.resValue.strRid,
+                            rid.resValue.strRid + MAX_RES_STR_IZE - 1,
+                            [](char c) { return c == 'A'; }));
+}
+
+TEST_F(TestProfiler, MetricScopeProfDisable)
+{
+    auto prof = PROF(DETAILED, MetricScope("key", TEST_NUMER_123));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "");
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = nullptr;
+    auto prof_null_info = PROF(INFO, MetricScope("key", TEST_NUMER_123));
+    EXPECT_STREQ(prof_null_info.GetMsg().c_str(), "");
+    auto prof_null_detailed = PROF(DETAILED, MetricScope("key", TEST_NUMER_123));
+    EXPECT_STREQ(prof_null_detailed.GetMsg().c_str(), "");
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
+}
+
+TEST_F(TestProfiler, MetricScopeProfEnable)
+{
+    auto prof = PROF(INFO, MetricScope("key", 12));
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^scope#key^:12,");
+}
+
+TEST_F(TestProfiler, Launch)
+{
+    PROF(DETAILED, Launch());
+    PROF(INFO, Launch());
+
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = nullptr;
+    PROF(DETAILED, Launch());
+    PROF(INFO, Launch());
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
+}
+
+TEST_F(TestProfiler, EventProfEnable)
+{
+    auto prof = PROF(INFO, Domain("test"));
+    prof.Event("12");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^domain^:^test^,^name^:^12^,^type^:0,");
+}
+
+TEST_F(TestProfiler, EventProfDisable)
+{
+    auto prof = PROF(DETAILED, Domain("test"));
+    prof.Event("12");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "");
+
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = nullptr;
+
+    auto prof_null_info = PROF(INFO, Domain("test"));
+    prof_null_info.Event("12");
+    EXPECT_STREQ(prof_null_info.GetMsg().c_str(), "");
+
+    auto prof_null_detailed = PROF(DETAILED, Domain("test"));
+    prof_null_info.Event("12");
+    EXPECT_STREQ(prof_null_detailed.GetMsg().c_str(), "");
+
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
+}
+
+TEST_F(TestProfiler, LinkProfEnable)
+{
+    auto prof = PROF(INFO, Domain("test"));
+    prof.Link("key", "key2");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "^domain^:^test^,^type^:3,^from^:^key^,^to^:^key2^,");
+}
+
+TEST_F(TestProfiler, LinkProfDisable)
+{
+    auto prof = PROF(DETAILED, Domain("test"));
+    prof.Link("key", "key2");
+    EXPECT_STREQ(prof.GetMsg().c_str(), "");
+
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = nullptr;
+
+    auto prof_null_info = PROF(INFO, Domain("test"));
+    prof_null_info.Link("key", "key2");
+    EXPECT_STREQ(prof_null_info.GetMsg().c_str(), "");
+
+    auto prof_null_detailed = PROF(DETAILED, Domain("test"));
+    prof_null_detailed.Link("key", "key2");
+    EXPECT_STREQ(prof_null_detailed.GetMsg().c_str(), "");
+
+    ServiceProfilerInterface::GetInstance().ptrIsEnable_ = MockedIsEnable;
+}
+
+}  // namespace msServiceProfiler

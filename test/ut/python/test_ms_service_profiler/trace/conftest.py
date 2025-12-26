@@ -1,0 +1,39 @@
+# -------------------------------------------------------------------------
+# This file is part of the MindStudio project.
+# Copyright (c) 2025 Huawei Technologies Co.,Ltd.
+#
+# MindStudio is licensed under Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
+#
+#          http://license.coscl.org.cn/MulanPSL2
+#
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+# MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
+# -------------------------------------------------------------------------
+
+import pytest
+from unittest.mock import MagicMock, patch
+
+
+mock_modules = {
+    'opentelemetry': MagicMock(),
+    'opentelemetry.proto.collector.trace.v1.trace_service_pb2': MagicMock(),
+    'opentelemetry.exporter.otlp.proto.http.trace_exporter': MagicMock(),
+    'opentelemetry.exporter.otlp.proto.grpc.trace_exporter': MagicMock(),
+    'opentelemetry.sdk.trace.export': MagicMock()
+}
+patch_obj = patch.dict('sys.modules', mock_modules)
+patch_obj.start()
+
+
+@pytest.fixture(autouse=True)
+def mock_span_export_result():
+    """Fixture: Mock SpanExportResult enum"""
+    with patch('ms_service_profiler.tracer.binary_otlp_exporter.SpanExportResult', MagicMock()) as mock_result:
+        mock_result.SUCCESS = 0
+        mock_result.FAILED = 1
+        mock_result.return_value = mock_result
+        yield mock_result

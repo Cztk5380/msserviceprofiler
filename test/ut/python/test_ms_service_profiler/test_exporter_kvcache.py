@@ -1,0 +1,157 @@
+# -------------------------------------------------------------------------
+# This file is part of the MindStudio project.
+# Copyright (c) 2025 Huawei Technologies Co.,Ltd.
+#
+# MindStudio is licensed under Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
+#
+#          http://license.coscl.org.cn/MulanPSL2
+#
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+# MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
+# -------------------------------------------------------------------------
+
+import unittest
+import logging
+import os
+import io
+from pathlib import Path
+import shutil
+from unittest.mock import patch
+import pandas as pd
+from ms_service_profiler.exporters.utils import save_dataframe_to_csv
+from ms_service_profiler.exporters.exporter_kvcache import ExporterKVCacheData
+
+
+PD_SEPARATE_PULL_KV_DATA = \
+""",pid,tid,event_type,start_time,end_time,mark_id,ori_msg,message,name,type,domain,rid,QueueSize=,scope#que\
+ue,deviceBlock=,scope#dp,RUNNING+,WAITING+,PENDING+,replyTokenSize=,END+,span_id,during_time,start_datetime,end_\
+datetime,recvTokenSize=,PREFILL_HOLD+,rank,batch_seq_len,block_tables,res_list,rid_list,token_id_list,batch_type,\
+batch_size,prefill_batch_size,decode_batch_size,total_blocks,used_blocks,free_blocks,blocks_allocated,blocks_freed,\
+kvcache_usage_rate
+9765,17329,18655,start/end,1739329372248722.8,1739329372252357.0,1,,"{'name': 'PullKVCache', 'type': 2, 'domain': \
+'KVCache', 'rid': [0], 'rank': 1, 'batch_seq_len': [7], 'block_tables': [[2886795281, [0], [0]]]}",PullKVCache,2,\
+KVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252357,,,1.0,[7],\
+"[[2886795281, [0], [0]]]",[0],[0],[None],Decode,1,,1,1,0,1,0,1.0
+"""
+
+
+PD_SEPARATE_PULL_KV_DATA_MISSING_KEY = \
+"""pid,tid,event_type,start_time,end_time,mark_id,ori_msg,message,name,type,domain,rid,QueueSize=,scope#queue,\
+deviceBlock=,scope#dp,RUNNING+,WAITING+,PENDING+,replyTokenSize=,END+,span_id,during_time,start_datetime,end_\
+datetime,recvTokenSize=,PREFILL_HOLD+,rank,batch_seq_len,seq_len,block_tables,res_list,rid_list,token_id_list,\
+batch_type,batch_size,prefill_batch_size,decode_batch_size,total_blocks,used_blocks,free_blocks,blocks_allocated,\
+blocks_freed,kvcache_usage_rate
+9765,17329,18655,start/end,1739329372248722.8,1739329372252357.0,1,,"{'name': 'PullKVCache', 'type': 2, 'domain': \
+'KVCache', 'rid': [0], 'rank': 1, 'batch_seq_len': [7], 'block_tables': [[2886795281, [0], [0]]]}",PullKVCache,\
+KVCache,0,,,,,,,,,,1,3634.25,2025-02-12 03:02:52:248723,2025-02-12 03:02:52:252357,,,1.0,[7],\
+"[[2886795281, [0], [0]]]",[0],[0],[None],Decode,1,,0,0,0,0,0,0.0
+"""
+
+
+class TestExporterBatchData(unittest.TestCase):
+    def setUp(self):
+        test_path = os.path.join(os.getcwd(), "output_test")
+        self.args = type('Args', (object,), {'output_path': test_path, 'format': ['csv']})
+        self.data = {
+            'tx_data_df': self.create_df()
+        }
+
+    def create_df(self):
+        # 创建一个示例DataFrame
+        data = {
+            'domain': ['KVCache', 'KVCache', 'KVCache', 'KVCache'],
+            'rid': [0, 1, 2, 3],
+            'start_time': [1735124796367194, 1735124796367220, 1735124796367233, 1735124796367242],
+            'end_time': [1735124796367194, 1735124796367220, 1735124796367233, 1735124796367242],
+            'name': ['Allocate', 'Free', 'AppendSlot', 'AppendSlot'],
+            'deviceBlock=': [1978, 1977, 1976, 1975],
+            'during_time': ['0', '0', '0', '0'],
+            'start_datetime': ['2024-12-25', '2024-12-25', '2024-12-25', '2024-12-25'],
+            'total_blocks': ['one', 'two', 'three', 'four'],
+            'used_blocks': ['one', 'one', 'three', 'three'],
+            'free_blocks': ['two', 'two', 'four', 'four'],
+            'blocks_allocated': ['one', 'one', 'three', 'three'],
+            'blocks_freed': ['two', 'two', 'four', 'four'],
+            'kvcache_usage_rate': ['twenty', 'forty', 'fifty', 'eighty']
+        }
+        return pd.DataFrame(data)
+
+    def test_export(self):
+        try:
+            test_path = os.path.join(os.getcwd(), "output_test")
+            os.makedirs(test_path, exist_ok=True)
+            os.chmod(test_path, 0o740)
+            # 设置日志记录
+            file_path = Path(test_path, 'kvcache.csv')
+            # 初始化args
+            ExporterKVCacheData.initialize(self.args)
+            # 调用export方法
+            ExporterKVCacheData.export(self.data)
+            # 验证CSV文件是否生成
+            self.assertTrue(file_path.is_file())
+        finally:
+            # 清理
+            shutil.rmtree(test_path)
+
+    def test_export_pd_separate(self):
+        test_path = os.path.join(os.getcwd(), "output_test")
+        os.makedirs(test_path, exist_ok=True)
+        os.chmod(test_path, 0o740)
+        file_path_kvcache = Path(test_path, 'kvcache.csv')
+        file_path_pd_separate_kvcache = Path(test_path, 'pd_split_kvcache.csv')
+        data = {'tx_data_df': pd.read_csv(io.StringIO(PD_SEPARATE_PULL_KV_DATA))}
+        try:
+            # 初始化args
+            ExporterKVCacheData.initialize(self.args)
+            # 调用export方法
+            ExporterKVCacheData.export(data)
+            # 验证CSV文件是否生成
+            self.assertTrue(file_path_pd_separate_kvcache.is_file())
+        finally:
+            # 清理
+            shutil.rmtree(test_path)
+
+    def test_export_pd_separate_missing_key(self):
+        test_path = os.path.join(os.getcwd(), "output_test")
+        os.makedirs(test_path, exist_ok=True)
+        os.chmod(test_path, 0o740)
+        file_path_kvcache = Path(test_path, 'kvcache.csv')
+        file_path_pd_separate_kvcache = Path(test_path, 'kvcache.csv')
+        data = {'tx_data_df': pd.read_csv(io.StringIO(PD_SEPARATE_PULL_KV_DATA_MISSING_KEY))}
+        try:
+            # 初始化args
+            ExporterKVCacheData.initialize(self.args)
+            # 调用export方法
+            ExporterKVCacheData.export(data)
+            # 验证CSV文件是否生成
+            self.assertTrue(file_path_pd_separate_kvcache.is_file())
+        finally:
+            # 清理
+            shutil.rmtree(test_path)
+
+    @patch('ms_service_profiler.exporters.exporter_kvcache.ExporterKVCacheData.export')
+    def test_export_with_missing_tx_data_df(self, mock_export):
+        try:
+            test_path = os.path.join(os.getcwd(), "output_test")
+            os.makedirs(test_path, exist_ok=True)
+            os.chmod(test_path, 0o740)
+            # 设置日志记录
+            logging.basicConfig(level=logging.ERROR)
+            # 初始化args
+            ExporterKVCacheData.initialize(self.args)
+            # 调用export方法，但模拟tx_data_df不存在的情况
+            self.data['tx_data_df'] = None
+            ExporterKVCacheData.export(self.data)
+            # 验证方法是否正确处理了tx_data_df不存在的情况
+            mock_export.assert_called_once_with(self.data)
+            # 验证CSV文件是否生成
+            file_path = Path(test_path, 'kvcache.csv')
+            self.assertFalse(file_path.is_file())
+        finally:
+            # 清理
+            shutil.rmtree(test_path)
+    

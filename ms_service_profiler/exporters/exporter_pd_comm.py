@@ -1,0 +1,116 @@
+# -------------------------------------------------------------------------
+# This file is part of the MindStudio project.
+# Copyright (c) 2025 Huawei Technologies Co.,Ltd.
+#
+# MindStudio is licensed under Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
+#
+#          http://license.coscl.org.cn/MulanPSL2
+#
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+# MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
+# -------------------------------------------------------------------------
+
+import pandas as pd
+from ms_service_profiler.exporters.base import ExporterBase
+from ms_service_profiler.utils.log import logger
+from ms_service_profiler.exporters.utils import (
+    TableConfig, write_result_to_db, write_result_to_csv, check_domain_valid
+)
+from ms_service_profiler.utils.timer import timer
+
+
+def process_each_req_group(req_group_df):
+    http_req_time = 0
+    request_send_time = 0
+    request_send_succ_time = 0
+    prefill_res_time = 0
+    request_end_time = 0
+
+    for _, record in req_group_df.iterrows():
+        name = record.get('name')
+        if name is None:
+            continue
+
+        event_time = record.get('start_datetime')
+        if event_time:
+            event_time = event_time[:-3]
+        if name == 'receiveReq':
+            http_req_time = event_time
+        elif name == 'sendReqToD':
+            request_send_time = event_time
+        elif name == 'sendReqToDSucc':
+            request_send_succ_time = event_time
+        elif name == 'prefillRes':
+            prefill_res_time = event_time
+        elif name == 'decodeRes':
+            request_end_time = event_time
+    return http_req_time, request_send_time, request_send_succ_time, prefill_res_time, request_end_time
+
+
+class ExporterPDComm(ExporterBase):
+    name = "pd_comm"
+    req_result_list = []
+
+    @classmethod
+    def initialize(cls, args):
+        cls.args = args
+
+    @classmethod
+    @timer(logger.debug)
+    def export(cls, data) -> None:
+        if 'csv' in cls.args.format or 'db' in cls.args.format:
+            all_data_df = data['tx_data_df']
+            output = cls.args.output_path
+
+            if all_data_df is None:
+                logger.warning("There is no service prof data, communication data will not be generated. please check")
+                return
+
+            if check_domain_valid(all_data_df, ['Communication'], 'pd_split_communication') is False:
+                return
+
+            # 兼容老版本domain：PDSplit
+            pd_split_df = all_data_df[all_data_df['domain'].isin(['Communication', 'PDSplit'])]
+            if pd_split_df.empty:
+                return
+
+            # 按照rid进行分组
+            req_group_df = pd_split_df.groupby('rid')
+            for rid, pre_req_data in req_group_df:
+                http_req, request_send, request_send_succ, prefill_res, \
+                requset_end = process_each_req_group(pre_req_data)
+                cls.req_result_list.append({'rid': rid, 'http_req_time': http_req,
+                'send_request_time': request_send, 'send_request_succ_time': request_send_succ,
+                'prefill_res_time': prefill_res, 'request_end_time': requset_end})
+
+        if not cls.req_result_list:
+            return
+
+        result_df = pd.DataFrame(cls.req_result_list)
+        if 'db' in cls.args.format:
+            write_result_to_db(CREATE_PD_COMM_TABLE_CONFIG, result_df)
+
+        if 'csv' in cls.args.format:
+            write_result_to_csv(result_df, output, "pd_split_communication", PD_SPLIT_COMM_RENAME_COLS)
+
+
+PD_SPLIT_COMM_RENAME_COLS = {
+    'http_req_time': 'http_req_time(ms)', 'send_request_time': 'send_request_time(ms)',
+    'send_request_succ_time': 'send_request_succ_time(ms)', 'prefill_res_time': 'prefill_res_time(ms)',
+    'request_end_time': 'request_end_time(ms)'
+}
+
+CREATE_PD_COMM_TABLE_CONFIG = TableConfig(
+    table_name="pd_split_communication",
+    create_view=True,
+    view_name="pd_communication_info",
+    view_rename_cols=PD_SPLIT_COMM_RENAME_COLS,
+    description={
+        "en": "PD Node Communication Data in PD-Separated Deployment",
+        "zh": "PD分离部署场景PD节点间通信类数据信息"
+    }
+)

@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = {find = {}}
+include-package-data = true
+
+[tool.setuptools.package-data]
+"modelevalstate" = ["**/*.toml", "**/*.patch"]
+
+[project]
+name = "modelevalstate"
+version = '8.3.0'
+requires-python = ">=3.10"
+
+dependencies = [
+    "ms_service_profiler",
+    "filelock",
+    "pydantic-settings",
+    "pyswarms",
+    "requests",
+    "torch"
+]
+
+[project.optional-dependencies]
+real = []
+test = ["pytest", "xgboost==2.0.0", "seaborn", "scikit-learn", "swifter"]
+train = ["xgboost==2.0.0", "seaborn", "scikit-learn"]
+speed = ["xgboost==2.0.0", "seaborn", "scikit-learn", "swifter", "modin"]
+
+[project.entry-points."ms_service_profiler_plugins"]
+"optimizer" = "modelevalstate.optimizer.optimizer:arg_parse"
+"source_to_train" = "modelevalstate.train.source_to_train:arg_parse"

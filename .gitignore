@@ -1,0 +1,12 @@
+**/__pycache__
+*.pyc
+.vscode
+.idea
+build
+test/.coverage
+test/coverage
+*.xml
+*.db
+*.pickle
+*.coverage
+cmake-build-debug
