@@ -4,20 +4,20 @@
 - **注意：由于 CPU、内存等硬件差异，网络环境等不同，以及模型参数配置的细节不同等，当前建议值不能保证性能一定有提升，需要实际修改后验证。**
 
 
-## AI处理器支持情况
+## 产品支持情况
 > **说明：** 
->AI处理器与昇腾产品的对应关系，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
+>昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
 
-|AI处理器类型|是否支持|
+|产品类型|是否支持|
 |--|:-:|
-|Ascend 910C|x|
-|Ascend 910B|√|
-|Ascend 310B|x|
-|Ascend 310P|x|
-|Ascend 910|x|
+|Atlas A3 训练系列产品/Atlas A3 推理系列产品|x|
+|Atlas A2 训练系列产品/Atlas A2 推理系列产品|√|
+|Atlas 200I/500 A2 推理产品|x|
+|Atlas 推理系列产品|x|
+|Atlas 训练系列产品|x|
 
 > **须知：** 
->针对Ascend 910B，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
+>针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 
 
 ## 使用前准备

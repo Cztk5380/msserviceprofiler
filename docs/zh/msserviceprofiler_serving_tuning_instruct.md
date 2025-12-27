@@ -15,23 +15,23 @@
 4.  [数据可视化](#数据可视化)
 
 
-## AI处理器支持情况<a name="ZH-CN_TOPIC_0000002479925980"></a>
+## 产品支持情况<a name="ZH-CN_TOPIC_0000002479925980"></a>
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
->AI处理器与昇腾产品的对应关系，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》
+>昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》
 
-|AI处理器类型|是否支持|
+|产品类型|是否支持|
 |--|:-:|
-|Ascend 910C|x|
-|Ascend 910B|√|
-|Ascend 310B|x|
-|Ascend 310P|√|
-|Ascend 910|x|
+|Atlas A3 训练系列产品/Atlas A3 推理系列产品|x|
+|Atlas A2 训练系列产品/Atlas A2 推理系列产品|√|
+|Atlas 200I/500 A2 推理产品|x|
+|Atlas 推理系列产品|√|
+|Atlas 训练系列产品|x|
 
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
->针对Ascend 910B，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
->针对Ascend 310P，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
+>针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
+>针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
 
 
 ## 使用前准备
