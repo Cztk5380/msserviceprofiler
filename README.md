@@ -15,17 +15,13 @@
 └─test                             # 测试目录
 ```
 
-## 版本说明
-
-msServiceProfiler的版本说明包含msServiceProfiler的软件版本配套关系和软件包下载以及每个版本的特性变更说明，具体请参见[版本说明](docs/zh/release_notes.md)。
-
 ## 环境部署
 
 ### 环境和依赖
 
 - 硬件环境请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
 
-- 软件环境请参见《[CANN 软件安装指南](https://www.hiascend.com/document/detail/zh/canncommercial/83RC1/softwareinst/instg/instg_quick.html?Mode=PmIns&InstallType=local&OS=openEuler&Software=cannToolKit)》安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量。
+- 工具的使用运行需要提前获取并安装CANN开源版本，当前CANN开源版本正在发布中，敬请期待。
 
 ## 工具安装
 安装msServiceProfiler工具，详情请参见《[msServiceProfiler工具安装指南](docs/zh/msserviceprofiler_install_guide.md)》。
