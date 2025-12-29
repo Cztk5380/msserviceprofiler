@@ -133,7 +133,8 @@ def _initialize_columns(batch_df, new_columns):
 
 def _get_batch_schedule_info(batch_df):
     """获取 BatchSchedule 信息"""
-    batch_schedule_mask = batch_df['name'] == 'BatchSchedule'
+    batch_schedule_names = ['BatchSchedule', 'batchFrameworkProcessing']
+    batch_schedule_mask = batch_df['name'].isin(batch_schedule_names)
     if not batch_schedule_mask.any():
         logger.warning("No BatchSchedule records found in batch_df")
         return None, None

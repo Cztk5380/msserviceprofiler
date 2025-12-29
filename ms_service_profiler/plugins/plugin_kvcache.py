@@ -152,7 +152,7 @@ class PluginKVCacheMetrics(PluginBase):
             free_blocks_valid = converted_values.notna()
             mask = free_blocks_is_zero & free_blocks_valid
             if mask.any():
-                converted_values_int = converted_values.astype(int)
+                converted_values_int = converted_values[mask].astype(int)
                 metrics_df.loc[mask, 'free_blocks'] = converted_values_int[mask]
                 # 计算 used_blocks
                 metrics_df.loc[mask, 'used_blocks'] = (
