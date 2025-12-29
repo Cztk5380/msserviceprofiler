@@ -27,7 +27,7 @@ dependencies = [
 real = []
 test = ["pytest", "xgboost==2.0.0", "seaborn", "scikit-learn", "swifter"]
 train = ["xgboost==2.0.0", "seaborn", "scikit-learn"]
-speed = ["xgboost==2.0.0", "seaborn", "scikit-learn", "swifter", "modin"]
+speed = ["xgboost==2.0.0", "seaborn", "scikit-learn", "swifter", "modin", "ray"]
 
 [project.entry-points."ms_service_profiler_plugins"]
 "optimizer" = "modelevalstate.optimizer.optimizer:arg_parse"

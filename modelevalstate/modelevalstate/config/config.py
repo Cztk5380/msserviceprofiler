@@ -457,8 +457,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         toml_file=[INSTALL_PATH.joinpath("model_eval_state.toml"), Path("~/model_eval_state.toml").expanduser(),
                    RUN_PATH.joinpath("model_eval_state.toml"),
-                   INSTALL_PATH.joinpath("config.toml"), Path("~/config.toml").expanduser(),
-                   RUN_PATH.joinpath("config.toml"), modelevalstate_config_path],
+                   INSTALL_PATH.joinpath("config.toml"), INSTALL_PATH.joinpath("modelevalstate/config.toml"),
+                   Path("~/config.toml").expanduser(), RUN_PATH.joinpath("config.toml"), modelevalstate_config_path], 
         env_prefix="model_eval_state_")
 
     output: Path = Field(default_factory=lambda: Path(os.getcwd()).joinpath("result").resolve(), validate_default=True)

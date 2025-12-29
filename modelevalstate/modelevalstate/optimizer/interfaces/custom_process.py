@@ -155,7 +155,7 @@ class CustomProcess:
         run_log_path = Path(self.run_log)
         if run_log_path.exists():
             try:
-                with open_s(run_log_path, "r", encoding="utf-8") as f:
+                with open_s(run_log_path, "r", encoding="utf-8", errors="ignore") as f:
                     f.seek(self.run_log_offset)
                     output = f.read()
                     self.run_log_offset = f.tell()
