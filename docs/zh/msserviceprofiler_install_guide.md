@@ -3,7 +3,7 @@
 本文介绍msServiceProfiler工具的安装，升级和卸载。
 ## 安装前准备
 ### 环境准备
-- 完整安装采集、解析能力，需准备构建依赖工具 **sickit-build-core**。
+- 完整安装采集、解析能力，需准备构建依赖工具 **scikit-build-core**。
 - 准备**Python环境**：需要 Python 3.10 或更高版本。
 ### 约束
 - 构建安装依赖 sqlite3，安装参考命令行。
@@ -38,5 +38,5 @@ pip install . --upgrade
 
 ## 卸载
 ```shell
-pip uninstall msserviceprofiler -y
+pip uninstall ms_service_profiler -y
 ```
