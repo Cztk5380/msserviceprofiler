@@ -734,6 +734,10 @@ bool Config::PrepareConfigAndPath(std::string& configPath) const
         return false;
     }
 
+    if (!SecurityUtils::IsOwner(dirPath.c_str())) {
+        return false;
+    }
+
     return true;
 }
 

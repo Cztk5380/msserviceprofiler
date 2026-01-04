@@ -34,13 +34,14 @@
 #include "msServiceProfiler/ServiceTracer.h"
 #include "msServiceProfiler/Tracer.h"
 
-extern opentelemetry::proto::resource::v1::Resource& getResourceProto();
-extern TraceId hexStr2TraceId(const std::string &traceStr);
-extern SpanId hexStr2SpanId(const std::string &spanStr);
+extern opentelemetry::proto::resource::v1::Resource &getResourceProto();
+extern bool hexStr2TraceId(const std::string &traceStr, TraceId &traceId);
+extern bool hexStr2SpanId(const std::string &spanStr, SpanId &spanId);
 extern void SpanFillCtxData(TRACE_SPAN_DATA spanData, TraceId traceid, SpanId spanid, SpanId pSpanid);
 using SpanPtr = opentelemetry::proto::trace::v1::Span *;
-template<int cnt>
-std::array<uint8_t, cnt> stringToByteArray(const std::string& str) {
+template <int cnt>
+std::array<uint8_t, cnt> stringToByteArray(const std::string &str)
+{
     std::array<uint8_t, cnt> arr;
     std::copy(str.begin(), str.end(), arr.begin());
     return arr;
@@ -48,16 +49,19 @@ std::array<uint8_t, cnt> stringToByteArray(const std::string& str) {
 
 class TracerTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 在每个测试用例之前执行的设置代码
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 在每个测试用例之后执行的清理代码
     }
 };
 
-TEST_F(TracerTest, TestResAddAttr) {
+TEST_F(TracerTest, TestResAddAttr)
+{
     ResAddAttr("key1", "value1");
     ResAddAttr("key2", "value2");
 
@@ -68,7 +72,8 @@ TEST_F(TracerTest, TestResAddAttr) {
     EXPECT_EQ(getResourceProto().attributes(1).value().string_value(), "value2");
 }
 
-TEST_F(TracerTest, TestNewSpanData) {
+TEST_F(TracerTest, TestNewSpanData)
+{
     TRACE_SPAN_DATA spanData = NewSpanData("testSpan");
     SpanPtr span_pb = (SpanPtr)spanData;
 
@@ -79,7 +84,8 @@ TEST_F(TracerTest, TestNewSpanData) {
     delete span_pb;
 }
 
-TEST_F(TracerTest, TestSpanActivate) {
+TEST_F(TracerTest, TestSpanActivate)
+{
     TRACE_SPAN_DATA spanData = NewSpanData("testSpan");
     SpanPtr span_pb = (SpanPtr)spanData;
 
@@ -91,13 +97,18 @@ TEST_F(TracerTest, TestSpanActivate) {
     delete span_pb;
 }
 
-TEST_F(TracerTest, TestSpanFillCtxData) {
+TEST_F(TracerTest, TestSpanFillCtxData)
+{
     TRACE_SPAN_DATA spanData = NewSpanData("testSpan");
     SpanPtr span_pb = (SpanPtr)spanData;
 
-    TraceId traceId = hexStr2TraceId("0af7651916cd43dd8448eb211c80319c");
-    SpanId spanId = hexStr2SpanId("b7ad6b7169203331");
-    SpanId parentSpanId = hexStr2SpanId("a0a0a0a0a0a0a0a0");
+    TraceId traceId = {0, 0};
+    SpanId spanId(0);
+    SpanId parentSpanId(0);
+
+    EXPECT_TRUE(hexStr2TraceId("0af7651916cd43dd8448eb211c80319c", traceId));
+    EXPECT_TRUE(hexStr2SpanId("b7ad6b7169203331", spanId));
+    EXPECT_TRUE(hexStr2SpanId("a0a0a0a0a0a0a0a0", parentSpanId));
 
     SpanFillCtxData(spanData, traceId, spanId, parentSpanId);
 
@@ -108,7 +119,8 @@ TEST_F(TracerTest, TestSpanFillCtxData) {
     delete span_pb;
 }
 
-TEST_F(TracerTest, TestSpanAddAttribute) {
+TEST_F(TracerTest, TestSpanAddAttribute)
+{
     TRACE_SPAN_DATA spanData = NewSpanData("testSpan");
     SpanPtr span_pb = (SpanPtr)spanData;
 
@@ -124,7 +136,8 @@ TEST_F(TracerTest, TestSpanAddAttribute) {
     delete span_pb;
 }
 
-TEST_F(TracerTest, TestSpanSetStatus) {
+TEST_F(TracerTest, TestSpanSetStatus)
+{
     TRACE_SPAN_DATA spanData = NewSpanData("testSpan");
     SpanPtr span_pb = (SpanPtr)spanData;
 
@@ -139,27 +152,35 @@ TEST_F(TracerTest, TestSpanSetStatus) {
     delete span_pb;
 }
 
-TEST_F(TracerTest, TestSpanEndAndFree) {
+TEST_F(TracerTest, TestSpanEndAndFree)
+{
     TRACE_SPAN_DATA spanData = NewSpanData("testSpan");
     SpanPtr span_pb = (SpanPtr)spanData;
 
     SpanEndAndFree(spanData, "testModule");
 }
 
-TEST_F(TracerTest, TestParseHttpCtx) {
+TEST_F(TracerTest, TestParseHttpCtx)
+{
+    TraceId traceId = {0, 0};
+    SpanId spanId(0);
+    EXPECT_TRUE(hexStr2TraceId("0af7651916cd43dd8448eb211c80319c", traceId));
+    EXPECT_TRUE(hexStr2SpanId("b7ad6b7169203331", spanId));
+
     TraceContextInfo ctx1 = ParseHttpCtx("00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01", "");
-    EXPECT_EQ(std::get<0>(ctx1).as_char, hexStr2TraceId("0af7651916cd43dd8448eb211c80319c").as_char);
-    EXPECT_EQ(std::get<1>(ctx1).as_char, hexStr2SpanId("b7ad6b7169203331").as_char);
+
+    EXPECT_EQ(std::get<0>(ctx1).as_char, traceId.as_char);
+    EXPECT_EQ(std::get<1>(ctx1).as_char, spanId.as_char);
     EXPECT_TRUE(std::get<2>(ctx1));
 
     TraceContextInfo ctx2 = ParseHttpCtx("", "0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-1");
-    EXPECT_EQ(std::get<0>(ctx2).as_char, hexStr2TraceId("0af7651916cd43dd8448eb211c80319c").as_char);
-    EXPECT_EQ(std::get<1>(ctx2).as_char, hexStr2SpanId("b7ad6b7169203331").as_char);
+    EXPECT_EQ(std::get<0>(ctx2).as_char, traceId.as_char);
+    EXPECT_EQ(std::get<1>(ctx2).as_char, spanId.as_char);
     EXPECT_TRUE(std::get<2>(ctx2));
 
     TraceContextInfo ctx3 = ParseHttpCtx("", "0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-0");
-    EXPECT_EQ(std::get<0>(ctx3).as_char, hexStr2TraceId("0af7651916cd43dd8448eb211c80319c").as_char);
-    EXPECT_EQ(std::get<1>(ctx3).as_char, hexStr2SpanId("b7ad6b7169203331").as_char);
+    EXPECT_EQ(std::get<0>(ctx3).as_char, traceId.as_char);
+    EXPECT_EQ(std::get<1>(ctx3).as_char, spanId.as_char);
     EXPECT_FALSE(std::get<2>(ctx3));
 
     TraceContextInfo ctx4 = ParseHttpCtx("", "");

@@ -40,7 +40,7 @@ static opentelemetry::proto::resource::v1::Resource gResourceProto_;
 using SpanPtr = opentelemetry::proto::trace::v1::Span *;
 
 #ifdef ENABLE_SERVICE_PROF_UNIT_TEST
-opentelemetry::proto::resource::v1::Resource& getResourceProto()
+opentelemetry::proto::resource::v1::Resource &getResourceProto()
 {
     return gResourceProto_;
 }
@@ -51,9 +51,13 @@ void ResAddAttr(const char *key, const char *value)
     if (key == nullptr || value == nullptr) {
         return;
     }
-    auto attr = gResourceProto_.add_attributes();
-    attr->set_key(key);
-    attr->mutable_value()->set_string_value(value);
+    try {
+        auto attr = gResourceProto_.add_attributes();
+        attr->set_key(key);
+        attr->mutable_value()->set_string_value(value);
+    } catch (const std::exception &e) {
+        PROF_LOGE("cannot set attr. %s", e.what());  // LCOV_EXCL_LINE
+    }
 }
 
 TRACE_SPAN_DATA NewSpanData(const char *spanName)
@@ -61,11 +65,15 @@ TRACE_SPAN_DATA NewSpanData(const char *spanName)
     if (spanName == nullptr) {
         return nullptr;
     }
-    opentelemetry::proto::trace::v1::Span *spanPb = new(std::nothrow) opentelemetry::proto::trace::v1::Span();
+    opentelemetry::proto::trace::v1::Span *spanPb = new (std::nothrow) opentelemetry::proto::trace::v1::Span();
     if (spanPb == nullptr) {
         return nullptr;
     }
-    spanPb->set_name(spanName);
+    try {
+        spanPb->set_name(spanName);
+    } catch (const std::exception &e) {
+        PROF_LOGE("cannot set span name. %s", e.what());  // LCOV_EXCL_LINE
+    }
     spanPb->set_kind(opentelemetry::proto::trace::v1::Span_SpanKind_SPAN_KIND_SERVER);
     spanPb->set_flags(opentelemetry::proto::trace::v1::SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK);
     spanPb->set_start_time_unix_nano(MsUtils::GetCurrentTimeInNanoseconds());
@@ -103,8 +111,12 @@ void SpanAddAttribute(TRACE_SPAN_DATA spanData, const char *attrName, const char
     }
     SpanPtr spanPb = (SpanPtr)spanData;
     auto attribute = spanPb->add_attributes();
-    attribute->set_key(attrName);
-    attribute->mutable_value()->set_string_value(value);
+    try {
+        attribute->set_key(attrName);
+        attribute->mutable_value()->set_string_value(value);
+    } catch (const std::exception &e) {
+        PROF_LOGE("cannot set span name. %s", e.what());  // LCOV_EXCL_LINE
+    }
 }
 
 void SpanSetStatus(TRACE_SPAN_DATA spanData, const bool isSuccess, const std::string &msg)
@@ -118,7 +130,11 @@ void SpanSetStatus(TRACE_SPAN_DATA spanData, const bool isSuccess, const std::st
     SpanPtr spanPb = (SpanPtr)spanData;
     spanPb->mutable_status()->set_code(code);
     if (!isSuccess) {
-        spanPb->mutable_status()->set_message(msg);
+        try {
+            spanPb->mutable_status()->set_message(msg);
+        } catch (const std::exception &e) {
+            PROF_LOGE("cannot set status message. %s", e.what());  // LCOV_EXCL_LINE
+        }
     }
 }
 
@@ -144,7 +160,11 @@ void SpanEndAndFree(TRACE_SPAN_DATA spanData, std::string &&moduleName_)
     auto scopeSpan = resourceSpans->add_scope_spans();
 
     opentelemetry::proto::common::v1::InstrumentationScope instrumentation_scope_proto;
-    *instrumentation_scope_proto.mutable_name() = moduleName_;
+    try {
+        *instrumentation_scope_proto.mutable_name() = moduleName_;
+    } catch (const std::exception &e) {
+        PROF_LOGE("cannot set scope. %s", e.what());  // LCOV_EXCL_LINE
+    }
     *scopeSpan->mutable_scope() = std::move(instrumentation_scope_proto);
 
     *scopeSpan->add_spans() = std::move(*spanPb);
@@ -156,53 +176,88 @@ void SpanEndAndFree(TRACE_SPAN_DATA spanData, std::string &&moduleName_)
     delete spanPb;
 }
 
+std::array<uint8_t, 256> generateHexCharToValueTable()
+{
+    std::array<uint8_t, 256> table = {};
+    for (unsigned char c = 0; c < 200; ++c) {
+        if (c >= '0' && c <= '9') {
+            table[c] = c - '0';
+        } else if (c >= 'A' && c <= 'F') {
+            table[c] = c - 'A' + 10;
+        } else if (c >= 'a' && c <= 'f') {
+            table[c] = c - 'a' + 10;
+        } else {
+            table[c] = 0xFF;  // Invalid character
+        }
+    }
+    return table;
+}
+
 // 将十六进制字符串转换为vector<uint8_t>
 template <int size>
 void hexStringToBytes(const std::string &hex, std::array<uint8_t, size> &bytes)
 {
-    if (hex.length() % 2 != 0) {
-        return;
+    const static auto hexCharToValueTable = generateHexCharToValueTable();
+    if (hex.length() != size * 2) {
+        throw std::invalid_argument("Hex string length must be exactly " + std::to_string(size * 2) + " characters");
     }
 
-    for (size_t i = 0; i < hex.length() / 2 && i < size; i++) {
-        std::string byteString = hex.substr(i * 2, 2);
-        bytes.at(i) = static_cast<uint8_t>(std::stoul(byteString, nullptr, 16));
+    for (size_t i = 0; i < hex.length() / 2; i++) {
+        uint8_t high = hexCharToValueTable[static_cast<unsigned char>(hex[i * 2])];
+        uint8_t low = hexCharToValueTable[static_cast<unsigned char>(hex[i * 2 + 1])];
+
+        if (high == 0xFF || low == 0xFF) {
+            throw std::invalid_argument("Invalid hex character");
+        }
+        // Combine the high and low nibbles to form the byte
+        bytes[i] = (high << 4) | low;
     }
 }
 
-TraceId hexStr2TraceId(const std::string &traceStr)
+bool hexStr2TraceId(const std::string &traceStr, TraceId &traceId)
 {
-    TraceId traceId = {0, 0};
-    if (traceStr.size() == 32) {
-        try {
-            hexStringToBytes<16>(traceStr, traceId.as_char);
-        } catch (const std::exception& e) {
-            PROF_LOGE("cannot parse hex str %s, %s ", traceStr.c_str(), e.what()); // LCOV_EXCL_LINE
-        }
+    constexpr int TRACE_BYTE_SIZE = 16;
+    if (traceStr.size() != TRACE_BYTE_SIZE * 2) {
+        PROF_LOGE("Cannot parse hex str, %s, Invalid length.", traceStr.c_str());  // LCOV_EXCL_LINE
+        return false;
     }
-    return traceId;
+    try {
+        hexStringToBytes<TRACE_BYTE_SIZE>(traceStr, traceId.as_char);
+        return true;
+    } catch (const std::exception &e) {
+        PROF_LOGE("cannot parse hex str %s, %s ", traceStr.c_str(), e.what());  // LCOV_EXCL_LINE
+        return false;
+    }
 }
 
-SpanId hexStr2SpanId(const std::string &spanStr)
+bool hexStr2SpanId(const std::string &spanStr, SpanId &spanId)
 {
-    SpanId spanId(0);
-    if (spanStr.size() == 16) {
-        try {
-            hexStringToBytes<8>(spanStr, spanId.as_char);
-        } catch (const std::exception& e) {
-            PROF_LOGE("cannot parse hex str %s, %s ", spanStr.c_str(), e.what()); // LCOV_EXCL_LINE
-        }
+    constexpr int SPAN_BYTE_SIZE = 8;
+    if (spanStr.size() != SPAN_BYTE_SIZE * 2) {
+        PROF_LOGE("Cannot parse hex str, %s, Invalid length.", spanStr.c_str());  // LCOV_EXCL_LINE
+        return false;
     }
-    return spanId;
+    try {
+        hexStringToBytes<SPAN_BYTE_SIZE>(spanStr, spanId.as_char);
+        return true;
+    } catch (const std::exception &e) {
+        PROF_LOGE("cannot parse hex str %s, %s ", spanStr.c_str(), e.what());  // LCOV_EXCL_LINE
+        return false;
+    }
 }
 
 TraceContextInfo ParseHttpCtx(const std::string &traceParent, const std::string &traceB3)
 {
     std::string strTraceParent = traceParent.c_str();
     std::string strTraceB3 = traceB3.c_str();
+    TraceId traceId = {0, 0};
+    SpanId spanId(0);
+    bool parseSuccessFlag = true;
+    bool sampleFlag = false;
 
     constexpr decltype(strTraceParent.length()) MAX_TRACE_LENGTH = 256;
     if (strTraceParent.length() > MAX_TRACE_LENGTH || strTraceB3.length() > MAX_TRACE_LENGTH) {
+        LOG_ONCE_E("traceparent Format not recognized. ");
         return TraceContextInfo{{0, 0}, 0, false};
     }
 
@@ -210,27 +265,38 @@ TraceContextInfo ParseHttpCtx(const std::string &traceParent, const std::string 
         // traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01
         // <version>-<trace-id>-<parent-id>-<trace-flags>
 
-        auto splitValues = MsUtils::SplitStrToVector(strTraceParent, '-');
+        auto splitValues = MsUtils::SplitStrToVector(strTraceParent, '-', true);
         if (splitValues.size() != 4) {
+            LOG_ONCE_E("traceparent Format not recognized. ");
             return TraceContextInfo{{0, 0}, 0, false};
         }
-        return TraceContextInfo{
-            hexStr2TraceId(splitValues.at(1)), hexStr2SpanId(splitValues.at(2)), splitValues.at(3) == "01"};
+        parseSuccessFlag = hexStr2TraceId(splitValues.at(1), traceId);
+        parseSuccessFlag = hexStr2SpanId(splitValues.at(2), spanId) && parseSuccessFlag;
+        sampleFlag = splitValues.at(3) == "01";
+
+        return TraceContextInfo{traceId, spanId, parseSuccessFlag && sampleFlag};
     } else if (!strTraceB3.empty()) {
         // b3: 0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-1-a0a0a0a0a0a0a0a0
         // b3: <TraceId>-<SpanId>-<Sampled>-<ParentSpanId>
 
-        auto splitValues = MsUtils::SplitStrToVector(strTraceB3, '-');
-        if (splitValues.size() == 2) {
-            return TraceContextInfo{hexStr2TraceId(splitValues.at(0)), hexStr2SpanId(splitValues.at(1)), false};
-        } else if (splitValues.size() == 3 || splitValues.size() == 4) {
-            return TraceContextInfo{hexStr2TraceId(splitValues.at(0)),
-                hexStr2SpanId(splitValues.at(1)),
-                splitValues.at(2) == "1" || splitValues.at(2) == "d"};
+        auto splitValues = MsUtils::SplitStrToVector(strTraceB3, '-', true);
+        if (splitValues.size() >= 2) {
+            parseSuccessFlag = hexStr2TraceId(splitValues.at(0), traceId);
+            parseSuccessFlag = hexStr2SpanId(splitValues.at(1), spanId) && parseSuccessFlag;
         } else {
+            LOG_ONCE_E("b3 Format not recognized. ");
             return TraceContextInfo{{0, 0}, 0, false};
         }
+
+        if (splitValues.size() == 2) {
+            return TraceContextInfo{traceId, spanId, false};
+        } else if (splitValues.size() == 3 || splitValues.size() == 4) {
+            sampleFlag = splitValues.at(2) == "1" || splitValues.at(2) == "d";
+            return TraceContextInfo{traceId, spanId, parseSuccessFlag && sampleFlag};
+        }
     } else {
+        LOG_ONCE_D("no trace info. ");
         return TraceContextInfo{{0, 0}, 0, false};
     }
+    return TraceContextInfo{{0, 0}, 0, false};
 }

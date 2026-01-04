@@ -37,14 +37,14 @@ inline std::pair<std::string, std::string> SplitStr(const std::string &str, char
     }
 };
 
-inline std::vector<std::string> SplitStrToVector(const std::string &str, char splitSymbol)
+inline std::vector<std::string> SplitStrToVector(const std::string &str, char splitSymbol, bool allowEmpty = false)
 {
     std::vector<std::string> result;
     std::string token;
 
     for (char c : str) {
         if (c == splitSymbol) {
-            if (!token.empty()) {  // 非空子串才插入
+            if (!token.empty() || allowEmpty) {  // 非空子串才插入
                 result.push_back(token);
                 token.clear();  // 清空临时 token
             }
@@ -68,9 +68,9 @@ inline std::set<std::string> SplitStringToSet(const std::string &str, char split
     return std::set<std::string>(vec.begin(), vec.end());
 };
 
-inline std::string GetEnvAsString(const std::string& envName)
+inline std::string GetEnvAsString(const std::string &envName)
 {
-    const char* value = getenv(envName.c_str());
+    const char *value = getenv(envName.c_str());
     return std::string((value != nullptr) ? value : "");
 };
 
@@ -83,7 +83,7 @@ inline unsigned long Str2Uint(const std::string &str)
 
 class FailAutoFree {
 public:
-    void AddFreeFunction(std::function<void()>&& freeFunc, const char* freeMsg)
+    void AddFreeFunction(std::function<void()> &&freeFunc, const char *freeMsg)
     {
         freeFuncArray.push_back(std::make_pair<std::function<void()>, std::string>(std::move(freeFunc), freeMsg));
     };

@@ -503,3 +503,7 @@ def check_columns_valid(df, column_list, exporter_name):
         logger.warning(f"Exporter {exporter_name} will skip. the attribute {missing_columns} in prof data is missing")
         return False
     return True
+
+
+def is_root():
+    return os.name != "nt" and os.getuid() == 0
