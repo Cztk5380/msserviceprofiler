@@ -11,6 +11,8 @@
 ├─ms_service_profiler              # 基础能力目录（解析、数据比对等），python源码主目录
 │  ├─tracer                        # Trace数据监测能力目录
 │  ├─vllm_profiler                 # vLLM服务化调优能力目录
+├─msservice_advisor/               # 专家建议工具目录
+├─modelevalstate/                  # 自动寻优工具目录
 └── cpp                            # 基础能力目录（采集），C++源码主目录
 └─test                             # 测试目录
 ```
