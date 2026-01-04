@@ -74,7 +74,7 @@ class ServiceProfiler:
                 return None
 
         default_cfg = find_config_path()
-
+        
         env_path = os.environ.get('PROFILING_SYMBOLS_PATH')
         if env_path and str(env_path).lower().endswith(('.yaml', '.yml')):
             # 环境变量目标文件已存在：直接加载

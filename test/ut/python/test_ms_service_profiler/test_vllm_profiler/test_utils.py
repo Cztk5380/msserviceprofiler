@@ -68,7 +68,7 @@ class TestFindConfigPath:
     
     @staticmethod
     def test_find_config_path_user_config_success(temp_config_dir, monkeypatch):
-        """测试优先找到用户目录下按版本命名的配置"""
+        """测试代码仓配置不存在时，回退到用户目录下按版本命名的配置"""
         # 伪造 vllm.__version__
         fake_vllm = type("Vllm", (), {"__version__": "0.9.2"})
         monkeypatch.setitem(sys.modules, "vllm", fake_vllm)
@@ -84,8 +84,24 @@ class TestFindConfigPath:
         with open(user_cfg_file, "w", encoding="utf-8") as f:
             f.write("test user config")
 
-        result = find_config_path()
-        assert result == user_cfg_file
+        # 模拟代码仓配置文件不存在，这样才会回退到用户配置
+        # 保存原始的 os.path.isfile 引用，避免递归调用
+        original_isfile = os.path.isfile
+        with patch('ms_service_profiler.vllm_profiler.utils.os.path.isfile') as mock_isfile:
+            def isfile_side_effect(path):
+                # 代码仓配置文件不存在（返回 False）
+                if path.endswith('config/service_profiling_symbols.yaml'):
+                    return False
+                # 用户配置文件存在（返回 True）
+                if path == user_cfg_file:
+                    return True
+                # 其他情况使用原始的 os.path.isfile
+                return original_isfile(path)
+            
+            mock_isfile.side_effect = isfile_side_effect
+            
+            result = find_config_path()
+            assert result == user_cfg_file
 
     @staticmethod
     def test_find_config_path_user_config_missing_fallback_to_local(temp_config_dir, monkeypatch):

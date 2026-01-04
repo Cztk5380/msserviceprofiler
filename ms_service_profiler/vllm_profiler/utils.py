@@ -24,13 +24,22 @@ def find_config_path() -> Optional[str]:
     """查找性能分析配置文件，按优先级顺序查找。
     
     查找顺序：
-    1. 用户配置目录: ~/.config/vllm_ascend/service_profiling_symbols.{VLLM_VERSION}.yaml
-    2. 本项目目录: <this>/config/service_profiling_symbols.yaml
-    
+    1. 本项目目录: <this>/config/service_profiling_symbols.yaml
+    2. 用户配置目录: ~/.config/vllm_ascend/service_profiling_symbols.{VLLM_VERSION}.yaml
+
     Returns:
         Optional[str]: 配置文件路径，如果未找到则返回 None
     """
-    # 1) user config path: ~/.config/vllm_ascend/service_profiling_symbols.{VLLM_VERSION}.yaml
+    # 1) local project config path
+    try:
+        local_candidate = os.path.join(os.path.dirname(__file__), 'config', 'service_profiling_symbols.yaml')
+        if os.path.isfile(local_candidate):
+            logger.debug(f"Loading profiling symbols from local config file: {local_candidate}")
+            return local_candidate
+    except Exception as e:
+        logger.warning(f"Failed to find profiling symbols from local project: {e}")
+    
+    # 2) user config path: ~/.config/vllm_ascend/service_profiling_symbols.{VLLM_VERSION}.yaml
     try:
         try:
             import vllm  # type: ignore
@@ -54,16 +63,10 @@ def find_config_path() -> Optional[str]:
                 f"service_profiling_symbols.{vllm_version}.yaml",
             )
             if os.path.isfile(candidate):
-                logger.debug(f"Using profiling symbols from user config: {candidate}")
+                logger.debug(f"Loading profiling symbols from user config: {candidate}")
                 return candidate
     except Exception as e:
         logger.warning(f"Failed to find profiling symbols from default path: {e}")
-
-    # 2) local project config path
-    local_candidate = os.path.join(os.path.dirname(__file__), 'config', 'service_profiling_symbols.yaml')
-    if os.path.isfile(local_candidate):
-        logger.debug(f"Using profiling symbols from local project: {local_candidate}")
-        return local_candidate
 
     return None
 
