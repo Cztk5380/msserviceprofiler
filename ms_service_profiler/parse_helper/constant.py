@@ -16,8 +16,10 @@
 
 MAJOR_TABLE_NAME = "mstx"
 MINOR_TABLE_NAME = "meta"
+SLICE_TABLE_NAME = "slice"
 
-
+SLICE_TABLE_COLS = ["id", "timestamp", "duration", "name", "depth", "track_id", "cat", "args", "cname", "end_time",
+                    "flag_id", "pid", "tid"]
 MAJOR_TABLE_COLS = ["markId", "message", "pid", "tid", "timestamp", "endTimestamp"]
 MINOR_TABLE_COLS = ["name", "value"]
 

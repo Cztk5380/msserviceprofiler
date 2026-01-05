@@ -418,7 +418,7 @@ class TestProcessorRes(unittest.TestCase):
         )
         self.assertListEqual(test_df['rid'].to_list(), ['101,102', '101,102'])
         self.assertListEqual(test_df['rid_list'].to_list(), [['101', '102'], ['101', '102']])
-        self.assertListEqual(test_df['token_id_list'].to_list(), [['0', '0'], ['1', '1']])
+        self.assertListEqual(test_df['token_id_list'].to_list(), [[0, 0], [1, 1]])
 
 
     def test_process_data_df_dp_correctly(self):

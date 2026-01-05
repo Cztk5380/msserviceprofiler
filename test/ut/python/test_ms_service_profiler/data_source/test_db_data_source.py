@@ -18,6 +18,7 @@ import re
 import os
 import sqlite3
 import shutil
+import unittest
 
 import logging
 import pandas as pd
@@ -97,13 +98,13 @@ def setup_test_db_directory(tmp_path):
 
 
 def test_process_normal():
-    # 模拟convert_db_to_df的返回值
-    mock_df = (pd.DataFrame({
-        'timestamp': [1623456789000, 1623456889000],
-        'endTimestamp': [1623456799000, 1623456899000],
+    # 模拟convert_db_to_df的返回值（mstx模式）
+    mock_df = pd.DataFrame({
+        'timestamp': [1623456789000000, 1623456889000000],
+        'endTimestamp': [1623456799000000, 1623456899000000],
         'message': ['{"key1":"value1"}', '{"key2":"value2"}'],
         'hostname': ['host1', 'host2']
-    }), None)
+    })
 
     # 模拟json_normalize的返回值
     mock_json_normalize = MagicMock()
@@ -112,35 +113,95 @@ def test_process_normal():
         'key2': [None, 'value2']
     })
 
-    # 模拟convert_db_to_df的返回值
+    # 模拟convert_db_to_df的返回值（返回3个值：df, meta, use_slice_logic）
     mock_convert_db_to_df = MagicMock()
-    mock_convert_db_to_df.return_value = mock_df
+    mock_convert_db_to_df.return_value = (mock_df, None, False)
 
     # 使用patch装饰器来模拟依赖
     with patch('ms_service_profiler.parse_helper.utils.convert_db_to_df', mock_convert_db_to_df):
         with patch('pandas.json_normalize', mock_json_normalize):
             # 调用process函数
-            result = DBDataSource.process(mock_df)
+            result = DBDataSource.process('test.db')
 
             # 验证结果
-            expected_df = pd.DataFrame({
-                'hostuid': ['host1', 'host2'],
-                'start_time': [1623456789.0, 1623456889.0],
-                'end_time': [1623456799.0, 1623456899.0],
-                'during_time': [10.0, 10.0],
-                'start_datetime': ['2021-06-12 03:13:09.000000', '2021-06-12 03:14:49.000000'],
-                'end_datetime': ['2021-06-12 03:13:19.000000', '2021-06-12 03:14:59.000000'],
-                'message': [{'key1': 'value1'}, {'key2': 'value2'}],
-                'key1': ['value1', None],
-                'key2': [None, 'value2']
-            })
-            # 验证结果，这将触发AssertionError
-            try:
-                pd.testing.assert_frame_equal(result['tx_data_df'], expected_df)
-            except AssertionError as e:
-                logging.info(f"AssertionError triggered as expected: {e}")
-            else:
-                raise AssertionError("Expected an AssertionError to be raised, but it was not.")
+            assert 'tx_data_df' in result
+            tx_df = result['tx_data_df']
+            assert 'hostuid' in tx_df.columns
+            assert 'start_time' in tx_df.columns
+            assert 'end_time' in tx_df.columns
+            assert 'during_time' in tx_df.columns
+            assert 'message' in tx_df.columns
+            assert 'key1' in tx_df.columns
+            assert 'key2' in tx_df.columns
+            assert tx_df['hostuid'].tolist() == ['host1', 'host2']
+
+
+def test_process_slice_mode():
+    mock_df = pd.DataFrame({
+        'markId': [1, 2],
+        'timestamp': [1623456789000000, 1623456889000000],
+        'pid': [100, 200],
+        'tid': [1000, 2000],
+        'name': ['task1', 'task2'],
+        'duration': [100, 200],
+        'depth': [0, 0],
+        'track_id': [1, 2],
+        'domain': ['domain1', 'domain2'],
+        'message': ['{"key1": "value1"}', '{"key2": "value2"}'],
+        'cname': ['color1', 'color2'],
+        'end_time': [1623456799000000, 1623456899000000],
+        'flag_id': [0, 0],
+        'hostname': ['host1', 'host2'],
+        'prof_id': ['test', 'test']
+    })
+
+    # 模拟convert_db_to_df的返回值（返回3个值：df, meta, use_slice_logic=True）
+    mock_convert_db_to_df = MagicMock()
+    mock_convert_db_to_df.return_value = (mock_df, {'service_type': 'normal'}, True)
+
+    with patch('ms_service_profiler.parse_helper.utils.convert_db_to_df', mock_convert_db_to_df):
+        result = DBDataSource.process('test.db')
+
+        assert 'tx_data_df' in result
+        assert 'meta' in result
+        tx_df = result['tx_data_df']
+        assert tx_df['hostuid'].tolist() == ['host1', 'host2']
+        assert tx_df['message'].tolist() == [{'key1': 'value1'}, {'key2': 'value2'}]
+        assert result['meta'] == {'service_type': 'normal'}
+
+
+def test_process_with_meta():
+    mock_df = pd.DataFrame({
+        'markId': [1],
+        'timestamp': [1623456789000000],
+        'pid': [100],
+        'tid': [1000],
+        'name': ['task1'],
+        'duration': [100],
+        'depth': [0],
+        'track_id': [1],
+        'domain': ['domain1'],
+        'message': ['{"key": "value"}'],
+        'cname': ['color1'],
+        'end_time': [1623456799000000],
+        'flag_id': [0],
+        'hostname': ['host1'],
+        'prof_id': ['test'],
+        'logical_start_time=': [1623456.0],
+        'logical_end_time=': [1623457.0],
+        'logical_pid=': [999]
+    })
+
+    mock_convert_db_to_df = MagicMock()
+    mock_convert_db_to_df.return_value = (mock_df, {'service_type': 'liuren_simulation'}, True)
+
+    with patch('ms_service_profiler.parse_helper.utils.convert_db_to_df', mock_convert_db_to_df):
+        result = DBDataSource.process('test.db')
+
+        tx_df = result['tx_data_df']
+        assert tx_df['start_time'].iloc[0] == 1623456.0
+        assert tx_df['end_time'].iloc[0] == 1623457.0
+        assert tx_df['pid'].iloc[0] == 999
 
 
 def test_get_filepaths(setup_test_db_directory):

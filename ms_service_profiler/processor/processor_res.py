@@ -101,7 +101,15 @@ class ProcessorRes(ProcessorBase):
                 elif req.get('dp'):  # dp域信息
                     dp_list.append(req.get('dp'))
                 else:
-                    token_id_list.append(req.get('iter'))
+                    # 确保iter为int类型
+                    iter_value = req.get('iter')
+                    if iter_value is not None:
+                        try:
+                            token_id_list.append(int(iter_value))
+                        except (ValueError, TypeError):
+                            token_id_list.append(None)
+                    else: 
+                        token_id_list.append(None)
             else:
                 rid_list.append(req)
                 token_id_list.append(None)

@@ -23,9 +23,9 @@ import logging
 from concurrent.futures import ProcessPoolExecutor
 import pandas as pd
 
-from ms_service_profiler.parse_helper.utils import convert_db_to_df, convert_timestamp
+from ms_service_profiler.parse_helper.utils import convert_db_to_df, convert_timestamp, _convert_slice_to_mstx_format
 from ms_service_profiler.parse_helper.constant import MAJOR_TABLE_COLS, \
-    MAJOR_TABLE_NAME, MINOR_TABLE_COLS, MINOR_TABLE_NAME
+    MAJOR_TABLE_NAME, MINOR_TABLE_COLS, MINOR_TABLE_NAME, SLICE_TABLE_COLS, SLICE_TABLE_NAME
 
 
 # 配置日志记录器
@@ -37,15 +37,17 @@ class TestDBConversion(unittest.TestCase):
     @patch('ms_service_profiler.parse_helper.utils.pd.read_sql_query')
     @patch('ms_service_profiler.parse_helper.utils.sqlite3.connect')
     def test_convert_db_to_df_major_query_success(self, mock_sqlite3_connect, mock_read_sql_query):
-        # 模拟数据库连接和查询结果
         mock_read_sql_query.return_value = pd.DataFrame({'markId': [1, 2], 'col1': ['a', 'b']})
         mock_conn = mock_sqlite3_connect.return_value.__enter__.return_value
         mock_cursor = mock_conn.cursor.return_value
-        mock_cursor.execute.return_value = None  # execute方法返回None
-        mock_cursor.fetchall.return_value = [('col2', [3, 4])]  # fetchall返回数据
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.side_effect = [
+            [],  # PRAGMA table_info returns empty (no slice column)
+            [('col2', [3, 4])]  # minor query data
+        ]
 
         file_path = 'test.db'
-        result, _ = convert_db_to_df(file_path)
+        result, _, _ = convert_db_to_df(file_path)
 
         self.assertIsNotNone(result)
         self.assertIn('markId', result.columns)
@@ -54,36 +56,42 @@ class TestDBConversion(unittest.TestCase):
         self.assertEqual(len(result), 2)
         mock_read_sql_query.assert_called_once_with(
             f"SELECT {','.join(MAJOR_TABLE_COLS)} FROM {MAJOR_TABLE_NAME} order by markId", mock_conn)
-        mock_cursor.execute.assert_called_once_with(f"SELECT {','.join(MINOR_TABLE_COLS)} FROM {MINOR_TABLE_NAME}")
+        self.assertEqual(mock_cursor.execute.call_count, 2)
 
 
     @patch('ms_service_profiler.parse_helper.utils.pd.read_sql_query')
     @patch('ms_service_profiler.parse_helper.utils.sqlite3.connect')
     def test_convert_db_to_df_major_query_failure(self, mock_sqlite3_connect, mock_read_sql_query):
-        # 模拟查询失败
         mock_read_sql_query.side_effect = Exception('Mocked exception')
         mock_logger = MagicMock()
+        mock_conn = mock_sqlite3_connect.return_value.__enter__.return_value
+        mock_cursor = mock_conn.cursor.return_value
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.return_value = []
         with patch('ms_service_profiler.parse_helper.utils.logger', mock_logger):
             file_path = 'test.db'
-            result, _  = convert_db_to_df(file_path)
+            result, _, _ = convert_db_to_df(file_path)
 
             self.assertTrue(result.empty)
-            mock_logger.warning.assert_called_once()
+            mock_logger.warning.assert_called()
 
 
     @patch('ms_service_profiler.parse_helper.utils.sqlite3.connect')
     def test_convert_db_to_df_minor_query_failure(self, mock_sqlite3_connect):
-        # 模拟次要表查询失败
         mock_conn = mock_sqlite3_connect.return_value.__enter__.return_value
         mock_cursor = mock_conn.cursor.return_value
-        mock_cursor.execute.side_effect = Exception('Mocked exception')
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.side_effect = [
+            [],  # PRAGMA table_info
+            Exception('Mocked exception')  # minor query fails
+        ]
         mock_logger = MagicMock()
         with patch('ms_service_profiler.parse_helper.utils.logger', mock_logger):
             file_path = 'test.db'
-            result, _ = convert_db_to_df(file_path)
+            result, _, _ = convert_db_to_df(file_path)
 
             self.assertTrue(result.empty)
-            mock_logger.warning.assert_called_once()
+            mock_logger.warning.assert_called()
 
 
     def test_convert_timestamp_valid(self):
@@ -107,31 +115,103 @@ class TestDBConversion(unittest.TestCase):
     @patch('ms_service_profiler.parse_helper.utils.pd.read_sql_query')
     @patch('ms_service_profiler.parse_helper.utils.sqlite3.connect')
     def test_convert_db_to_df_major_query_exception(self, mock_sqlite3_connect, mock_read_sql_query):
-        # 测试主表查询抛出异常的情况
         mock_read_sql_query.side_effect = Exception('Mocked major query exception')
         mock_logger = MagicMock()
+        mock_conn = mock_sqlite3_connect.return_value.__enter__.return_value
+        mock_cursor = mock_conn.cursor.return_value
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.return_value = []
         with patch('ms_service_profiler.parse_helper.utils.logger', mock_logger):
             file_path = 'test.db'
-            result, _  = convert_db_to_df(file_path)
+            result, _, _ = convert_db_to_df(file_path)
 
-            self.assertTrue(result.empty)  # 确保返回的 DataFrame 是空的
-            mock_logger.warning.assert_called_once()  # 确保 logger.warning 被调用了一次
+            self.assertTrue(result.empty)
+            mock_logger.warning.assert_called()
 
 
     @patch('ms_service_profiler.parse_helper.utils.sqlite3.connect')
     def test_convert_db_to_df_minor_query_exception(self, mock_sqlite3_connect):
-        # 测试次要表查询抛出异常的情况
         mock_conn = mock_sqlite3_connect.return_value.__enter__.return_value
         mock_cursor = mock_conn.cursor.return_value
-        mock_cursor.execute.side_effect = Exception('Mocked minor query exception')
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.side_effect = [
+            [],  # PRAGMA table_info
+            Exception('Mocked minor query exception')  # minor query fails
+        ]
         mock_logger = MagicMock()
         with patch('ms_service_profiler.parse_helper.utils.logger', mock_logger):
             file_path = 'test.db'
-            result, _  = convert_db_to_df(file_path)
+            result, _, _ = convert_db_to_df(file_path)
 
-            self.assertTrue(result.empty)  # 确保返回的 DataFrame 是空的
-            mock_logger.warning.assert_called_once()  # 确保 logger.warning 被调用了一次
+            self.assertTrue(result.empty)
+            mock_logger.warning.assert_called()
 
+    @patch('ms_service_profiler.parse_helper.utils.pd.read_sql_query')
+    @patch('ms_service_profiler.parse_helper.utils.sqlite3.connect')
+    def test_convert_db_to_df_slice_logic(self, mock_sqlite3_connect, mock_read_sql_query):
+        # 测试 slice 逻辑
+        mock_slice_df = pd.DataFrame({
+            'id': [1, 2],
+            'timestamp': [1623456789000000, 1623456889000000],
+            'duration': [100, 200],
+            'name': ['task1', 'task2'],
+            'depth': [0, 0],
+            'track_id': [1, 2],
+            'cat': ['domain1', 'domain2'],
+            'args': ['{"key": "value1"}', '{"key": "value2"}'],
+            'cname': ['color1', 'color2'],
+            'end_time': [1623456799000000, 1623456899000000],
+            'flag_id': [0, 0],
+            'pid': [100, 200],
+            'tid': [1000, 2000]
+        })
+        mock_read_sql_query.return_value = mock_slice_df
+        mock_conn = mock_sqlite3_connect.return_value.__enter__.return_value
+        mock_cursor = mock_conn.cursor.return_value
+        mock_cursor.execute.return_value = None
+        mock_cursor.fetchall.side_effect = [
+            [(0, 'slice', 'text', 0, None, 0)],  # PRAGMA table_info returns slice column
+            [('hostname', 'test_host')]  # minor query data
+        ]
+
+        file_path = 'test.db'
+        result, meta, use_slice_logic = convert_db_to_df(file_path)
+
+        self.assertTrue(use_slice_logic)
+        self.assertIn('markId', result.columns)
+        self.assertIn('domain', result.columns)
+        self.assertIn('message', result.columns)
+        self.assertIn('hostname', result.columns)
+        self.assertEqual(result['hostname'].iloc[0], 'test_host')
+
+    def test_convert_slice_to_mstx_format(self):
+        # 测试 _convert_slice_to_mstx_format 函数
+        slice_df = pd.DataFrame({
+            'id': [1, 2],
+            'timestamp': [1623456789000000, 1623456889000000],
+            'cat': ['domain1', 'domain2'],
+            'args': ['{"key": "value1"}', '{"key": "value2"}'],
+            'pid': [100, 200],
+            'tid': [1000, 2000],
+            'name': ['task1', 'task2'],
+            'duration': [100, 200],
+            'depth': [0, 0],
+            'track_id': [1, 2],
+            'cname': ['color1', 'color2'],
+            'end_time': [1623456799000000, 1623456899000000],
+            'flag_id': [0, 0]
+        })
+        meta = {'hostname': 'test_host', 'service_type': 'test'}
+
+        result = _convert_slice_to_mstx_format(slice_df, meta)
+
+        self.assertIn('markId', result.columns)
+        self.assertIn('domain', result.columns)
+        self.assertIn('message', result.columns)
+        self.assertIn('hostname', result.columns)
+        self.assertEqual(result['markId'].tolist(), [1, 2])
+        self.assertEqual(result['domain'].tolist(), ['domain1', 'domain2'])
+        self.assertEqual(result['hostname'].iloc[0], 'test_host')
 
 if __name__ == '__main__':
     unittest.main()

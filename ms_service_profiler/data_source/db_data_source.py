@@ -122,7 +122,7 @@ class DBDataSource(BaseDataSource):
         from ms_service_profiler.parse_helper.utils import convert_db_to_df
 
         # 将文件内容转换为DataFrame
-        df, meta = convert_db_to_df(file)
+        df, meta, use_slice_logic = convert_db_to_df(file)
         if df.empty:
             return dict(
                 tx_data_df=pd.DataFrame(),  # 事务数据，包含hostuid列
@@ -158,22 +158,26 @@ class DBDataSource(BaseDataSource):
                 # 如果JSON解析失败，返回空字典或原始字符串，取决于需求
                 logger.warning(f"Warning: Failed to parse JSON: {message_str}. Error: {e}")
                 return {}
-        # 处理消息字段
-        df['message'] = (
-            df['message']
-            .str.replace(r'\^', '"', regex=True)
-            .where(
-                lambda s: s.str.match(r'^{.*}$'),
-                other=lambda s: "{" + s.str.replace(r",$", "", regex=True) + "}"
-            )
-            .apply(safe_json_loads)
-        )
 
-        # 将消息字段展开为独立的列
-        msg_df = pd.json_normalize(df['message'])
-
-        # 将展开的消息数据与原始数据合并
-        all_data_df = df.join(msg_df)
+        if 'message' not in df.columns:
+            all_data_df = df
+        else:
+            if use_slice_logic:
+                processed_message = df['message'].apply(safe_json_loads)
+            else:
+                # 原mstx逻辑
+                processed_message = (
+                    df['message']
+                    .str.replace(r'\^', '"', regex=True)
+                    .where(
+                        lambda s: s.str.match(r'^{.*}$'),
+                        other=lambda s: "{" + s.str.replace(r",$", "", regex=True) + "}"
+                    )
+                    .apply(safe_json_loads)
+                )
+            msg_df = pd.json_normalize(processed_message)
+            all_data_df = df.join(msg_df)
+            all_data_df['message'] = processed_message
 
         # 在最前面添加hostname列，并将其重命名为hostuid
         all_data_df.insert(0, 'hostuid', df.get('hostname', 'None'))

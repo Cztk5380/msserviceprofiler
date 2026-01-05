@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 #include <functional>
 #include <vector>
+#include <cstdint>
 
 namespace MsUtils {
 constexpr int STRING_TO_UINT_BASE = 10;
