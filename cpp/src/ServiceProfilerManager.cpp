@@ -36,12 +36,14 @@
 #include <cmath>
 #include <csignal>
 #include <functional>
+#include <unordered_set>
 
 #include "acl/acl_prof.h"
 #include "acl/acl.h"
 #include "mstx/ms_tools_ext.h"
 #include "securec.h"
 
+#include "msServiceProfiler/ServiceProfilerInterface.h"
 #include "msServiceProfiler/Profiler.h"
 #include "msServiceProfiler/Log.h"
 #include "msServiceProfiler/Utils.h"
@@ -49,6 +51,7 @@
 #include "msServiceProfiler/SecurityUtilsLog.h"
 #include "msServiceProfiler/ServiceProfilerMspti.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorServiceData.h"
+#include "msServiceProfiler/DBExecutor/DbExecutorSliceData.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorMetaData.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
 
@@ -65,6 +68,101 @@ struct DlCloser {
     }
 };
 using LibraryHandle = std::unique_ptr<void, DlCloser>;
+
+std::once_flag& GetProcessRegisteredFlag()
+{
+    static std::once_flag flag;
+    return flag;
+}
+
+bool& GetThreadRegisteredRef()
+{
+    thread_local bool registered = false;
+    return registered;
+}
+
+std::pair<uint32_t, uint32_t> GetCurrentTidPid()
+{
+    uint32_t tid = MsUtils::GetTid();
+    uint32_t pid = static_cast<uint32_t>(getpid());
+    return {tid, pid};
+}
+
+void EnsureProcessRegistered(uint32_t pid)
+{
+    std::call_once(GetProcessRegisteredFlag(), [pid]() {
+        msServiceProfiler::DbProcessData procData;
+        std::string pidStr = std::to_string(pid);
+        procData.pid = std::move(pidStr);
+        procData.process_name = procData.pid;
+        procData.label = "";
+        procData.parentPid = "";
+
+        auto procExecutor = std::make_unique<
+            msServiceProfiler::DbExecutor<msServiceProfiler::PROCESS_INSERT_STMT>
+        >(std::move(procData));
+
+        msServiceProfiler::InsertExecutor2Writer<
+            msServiceProfiler::DBFile::SERVICE
+        >(std::move(procExecutor));
+    });
+}
+
+void EnsureThreadRegistered(uint32_t tid, uint32_t pid, const char* domain)
+{
+    bool& registered = GetThreadRegisteredRef();
+    if (!registered) {
+        msServiceProfiler::DbThreadData threadData;
+        threadData.track_id = tid;
+        threadData.tid = std::to_string(tid);
+        threadData.pid = std::to_string(pid);
+        threadData.thread_name = (domain ? std::string(domain) : "") + "(" + std::to_string(tid) + ")";
+        threadData.thread_sort_index = 0;
+
+        auto threadExecutor = std::make_unique<
+            msServiceProfiler::DbExecutor<msServiceProfiler::THREAD_INSERT_STMT>
+        >(std::move(threadData));
+
+        msServiceProfiler::InsertExecutor2Writer<
+            msServiceProfiler::DBFile::SERVICE
+        >(std::move(threadExecutor));
+
+        registered = true;
+    }
+}
+
+void WriteSliceEvent(
+    const char* name,
+    const char* domain,
+    const char* msg,
+    uint64_t timestamp,
+    uint64_t duration,
+    uint32_t tid,
+    uint32_t pid
+)
+{
+    msServiceProfiler::DbSliceData sliceData;
+    sliceData.timestamp = timestamp;
+    sliceData.duration = duration;
+    sliceData.name = name ? name : "";
+    sliceData.depth = 0;
+    sliceData.track_id = tid;
+    sliceData.cat = domain ? domain : "";
+    sliceData.args = msg ? msg : "";
+    sliceData.cname = "";
+    sliceData.end_time = timestamp + duration;
+    sliceData.flag_id = "";
+    sliceData.pid = pid;
+    sliceData.tid = tid;
+
+    auto executor = std::make_unique<
+        msServiceProfiler::DbExecutor<msServiceProfiler::SLICE_INSERT_STMT>
+    >(std::move(sliceData));
+
+    msServiceProfiler::InsertExecutor2Writer<
+        msServiceProfiler::DBFile::SERVICE
+    >(std::move(executor));
+}
 }  // end of anonymous namespace
 
 std::atomic<u_int64_t> g_markIndex(0);
@@ -158,6 +256,39 @@ void MarkEvent(const char *msg)
     auto executor =
         std::make_unique<msServiceProfiler::DbExecutor<msServiceProfiler::SERVICE_INSERT_STMT>>(std::move(marker));
     msServiceProfiler::InsertExecutor2Writer<msServiceProfiler::DBFile::SERVICE>(std::move(executor));
+}
+
+MS_SERVICE_PROFILER_API void SpanEndEx(
+    const char* name, const char* domain, const char* msg, SpanHandle spanHandle)
+{
+    const auto tidPid = GetCurrentTidPid();
+    const uint32_t tid = tidPid.first;
+    const uint32_t pid = tidPid.second;
+
+    EnsureProcessRegistered(pid);
+    EnsureThreadRegistered(tid, pid, domain);
+
+    uint64_t* timeCache = GetSpanStartTimeCache();
+    auto location = spanHandle % SPAN_CACHE_LEN + 1;
+    uint64_t startTimestamp = *(timeCache + location);
+    uint64_t endTimestamp = MsUtils::GetCurrentTimeInNanoseconds();
+    uint64_t duration = endTimestamp - startTimestamp;
+
+    WriteSliceEvent(name, domain, msg, startTimestamp, duration, tid, pid);
+}
+
+MS_SERVICE_PROFILER_API void MarkEventEx(
+    const char* name, const char* domain, const char* msg)
+{
+    const auto tidPid = GetCurrentTidPid();
+    const uint32_t tid = tidPid.first;
+    const uint32_t pid = tidPid.second;
+
+    EnsureProcessRegistered(pid);
+    EnsureThreadRegistered(tid, pid, domain);
+
+    uint64_t timestamp = MsUtils::GetCurrentTimeInNanoseconds();
+    WriteSliceEvent(name, domain, msg, timestamp, 0, tid, pid);
 }
 
 void StartServerProfiler()

@@ -173,6 +173,32 @@ TEST(ProfilerTest, MarkEventNull)
     MarkEvent(nullptr);
 }
 
+TEST(ProfilerTest, SpanEndEx)
+{
+    SpanHandle span = StartSpan();
+    ASSERT_GE(span, 0U);
+
+    SpanEndEx("SpanEndEx_UT", "profiler.test", "{\"key\":\"value\"}", span);
+}
+
+TEST(ProfilerTest, SpanEndEx_NullPtr)
+{
+    SpanHandle span = StartSpan();
+    ASSERT_GE(span, 0U);
+
+    SpanEndEx(nullptr, nullptr, nullptr, span);
+}
+
+TEST(ProfilerTest, MarkEventEx)
+{
+    MarkEventEx("MarkEventEx_UT", "profiler.test", "{\"event_type\":\"debug\"}");
+}
+
+TEST(ProfilerTest, MarkEventEx_NullPtr)
+{
+    MarkEventEx(nullptr, nullptr, nullptr);
+}
+
 TEST(ProfilerTest, GetValidDomain)
 {
     GetValidDomain();

@@ -92,7 +92,15 @@ void ServiceProfilerDbWriter::StartDump(const std::string &outputPath)
     }
     const auto &hostName = MsUtils::GetHostName();
 
-    std::string dbPath = outputPath + dbFileName_ + "_" + hostName + "-" + std::to_string(getpid()) + ".db";
+    std::string dir = outputPath;
+    if (!dir.empty() && dir.back() != '/') {
+        dir += '/';
+    }
+    dir += "Trace_Service/";
+    ::mkdir(dir.c_str(), 0755);  // 创建目录
+
+    // 👇 直接在 dir 后面拼接文件名
+    std::string dbPath = dir + dbFileName_ + "_" + hostName + "-" + std::to_string(getpid()) + ".db";
 
     MsUtils::UmaskGuard umaskGuard;
     // 打开数据库连接
@@ -105,6 +113,14 @@ void ServiceProfilerDbWriter::StartDump(const std::string &outputPath)
 
     ApplyOptimizations();
     inited = true;
+
+    Execute("CREATE TABLE IF NOT EXISTS counter ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "name TEXT, pid TEXT, timestamp INTEGER, cat TEXT, args TEXT);");
+
+    Execute("CREATE TABLE IF NOT EXISTS flow ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "flow_id TEXT, name TEXT, cat TEXT, track_id INTEGER, timestamp INTEGER, type TEXT);");
 
     for (const auto &executor : cachedExecutor) {
         executor->Execute(*this, db_);

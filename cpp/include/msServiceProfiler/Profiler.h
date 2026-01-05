@@ -23,6 +23,7 @@
 #include <vector>
 #include <limits>
 #include <cstdint>
+#include <utility>
 
 #include "ServiceProfilerInterface.h"
 
@@ -116,7 +117,7 @@ namespace msServiceProfiler {
             if (!IsEnable(levelAttr)) {
                 return *this;
             }
-            msg_.append("^").append(attrName).append("^:[");
+            msg_.append("\"").append(attrName).append("\":[");
             for (T iter = startIter; iter != endIter; ++iter) {
                 msg_.append(std::to_string(*iter)).append(",");
             }
@@ -146,7 +147,7 @@ namespace msServiceProfiler {
                 return *this;
             }
 
-            msg_.append("^").append(attrName).append("^:[");
+            msg_.append("\"").append(attrName).append("\":[");
             for (T iter = startIter; iter != endIter; ++iter) {
                 msg_.append("{");
                 callback(this, iter);
@@ -176,7 +177,7 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const char *value)
         {
             if (IsEnable(levelAttr)) {
-                msg_.append("^").append(attrName).append("^:^").append(value).append("^,");
+                msg_.append("\"").append(attrName).append("\":\"").append(value).append("\",");
             }
             return *this;
         }
@@ -191,7 +192,7 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const std::string &value)
         {
             if (IsEnable(levelAttr)) {
-                msg_.append("^").append(attrName).append("^:^").append(value).append("^,");
+                msg_.append("\"").append(attrName).append("\":\"").append(value).append("\",");
             }
             return *this;
         }
@@ -225,7 +226,7 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &Attr(const char *attrName, const T value)
         {
             if (IsEnable(levelAttr)) {
-                msg_.append("^").append(attrName).append("^:").append(std::to_string(value)).append(",");
+                msg_.append("\"").append(attrName).append("\":").append(std::to_string(value)).append(",");
             }
             return *this;
         }
@@ -267,15 +268,15 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &Domain(const char *domainName)
         {
             if (!domainName) {
+                domain_.clear();
                 return *this;
             }
+
+            domain_ = domainName;
 
             domainAllow_ = msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
                 .CallIsDomainEnable(domainName);
 
-            if (IsEnable(level)) {
-                this->Attr("domain", domainName);
-            }
             return *this;
         }
 
@@ -298,8 +299,8 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN Profiler &SpanStart(const char *spanName, bool autoEnd = true)
         {
             if (IsEnable(level)) {
-                this->Attr("name", spanName);
-                this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_SPAN));
+                name_ = spanName ? spanName : "";
+                Attr("type", static_cast<uint8_t>(MarkType::TYPE_SPAN));
                 spanHandle_ = msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
                     .CallStartSpanWithName(spanName);
                 autoEnd_ = autoEnd;
@@ -312,9 +313,15 @@ namespace msServiceProfiler {
         */
         MS_SERVICE_PROFILER_HIDDEN void SpanEnd()
         {
-            if (this->IsEnable(level)) {
-                msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallMarkSpanAttr(
-                    this->GetMsg().c_str(), spanHandle_);
+            if (IsEnable(level)) {
+                const char* name = name_.empty() ? "" : name_.c_str();
+                const char* domain = domain_.empty() ? "" : domain_.c_str();
+                std::string attrsJson = BuildAttrsJson();
+                const char* msg = attrsJson.c_str();
+
+                msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
+                    .CallSpanEndEx(name, domain, msg, spanHandle_);
+
                 msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance().CallEndSpan(spanHandle_);
                 autoEnd_ = false;
             }
@@ -336,6 +343,8 @@ namespace msServiceProfiler {
             autoEnd_ = obj.autoEnd_;
             spanHandle_ = obj.spanHandle_;
             domainAllow_ = obj.domainAllow_;
+            name_ = std::move(obj.name_);
+            domain_ = std::move(obj.domain_);
             msg_ = std::move(obj.msg_);
             obj.autoEnd_ = false;
             return *this;
@@ -346,8 +355,8 @@ namespace msServiceProfiler {
             * @param obj [in] 源对象
         */
         Profiler(Profiler &obj)
-            : autoEnd_(obj.autoEnd_), spanHandle_(obj.spanHandle_), msg_(std::move(obj.msg_)),
-              domainAllow_(obj.domainAllow_)
+            : autoEnd_(obj.autoEnd_), spanHandle_(obj.spanHandle_), domainAllow_(obj.domainAllow_),
+              name_(std::move(obj.name_)), domain_(std::move(obj.domain_)), msg_(std::move(obj.msg_))
         {
             obj.autoEnd_ = false;
         }
@@ -367,7 +376,7 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &Metric(const char *metricName, T value)
         {
             if (this->IsEnable(level)) {
-                msg_.append("^").append(metricName).append("=^:").append(std::to_string(value)).append(",");
+                msg_.append("\"").append(metricName).append("=\":").append(std::to_string(value)).append(",");
             }
             return *this;
         }
@@ -376,7 +385,7 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &MetricInc(const char *metricName, T value)
         {
             if (this->IsEnable(level)) {
-                msg_.append("^").append(metricName).append("+^:").append(std::to_string(value)).append(",");
+                msg_.append("\"").append(metricName).append("+\":").append(std::to_string(value)).append(",");
             }
             return *this;
         }
@@ -385,24 +394,21 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &MetricScope(const char *scopeName, T value)
         {
             if (this->IsEnable(level)) {
-                msg_.append("^scope#").append(scopeName).append("^:").append(std::to_string(value)).append(",");
+                msg_.append("\"scope#").append(scopeName).append("\":").append(std::to_string(value)).append(",");
             }
             return *this;
         }
 
-        template <typename T>
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &MetricScopeAsReqID()
         {
             if (this->IsEnable(level)) {
-                msg_.append("^scope#^:^req^,");
+                msg_.append("\"scope#\":\"req\",");
             }
             return *this;
         }
 
-        template <typename T>
         MS_SERVICE_PROFILER_HIDDEN inline Profiler &MetricScopeAsGlobal() const
         {
-            // default, do nothing
             return *this;
         }
 
@@ -412,8 +418,13 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN void Launch() const
         {
             if (this->IsEnable(level)) {
+                const char* name = name_.empty() ? "" : name_.c_str();
+                const char* domain = domain_.empty() ? "" : domain_.c_str();
+                std::string attrsJson = BuildAttrsJson();
+                const char* msg = attrsJson.c_str();
+
                 msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
-                    .CallMarkEvent(this->GetMsg().c_str());
+                    .CallMarkEventEx(name, domain, msg);
             }
         }
 
@@ -424,11 +435,17 @@ namespace msServiceProfiler {
         */
         MS_SERVICE_PROFILER_HIDDEN void Event(const char *eventName)
         {
-            if (this->IsEnable(level)) {
-                this->Attr("name", eventName);
-                this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_EVENT));
+            if (IsEnable(level)) {
+                name_ = eventName ? eventName : "";
+                Attr("type", static_cast<uint8_t>(MarkType::TYPE_LINK));
+
+                const char* name = name_.c_str();
+                const char* domain = domain_.empty() ? "" : domain_.c_str();
+                std::string attrsJson = BuildAttrsJson();
+                const char* msg = attrsJson.c_str();
+
                 msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
-                    .CallMarkEvent(this->GetMsg().c_str());
+                    .CallMarkEventEx(name, domain, msg);
             }
         }
 
@@ -441,11 +458,19 @@ namespace msServiceProfiler {
         MS_SERVICE_PROFILER_HIDDEN void Link(const ResID &fromRid, const ResID &toRid)
         {
             if (this->IsEnable(level)) {
+                msg_.clear();
                 this->Attr("type", static_cast<uint8_t>(MarkType::TYPE_LINK));
                 this->Attr("from", fromRid);
                 this->Attr("to", toRid);
+                name_ = "Link";
+
+                const char* name = "Link";
+                const char* domain = domain_.empty() ? "" : domain_.c_str();
+                std::string attrsJson = BuildAttrsJson();
+                const char* msg = attrsJson.c_str();
+
                 msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance()
-                    .CallMarkEvent(this->GetMsg().c_str());
+                    .CallMarkEventEx(name, domain, msg);
             }
         }
 
@@ -467,10 +492,25 @@ namespace msServiceProfiler {
         }
 
     private:
+        std::string BuildAttrsJson() const
+        {
+            if (msg_.empty()) {
+                return "{}";
+            }
+            std::string clean = msg_;
+            if (clean.back() == ',') {
+                clean.pop_back();
+            }
+            return "{" + clean + "}";
+        }
+
+    private:
         bool autoEnd_ = false;
         SpanHandle spanHandle_ = 0U;
-        std::string msg_;
         bool domainAllow_ = true;
+        std::string name_;
+        std::string domain_;
+        std::string msg_;
     };
 
 }  // namespace msServiceProfiler

@@ -27,7 +27,9 @@
 #include <string>
 #include <cstdlib>
 #include <sys/stat.h>
-#include <linux/limits.h>
+#include <limits.h>
+#include <tuple>
+#include <unistd.h>
 
 using SpanHandle = uint64_t;
 
@@ -156,6 +158,30 @@ MS_SERVICE_PROFILER_API const std::set<std::string> &GetValidDomain();  // 20260
  * @param value [in] 元数据值
  */
 MS_SERVICE_PROFILER_API void AddMetaInfo(const char *key, const char *value);
+
+/**
+ * @brief 为指定性能监测区间（Span）添加标记信息（简化版）
+ * @param name [in] 性能监测区间名称
+ * @param domain [in] 域名/分类
+ * @param msg [in] 标记信息（将写入 trace 的 args 字段）
+ * @param spanHandle [in] 目标 span 的唯一句柄标识
+ */
+MS_SERVICE_PROFILER_API void SpanEndEx(
+    const char* name,
+    const char* domain,
+    const char* msg,
+    SpanHandle spanHandle);
+
+/**
+ * @brief 记录一个带标记信息的独立事件（简化版）
+ * @param name [in] 事件名称
+ * @param domain [in] 域名/分类
+ * @param msg [in] 事件描述（将写入 trace 的 args 字段）
+ */
+MS_SERVICE_PROFILER_API void MarkEventEx(
+    const char* name,
+    const char* domain,
+    const char* msg);
 }
 
 #ifndef ENABLE_SERVICE_PROF_UNIT_TEST
@@ -316,6 +342,27 @@ public:
         }
     }
 
+    MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG void CallSpanEndEx(
+        const char* name,
+        const char* domain,
+        const char* msg,
+        SpanHandle spanHandle) const
+    {
+        if (ptrSpanEndEx_) {
+            ptrSpanEndEx_(name, domain, msg, spanHandle);
+        }
+    }
+
+    MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG void CallMarkEventEx(
+        const char* name,
+        const char* domain,
+        const char* msg) const
+    {
+        if (ptrMarkEventEx_) {
+            ptrMarkEventEx_(name, domain, msg);
+        }
+    }
+
 #ifndef ENABLE_SERVICE_PROF_UNIT_TEST
     template <typename Func, const char *funcName>
     auto get_function() -> Func *
@@ -380,6 +427,8 @@ private:
         ptrValidDomain_ = GetValidDomain;
         ptrIsValidDomain_ = IsValidDomain;
         ptrAddMetaInfo_ = AddMetaInfo;
+        ptrSpanEndEx_ = SpanEndEx;
+        ptrMarkEventEx_ = MarkEventEx;
     }
 #endif
 
@@ -423,6 +472,8 @@ private:
             ptrValidDomain_ = (decltype(GetValidDomain) *)dlsym(handle, "GetValidDomain");
             ptrIsValidDomain_ = (decltype(IsValidDomain) *)dlsym(handle, "IsValidDomain");
             ptrAddMetaInfo_ = (decltype(AddMetaInfo) *)dlsym(handle, "AddMetaInfo");
+            ptrSpanEndEx_ = (decltype(SpanEndEx) *)dlsym(handle, "SpanEndEx");
+            ptrMarkEventEx_ = (decltype(MarkEventEx) *)dlsym(handle, "MarkEventEx");
         }
 #endif
     }
@@ -439,6 +490,8 @@ private:
     decltype(GetValidDomain) *ptrValidDomain_ = nullptr;
     decltype(IsValidDomain) *ptrIsValidDomain_ = nullptr;
     decltype(AddMetaInfo) *ptrAddMetaInfo_ = nullptr;
+    decltype(SpanEndEx) *ptrSpanEndEx_ = nullptr;
+    decltype(MarkEventEx) *ptrMarkEventEx_ = nullptr;
     void *handle = nullptr;
 };
 }  // namespace msServiceProfilerCompatible

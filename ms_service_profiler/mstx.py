@@ -27,6 +27,7 @@ class LibServiceProfiler:
         self.func_end_span = None
         self.func_mark_span_attr = None
         self.func_mark_event = None
+        self.func_mark_event_ex = None
         self.func_start_service_profiler = None
         self.func_stop_service_profiler = None
         self.func_is_enable = None
@@ -36,6 +37,7 @@ class LibServiceProfiler:
 
         self.func_start_span_with_name = None
         self.func_end_span = None
+        self.func_span_end_ex = None
         self.func_mark_span_attr = None
         self.func_mark_event = None
         self.func_start_service_profiler = None
@@ -71,7 +73,7 @@ class LibServiceProfiler:
 
         if self.lib is not None:
             self.func_start_span_with_name = self.lib.StartSpanWithName
-            self.func_start_span_with_name.argtypes = (ctypes.c_char_p, )
+            self.func_start_span_with_name.argtypes = (ctypes.c_char_p,)
             self.func_start_span_with_name.restype = ctypes.c_ulonglong
 
             self.func_end_span = self.lib.EndSpan
@@ -80,6 +82,25 @@ class LibServiceProfiler:
             self.func_mark_span_attr.argtypes = (ctypes.c_char_p, ctypes.c_ulonglong)
             self.func_mark_event = self.lib.MarkEvent
             self.func_mark_event.argtypes = (ctypes.c_char_p,)
+            try:
+                self.func_mark_event_ex = self.lib.MarkEventEx
+                self.func_mark_event_ex.argtypes = (
+                    ctypes.c_char_p,  # name
+                    ctypes.c_char_p,  # domain
+                    ctypes.c_char_p  # msg
+                )
+            except AttributeError:
+                self.func_mark_event_ex = None
+            try:
+                self.func_span_end_ex = self.lib.SpanEndEx
+                self.func_span_end_ex.argtypes = (
+                    ctypes.c_char_p,  # name
+                    ctypes.c_char_p,  # domain
+                    ctypes.c_char_p,  # msg
+                    ctypes.c_ulonglong  # spanHandle
+                )
+            except AttributeError:
+                self.func_span_end_ex = None
             self.func_start_service_profiler = self.lib.StartServerProfiler
             self.func_stop_service_profiler = self.lib.StopServerProfiler
             self.func_is_enable = self.lib.IsEnable
@@ -125,6 +146,10 @@ class LibServiceProfiler:
             self.func_get_torch_profiler_enable = self.lib.GetTorchProfilerEnable
             self.func_get_torch_profiler_enable.restype = ctypes.c_bool
 
+        if hasattr(self.lib, "MarkEventEx"):
+            self.func_mark_event_ex = self.lib.MarkEventEx
+            self.func_mark_event_ex.argtypes = (ctypes.c_char_p,)
+
     def start_span(self, name=None):
         self.init()
         if self.func_start_span_with_name is None:
@@ -146,6 +171,29 @@ class LibServiceProfiler:
         self.init()
         if self.func_mark_event is not None:
             self.func_mark_event(bytes(msg, encoding="utf-8"))
+
+    def mark_event_ex(self, name: str, domain: str, msg: str):
+        """
+        记录增强事件：name（事件名）、domain（分类域）、msg（详细信息）
+        对应 C 接口: MarkEventEx(const char* name, const char* domain, const char* msg)
+        """
+        self.init()
+        if self.func_mark_event_ex is not None:
+            self.func_mark_event_ex(
+                bytes(name, encoding="utf-8"),
+                bytes(domain, encoding="utf-8"),
+                bytes(msg, encoding="utf-8")
+            )
+
+    def span_end_ex(self, name: str, domain: str, msg: str, span_handle: int):
+        self.init()
+        if self.func_span_end_ex is not None:
+            self.func_span_end_ex(
+                bytes(name, "utf-8"),
+                bytes(domain, "utf-8"),
+                bytes(msg, "utf-8"),
+                span_handle
+            )
 
     def start_profiler(self):
         self.init()

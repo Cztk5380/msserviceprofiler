@@ -73,6 +73,11 @@ private:
             sqlite3_reset(stmtMeta);
             return;
         }
+        if (sqlite3_bind_text(stmtMeta, ++bindIndex, slice_.c_str(), -1, SQLITE_STATIC) != SQLITE_OK) {
+            PROF_LOGE("bind failed:%d %s", bindIndex, sqlite3_errmsg(db));  // LCOV_EXCL_LINE
+            sqlite3_reset(stmtMeta);
+            return;
+        }
         // 执行插入
         if (sqlite3_step(stmtMeta) != SQLITE_DONE) {
             PROF_LOGE("Execution failed: %s", sqlite3_errmsg(db));  // LCOV_EXCL_LINE
@@ -83,10 +88,12 @@ private:
 private:
     std::string metaKey_;
     std::string metaValue_;
+    std::string slice_;
     const char *sqlCreateKindMeta = "CREATE TABLE IF NOT EXISTS Meta ("
                                     "name TEXT,"
-                                    "value TEXT);";
-    const char *sqlInsertKindMeta = "INSERT INTO Meta (name, value) VALUES (?, ?);";
+                                    "value TEXT,"
+                                    "slice TEXT);";
+    const char *sqlInsertKindMeta = "INSERT INTO Meta (name, value, slice) VALUES (?, ?, ?);";
 };
 
 }  // namespace msServiceProfiler
