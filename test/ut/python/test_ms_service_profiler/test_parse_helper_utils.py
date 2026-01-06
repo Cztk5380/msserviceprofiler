@@ -42,6 +42,7 @@ class TestDBConversion(unittest.TestCase):
         mock_cursor = mock_conn.cursor.return_value
         mock_cursor.execute.return_value = None
         mock_cursor.fetchall.side_effect = [
+            [],  # SELECT name FROM sqlite_master returns empty (no slice table)
             [],  # PRAGMA table_info returns empty (no slice column)
             [('col2', [3, 4])]  # minor query data
         ]
@@ -56,7 +57,7 @@ class TestDBConversion(unittest.TestCase):
         self.assertEqual(len(result), 2)
         mock_read_sql_query.assert_called_once_with(
             f"SELECT {','.join(MAJOR_TABLE_COLS)} FROM {MAJOR_TABLE_NAME} order by markId", mock_conn)
-        self.assertEqual(mock_cursor.execute.call_count, 2)
+        self.assertEqual(mock_cursor.execute.call_count, 3)
 
 
     @patch('ms_service_profiler.parse_helper.utils.pd.read_sql_query')
@@ -67,7 +68,11 @@ class TestDBConversion(unittest.TestCase):
         mock_conn = mock_sqlite3_connect.return_value.__enter__.return_value
         mock_cursor = mock_conn.cursor.return_value
         mock_cursor.execute.return_value = None
-        mock_cursor.fetchall.return_value = []
+        mock_cursor.fetchall.side_effect = [
+            [],  # SELECT name FROM sqlite_master returns empty (no slice table)
+            [],  # PRAGMA table_info returns empty (no slice column)
+            [('col2', [3, 4])]  # minor query data
+        ]
         with patch('ms_service_profiler.parse_helper.utils.logger', mock_logger):
             file_path = 'test.db'
             result, _, _ = convert_db_to_df(file_path)
@@ -82,7 +87,8 @@ class TestDBConversion(unittest.TestCase):
         mock_cursor = mock_conn.cursor.return_value
         mock_cursor.execute.return_value = None
         mock_cursor.fetchall.side_effect = [
-            [],  # PRAGMA table_info
+            [],  # SELECT name FROM sqlite_master returns empty (no slice table)
+            [],  # PRAGMA table_info returns empty (no slice column)
             Exception('Mocked exception')  # minor query fails
         ]
         mock_logger = MagicMock()
@@ -120,7 +126,11 @@ class TestDBConversion(unittest.TestCase):
         mock_conn = mock_sqlite3_connect.return_value.__enter__.return_value
         mock_cursor = mock_conn.cursor.return_value
         mock_cursor.execute.return_value = None
-        mock_cursor.fetchall.return_value = []
+        mock_cursor.fetchall.side_effect = [
+            [],  # SELECT name FROM sqlite_master returns empty (no slice table)
+            [],  # PRAGMA table_info returns empty (no slice column)
+            [('col2', [3, 4])]  # minor query data
+        ]
         with patch('ms_service_profiler.parse_helper.utils.logger', mock_logger):
             file_path = 'test.db'
             result, _, _ = convert_db_to_df(file_path)
@@ -135,7 +145,8 @@ class TestDBConversion(unittest.TestCase):
         mock_cursor = mock_conn.cursor.return_value
         mock_cursor.execute.return_value = None
         mock_cursor.fetchall.side_effect = [
-            [],  # PRAGMA table_info
+            [],  # SELECT name FROM sqlite_master returns empty (no slice table)
+            [],  # PRAGMA table_info returns empty (no slice column)
             Exception('Mocked minor query exception')  # minor query fails
         ]
         mock_logger = MagicMock()
@@ -149,7 +160,6 @@ class TestDBConversion(unittest.TestCase):
     @patch('ms_service_profiler.parse_helper.utils.pd.read_sql_query')
     @patch('ms_service_profiler.parse_helper.utils.sqlite3.connect')
     def test_convert_db_to_df_slice_logic(self, mock_sqlite3_connect, mock_read_sql_query):
-        # 测试 slice 逻辑
         mock_slice_df = pd.DataFrame({
             'id': [1, 2],
             'timestamp': [1623456789000000, 1623456889000000],
@@ -170,6 +180,7 @@ class TestDBConversion(unittest.TestCase):
         mock_cursor = mock_conn.cursor.return_value
         mock_cursor.execute.return_value = None
         mock_cursor.fetchall.side_effect = [
+            [('slice_table',), ('other_table',)],  # SELECT name FROM sqlite_master returns slice table
             [(0, 'slice', 'text', 0, None, 0)],  # PRAGMA table_info returns slice column
             [('hostname', 'test_host')]  # minor query data
         ]

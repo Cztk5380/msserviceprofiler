@@ -36,9 +36,19 @@ def convert_db_to_df(file_path):
 
     with sqlite3.connect(file_path) as conn:
         cursor = conn.cursor()
+        
+        # 检查表名中是否包含'slice'
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        table_names = [row[0] for row in cursor.fetchall()]
+        table_has_slice = any('slice' in table_name.lower() for table_name in table_names)
+        
+        # 检查meta表中是否包含'slice'字段
         cursor.execute(f"PRAGMA table_info({MINOR_TABLE_NAME})")
         meta_columns = [row[1] for row in cursor.fetchall()]
-        use_slice_logic = 'slice' in meta_columns
+        meta_has_slice = 'slice' in meta_columns
+
+        # 只有当表名和meta表都包含slice时才使用新逻辑
+        use_slice_logic = table_has_slice and meta_has_slice
 
         try:
             cursor.execute(minor_sql_query)
