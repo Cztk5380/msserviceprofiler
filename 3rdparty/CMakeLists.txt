@@ -103,7 +103,9 @@ if(ms_service_profiler_BUILD_TESTS)
     message(STATUS "Preparing googletest - done")
 endif()
 
-add_subdirectory(${ASCEND_DIR})
+if (NOT DEFINED ENV{ASCEND_TOOLKIT_HOME})
+    add_subdirectory(${ASCEND_DIR})
+endif ()
 
 # -- dependency in build steps
 file(GLOB BOUNDSCHECK_SRC "${BOUNDSCHECK_DIR}/src/*.c")
@@ -129,4 +131,3 @@ target_include_directories(opentelemetry PUBLIC
 target_compile_options(opentelemetry PRIVATE
     -fPIC
 )
-

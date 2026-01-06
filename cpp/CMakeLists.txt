@@ -56,6 +56,22 @@ target_link_libraries(ms_service_profiler PUBLIC
     rt
 )
 
+if (DEFINED ENV{ASCEND_TOOLKIT_HOME})
+    set(TOOLKIT_BASE_PATH $ENV{ASCEND_TOOLKIT_HOME})
+    message(STATUS ${TOOLKIT_BASE_PATH})
+    target_include_directories(ms_service_profiler PRIVATE
+        ${TOOLKIT_BASE_PATH}/include
+        ${TOOLKIT_BASE_PATH}/aarch64-linux/include
+        ${TOOLKIT_BASE_PATH}/x86_64-linux/include
+    )
+    target_link_directories(ms_service_profiler PRIVATE
+        ${TOOLKIT_BASE_PATH}/lib64
+        ${TOOLKIT_BASE_PATH}/aarch64-linux/devlib
+        ${TOOLKIT_BASE_PATH}/x86_64-linux/devlib
+    )
+endif ()
+
+
 target_link_options(ms_service_profiler PRIVATE
     -Wl,-z,relro,-z,now,-z,noexecstack
     -Wl,-Bsymbolic
@@ -66,4 +82,3 @@ target_link_options(ms_service_profiler PRIVATE
 install(TARGETS ms_service_profiler
         LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/ms_service_profiler
 )
-
