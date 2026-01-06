@@ -51,8 +51,6 @@
   git clone https://gitcode.com/Ascend/msserviceprofiler.git
   cd msserviceprofiler/msservice_advisor
   pip install .
-  python msserviceprofiler/__main__.py advisor -h
-  # 或者命令行使用
   msserviceprofiler advisor -h
   ```
 

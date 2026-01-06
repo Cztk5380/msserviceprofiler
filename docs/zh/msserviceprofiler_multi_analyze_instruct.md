@@ -18,8 +18,6 @@
   git clone https://gitcode.com/Ascend/msserviceprofiler.git
   cd msserviceprofiler
   pip install .
-  python msserviceprofiler/__main__.py analyze -h
-  # 或者命令使用
   msserviceprofiler analyze -h
   ```
 
@@ -59,7 +57,7 @@
 
 ### 命令格式
     ```bash
-    python msserviceprofiler/__main__.py analyze 
+    msserviceprofiler analyze 
     --input-path=/path/to/input 
     [--output-path=/path/to/output/]
     [--log-level level]
