@@ -3,14 +3,15 @@
 本文介绍msServiceProfiler工具的安装，升级和卸载。
 ## 安装前准备
 ### 环境准备
-- 完整安装采集、解析能力，需准备构建依赖工具 **scikit-build-core**。
-- 准备**Python环境**：需要 Python 3.10 或更高版本。
+- 准备**Python环境**：需要 Python 3.10 或更高版本。Python版本查询可使用命令行。
+```bash
+python --version
+```
 ### 约束
 - 构建安装依赖 sqlite3，安装参考命令行。
 ```bash
 apt-get install libsqlite3-dev
 ```
-
 - 如需运行单元测试用例，则需要额外安装 lcov 进行覆盖率统计。安装参考命令行：
 ```bash
 apt-get install lcov
@@ -18,11 +19,19 @@ apt-get install lcov
 
 ## 命令行安装
 #### pip 安装 msserviceprofiler
-当前只提供源码安装
 ```shell
+# 安装构建依赖
+apt-get install libsqlite3-dev
+# 当前只提供源码安装
 git clone https://gitcode.com/Ascend/msserviceprofiler.git
 cd msserviceprofiler
 pip install .
+```
+构建安装成功将有下述回显信息。
+```shell
+Successfully built ms_service_profiler
+...
+Successfully installed ... ms_service_profiler-x.x.x
 ```
 
 > 注意：<br>
@@ -35,8 +44,23 @@ git clone https://gitcode.com/Ascend/msserviceprofiler.git
 cd msserviceprofiler
 pip install . --upgrade
 ```
-
+升级成功将有下述回显信息。
+```shell
+Successfully built ms_service_profiler
+Installing collected packages: ms_service_profiler
+  Attempting uninstall: ms_service_profiler
+    Found existing installation: ms_service_profiler x.x.x
+    Uninstalling ms_service_profiler-x.x.x:
+      Successfully uninstalled ms_service_profiler-x.x.x
+Successfully installed ms_service_profiler-x.x.x
+```
 ## 卸载
 ```shell
 pip uninstall ms_service_profiler -y
+```
+卸载成功将有下述回显信息。
+```shell
+Found existing installation: ms_service_profiler x.x.x
+Uninstalling ms_service_profiler-x.x.x:
+  Successfully uninstalled ms_service_profiler-x.x.x
 ```
