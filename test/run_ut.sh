@@ -22,13 +22,13 @@ set -eu
 
 CUR_DIR=$(dirname $(readlink -f $0))
 COV_DIR=${CUR_DIR}/coverage
+UT_PYTHON_DIR=${CUR_DIR}/ut/python
 PROJECT_DIR=$(readlink -f ${CUR_DIR}/..)
 BUILD_DIR=${PROJECT_DIR}/build
+ENABLE_CACHE="${ENABLE_CACHE:-0}"
 
-TEST_LANG="${1:-}"
-ENABLE_CACHE="${2:-0}"
 
-clean() {
+function clean() {
     [[ "${ENABLE_CACHE}" != "1" && -d "${BUILD_DIR}" ]] && rm -rf "${BUILD_DIR}"
 
     if [ ! -d ${COV_DIR} ]; then
@@ -36,7 +36,18 @@ clean() {
     fi
 }
 
-run_test_cpp() {
+
+function run_ms_service_profiler_python_ut() {
+    local UT_DIR="${UT_PYTHON_DIR}/test_ms_service_profiler"
+
+    pip3 install -e "${PROJECT_DIR}[test]"
+    python3 -m coverage run --branch --source "${PROJECT_DIR}/ms_service_profiler" --omit="test/*" -m pytest ${UT_DIR}
+    python3 -m coverage report -m
+    python3 -m coverage xml -o ${COV_DIR}/coverage.xml
+}
+
+
+function run_ms_service_profiler_cpp_ut() {
     local BUILD_TEST_DIR=${BUILD_DIR}/test
     local UT_TARGET="ms_service_profiler_run_uts"
     local ST_TARGET="ms_service_profiler_run_sts"
@@ -50,53 +61,82 @@ run_test_cpp() {
     if [ "$ENABLE_CACHE" != "1" ]; then
         cmake -S ${PROJECT_DIR}/ -B ${BUILD_DIR} -Dms_service_profiler_BUILD_TESTS=ON
         cmake --build ${BUILD_DIR} --target ${UT_TARGET} ${ST_TARGET} -j$(nproc)
-
-        if [ $? -ne 0 ]; then
-            echo "failed to build tests project"
-            exit 1
-        fi
     fi
 
     ${BUILD_TEST_DIR}/${UT_TARGET}
-    if [ $? -ne 0 ]; then
-        echo "failed to run uts"
-        exit 1
-    fi
     ${BUILD_TEST_DIR}/${ST_TARGET}
-    if [ $? -ne 0 ]; then
-        echo "failed to run sts"
-        exit 1
-    fi
 }
 
-run_test_python() {
-    local UT_PYTHON_DIR=${CUR_DIR}/ut/python
 
-    pip3 install "${PROJECT_DIR}[test]"
-    pip3 install "${PROJECT_DIR}/modelevalstate[test]"
-    pip3 install "${PROJECT_DIR}/msservice_advisor"
-    python3 -m coverage run --branch --source "${PROJECT_DIR}/ms_service_profiler" -m pytest ${UT_PYTHON_DIR}
+function run_modelevalstate_ut() {
+    local UT_DIR="${UT_PYTHON_DIR}/test_optimizer"
 
-    if [ $? -ne 0 ]; then
-        echo "failed to run python uts"
-        exit 1
+    if ! pip3 show ms_service_profiler > /dev/null; then
+        pip3 install -e "${PROJECT_DIR}[test]"
     fi
+
+    pip3 install -e "${PROJECT_DIR}/modelevalstate[test]"
+    PYTHONPATH=$PROJECT_DIR/modelevalstate python3 -m coverage run \
+        --branch \
+        --source "${PROJECT_DIR}/modelevalstate" \
+        --omit="test/*" \
+        -m pytest ${UT_DIR}
 
     python3 -m coverage report -m
     python3 -m coverage xml -o ${COV_DIR}/coverage.xml
 }
 
-main() {
-    export VERBOSE=1
 
+function run_msservice_advisor_ut() {
+    local UT_DIR="${UT_PYTHON_DIR}/test_msservice_advisor"
+
+    if ! pip3 show ms_service_profiler > /dev/null; then
+        pip3 install -e "${PROJECT_DIR}[test]"
+    fi
+
+    pip3 install -e "${PROJECT_DIR}/msservice_advisor"
+    PYTHONPATH=$PROJECT_DIR/msservice_advisor python3 -m coverage run \
+        --branch \
+        --source "${PROJECT_DIR}/msservice_advisor" \
+        --omit="test/*" \
+        -m pytest ${UT_DIR}
+ 
+    python3 -m coverage report -m
+    python3 -m coverage xml -o ${COV_DIR}/coverage.xml
+}
+
+
+function main() {
     clean
-    if [ "$TEST_LANG" != "cpp" ]; then
-        run_test_python
+
+    local -A tests_mapping=(
+        ["ms_service_profiler"]="run_ms_service_profiler_python_ut"
+        ["cpp"]="run_ms_service_profiler_cpp_ut"
+        ["modelevalstate"]="run_modelevalstate_ut"
+        ["msservice_advisor"]="run_msservice_advisor_ut"
+        
+    )
+
+    if [ $# -eq 0 ]; then
+        for func in "${tests_mapping[@]}"; do
+            $func
+        done
+        exit 0
     fi
-    if [ "$TEST_LANG" != "python" ]; then
-        run_test_cpp
-    fi
-    echo "UT Success"
+
+    while [ $# -gt 0 ]; do
+        test_name="$1"
+        test_fn="${tests_mapping[$test_name]:-}"
+
+        if [ -z "${test_fn}" ]; then
+            echo "错误: 未知的测试项 '$test_name'"
+            echo "可用选项: ${!tests[*]}"
+            exit 1
+        fi
+
+        ${test_fn}
+        shift
+    done
 }
 
 main "$@"
