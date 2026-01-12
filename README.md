@@ -52,7 +52,7 @@ msServiceProfiler服务化调优工具的快速入门，包括必要的操作步
 vLLM服务化性能采集工具采集vLLM-Ascend的服务化框架性能数据以及算子性能数据。
 
 ### [Trace数据监测工具](docs/zh/msserviceprofiler_trace_data_monitoring_instruct.md)
-Trace数据监测工具采集MindIE-Motor服务中的请求响应时间、响应状态、客户端IP/端口、服务端IP/端口等数据，最后将采集到的数据推送至Jaeger等支持OTLP协议的开源监测平台进行可视化分析。
+Trace数据监测工具采集MindIE Motor服务中的请求响应时间、响应状态、客户端IP/端口、服务端IP/端口等数据，最后将采集到的数据推送至Jaeger等支持OTLP协议的开源监测平台进行可视化分析。
 
 ### [服务化性能数据比对工具](docs/zh/ms_service_profiler_compare_tool_instruct.md)
 服务化性能数据比对工具支持对使用msServiceProfiler工具采集的性能数据进行差异比对，通过比对快速识别可能存在的问题点。

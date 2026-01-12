@@ -40,7 +40,7 @@
 
 1.  安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《CANN 软件安装指南》。
 2.  完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。
-3.  完成MindIE的安装和配置并确认MindIE-Motor可以正常运行，具体请参见《MindIE安装指南》。
+3.  完成MindIE的安装和配置并确认MindIE Motor可以正常运行，具体请参见《MindIE安装指南》。
 4.  完成以上环境准备后，可以进行一次配置预检动作，使用“[msprechecker](https://gitcode.com/Ascend/msit/tree/master/msprechecker)”工具，对环境变量和服务化配置等进行检查。
 
 
@@ -57,7 +57,7 @@
 **使用示例<a name="section1541662513115"></a>**
 
 1. 创建采集配置文件。服务化性能数据采集通过json配置文件，配置采集数据的开关、保存路径等。
-   - 自动创建：该文件支持自动创建，在[2](#li177905365245)过程中配置SERVICE\_PROF\_CONFIG\_PATH环境变量后，运行MindIE-Motor服务可自动创建默认配置的json文件。
+   - 自动创建：该文件支持自动创建，在[2](#li177905365245)过程中配置SERVICE\_PROF\_CONFIG\_PATH环境变量后，运行MindIE Motor服务可自动创建默认配置的json文件。
 
    - 手动创建：该json配置文件可以在任意路径下新建，此处以ms\_service\_profiler\_config.json文件名为例，配置文件格式如下：
 
@@ -110,10 +110,10 @@
         export SERVICE_PROF_CONFIG_PATH="./ms_service_profiler_config.json"
         ```
 
-        -   若环境变量配置路径下不存在json配置文件，会在路径下自动创建默认配置的json文件，且enable开关为0关闭状态，需要在运行MindIE-Motor服务后执行[2.c](#li58961338154210)，配置enable开关为1，开启采集任务。
+        -   若环境变量配置路径下不存在json配置文件，会在路径下自动创建默认配置的json文件，且enable开关为0关闭状态，需要在运行MindIE Motor服务后执行[2.c](#li58961338154210)，配置enable开关为1，开启采集任务。
         -   若环境变量配置路径下已存在同名的json文件，则不会创建json文件。
 
-    2.  运行MindIE-Motor服务。
+    2.  运行MindIE Motor服务。
     3.  <a name="li58961338154210"></a>开启采集任务。
 
         重新开启一个命令行窗口，用户可以通过修改ms\_service\_profiler\_config.json配置中的“**enable**”字段，实时切换数据采集功能的开启和关闭。开启和关闭采集功能时产生相应日志，见如下说明。
@@ -121,12 +121,12 @@
         采集完成后，Profiling性能数据落盘在ms\_service\_profiler\_config.json中prof\_dir参数指定的路径下。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
-    >多机多卡场景可使用Samba工具实现共享配置文件，以此实现对多机多卡场景的性能数据采集。其中多机多卡场景执行采集步骤与上文一致，但需要每个节点分别启动MindIE-Motor服务。Samba为第三方工具，请用户自行查找对应使用指导，或使用其他支持配置共享目录的工具。
+    >多机多卡场景可使用Samba工具实现共享配置文件，以此实现对多机多卡场景的性能数据采集。其中多机多卡场景执行采集步骤与上文一致，但需要每个节点分别启动MindIE Motor服务。Samba为第三方工具，请用户自行查找对应使用指导，或使用其他支持配置共享目录的工具。
     >服务化性能数据采集支持运行时动态启停。动态启停指在启动采集任务后，执行采集操作过程中可以随时启动和暂停采集。
     >动态启停场景主要为以下三种：
-    >-   <a name="li0321112752816"></a>关闭到开启。启动MindIE-Motor服务前，json配置文件中“enable”字段设置为0，运行MindIE-Motor服务后修改文件中“enable”字段为1，日志中打印开启采集功能的相关信息：
+    >-   <a name="li0321112752816"></a>关闭到开启。启动MindIE Motor服务前，json配置文件中“enable”字段设置为0，运行MindIE Motor服务后修改文件中“enable”字段为1，日志中打印开启采集功能的相关信息：
     >    ![](figures/1_zh-cn_image_0000002450063397.png)
-    >-   开启到关闭。启动MindIE-Motor服务前，json配置文件中“enable”字段设置为1，运行MindIE-Motor服务后修改文件中“enable”字段为0，日志中打印关闭采集功能的相关信息：
+    >-   开启到关闭。启动MindIE Motor服务前，json配置文件中“enable”字段设置为1，运行MindIE Motor服务后修改文件中“enable”字段为0，日志中打印关闭采集功能的相关信息：
     >    ![](figures/zh-cn_image_0000002512312449.png)
     >-   修改json配置文件内容，但“enable”字段未更改，采集功能运行状态不变，日志中打印相关信息：
     >    ![](figures/zh-cn_image_0000002480352568.png)
@@ -736,7 +736,7 @@ cd grafana-v11.3.0/bin/
 
 ### 自定义添加采集代码<a name="ZH-CN_TOPIC_0000002184508129"></a>
 
-MindIE-Motor推理服务化框架中默认已添加性能数据采集代码，当前步骤可选。
+MindIE Motor推理服务化框架中默认已添加性能数据采集代码，当前步骤可选。
 
 若需要自定义采集更多性能数据，可以参照如下示例代码对服务化框架中的性能采集代码进行修改，可以使用的接口请参见[API参考（C++）](./cpp_api/serving_tuning/README.md)或[API参考（Python）](./python_api/README.md)。
 
