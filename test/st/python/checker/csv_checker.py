@@ -123,9 +123,20 @@ def check_kvcache_csv(output_path, complete_req_cnt=0):
 
         # 检查事件出现次数
         if complete_req_cnt:
-            check_df_col_has_value(df, "name", "Free", complete_req_cnt, empty_enable=(complete_req_cnt == 0))
-            check_df_col_has_value(df, "name", "Allocate", complete_req_cnt, empty_enable=(complete_req_cnt == 0))
-            check_df_col_has_value(df, "name", "AppendSlot", empty_enable=(complete_req_cnt == 0))
+            # 检测数据格式：新版本包含 KVCacheStatus，旧版本包含 Free/Allocate/AppendSlot
+            unique_names = df["name"].unique()
+            
+            if "KVCacheStatus" in unique_names:
+                # 新版本校验逻辑：只检查 KVCacheStatus
+                check_df_col_has_value(df, "name", "KVCacheStatus", empty_enable=(complete_req_cnt == 0))
+            elif "Free" in unique_names or "Allocate" in unique_names or "AppendSlot" in unique_names:
+                # 旧版本校验逻辑：检查 Free/Allocate/AppendSlot
+                check_df_col_has_value(df, "name", "Free", complete_req_cnt, empty_enable=(complete_req_cnt == 0))
+                check_df_col_has_value(df, "name", "Allocate", complete_req_cnt, empty_enable=(complete_req_cnt == 0))
+                check_df_col_has_value(df, "name", "AppendSlot", empty_enable=(complete_req_cnt == 0))
+            else:
+                # 未知格式，报错
+                assert False, f"Unknown kvcache data format. Expected name values: KVCacheStatus or Free/Allocate/AppendSlot, got: {unique_names}"
 
 
 def check_forward_csv(output_path, card_nums=0, device_nums=0):

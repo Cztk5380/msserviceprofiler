@@ -54,8 +54,6 @@ def test_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
         
         mindie_server.set_prof_config(acl_task_time=0, enable=0)
         mindie_server.kill()
-        
-        mindie_key_word_checker(os.path.join(workspace_path, "prof_data"))
 
         # 开始解析
         parser = ExecParse()

@@ -89,9 +89,12 @@ class ExporterKVCacheData(ExporterBase):
 
                 # 过滤掉CacheHitRate事件，放到request.csv中
                 kvcache_df = kvcache_df[kvcache_df['name'] != 'CacheHitRate']
-                kvcache_df.loc[kvcache_df['name'] == 'Free', 'blocks_freed'] = (
-                    kvcache_df.loc[kvcache_df['name'] == 'Free', 'deviceBlock='].fillna(0)
-                )
+                if 'deviceBlock=' in kvcache_df.columns:
+                    free_mask = kvcache_df['name'] == 'Free'
+                    if free_mask.any():
+                        kvcache_df.loc[free_mask, 'blocks_freed'] = (
+                            kvcache_df.loc[free_mask, 'deviceBlock='].fillna(0)
+                        )
 
                 # 选择需要的列 - 包括插件计算出的指标列
                 selected_columns = [

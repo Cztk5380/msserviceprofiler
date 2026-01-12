@@ -229,15 +229,23 @@ class ProcessorReq(ProcessorBase):
         batch_attr_explode_by_req_df['iter'] = batch_attr_explode_by_req_df['req_list'].map(
             lambda x: x.get("iter") if isinstance(x, dict) else None
         )
-        batch_attr_explode_by_req_df['num_scheduled_tokens='] = batch_attr_explode_by_req_df['req_list'].map(
-            lambda x: x.get("num_scheduled_tokens=") if isinstance(x, dict) else None
-        )
+
+        has_num_scheduled_tokens = batch_attr_explode_by_req_df['req_list'].apply(
+            lambda x: isinstance(x, dict) and "num_scheduled_tokens=" in x
+        ).any()
+
+        if has_num_scheduled_tokens:
+            batch_attr_explode_by_req_df['num_scheduled_tokens='] = batch_attr_explode_by_req_df['req_list'].map(
+                lambda x: x.get("num_scheduled_tokens=") if isinstance(x, dict) else None
+            )
 
         merged = batch_attr_explode_by_req_df.join(model_exec_df.set_index('batch_id'), on='batch_id')
 
-        new_events = merged[
-            ["rid", "event", "iter", "start_time", "end_time", "batch_id", "batch_size", "num_scheduled_tokens="]
-        ]
+        selected_columns = ["rid", "event", "iter", "start_time", "end_time", "batch_id", "batch_size"]
+        if has_num_scheduled_tokens:
+            selected_columns.append("num_scheduled_tokens=")
+
+        new_events = merged[selected_columns]
 
         req_event_df = pd.concat([req_event_df, new_events], ignore_index=True)
         return req_event_df
@@ -265,27 +273,39 @@ class ProcessorReq(ProcessorBase):
         exploded_schedule['iter'] = exploded_schedule['req_list'].map(
             lambda x: x.get("iter") if isinstance(x, dict) else None
         )
-        exploded_schedule['num_scheduled_tokens='] = exploded_schedule['req_list'].map(
-            lambda x: x.get("num_scheduled_tokens=") if isinstance(x, dict) else None
-        )
+
+        has_num_scheduled_tokens = exploded_schedule['req_list'].apply(
+            lambda x: isinstance(x, dict) and "num_scheduled_tokens=" in x
+        ).any()
+
+        if has_num_scheduled_tokens:
+            exploded_schedule['num_scheduled_tokens='] = exploded_schedule['req_list'].map(
+                lambda x: x.get("num_scheduled_tokens=") if isinstance(x, dict) else None
+            )
 
         prefill_schedule = exploded_schedule[exploded_schedule['iter'] == 0].copy()
         if prefill_schedule.empty:
             return req_event_df
 
-        prefill_start_df = pd.DataFrame({
+        prefill_start_dict = {
             'rid': prefill_schedule['rid'],
             'event': 'BatchSchedule',
             'iter': prefill_schedule['iter'],
             'start_time': prefill_schedule['start_time'],
             'end_time': prefill_schedule['end_time'],
             'batch_id': prefill_schedule['batch_id'],
-            'num_scheduled_tokens=': prefill_schedule['num_scheduled_tokens='],
             'batch_size': prefill_schedule['batch_size']
-        })
+        }
 
-        prefill_start_df = prefill_start_df.dropna(subset=['rid', 'num_scheduled_tokens='])
-        prefill_start_df = prefill_start_df[prefill_start_df['num_scheduled_tokens='] > 0]
+        if has_num_scheduled_tokens:
+            prefill_start_dict['num_scheduled_tokens='] = prefill_schedule['num_scheduled_tokens=']
+
+        prefill_start_df = pd.DataFrame(prefill_start_dict)
+
+        prefill_start_df = prefill_start_df.dropna(subset=['rid'])
+
+        if 'num_scheduled_tokens=' in prefill_start_df.columns:
+            prefill_start_df = prefill_start_df[prefill_start_df['num_scheduled_tokens='] > 0]
 
         req_event_df = pd.concat([req_event_df, prefill_start_df], ignore_index=True)
         return req_event_df
