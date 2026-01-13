@@ -7,34 +7,7 @@
 - `prefill batch`: Prefill阶段是处理用户输入prompt的初始阶段，在这个阶段，模型需要处理整个输入序列，计算并生成第一个输出token。该阶段执行的batch叫做prefill batch。
 - `decode batch`: Decode阶段模型逐个生成后续的输出token，每次生成一个token。相比Prefill阶段，Decode阶段的每次迭代计算量较小，但由于需要逐个生成token，可能会有很多次迭代。该阶段执行的batch叫做decode batch。
 
-## 使用前准备
-
-**环境准备**
-
-安装服务化拆解工具，命令如下：
-  ```sh
-  git clone https://gitcode.com/Ascend/msserviceprofiler.git
-  cd msserviceprofiler
-  pip install .
-  msserviceprofiler split -h
-  ```
-
-**版本配套关系**
-
-| 服务化拆解工具 |     CANN     |     MindIE     |
-|:-------------:|:------------:|:--------------:|
-|     依赖版本      | ≥ CANN 8.2.RC1 | ≥ MindIE 2.1.RC1 |
-
-## 功能介绍
-
-### 功能说明
-细粒度拆解服务化性能数据。
-
-**注意事项**
-
-无
-
-### 产品支持情况<a name="ZH-CN_TOPIC_0000002479925980"></a>
+## 产品支持情况<a name="ZH-CN_TOPIC_0000002479925980"></a>
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》
@@ -51,6 +24,27 @@
 >![](public_sys-resources/icon-notice.gif) **须知：** 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
+
+## 使用前准备
+
+**环境准备**
+
+完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。
+
+**版本配套关系**
+
+| 服务化拆解工具 |     CANN     |     MindIE     |
+|:-------------:|:------------:|:--------------:|
+|     依赖版本      | ≥ CANN 8.2.RC1 | ≥ MindIE 2.1.RC1 |
+
+## 功能介绍
+
+### 功能说明
+细粒度拆解服务化性能数据。
+
+**注意事项**
+
+无
 
 ### 命令格式
 ```bash

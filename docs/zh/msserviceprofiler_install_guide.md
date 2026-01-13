@@ -7,8 +7,9 @@
 ```bash
 python --version
 ```
+- 安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《CANN 软件安装指南》。
 ### 约束
-- 构建安装依赖 sqlite3，安装参考命令行。
+- 构建安装依赖 sqlite3，安装参考命令行：
 ```bash
 apt-get install libsqlite3-dev
 ```

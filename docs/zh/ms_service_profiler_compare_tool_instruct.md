@@ -9,7 +9,6 @@
 - 请求维度：单个请求的完整处理周期指标
 - 批处理维度：批处理任务的分段性能指标
 
-
 ## 产品支持情况
 > **说明：** <br>
 >昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。

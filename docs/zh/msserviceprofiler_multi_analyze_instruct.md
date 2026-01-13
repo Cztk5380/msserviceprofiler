@@ -3,23 +3,28 @@
 ## 简介
 服务化多维度解析工具（msServiceProfiler Multi Analyze）基于msServiceProfiler工具采集的性能数据进行多维度解析，包括request维度、batch维度、总体服务维度。
 
+### 产品支持情况<a name="ZH-CN_TOPIC_0000002479925980"></a>
+>![](public_sys-resources/icon-note.gif) **说明：** 
+>昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
+
+|产品类型|是否支持|
+|--|:-:|
+|Atlas A3 训练系列产品/Atlas A3 推理系列产品|x|
+|Atlas A2 训练系列产品/Atlas A2 推理系列产品|√|
+|Atlas 200I/500 A2 推理产品|x|
+|Atlas 推理系列产品|√|
+|Atlas 训练系列产品|x|
+
+
+>![](public_sys-resources/icon-notice.gif) **须知：** 
+>针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
+>针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
+
 ## 使用前准备
 
 **环境准备**
 
-安装工具，可通过以下两种方式：
-- **pip安装**
-  ```sh
-  pip install -U ms_service_profiler
-  msserviceprofiler analyze -h
-  ```
-- **源码安装**
-  ```sh
-  git clone https://gitcode.com/Ascend/msserviceprofiler.git
-  cd msserviceprofiler
-  pip install .
-  msserviceprofiler analyze -h
-  ```
+完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。
 
 **版本配套关系**
 
@@ -37,23 +42,6 @@
 **注意事项**
 
 无
-
-### 昇腾产品支持情况<a name="ZH-CN_TOPIC_0000002479925980"></a>
->![](public_sys-resources/icon-note.gif) **说明：** 
->昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
-
-|产品类型|是否支持|
-|--|:-:|
-|Atlas A3 训练系列产品/Atlas A3 推理系列产品|x|
-|Atlas A2 训练系列产品/Atlas A2 推理系列产品|√|
-|Atlas 200I/500 A2 推理产品|x|
-|Atlas 推理系列产品|√|
-|Atlas 训练系列产品|x|
-
-
->![](public_sys-resources/icon-notice.gif) **须知：** 
->针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
->针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
 
 ### 命令格式
     ```bash
