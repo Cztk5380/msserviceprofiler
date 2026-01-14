@@ -66,11 +66,11 @@ class ExporterTrace(TaskExporterBase):
 
     @classmethod
     def depends(cls):
-        return ["pipeline:service", "pipeline:mspti"]
+        return ["pipeline:service", "pipeline:mspti", "data_source:torch_profiler"]
 
     @classmethod
     @timer(logger.debug)
-    def export(cls, data, mspti) -> None:
+    def export(cls, data, mspti, torch_profiler) -> None:
         if 'db' not in cls.args.format and 'json' not in cls.args.format:
             return
 
@@ -129,38 +129,55 @@ class ExporterTrace(TaskExporterBase):
             mspti_data = {"traceEvents": tarce_events_list}
             merged_data = merge_json_data(merged_data, [mspti_data])
 
-        if 'json' in cls.args.format:
-            save_trace_data_into_json(merged_data, output)
+        if torch_profiler:
+            torch_profiler_prof_list = []
+            for index, prof_path in enumerate(torch_profiler):
+                torch_profiler_prof, _ = load_single_prof(prof_path, index)
+                torch_profiler_prof_list.extend(torch_profiler_prof.get("traceEvents"))
 
         if 'db' in cls.args.format:
             logger.info('Start write trace data to db')
             create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
             save_trace_data_into_db(merged_data)
             logger.info('Write trace data to db success')
+        
+        if 'json' in cls.args.format:
+            if torch_profiler:
+                chrome_events = merged_data.get('traceEvents', [])
+                merged_events = torch_profiler_prof_list + chrome_events
+                merged_data = {'traceEvents': merged_events}
+            save_trace_data_into_json(merged_data, output)
 
     def do_export(self):
-        data, mspti = self.get_depends_result("pipeline:service", None), self.get_depends_result("pipeline:mspti", None)
+        data, mspti, torch_profiler = (
+            self.get_depends_result("pipeline:service", None),
+            self.get_depends_result("pipeline:mspti", None),
+            self.get_depends_result("data_source:torch_profiler", None),
+        )
+        torch_profiler = torch_profiler.get("torch_profiler") if torch_profiler is not None else None
 
-        if self.task_index == 0 and (data is not None or mspti is not None):
-            data_list = self.gather((None, None), dst=0)
+        has_any_data = data is not None or mspti is not None or torch_profiler is not None
+        if self.task_index == 0 and has_any_data:
+            data_list = self.gather((None, None, None), dst=0)
         else:
-            data_list = self.gather((data, mspti), dst=0)
+            data_list = self.gather((data, mspti, torch_profiler), dst=0)
 
         if data_list is None:
             return None
 
-        if self.task_index == 0 and (data is not None or mspti is not None):
-            data_list[0] = (data, mspti)
+        if self.task_index == 0 and has_any_data:
+            data_list[0] = (data, mspti, torch_profiler)
 
         # 使用列表推导式过滤并提取非None值
         all_data = [item[0] for item in data_list if item is not None and item[0] is not None]
         all_mspti = [item[1] for item in data_list if item is not None and item[1] is not None]
+        all_profilers = [item[2] for item in data_list if item is not None and item[2] is not None]
 
         # 获取第一个非None的值
         valid_data = all_data[0] if all_data else None
         valid_mspti = all_mspti[0] if all_mspti else None
 
-        self.export(valid_data, valid_mspti)
+        self.export(valid_data, valid_mspti, all_profilers)
         return None
 
 
@@ -260,7 +277,7 @@ def write_trace_data_to_file(trace_data, output):
                 logger.error(f"Error raise from exporter trace, json dump failed. message: {e}")
 
     with ms_open(output, "w") as f:
-        f.write('{"traceEvents":[')
+        f.write('[')
         for index, content2 in enumerate(results):
             if len(content2) < 2:  # 确保至少有 2 个字符
                 continue
@@ -268,14 +285,13 @@ def write_trace_data_to_file(trace_data, output):
             if index != len(results) - 1:
                 f.write(',')
 
-        f.write("]}")
+        f.write("]")
 
     logger.info(f"Written trace data successfully. at {output}")
 
 
 def save_trace_data_into_json(trace_data, output):
     file_path = os.path.join(output, 'chrome_tracing.json')
-
     write_trace_data_to_file(trace_data.get("traceEvents", []), file_path)
 
 

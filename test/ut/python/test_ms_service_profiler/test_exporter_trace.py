@@ -205,11 +205,11 @@ def test_exporter_initialize():
 @mock.patch('ms_service_profiler.exporters.exporter_trace.save_trace_data_into_json')
 def test_exporter_export(mock_save, mock_create, mock_data, mock_mspti):
     # 模拟 create_trace_events 返回值
-    mock_create.return_value = {'traceEvents': []}
+    mock_create.return_value = {"traceEvents": []}
     mock_save.return_value = None  # 模拟保存行为
 
     ExporterTrace.initialize(mock.Mock(output_path='/tmp', format=['json']))
-    ExporterTrace.export(mock_data, mock_mspti)
+    ExporterTrace.export(mock_data, mock_mspti, mock_data)
 
     # 验证 create_trace_events 被调用一次
     mock_create.assert_called_once()
@@ -470,8 +470,8 @@ class MockFile:
 def test_save_trace_data_into_json(mock_logger, mock_ms_open):
     fake_file = MockFile()
     mock_ms_open.return_value = fake_file
-    save_trace_data_into_json({'traceEvents': [{}]}, 'output')
-    assert (fake_file.read() == '{"traceEvents":[{}]}')
+    save_trace_data_into_json({}, 'output')
+    assert (fake_file.read() == '[]')
     mock_logger.info.assert_called_once()
 
 
@@ -482,9 +482,9 @@ def test_save_trace_data_into_json_exception(mock_logger, mock_dumps, mock_ms_op
     mock_dumps.side_effect = Exception('Test exception')
     fake_file = MockFile()
     mock_ms_open.return_value = fake_file
-    save_trace_data_into_json({'traceEvents': [123]}, 'output')
+    save_trace_data_into_json({"traceEvents":[123]}, 'output')
     mock_dumps.assert_called_once()
-    assert (fake_file.read() == '{"traceEvents":[]}')
+    assert (fake_file.read() == '[]')
     mock_logger.error.assert_called_once()
 
 

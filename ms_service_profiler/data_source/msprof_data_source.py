@@ -323,6 +323,8 @@ class MsprofDataSource(BaseDataSource):
             self.clear_last_msprof_output(cur_path)
             self.run_msprof_command(command)
         filepaths = self.get_filepaths(prof_path, file_filter)
+        if filepaths.get("msprof", {}):
+            filepaths["msprof"] = [path for path in filepaths["msprof"] if "ascend_pt" not in path]
         try:
             data = self.load_prof(filepaths)
         except Exception as ex:
