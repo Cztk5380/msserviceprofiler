@@ -46,24 +46,34 @@
 
 ## 使用前准备
 **环境准备**
+准备好能正常运行服务化（如[MindIE Service](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/quick_start.md)/[VLLM Server](https://docs.vllm.ai/projects/ascend/en/latest/quick_start.html)）和测评工具（如`vllm_benchmark/ais_bench`，参见[测评工具部署](https://gitee.com/aisbench/benchmark/blob/master/README.md)）的环境。
 
-1. 准备好能正常运行服务化（如`MindIE Service/VLLM Server`，参见[服务化部署](https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0004.html)）和测评工具（如`vllm_benchmark/ais_bench`，参见[测评工具部署](https://gitee.com/aisbench/benchmark/blob/master/README.md)）的环境。
-2. 寻优工具依赖服务化工具作为入口，如果没有安装服务化工具，请先安装服务化工具。命令如下：
-    ```sh
-    git clone https://gitcode.com/Ascend/msserviceprofiler.git
-    cd msserviceprofiler/modelevalstate
-    pip install -e .[real] # 安装寻优工具轻量化版本
-    ```
-    使用轻量化的方式进行寻优则只需安装最少的依赖即可，仿真模式需要额外的依赖。
-    ```
-    # 之前的步骤不变
-    pip install -e .[speed] # 选择 speed 选项安装寻优工具插件
-    ```
-    如果上述安装失败，可尝试安装较少依赖的第三方包，但训练模型时，大数据量时性能较低。
-    ```
-    pip install -e .[train] # 选择 train 选项安装寻优工具插件
-    ```
-**仿真模式版本配套关系**
+
+## 工具安装
+寻优工具依赖服务化工具作为入口，如果没有安装服务化工具，请先完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。命令如下：
+ ```sh
+ git clone https://gitcode.com/Ascend/msserviceprofiler.git # 如已拉取，则不用重复拉取
+ cd msserviceprofiler/modelevalstate
+ pip install -e .[real] # 安装寻优工具轻量化版本
+ ```
+ 使用轻量化的方式进行寻优则只需安装最少的依赖即可，仿真模式需要额外的依赖。
+ ```
+ # 之前的步骤不变
+ pip install -e .[speed] # 选择 speed 选项安装寻优工具插件
+ ```
+ 如果上述安装失败，可尝试安装较少依赖的第三方包，但训练模型时，大数据量时性能较低。
+ ```
+ pip install -e .[train] # 选择 train 选项安装寻优工具插件
+ ```
+
+
+## 工具卸载
+```shell
+pip uninstall modelevalstate
+```
+
+
+## 仿真模式版本配套关系
 
 | 版本配套关系 |     CANN     |     框架     |
 |:-------------:|:------------:|:--------------:|
@@ -73,6 +83,7 @@
 **约束**
 
 由于工具涉及使用MindIE镜像，需遵从其启动方式，PD分离场景中，MindIE使用k8s等技术，需用户自行注意相关风险。
+
 
 ## 快速入门
 1. 完成[使用前准备](#使用前准备)章节要求。
@@ -86,6 +97,8 @@
     默认执行的是基于`Ais_Bench`的`MindIE`服务化参数寻优。
 
 4. 查看结果：寻优时间由模型大小和数据集大小决定，一般在4~8小时完成，结束后会生成`data_storage_*.csv`的文件并保存在当前目录的`result/store`子目录中，其中记录了各组参数的性能，详细介绍请参见[输出文件说明](#输出文件说明)。
+
+
 ## 轻量化模式
 **功能说明**
 

@@ -11,18 +11,15 @@
 |产品类型|是否支持|
 |--|:-:|
 |Atlas A3 训练系列产品/Atlas A3 推理系列产品|x|
-|Atlas A2 训练系列产品/Atlas A2 推理系列产品|√|
+|Atlas A2 训练系列产品|√|
 |Atlas 200I/500 A2 推理产品|x|
 |Atlas 推理系列产品|x|
 |Atlas 训练系列产品|x|
 
-> **须知：** 
->针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
-
 
 ## 使用前准备
 ### 环境准备
-- 准备一台昇腾Atlas 800I A2 推理系列的NPU服务器。
+- 准备一台昇腾Atlas 800I A2 训练系列的NPU服务器。
 - **Python环境**：需要Python 3.10或更高版本。
 - **依赖包安装**：
     ```bash
@@ -34,25 +31,19 @@
 
 
 ## 工具安装
-- **pip 安装**
-  ```sh
-  pip install -U msserviceprofiler
-  ```
-- **离线安装**
-  - 在能够访问网络的机器上，访问 [PyPI 官方源](https://pypi.org/project/msserviceprofiler/)，点击左侧 `Download files`下载。
-  - 下载完成后，上传到服务器中。
-  - 假设 wheel 包存放路径为 `whl_path`，输入下列命令进行安装。
-    ```sh
-    pip install whl_path
-    ```
-  - 终端输入 `msserviceprofiler` 校验是否安装成功。
 - **源码安装**
+  服务化专家建议工具依赖服务化工具作为入口，如果没有安装服务化工具，请先完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装
   ```sh
-  git clone https://gitcode.com/Ascend/msserviceprofiler.git
+  git clone https://gitcode.com/Ascend/msserviceprofiler.git # 如已拉取，则不用重复拉取
   cd msserviceprofiler/msservice_advisor
   pip install .
   msserviceprofiler advisor -h
   ```
+
+## 工具卸载
+```shell
+pip uninstall msservice_advisor
+```
 
 
 ## 功能介绍
