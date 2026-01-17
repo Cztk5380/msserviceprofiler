@@ -18,16 +18,16 @@ import time
 from enum import Enum
 from pathlib import Path
 
-import modelevalstate
+import ms_serviceparam_optimizer
 
 RUN_TIME = time.strftime("%Y%m%d%H%M%S", time.localtime())
-INSTALL_PATH = Path(modelevalstate.__path__[0])
+INSTALL_PATH = Path(ms_serviceparam_optimizer.__path__[0])
 RUN_PATH = Path(os.getcwd())
 MODEL_EVAL_STATE_CONFIG_PATH = "MODEL_EVAL_STATE_CONFIG_PATH"
-modelevalstate_config_path = os.getenv(MODEL_EVAL_STATE_CONFIG_PATH) or os.getenv(MODEL_EVAL_STATE_CONFIG_PATH.lower())
-if not modelevalstate_config_path:
-    modelevalstate_config_path = RUN_PATH.joinpath("config.toml")
-modelevalstate_config_path = Path(modelevalstate_config_path).absolute().resolve()
+ms_serviceparam_optimizer_config_path = os.getenv(MODEL_EVAL_STATE_CONFIG_PATH) or os.getenv(MODEL_EVAL_STATE_CONFIG_PATH.lower())
+if not ms_serviceparam_optimizer_config_path:
+    ms_serviceparam_optimizer_config_path = RUN_PATH.joinpath("config.toml")
+ms_serviceparam_optimizer_config_path = Path(ms_serviceparam_optimizer_config_path).absolute().resolve()
 
 CUSTOM_OUTPUT = "MODEL_EVAL_STATE_OUTPUT"
 custom_output = os.getenv(CUSTOM_OUTPUT) or os.getenv(CUSTOM_OUTPUT.lower())

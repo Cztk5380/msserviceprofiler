@@ -24,9 +24,9 @@ import csv
 import pandas as pd
 import pytest
 from msguard import GlobalConfig
-from modelevalstate.config.config import PerformanceIndex, get_settings, AisBenchConfig, \
+from ms_serviceparam_optimizer.config.config import PerformanceIndex, get_settings, AisBenchConfig, \
     OptimizerConfigField
-from modelevalstate.optimizer.plugins.benchmark import parse_result, AisBench, VllmBenchMark
+from ms_serviceparam_optimizer.optimizer.plugins.benchmark import parse_result, AisBench, VllmBenchMark
 
 
 settings = get_settings()
@@ -129,7 +129,7 @@ def results_per_request_file(tmpdir):
 
 
 class TestBenchMarkGetPerformanceIndex(unittest.TestCase):
-    @patch("modelevalstate.config.custom_command.shutil.which")
+    @patch("ms_serviceparam_optimizer.config.custom_command.shutil.which")
     def setUp(self, mock_which):
         # 创建一个模拟的 benchmark_config 对象
         self.mock_benchmark_config = MagicMock()

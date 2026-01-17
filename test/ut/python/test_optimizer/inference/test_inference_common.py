@@ -16,7 +16,7 @@
 import numpy as np
 import pytest
 
-from modelevalstate.inference.common import get_bins_and_label, \
+from ms_serviceparam_optimizer.inference.common import get_bins_and_label, \
     get_field_bins_count  
 
 

@@ -21,8 +21,8 @@ import shutil
 from unittest.mock import patch, MagicMock
 import pandas as pd
 import numpy as np
-from modelevalstate.optimizer import analyze_profiler
-from modelevalstate.optimizer.analyze_profiler import analyze
+from ms_serviceparam_optimizer.optimizer import analyze_profiler
+from ms_serviceparam_optimizer.optimizer.analyze_profiler import analyze
 
 
 class TestFindFirstSimulateCSV(unittest.TestCase):
@@ -115,8 +115,8 @@ class TestAnalyzeFunction(unittest.TestCase):
             'simulate_time': [1000000, 2000000, 3000000]
         })
 
-    @patch('modelevalstate.optimizer.analyze_profiler.read_csv_s')
-    @patch('modelevalstate.optimizer.analyze_profiler.find_first_simulate_csv')
+    @patch('ms_serviceparam_optimizer.optimizer.analyze_profiler.read_csv_s')
+    @patch('ms_serviceparam_optimizer.optimizer.analyze_profiler.find_first_simulate_csv')
     def test_normal_flow(self, mock_find_csv, mock_read_csv):
         """测试正常流程"""
         # 设置mock返回值
@@ -144,8 +144,8 @@ class TestAnalyzeFunction(unittest.TestCase):
         self.assertLessEqual(success_rate, 1.0)
         self.assertGreaterEqual(success_rate, 0.0)
 
-    @patch('modelevalstate.optimizer.analyze_profiler.read_csv_s')
-    @patch('modelevalstate.optimizer.analyze_profiler.find_first_simulate_csv')
+    @patch('ms_serviceparam_optimizer.optimizer.analyze_profiler.read_csv_s')
+    @patch('ms_serviceparam_optimizer.optimizer.analyze_profiler.find_first_simulate_csv')
     def test_all_successful_requests(self, mock_find_csv, mock_read_csv):
         """测试全部成功请求的场景"""
         # 创建全部成功的请求数据
@@ -166,8 +166,8 @@ class TestAnalyzeFunction(unittest.TestCase):
         
         self.assertEqual(success_rate, 1.0)
 
-    @patch('modelevalstate.optimizer.analyze_profiler.read_csv_s')
-    @patch('modelevalstate.optimizer.analyze_profiler.find_first_simulate_csv')
+    @patch('ms_serviceparam_optimizer.optimizer.analyze_profiler.read_csv_s')
+    @patch('ms_serviceparam_optimizer.optimizer.analyze_profiler.find_first_simulate_csv')
     def test_mismatched_rows(self, mock_find_csv, mock_read_csv):
         """测试行数不匹配的情况"""
         # 创建行数不匹配的模拟数据
@@ -185,8 +185,8 @@ class TestAnalyzeFunction(unittest.TestCase):
         with self.assertRaises(ValueError):
             analyze(input_path_1='/fake/path1', input_path_2='/fake/path2')
 
-    @patch('modelevalstate.optimizer.analyze_profiler.read_csv_s')
-    @patch('modelevalstate.optimizer.analyze_profiler.find_first_simulate_csv')
+    @patch('ms_serviceparam_optimizer.optimizer.analyze_profiler.read_csv_s')
+    @patch('ms_serviceparam_optimizer.optimizer.analyze_profiler.find_first_simulate_csv')
     def test_invalid_data_format(self, mock_find_csv, mock_read_csv):
         """测试无效的数据格式"""
         # 创建缺少必要列的数据
@@ -204,8 +204,8 @@ class TestAnalyzeFunction(unittest.TestCase):
         with self.assertRaises(KeyError):
             analyze(input_path_1='/fake/path1', input_path_2='/fake/path2')
 
-    @patch('modelevalstate.optimizer.analyze_profiler.read_csv_s')
-    @patch('modelevalstate.optimizer.analyze_profiler.find_first_simulate_csv')
+    @patch('ms_serviceparam_optimizer.optimizer.analyze_profiler.read_csv_s')
+    @patch('ms_serviceparam_optimizer.optimizer.analyze_profiler.find_first_simulate_csv')
     def test_edge_case_single_request(self, mock_find_csv, mock_read_csv):
         """测试单个请求的边界情况"""
         # 创建只有一个请求的数据
@@ -243,8 +243,8 @@ class TestAnalyzeFunction(unittest.TestCase):
         self.assertEqual(success_rate, 1.0)
         self.assertGreater(throughput, 0)
 
-    @patch('modelevalstate.optimizer.analyze_profiler.read_csv_s')
-    @patch('modelevalstate.optimizer.analyze_profiler.find_first_simulate_csv')
+    @patch('ms_serviceparam_optimizer.optimizer.analyze_profiler.read_csv_s')
+    @patch('ms_serviceparam_optimizer.optimizer.analyze_profiler.find_first_simulate_csv')
     def test_no_successful_requests(self, mock_find_csv, mock_read_csv):
         """测试没有成功请求的场景"""
         # 创建全部失败的请求数据

@@ -20,7 +20,7 @@ import unittest
 
 import pytest
 
-from modelevalstate.optimizer.communication import CommunicationForFile, CustomCommand
+from ms_serviceparam_optimizer.optimizer.communication import CommunicationForFile, CustomCommand
 
 
 def test_init(tmpdir):

@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from modelevalstate.inference.file_reader import FileHanlder, StaticFile
+from ms_serviceparam_optimizer.inference.file_reader import FileHanlder, StaticFile
 
 
 class TestFileHandler:

@@ -68,17 +68,17 @@ function run_ms_service_profiler_cpp_ut() {
 }
 
 
-function run_modelevalstate_ut() {
+function run_ms_serviceparam_optimizer_ut() {
     local UT_DIR="${UT_PYTHON_DIR}/test_optimizer"
 
     if ! pip3 show ms_service_profiler > /dev/null; then
         pip3 install -e "${PROJECT_DIR}[test]"
     fi
 
-    pip3 install -e "${PROJECT_DIR}/modelevalstate[test]"
-    PYTHONPATH=$PROJECT_DIR/modelevalstate python3 -m coverage run \
+    pip3 install -e "${PROJECT_DIR}/ms_serviceparam_optimizer[test]"
+    PYTHONPATH=$PROJECT_DIR/ms_serviceparam_optimizer python3 -m coverage run \
         --branch \
-        --source "${PROJECT_DIR}/modelevalstate" \
+        --source "${PROJECT_DIR}/ms_serviceparam_optimizer" \
         --omit="test/*" \
         -m pytest ${UT_DIR}
 
@@ -112,7 +112,7 @@ function main() {
     local -A tests_mapping=(
         ["ms_service_profiler"]="run_ms_service_profiler_python_ut"
         ["cpp"]="run_ms_service_profiler_cpp_ut"
-        ["modelevalstate"]="run_modelevalstate_ut"
+        ["ms_serviceparam_optimizer"]="run_ms_serviceparam_optimizer_ut"
         ["msservice_advisor"]="run_msservice_advisor_ut"
         
     )

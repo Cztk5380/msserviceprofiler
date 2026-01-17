@@ -19,8 +19,8 @@ from pathlib import Path
 
 import pytest
 
-import modelevalstate.config.model_config as model_config
-from modelevalstate.config.model_config import ModelConfig, MindieModelConfig
+import ms_serviceparam_optimizer.config.model_config as model_config
+from ms_serviceparam_optimizer.config.model_config import ModelConfig, MindieModelConfig
 
 
 @pytest.fixture

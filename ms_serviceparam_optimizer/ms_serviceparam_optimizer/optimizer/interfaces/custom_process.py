@@ -13,25 +13,29 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
+
 import os
 import subprocess
 import tempfile
 import time
 from math import isnan, isinf
 from pathlib import Path
-from typing import Tuple, Optional, List
+from typing import Any, Tuple, Optional, List
 
 import psutil
 from loguru import logger
 from msguard.security import open_s
-from ..config.base_config import CUSTOM_OUTPUT, MODEL_EVAL_STATE_CONFIG_PATH, \
-    modelevalstate_config_path
-from ..config.config import OptimizerConfigField, get_settings, ProcessState, Stage
-from ..optimizer.utils import close_file_fp, remove_file, kill_children, \
+
+from ...config.base_config import CUSTOM_OUTPUT, MODEL_EVAL_STATE_CONFIG_PATH, \
+    ms_serviceparam_optimizer_config_path
+from ..utils import close_file_fp, remove_file, kill_children, \
     backup, kill_process
 
 
+
 class CustomProcess:
+    from ...config.config import OptimizerConfigField
+    
     def __init__(self, bak_path: Optional[Path] = None, command: Optional[List[str]] = None,
                  work_path: Optional[Path] = None, print_log: bool = False,
                  process_name: str = ""):
@@ -82,7 +86,13 @@ class CustomProcess:
         backup(self.run_log, self.bak_path, self.__class__.__name__)
 
     def before_run(self, run_params: Optional[Tuple[OptimizerConfigField, ...]] = None):
-        self.run_log_fp, self.run_log = tempfile.mkstemp(prefix="modelevalstate_")
+        from ...config.config import get_settings
+        """
+        运行命令前的准备工作
+        Args:
+            run_params: 调优参数列表，元组，每一个元素的value和config position进行定义
+        """
+        self.run_log_fp, self.run_log = tempfile.mkstemp(prefix="ms_serviceparam_optimizer_")
         self.run_log_offset = 0
         if not run_params:
             return
@@ -94,8 +104,8 @@ class CustomProcess:
                 if _var_name not in self.command:
                     continue
                 _i = self.command.index(_var_name)
-                value_flag = isnan(k.value) or isinf(k.value)
-                if k.value is None or value_flag or not str(k).strip():
+                value_flag = k.value is None or isnan(k.value) or isinf(k.value)
+                if value_flag or not str(k).strip():
                     self.command.pop(_i)
                     if _i > 0:
                         self.command.pop(_i - 1)
@@ -106,7 +116,7 @@ class CustomProcess:
             self.env[CUSTOM_OUTPUT] = str(get_settings().output)
         # 设置读取的json文件
         if MODEL_EVAL_STATE_CONFIG_PATH not in self.env:
-            self.env[MODEL_EVAL_STATE_CONFIG_PATH] = str(modelevalstate_config_path)
+            self.env[MODEL_EVAL_STATE_CONFIG_PATH] = str(ms_serviceparam_optimizer_config_path)
                 
 
     def run(self, run_params: Optional[Tuple[OptimizerConfigField, ...]] = None, **kwargs):
@@ -145,7 +155,7 @@ class CustomProcess:
         run_log_path = Path(self.run_log)
         if run_log_path.exists():
             try:
-                with open_s(run_log_path, "r", encoding="utf-8") as f:
+                with open_s(run_log_path, "r", encoding="utf-8", errors="ignore") as f:
                     f.seek(self.run_log_offset)
                     output = f.read()
                     self.run_log_offset = f.tell()
@@ -153,17 +163,22 @@ class CustomProcess:
                 logger.error(f"Failed read {self.command} log. error {e}")
         return output
 
-    def check_success(self):
+    def health(self):
+        from ...config.config import ProcessState, Stage
+        """
+        检查任务是否运行成功
+        Returns: 返回bool值，检查程序是否成功启动
+        """
         if self.print_log:
             output = self.get_log()
             logger.debug(output)
         if self.process.poll() is None:
-            return False
+            return ProcessState(stage=Stage.running)
         elif self.process.poll() == 0:
-            return True
+            return ProcessState(stage=Stage.stop)
         else:
-            raise subprocess.SubprocessError(
-                f"Failed in run {self.command}. return code: {self.process.returncode}. log: {self.run_log}")
+            return ProcessState(stage=Stage.error, info=f"Failed in run {self.command!r}. \
+                                        return code: {self.process.returncode}. log: {self.run_log}")
 
     def stop(self, del_log: bool = True):
         self.run_log_offset = 0
@@ -197,6 +212,7 @@ class CustomProcess:
             return output
         run_log_path = Path(self.run_log)
         if run_log_path.exists():
+            file_lines = []
             try:
                 with open_s(run_log_path, "r", encoding="utf-8") as f:
                     file_lines = f.readlines()
@@ -205,3 +221,38 @@ class CustomProcess:
             number = min(number, len(file_lines))
             output = '\n'.join(file_lines[-number:])
         return output
+
+
+class BaseDataField:
+    from ...config.config import OptimizerConfigField
+
+    def __init__(self, config: Optional[Any] = None):
+        from ...config.config import get_settings
+        if config:
+            self.config = config
+        else:
+            settings = get_settings()
+            self.config = settings.ais_bench
+ 
+    @property
+    def data_field(self) -> Tuple[OptimizerConfigField, ...]:
+        """
+        获取data field 属性
+        """
+        if hasattr(self.config, "target_field") and self.config.target_field:
+            return tuple(self.config.target_field)
+        return ()
+ 
+    @data_field.setter
+    def data_field(self, value: Tuple[OptimizerConfigField] = ()) -> None:
+        """
+        提供新的数据，更新替换data field属性。
+        """
+        _default_name = []
+        if hasattr(self.config, "target_field") and self.config.target_field:
+            _default_name = [_f.name for _f in self.config.target_field]
+        for _field in value:
+            if _field.name not in _default_name:
+                continue
+            _index = _default_name.index(_field.name)
+            self.config.target_field[_index] = _field

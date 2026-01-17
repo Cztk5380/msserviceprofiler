@@ -21,14 +21,14 @@ import os
 import shutil
 import pandas as pd
 
-from modelevalstate.train.pretrain import (
+from ms_serviceparam_optimizer.train.pretrain import (
     PretrainModel, TrainVersion1, pretrain
 )
-from modelevalstate.train.state_param import StateParam
-from modelevalstate.data_feature.dataset import MyDataSet
-from modelevalstate.model.xgb_state_model import StateXgbModel
-from modelevalstate.data_feature.dataset import preset_category_data
-from modelevalstate.data_feature.dataset import CustomLabelEncoder
+from ms_serviceparam_optimizer.train.state_param import StateParam
+from ms_serviceparam_optimizer.data_feature.dataset import MyDataSet
+from ms_serviceparam_optimizer.model.xgb_state_model import StateXgbModel
+from ms_serviceparam_optimizer.data_feature.dataset import preset_category_data
+from ms_serviceparam_optimizer.data_feature.dataset import CustomLabelEncoder
 
 
 class TestPretrainModel(unittest.TestCase):

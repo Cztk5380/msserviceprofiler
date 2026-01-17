@@ -15,7 +15,7 @@
     settings是通过pydantic-settings实现的，可在类里面添加删除属性。例如：
 
     ```
-    from modelevalstate.config.config import Settings
+    from ms_serviceparam_optimizer.config.config import Settings
     class CusSettings(Settings):
         name: str = "vllm-inference-optimization"
     ```
@@ -26,7 +26,7 @@
     ```
     def register():
         from vllm_inference_optimization.settings import CusSettings
-        from modelevalstate.config.config import register_settings
+        from ms_serviceparam_optimizer.config.config import register_settings
         register_settings(lambda : CusSettings())
     ```
 3. 使用settings
@@ -34,16 +34,16 @@
     使用时导入get_settings 来获取自定义的settings，例如：
 
     ```
-    from modelevalstate.config.config import get_settings
+    from ms_serviceparam_optimizer.config.config import get_settings
     settings = get_settings()
     ```
 
 ### 自定义服务框架
 
-1. 继承modelevalstate.optimizer.simulator.SimulatorInterface，实现base_url和data_field property，实现update_command方法等。例如：
+1. 继承ms_serviceparam_optimizer.optimizer.simulator.SimulatorInterface，实现base_url和data_field property，实现update_command方法等。例如：
 
     ```
-    class modelevalstate.optimizer.simulator.SimulatorInterface()
+    class ms_serviceparam_optimizer.optimizer.simulator.SimulatorInterface()
         Bases: ABC
         #操作服务框架。用于操作服务相关功能。
         abstract property data_field: Tuple[OptimizerConfigField] | None
@@ -67,16 +67,16 @@
 2. 并在init文件中注册服务框架，例如：
 
     ```
-    from modelevalstate.optimizer.register import register_simulator
+    from ms_serviceparam_optimizer.optimizer.register import register_simulator
     register_simulator("vllm_infer", VllmSimulator)
     ```
 
 ### 自定义性能测试工具
-1. 继承modelevalstate.optimizer.benchmark.BenchmarkInterface，实现data_field property，get_performance_index方法等。
+1. 继承ms_serviceparam_optimizer.optimizer.benchmark.BenchmarkInterface，实现data_field property，get_performance_index方法等。
 例如：
 
     ``` 
-    class modelevalstate.optimizer.benchmark.BenchmarkInterface():
+    class ms_serviceparam_optimizer.optimizer.benchmark.BenchmarkInterface():
         Bases: ABC
         property num_prompts: Tuple[OptimizerConfigField] | None
             #获取获取数据的请求数
@@ -110,24 +110,24 @@
 2. 并在init文件中注册benchmark，例如：
 
     ```
-    from modelevalstate.optimizer.register import register_benchmarks
+    from ms_serviceparam_optimizer.optimizer.register import register_benchmarks
     register_benchmarks("vllm_infer_benchmark", VllmBenchMark)
     ```
 
 3. 设置插件入口点
 
-    将自定义的内容的注册函数添加到入口组'modelevalstate.plugins'即可。
+    将自定义的内容的注册函数添加到入口组'ms_serviceparam_optimizer.plugins'即可。
     例如通过调用vllm_inference_optimization模块的register来注册，例如：
     ```
-    [project.entry-points.'modelevalstate.plugins']
+    [project.entry-points.'ms_serviceparam_optimizer.plugins']
     vllm_inference_optimization = "vllm_inference_optimization:register"
     ```
 
 4. 安装插件
-    入口设置为modelevalstate.plugins，例如：
+    入口设置为ms_serviceparam_optimizer.plugins，例如：
 
     ```
-    [project.entry-points.'modelevalstate.plugins']
+    [project.entry-points.'ms_serviceparam_optimizer.plugins']
     vllm_inference_optimization="vllm_inference_optimization:register"
     ```
 

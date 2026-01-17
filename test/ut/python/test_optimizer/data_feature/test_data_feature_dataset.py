@@ -21,8 +21,8 @@ from pandas import DataFrame
 import pytest
 import pandas as pd
 import numpy as np
-from modelevalstate.inference.constant import OpAlgorithm
-from modelevalstate.inference.data_format_v1 import (
+from ms_serviceparam_optimizer.inference.constant import OpAlgorithm
+from ms_serviceparam_optimizer.inference.data_format_v1 import (
     MODEL_OP_FIELD,
     MODEL_STRUCT_FIELD,
     MODEL_CONFIG_FIELD,
@@ -30,11 +30,11 @@ from modelevalstate.inference.data_format_v1 import (
     ENV_FIELD,
     HARDWARE_FIELD,
 )
-from modelevalstate.inference.dataset import CustomOneHotEncoder, CustomLabelEncoder, \
+from ms_serviceparam_optimizer.inference.dataset import CustomOneHotEncoder, CustomLabelEncoder, \
     preset_category_data
-from modelevalstate.inference.utils import PreprocessTool, TOTAL_OUTPUT_LENGTH, \
+from ms_serviceparam_optimizer.inference.utils import PreprocessTool, TOTAL_OUTPUT_LENGTH, \
     TOTAL_SEQ_LENGTH, TOTAL_PREFILL_TOKEN
-from modelevalstate.data_feature.dataset import MyDataSet, CustomOneHotEncoder 
+from ms_serviceparam_optimizer.data_feature.dataset import MyDataSet, CustomOneHotEncoder 
 
 
 class TestMyDataSet(unittest.TestCase):
@@ -63,7 +63,7 @@ class TestMyDataSet(unittest.TestCase):
         self.assertIsInstance(df, pd.DataFrame)
         self.assertEqual(len(df.columns.tolist()), 154)
 
-    @patch('modelevalstate.inference.utils.PreprocessTool.generate_data_with_request_info_by_df')
+    @patch('ms_serviceparam_optimizer.inference.utils.PreprocessTool.generate_data_with_request_info_by_df')
     def test_convert_request_info_by_df(self, mock_generate_data):
         # 测试convert_request_info_by_df
         mock_generate_data.return_value = (['value1', 'value2'], ['column1', 'column2'])
@@ -77,7 +77,7 @@ class TestMyDataSet(unittest.TestCase):
         ds = MyDataSet(custom_encoder=mock_encoder)
         self.assertEqual(ds.custom_encoder, mock_encoder)
 
-    @patch('modelevalstate.data_feature.dataset.PreprocessTool.generate_data')
+    @patch('ms_serviceparam_optimizer.data_feature.dataset.PreprocessTool.generate_data')
     def test_convert_batch_info(self, mock_generate):
         """测试批次信息转换"""
         mock_generate.return_value = ([1, 2], ["col1", "col2"])
@@ -85,8 +85,8 @@ class TestMyDataSet(unittest.TestCase):
         self.assertIsInstance(result, pd.DataFrame)
         self.assertEqual(list(result.columns), ["col1", "col2"])
 
-    @patch('modelevalstate.data_feature.dataset.plt.savefig')
-    @patch('modelevalstate.data_feature.dataset.sns.scatterplot')
+    @patch('ms_serviceparam_optimizer.data_feature.dataset.plt.savefig')
+    @patch('ms_serviceparam_optimizer.data_feature.dataset.sns.scatterplot')
     def test_analysis_batch_feature(self, mock_plot, mock_save):
         """测试test_analysis_batch_feature"""
         ds = MyDataSet()
@@ -98,7 +98,7 @@ class TestMyDataSet(unittest.TestCase):
         ds.analysis_batch_feature(self.test_dir)
         mock_save.assert_called()
 
-    @patch('modelevalstate.data_feature.dataset.logger.error')
+    @patch('ms_serviceparam_optimizer.data_feature.dataset.logger.error')
     def test_construct_data_shape_mismatch(self, mock_logger):
         """测试特征和标签维度不匹配的情况"""
         ds = MyDataSet()

@@ -17,7 +17,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import numpy as np
 import pandas as pd
-from modelevalstate.inference.utils import (
+from ms_serviceparam_optimizer.inference.utils import (
     PreprocessTool, HistInfo, OP_EXPECTED_FIELD_MAPPING,
     OperatorProcessingConfig, _preprocess_dataframe,
     RowData, OpData
@@ -63,10 +63,10 @@ class TestPreprocessTool(unittest.TestCase):
         self.assertIn("total_output_length", new_columns)
 
 
-    @patch('modelevalstate.inference.utils.PreprocessTool.get_op_in_origin_row_index')
-    @patch('modelevalstate.inference.utils.PreprocessTool.get_all_op_input_ratio')
-    @patch('modelevalstate.inference.utils.PreprocessTool.get_all_op_execute_delta_ratio')
-    @patch('modelevalstate.inference.utils.PreprocessTool.get_label_hist_value')
+    @patch('ms_serviceparam_optimizer.inference.utils.PreprocessTool.get_op_in_origin_row_index')
+    @patch('ms_serviceparam_optimizer.inference.utils.PreprocessTool.get_all_op_input_ratio')
+    @patch('ms_serviceparam_optimizer.inference.utils.PreprocessTool.get_all_op_execute_delta_ratio')
+    @patch('ms_serviceparam_optimizer.inference.utils.PreprocessTool.get_label_hist_value')
     def test_generate_data_with_op_info_use_ratio_empty_input(
         self,
         mock_get_label_hist_value,
@@ -160,7 +160,7 @@ class TestGenerateDataWithRequestInfo(unittest.TestCase):
         column = (self.output_length_field, "input_length", "need_blocks")
 
         # 模拟get_field_bins_count的返回值
-        with patch('modelevalstate.inference.common.get_field_bins_count') as \
+        with patch('ms_serviceparam_optimizer.inference.common.get_field_bins_count') as \
             mock_get_field_bins_count:
             mock_get_field_bins_count.side_effect = [
                 [0, 2, 1],  # 对于input_length的返回值
@@ -322,7 +322,7 @@ class TestPreprocessDataFrame(unittest.TestCase):
         result = _preprocess_dataframe(self.df, check_columns=['A', 'B'])
         self.assertFalse(result)
 
-    @patch('modelevalstate.inference.utils.logger')
+    @patch('ms_serviceparam_optimizer.inference.utils.logger')
     def test_warning_called(self, mock_warning):
         # 测试当列包含无效值时，logger.warning 是否被调用
         self.df.loc[0, 'A'] = "=A2+A3"  # 添加一个无效值

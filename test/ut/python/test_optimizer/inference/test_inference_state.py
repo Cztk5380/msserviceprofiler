@@ -23,17 +23,17 @@ from pandas import DataFrame
 
 import numpy as np
 import pandas as pd
-from modelevalstate.data_feature.v1 import FileReader, BATCH_FIELD
-from modelevalstate.inference.state_eval_v1 import XGBStateEvaluate, predict_v1, CachePredict, \
+from ms_serviceparam_optimizer.data_feature.v1 import FileReader, BATCH_FIELD
+from ms_serviceparam_optimizer.inference.state_eval_v1 import XGBStateEvaluate, predict_v1, CachePredict, \
     predict_v1_with_cache
-from modelevalstate.inference.dataset import CustomOneHotEncoder, CustomLabelEncoder, InputData,\
+from ms_serviceparam_optimizer.inference.dataset import CustomOneHotEncoder, CustomLabelEncoder, InputData,\
     preset_category_data, DataProcessor
-from modelevalstate.inference.data_format_v1 import ConfigPath, ModelOpField, ModelStruct, \
+from ms_serviceparam_optimizer.inference.data_format_v1 import ConfigPath, ModelOpField, ModelStruct, \
     ModelConfig, MindieConfig, EnvField, HardWare, RequestField, BatchField
-from modelevalstate.inference.data_format_v1 import REQUEST_FIELD, MODEL_OP_FIELD, \
+from ms_serviceparam_optimizer.inference.data_format_v1 import REQUEST_FIELD, MODEL_OP_FIELD, \
     MODEL_STRUCT_FIELD, MODEL_CONFIG_FIELD, MINDIE_FIELD, ENV_FIELD, HARDWARE_FIELD
-from modelevalstate.train.pretrain import NodeInfo
-from modelevalstate.inference.file_reader import FileHanlder, StaticFile
+from ms_serviceparam_optimizer.train.pretrain import NodeInfo
+from ms_serviceparam_optimizer.inference.file_reader import FileHanlder, StaticFile
 
 
 def test_update_new_data_none(tmpdir):
@@ -63,8 +63,8 @@ def test_update_data_exists(tmpdir):
     assert cache_predict.label.equals(pd.Series([1.0], name=cache_predict.label_name))
 
 
-@patch('modelevalstate.inference.state_eval_v1.DataProcessor')
-@patch('modelevalstate.inference.state_eval_v1.XGBStateEvaluate')
+@patch('ms_serviceparam_optimizer.inference.state_eval_v1.DataProcessor')
+@patch('ms_serviceparam_optimizer.inference.state_eval_v1.XGBStateEvaluate')
 def test_predict_v1(mock_data_processor, mock_xgb_state_evaluate, tmpdir, static_file):
     mock_data_processor.return_value = MagicMock()
     mock_xgb_state_evaluate.return_value = MagicMock()
@@ -206,8 +206,8 @@ def run_case(process_num: int, save_result_path: Path, fl: FileReader, call_func
         p.join()
 
 
-@patch('modelevalstate.inference.state_eval_v1.XGBStateEvaluate')
-@patch('modelevalstate.inference.state_eval_v1.InputData')
+@patch('ms_serviceparam_optimizer.inference.state_eval_v1.XGBStateEvaluate')
+@patch('ms_serviceparam_optimizer.inference.state_eval_v1.InputData')
 def test_predict_v1_with_cache(mock_input_data, mock_xgb_state_eval, tmpdir, static_file):
     mock_input_data.return_value = MagicMock()
     mock_xgb_state_eval.return_value = MagicMock()
@@ -270,15 +270,15 @@ class TestCachePredict(unittest.TestCase):
         self.assertEqual(loader.label.tolist(), [1, 2, 3])
         self.assertEqual(loader.data.columns.tolist(), ['feature1', 'feature2'])
 
-    @patch('modelevalstate.config.config.settings')
-    @patch('modelevalstate.inference.state_eval_v1.CachePredict')
+    @patch('ms_serviceparam_optimizer.config.config.settings')
+    @patch('ms_serviceparam_optimizer.inference.state_eval_v1.CachePredict')
     def test_no_cache_data(self, mock_cache_predict, mock_settings):
         mock_settings.latency_model.cache_data = 'default_cache_data'
         cache, _ = XGBStateEvaluate.load_cache_predict()
         self.assertIsNone(cache)
 
-    @patch('modelevalstate.config.config.settings')
-    @patch('modelevalstate.inference.state_eval_v1.CachePredict')
+    @patch('ms_serviceparam_optimizer.config.config.settings')
+    @patch('ms_serviceparam_optimizer.inference.state_eval_v1.CachePredict')
     def test_empty_cache_data(self, mock_cache_predict, mock_settings):
         mock_settings.latency_model.cache_data = 'default_cache_data'
         cache_data = Path('empty_cache_data')
@@ -286,9 +286,9 @@ class TestCachePredict(unittest.TestCase):
         cache, _ = XGBStateEvaluate.load_cache_predict(cache_data)
         self.assertIsNone(cache)
 
-    @patch('modelevalstate.config.config.settings')
-    @patch('modelevalstate.inference.state_eval_v1.CachePredict')
-    @patch('modelevalstate.inference.state_eval_v1.read_csv_s')
+    @patch('ms_serviceparam_optimizer.config.config.settings')
+    @patch('ms_serviceparam_optimizer.inference.state_eval_v1.CachePredict')
+    @patch('ms_serviceparam_optimizer.inference.state_eval_v1.read_csv_s')
     def test_non_empty_cache_data(self, mock_read_csv_s, mock_cache_predict, mock_settings):
         mock_settings.latency_model.cache_data = 'default_cache_data'
         cache_data = Path('non_empty_cache_data')

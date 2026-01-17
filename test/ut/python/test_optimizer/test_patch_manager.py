@@ -23,7 +23,7 @@ from unittest.mock import patch, MagicMock, mock_open, call, ANY
 from pathlib import Path
 
 # 更新导入路径以匹配您的实际模块位置
-from modelevalstate.patch.patch_manager import check_flag, add_patch, Patch2rc1
+from ms_serviceparam_optimizer.patch.patch_manager import check_flag, add_patch, Patch2rc1
 
 
 class TestPatchManager(unittest.TestCase):
@@ -98,31 +98,31 @@ class TestPatchManager(unittest.TestCase):
     # 测试版本检查
     def test_check_version_low_warning(self):
         """测试版本过低的情况"""
-        with patch('modelevalstate.patch.patch_manager.logger.warning') as mock_warning:
+        with patch('ms_serviceparam_optimizer.patch.patch_manager.logger.warning') as mock_warning:
             Patch2rc1.check_version("1.0")
             mock_warning.assert_called_once_with("The version may not match.")
 
     def test_check_version_high_warning(self):
         """测试版本过高的情况"""
-        with patch('modelevalstate.patch.patch_manager.logger.warning') as mock_warning:
+        with patch('ms_serviceparam_optimizer.patch.patch_manager.logger.warning') as mock_warning:
             Patch2rc1.check_version("3.0")
             mock_warning.assert_called_once_with("The version may not match.")
 
     def test_check_version_exactly_low(self):
         """测试精确匹配下限版本的情况"""
-        with patch('modelevalstate.patch.patch_manager.logger.warning') as mock_warning:
+        with patch('ms_serviceparam_optimizer.patch.patch_manager.logger.warning') as mock_warning:
             Patch2rc1.check_version(Patch2rc1.mindie_llm_low)
             mock_warning.assert_called_once_with("The version may not match.")
 
     def test_check_version_exactly_up(self):
         """测试精确匹配上限版本的情况"""
-        with patch('modelevalstate.patch.patch_manager.logger.warning') as mock_warning:
+        with patch('ms_serviceparam_optimizer.patch.patch_manager.logger.warning') as mock_warning:
             Patch2rc1.check_version(Patch2rc1.mindie_llm)
             mock_warning.assert_not_called()
 
     def test_check_version_patch_level(self):
         """测试补丁版本比较"""
-        with patch('modelevalstate.patch.patch_manager.logger.warning') as mock_warning:
+        with patch('ms_serviceparam_optimizer.patch.patch_manager.logger.warning') as mock_warning:
             # 注意：2.0.1 > 2.0，所以应该在范围外
             Patch2rc1.check_version("2.0.1")
             mock_warning.assert_called_once_with("The version may not match.")
@@ -148,7 +148,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 import pytest
 
-from modelevalstate.patch.patch_manager import check_flag, add_patch, Patch2rc1
+from ms_serviceparam_optimizer.patch.patch_manager import check_flag, add_patch, Patch2rc1
 
 
 @pytest.fixture
@@ -242,7 +242,7 @@ class TestPatch2rc1Pytest:
     ])
     def test_check_version_warnings(self, version_str, should_warn):
         """测试版本检查的警告行为"""
-        with patch('modelevalstate.patch.patch_manager.logger.warning') as mock_warning:
+        with patch('ms_serviceparam_optimizer.patch.patch_manager.logger.warning') as mock_warning:
             result = Patch2rc1.check_version(version_str)
             assert result is True
             

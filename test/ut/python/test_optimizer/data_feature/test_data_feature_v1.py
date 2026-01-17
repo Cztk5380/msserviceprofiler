@@ -16,7 +16,7 @@
 import unittest
 import tempfile
 from pathlib import Path
-from modelevalstate.data_feature.v1 import FileReader
+from ms_serviceparam_optimizer.data_feature.v1 import FileReader
 
 
 def generate_data(fp):

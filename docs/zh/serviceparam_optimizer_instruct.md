@@ -53,7 +53,7 @@
 寻优工具依赖服务化工具作为入口，如果没有安装服务化工具，请先完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。命令如下：
  ```sh
  git clone https://gitcode.com/Ascend/msserviceprofiler.git # 如已拉取，则不用重复拉取
- cd msserviceprofiler/modelevalstate
+ cd msserviceprofiler/ms_serviceparam_optimizer
  pip install -e .[real] # 安装寻优工具轻量化版本
  ```
  使用轻量化的方式进行寻优则只需安装最少的依赖即可，仿真模式需要额外的依赖。
@@ -69,7 +69,7 @@
 
 ## 工具卸载
 ```shell
-pip uninstall modelevalstate
+pip uninstall ms_serviceparam_optimizer
 ```
 
 
@@ -88,7 +88,7 @@ pip uninstall modelevalstate
 ## 快速入门
 1. 完成[使用前准备](#使用前准备)章节要求。
 
-2. 修改配置文件：启动寻优前需用户按照实际情况配置[`config.toml`](../../ms_service_profiler/modelevalstate/config.toml)，包括寻优参数、测评工具参数、服务化参数。参考[配置文件说明](#配置文件说明)章节完成配置。
+2. 修改配置文件：启动寻优前需用户按照实际情况配置[`config.toml`](../../ms_serviceparam_optimizer/ms_serviceparam_optimizer/config.toml)，包括寻优参数、测评工具参数、服务化参数。参考[配置文件说明](#配置文件说明)章节完成配置。
 
 3. 启动寻优：完成上述步骤后，执行以下命令，一键启动轻量化自动寻优：
     ```
@@ -126,7 +126,7 @@ msserviceprofiler optimizer [options]
 
 **使用示例（mindie服务化参数寻优）**
 
-1. 修改配置文件：启动寻优前需用户按照实际情况配置[`config.toml`](../../ms_service_profiler/modelevalstate/config.toml)，包括寻优参数、测评工具参数、服务化参数。参考[配置文件说明](#配置文件说明)章节完成配置。
+1. 修改配置文件：启动寻优前需用户按照实际情况配置[`config.toml`](../../ms_serviceparam_optimizer/ms_serviceparam_optimizer/config.toml)，包括寻优参数、测评工具参数、服务化参数。参考[配置文件说明](#配置文件说明)章节完成配置。
 
 2. 如果需要设置环境变量作用于mindie/vllm服务，只需在运行工具前设置环境变量即可，例如：
     ```
@@ -140,7 +140,7 @@ msserviceprofiler optimizer [options]
     ```
 **使用示例（vllm服务化参数寻优）**
 
-1. 修改配置文件：启动寻优前需用户按照实际情况配置[`config.toml`](../../ms_service_profiler/modelevalstate/config.toml)，包括寻优参数、测评工具参数、服务化参数。参考[配置文件说明](#配置文件说明)章节完成配置。
+1. 修改配置文件：启动寻优前需用户按照实际情况配置[`config.toml`](../../ms_serviceparam_optimizer/ms_serviceparam_optimizer/config.toml)，包括寻优参数、测评工具参数、服务化参数。参考[配置文件说明](#配置文件说明)章节完成配置。
 2. 如果需要设置环境变量作用于mindie/vllm服务，只需在运行工具前设置环境变量即可，例如：
     ```
     export ASCEND_RT_VISIBLE_DEVICES=0
@@ -182,7 +182,7 @@ msserviceprofiler optimizer [options]
 |参数|可选/必选|说明|
 |---|---|---|
 |-i或--input|必选|输入数据目录，这里所需的数据即profiling的输出路径。|
-|-o或--output|可选|输出目录，建议输出在modelevalstate下面创建一个/result/latency_model目录来存放。若未指定则会在当前目录下生成。|
+|-o或--output|可选|输出目录，建议输出在ms_serviceparam_optimizer下面创建一个/result/latency_model目录来存放。若未指定则会在当前目录下生成。|
 |-t或--type|可选|框架类型，可选值：<br>&#8226;mindie：使用MindIE作为推理框架<br>&#8226;vllm：使用VLLM作为推理框架<br/>默认值为`mindie`。|
 
 **optimizer寻优参数说明**
@@ -198,7 +198,7 @@ msserviceprofiler optimizer [options]
 
 **使用示例**
 
-1. 修改配置文件：启动寻优前需用户按照实际情况配置[`config.toml`](../../ms_service_profiler/modelevalstate/config.toml)，包括寻优参数、测评工具参数、服务化参数。参考[配置文件说明](#配置文件说明)章节完成配置。
+1. 修改配置文件：启动寻优前需用户按照实际情况配置[`config.toml`](../../ms_serviceparam_optimizer/ms_serviceparam_optimizer/config.toml)，包括寻优参数、测评工具参数、服务化参数。参考[配置文件说明](#配置文件说明)章节完成配置。
 
 2. 训练模型
     ```

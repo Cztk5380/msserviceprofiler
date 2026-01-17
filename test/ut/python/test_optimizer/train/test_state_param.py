@@ -20,7 +20,7 @@ from pathlib import Path
 from dataclasses import asdict
 import shutil
 
-from modelevalstate.train.state_param import StateParam
+from ms_serviceparam_optimizer.train.state_param import StateParam
 
 
 class TestStateParam(unittest.TestCase):
@@ -117,7 +117,7 @@ class TestStateParam(unittest.TestCase):
         self.assertEqual(custom_sp.base_path, self.test_dir / "custom")
         self.assertTrue((self.test_dir / "custom").exists())
 
-    @patch("modelevalstate.train.state_param.Path.mkdir")
+    @patch("ms_serviceparam_optimizer.train.state_param.Path.mkdir")
     def test_directory_creation_failure(self, mock_mkdir):
         """测试目录创建失败处理"""
         mock_mkdir.side_effect = OSError("Permission denied")

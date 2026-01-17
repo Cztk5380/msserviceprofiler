@@ -23,10 +23,10 @@ import numpy as np
 import pytest
 import torch
 
-from modelevalstate.config.config import get_settings
-from modelevalstate.inference.constant import IS_SLEEP_FLAG
-from modelevalstate.inference.data_format_v1 import BatchField, RequestField
-from modelevalstate.inference.simulate import Simulate, predict_queue, ServiceField, FileLogger
+from ms_serviceparam_optimizer.config.config import get_settings
+from ms_serviceparam_optimizer.inference.constant import IS_SLEEP_FLAG
+from ms_serviceparam_optimizer.inference.data_format_v1 import BatchField, RequestField
+from ms_serviceparam_optimizer.inference.simulate import Simulate, predict_queue, ServiceField, FileLogger
 
 
 class TestFileLogger:
@@ -269,7 +269,7 @@ def predict_setup():
 
 # Test cases
 def test_predict_with_sleep(predict_setup, monkeypatch):
-    monkeypatch.setattr("modelevalstate.inference.simulate.predict_v1_with_cache", \
+    monkeypatch.setattr("ms_serviceparam_optimizer.inference.simulate.predict_v1_with_cache", \
                         lambda *args, **kwargs: (-1, 300000))
     assert len(Simulate.predict_cache) == 0
     st = time.perf_counter()
@@ -284,7 +284,7 @@ def test_predict_with_sleep(predict_setup, monkeypatch):
 
 
 def test_predict_without_sleep(predict_setup, monkeypatch):
-    monkeypatch.setattr("modelevalstate.inference.simulate.predict_v1_with_cache", \
+    monkeypatch.setattr("ms_serviceparam_optimizer.inference.simulate.predict_v1_with_cache", \
                         lambda *args, **kwargs: (-1, 300000))
     os.environ[IS_SLEEP_FLAG] = "false"
     assert len(Simulate.predict_cache) == 0
@@ -298,7 +298,7 @@ def test_predict_without_sleep(predict_setup, monkeypatch):
     assert len(Simulate.predict_cache) == 1
 
 
-@patch('modelevalstate.inference.simulate.Simulate.predict')
+@patch('ms_serviceparam_optimizer.inference.simulate.Simulate.predict')
 def test_predict_and_save(mock_predict):
     # 测试predict_and_save方法
     # 模拟predict方法的返回值

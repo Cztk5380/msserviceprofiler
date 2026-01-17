@@ -17,7 +17,7 @@ import tempfile
 import json
 from pathlib import Path
 import pytest
-from modelevalstate.inference.file_reader import StaticFile
+from ms_serviceparam_optimizer.inference.file_reader import StaticFile
 
 
 @pytest.fixture

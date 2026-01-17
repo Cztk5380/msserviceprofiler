@@ -14,10 +14,10 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 import pandas as pd
-from modelevalstate.inference.data_format_v1 import BatchField, RequestField
-from modelevalstate.inference.dataset import DataProcessor, InputData, CustomLabelEncoder,\
+from ms_serviceparam_optimizer.inference.data_format_v1 import BatchField, RequestField
+from ms_serviceparam_optimizer.inference.dataset import DataProcessor, InputData, CustomLabelEncoder,\
       preset_category_data, CustomOneHotEncoder
-from modelevalstate.inference.file_reader import FileHanlder
+from ms_serviceparam_optimizer.inference.file_reader import FileHanlder
 
 
 def test_preprocessor(static_file):

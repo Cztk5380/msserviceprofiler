@@ -7,10 +7,10 @@ packages = {find = {}}
 include-package-data = true
 
 [tool.setuptools.package-data]
-"modelevalstate" = ["**/*.toml", "**/*.patch"]
+"ms_serviceparam_optimizer" = ["**/*.toml", "**/*.patch"]
 
 [project]
-name = "modelevalstate"
+name = "ms_serviceparam_optimizer"
 version = '8.3.0'
 requires-python = ">=3.10"
 
@@ -30,5 +30,5 @@ train = ["xgboost==2.0.0", "seaborn", "scikit-learn"]
 speed = ["xgboost==2.0.0", "seaborn", "scikit-learn", "swifter", "modin", "ray"]
 
 [project.entry-points."ms_service_profiler_plugins"]
-"optimizer" = "modelevalstate.optimizer.optimizer:arg_parse"
-"source_to_train" = "modelevalstate.train.source_to_train:arg_parse"
+"optimizer" = "ms_serviceparam_optimizer.optimizer.optimizer:arg_parse"
+"source_to_train" = "ms_serviceparam_optimizer.train.source_to_train:arg_parse"

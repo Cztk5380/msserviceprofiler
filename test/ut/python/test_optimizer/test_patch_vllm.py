@@ -18,7 +18,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import sys
 
-from modelevalstate.patch.patch_vllm import PatchVllm
+from ms_serviceparam_optimizer.patch.patch_vllm import PatchVllm
 
 
 class TestPatchVllm(unittest.TestCase):
@@ -28,9 +28,9 @@ class TestPatchVllm(unittest.TestCase):
         if 'vllm_ascend' in sys.modules:
             del sys.modules['vllm_ascend']
 
-    @patch("modelevalstate.patch.patch_vllm.add_patch")
-    @patch("modelevalstate.patch.patch_vllm.check_flag")
-    @patch("modelevalstate.patch.patch_vllm.logger")
+    @patch("ms_serviceparam_optimizer.patch.patch_vllm.add_patch")
+    @patch("ms_serviceparam_optimizer.patch.patch_vllm.check_flag")
+    @patch("ms_serviceparam_optimizer.patch.patch_vllm.logger")
     @patch("pathlib.Path.exists")
     def test_patch_not_applied(self, mock_exists, mock_logger, mock_check_flag, mock_add_patch):
         """测试需要打补丁的场景"""
@@ -45,9 +45,9 @@ class TestPatchVllm(unittest.TestCase):
             # 调用方法
             PatchVllm.patch()
 
-    @patch("modelevalstate.patch.patch_vllm.add_patch")
-    @patch("modelevalstate.patch.patch_vllm.check_flag")
-    @patch("modelevalstate.patch.patch_vllm.logger")
+    @patch("ms_serviceparam_optimizer.patch.patch_vllm.add_patch")
+    @patch("ms_serviceparam_optimizer.patch.patch_vllm.check_flag")
+    @patch("ms_serviceparam_optimizer.patch.patch_vllm.logger")
     @patch("pathlib.Path.exists")
     def test_patch_already_applied(self, mock_exists, mock_logger, mock_check_flag, mock_add_patch):
         """测试补丁已存在的场景"""
@@ -65,8 +65,8 @@ class TestPatchVllm(unittest.TestCase):
             # 验证没有打补丁
             mock_add_patch.assert_not_called()
 
-    @patch("modelevalstate.patch.patch_vllm.add_patch")
-    @patch("modelevalstate.patch.patch_vllm.check_flag")
+    @patch("ms_serviceparam_optimizer.patch.patch_vllm.add_patch")
+    @patch("ms_serviceparam_optimizer.patch.patch_vllm.check_flag")
     @patch("pathlib.Path.exists")
     def test_vllm_path_handling(self, mock_exists, mock_check_flag, mock_add_patch):
         """测试不同vllm路径的处理"""

@@ -24,18 +24,18 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modelevalstate.config.config import (
+from ms_serviceparam_optimizer.config.config import (
     BenchMarkPolicy, DeployPolicy, field_to_param, get_settings,
     default_support_field, PerformanceIndex, OptimizerConfigField, 
 )
-from modelevalstate.config.model_config import MindieModelConfig
-from modelevalstate.config.base_config import (
+from ms_serviceparam_optimizer.config.model_config import MindieModelConfig
+from ms_serviceparam_optimizer.config.base_config import (
     EnginePolicy, DeployPolicy, AnalyzeTool,
     ServiceType, BenchMarkPolicy, PDPolicy
 )
-from modelevalstate.optimizer.optimizer import PSOOptimizer, plugin_main, arg_parse
-from modelevalstate.optimizer.experience_fine_tunning import StopFineTune
-from modelevalstate.optimizer.plugins.simulate import VllmSimulator
+from ms_serviceparam_optimizer.optimizer.optimizer import PSOOptimizer, plugin_main, arg_parse
+from ms_serviceparam_optimizer.optimizer.experience_fine_tunning import StopFineTune
+from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
 
 
 @pytest.fixture
@@ -54,67 +54,67 @@ def generate_store(tmpdir):
         97.3381163,110.01047340000001,96.42427740000001,0.0196638,0.3387629,0.493587,0.9246494000000001,
         19.2875,2.0,20.0,20.0,20.0,20.0,116.1429,104.0,119.0,118.0,118.0,118.66,118,20,673,579294,
         False,0,1,1000,0,,,2.3926191461362146e+65,qwen3-8b,
-        /data/ModelEvalState/datasets/short_input_64_2k.jsonl,Simulator""",
+        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator""",
         """1983.8449,0.3056046,0.0532928,1.0,7.7568,1.0516901,0.0407746,0.4211261,0.46272840000000004,
         0.5370466,0.7059757,1.26e-05,0.049732399999999996,0.0842894,0.17034649999999998,3.632,2.0,8.0,
         4.0,5.0,7.0,89.0854,28.0,126.0,110.0,117.9,125.19,493,296,580,350200,False,1,0,1000,8,,,
-        3.858581664468014,qwen3-8b,/data/ModelEvalState/datasets/short_input_64_2k.jsonl,Simulator""",
+        3.858581664468014,qwen3-8b,/data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator""",
         """1719.4973,0.30205509999999997,0.045293799999999995,1.0,6.7237,0.6956194,0.0435473,0.4166629,
         0.45262670000000005,0.5302,0.454728,1.2800000000000001e-05,0.042326,0.051689,0.1506695,
         3.1847,2.0,7.0,4.0,5.0,6.0,69.519,28.0,96.0,82.0,90.0,95.22,493,296,580,350200,False,1,0,1000,
-        7,,,4.22999054887793,qwen3-8b,/data/ModelEvalState/datasets/short_input_64_2k.jsonl,Simulator""",
+        7,,,4.22999054887793,qwen3-8b,/data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator""",
         """2628.1846,0.3350128,0.14603380000000002,1.0,10.276,0.7852948,0.0529368,0.4539578,0.5215298,
         0.6312122,0.445232,1.4999999999999999e-05,0.1741628,0.23369720000000002,0.3331318,5.2632,1.0,
         10.0,6.0,7.0,9.0,336.7906,71.0,487.0,418.0,459.4,484.24,493,296,580,350200,False,1,0,1000,12,,,
-        98.08625743412847,qwen3-8b,/data/ModelEvalState/datasets/short_input_64_2k.jsonl,Simulator""",
+        98.08625743412847,qwen3-8b,/data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator""",
         """1973.7498,0.2979828,0.0526314,1.0,7.7173,0.6064501,0.038523499999999995,0.41426260000000004,
         0.4516434,0.5381849,0.6366436,1.2800000000000001e-05,0.0486303,0.0840513,0.17018960000000002,
         3.5461,1.0,8.0,4.0,5.0,7.0,88.7778,27.0,123.0,107.0,115.0,122.2,613,228,430,344700,False,1,3,1000,
-        8,,,3.858610905842756,qwen3-8b,/data/ModelEvalState/datasets/short_input_64_2k.jsonl,Simulator""",
+        8,,,3.858610905842756,qwen3-8b,/data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator""",
         """1733.9595,0.2985424,0.0468999,1.0,6.7796,0.7885291,0.0356113,0.4122982,0.4491465,0.5274601999999999,
         0.36779480000000003,1.31e-05,0.0435739,0.0623085,0.1526414,3.1881,1.0,7.0,4.0,5.0,6.0,73.7917,25.0,100.0,
         86.25,92.9,99.29,613,228,430,344700,False,1,3,1000,7,,,4.220650109401511,qwen3-8b,
-        /data/ModelEvalState/datasets/short_input_64_2k.jsonl,Simulator""",
+        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator""",
         """2593.1693,0.3375048,0.1625388,1.0,10.1381,0.7262981,0.057505099999999996,0.4546796,
         0.5310524,0.6384890000000001,0.5680927,1.35e-05,0.198526,0.2595833,0.36268700000000004,
         5.3476,3.0,11.0,6.0,7.0,9.0,397.1239,61.0,591.0,499.5,555.4,587.62,613,228,430,344700,
         False,1,3,1000,12,,,259.53835449706077,qwen3-8b,
-        /data/ModelEvalState/datasets/short_input_64_2k.jsonl,Simulator""",
+        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator""",
         """2060.1813,0.49612459999999997,0.0503404,1.0,7.6264,1.1575395000000002,0.0538583,
         0.7074349999999999,0.7941196,0.903362,0.5112064,1.3e-05,0.0469313,0.0518141,0.196128,
         6.0729,3.0,11.0,7.0,8.0,10.0,90.7671,30.0,121.0,106.0,113.8,120.28,969,139,650,670600,
         False,0,3,1000,8,,,3.98983999087121,qwen3-8b,
-        /data/ModelEvalState/datasets/short_input_64_2k.jsonl,Simulator""",
+        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator""",
         """1745.8056,0.49327150000000003,0.0438012,1.0,6.8259,0.9928296,0.0596509,0.7072557,
         0.787812,0.8864957000000001,0.3891669,1.32e-05,0.041196199999999995,0.045159,0.1718553,
         5.4845,3.0,10.0,6.0,7.0,9.0,73.88,26.0,102.0,84.5,94.6,101.26,969,139,650,670600,False,0,
         3,1000,7,,,4.283805244651319,qwen3-8b,
-        /data/ModelEvalState/datasets/short_input_64_2k.jsonl,Simulator""",
+        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator""",
         """2407.8866,0.5219253,0.07873909999999999,1.0,9.4147,1.0784282,0.0694427,0.7191335,
         0.8201502,0.9298464,0.6178497,1.21e-05,0.0737019,0.097402,0.26629450000000005,7.5567,
         2.0,13.0,8.0,10.0,12.0,168.3263,44.0,223.0,200.5,213.6,222.06,969,139,650,670600,
         False,0,3,1000,10,,,4.754963590692261,
-        qwen3-8b,/data/ModelEvalState/datasets/short_input_64_2k.jsonl,Simulator""",
+        qwen3-8b,/data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator""",
         """1246.1593,0.4876233,0.0344552,1.0,4.8728,1.2842791,0.0470783,0.7252981,
         0.7706660000000001,0.86063,0.5466711000000001,1.23e-05,0.0328953,0.0346846,
         0.1309505,4.0541,1.0,8.0,5.0,6.0,7.0,42.0455,15.0,54.0,46.25,49.0,53.13,969,139,
         650,670600,False,0,3,1000,5,,,5.706182639610976,qwen3-8b,
-        /data/ModelEvalState/datasets/short_input_64_2k.jsonl,Simulator""",
+        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator""",
         """1966.4359,0.4968034,0.0497617,1.0,7.6895,1.0411084000000002,0.0623178,
         0.7018625,0.7927137,0.9036163,0.4520387,1.31e-05,0.0463816,0.051256100000000006,
         0.1904178,6.0852,4.0,11.0,7.0,8.0,10.0,89.8289,33.0,122.0,104.0,114.5,121.25,
         743,154,640,670600,False,0,1,1000,8,,,3.952181054954989,qwen3-8b,
-        /data/ModelEvalState/datasets/short_input_64_2k.jsonl,Simulator""",
+        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator""",
         """2157.4913,0.5037943,0.0586365,1.0,8.435,1.2262198,0.062042299999999995,
         0.7029421,0.8011816,0.9243581000000001,0.5565085000000001,1.3e-05,0.0547994,
         0.061973,0.2205356,6.7114,4.0,12.0,8.0,9.0,11.0,114.7286,31.0,155.0,136.75,
         147.1,153.62,743,154,640,670600,False,0,1,1000,9,,,3.870976410628638,
-        qwen3-8b,/data/ModelEvalState/datasets/short_input_64_2k.jsonl,Simulator""",
+        qwen3-8b,/data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator""",
         """1503.396,0.4886381,0.0381119,1.0,5.8787,0.9642645,0.050871400000000004,
         0.7220547,0.7747441,0.8654031,0.4425547,1.2800000000000001e-05,0.0362437,
         0.0388145,0.1474528,4.7771,3.0,10.0,5.0,6.0,8.0,55.6761,24.0,71.0,61.0,
         65.0,70.3,743,154,640,670600,False,0,1,1000,6,,,4.829008909894092,qwen3-8b,
-        /data/ModelEvalState/datasets/short_input_64_2k.jsonl,Simulator"""
+        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator"""
     ]
     columns = datas[0].replace('\n', '').replace(' ', '').split(',')
     rows = [row.split(',') for row in datas[1:]]
@@ -142,46 +142,46 @@ def generate_store2(tmpdir):
         1.7559865,2.2709803,4.264462900000001,0.9048023,1.78e-05,0.048797,0.054466099999999996,
         0.24111259999999998,8.4661,1.0,10.0,10.0,10.0,10.0,111.3077,66.0,128.0,119.25,122.0,126.98,200,
         10,600,50,True,5000,1,1,0,nan,nan,,,434.9610929489136,True,30.239561616685595,qwen2.5,
-        /data/ModelEvalState/datasets/short_input_64_2k.jsonl,3000,256,Simulator""",
+        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,3000,256,Simulator""",
         """1810.5347,0.1802269,0.1273566,0.9990000000000001,7.3775,0.6179893,0.0340387,0.222336,
         0.2489846,0.350022,41.6759139,1.8100000000000003e-05,0.0439948,0.0745859,0.1728956,
         2.0885,1.0,6.0,3.0,3.0,5.0,70.0864,14.0,86.0,86.0,86.0,86.0,86,39,330,390,False,
         153900,3,0,35,1000,8.604645000000001,,,512.5828998088837,True,36.193461882497374,
-        qwen2.5,/data/ModelEvalState/datasets/short_input_64_2k.jsonl,3000,256,Simulator""",
+        qwen2.5,/data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,3000,256,Simulator""",
         """,,,,,,,,,,,,,,,,,,,,,,,,,,,86,39,330,390,False,153900,3,0,35,1000,1.9483841859300024,
         The current runtime is more than twice the duration of the first run.,,872.4831893444061,
-        True,inf,qwen2.5,/data/ModelEvalState/datasets/short_input_64_2k.jsonl,3000,256,Simulator""",
+        True,inf,qwen2.5,/data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,3000,256,Simulator""",
         """2319.1496,0.43147620000000003,0.0591992,0.9990000000000001,9.474,1.3781652999999998,
         0.0527782,0.6037235,0.6838597,0.7894299,0.8658081,1.8200000000000002e-05,0.0577695,
         0.07392789999999999,0.2155833,6.6308,2.0,146.0,7.0,8.0,10.0,114.0842,30.0,162.0,140.5,
         154.6,161.06,181,94,890,980,False,555700,3,2,166,1000,10.34502,,,472.5490171909332,True,
-        4.623869543910539,qwen2.5,/data/ModelEvalState/datasets/short_input_64_2k.jsonl,3000,256,Simulator""",
+        4.623869543910539,qwen2.5,/data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,3000,256,Simulator""",
         """2181.9876,0.426743,0.050761099999999997,0.9990000000000001,8.9273,0.9393971,0.0614861,
         0.6018292000000001,0.6744909,0.7756989999999999,0.6022356,1.7999999999999997e-05,0.048820300000000004,
         0.056043,0.1932687,5.9701,1.0,11.0,7.0,8.0,10.0,97.4,17.0,136.0,119.25,127.1,134.42,181,94,890,980,
         False,555700,3,2,166,1000,9.393360920160001,,,442.7061245441437,True,4.656442391641238,qwen2.5,
-        /data/ModelEvalState/datasets/short_input_64_2k.jsonl,3000,256,Simulator""",
+        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,3000,256,Simulator""",
         """2705.9621,0.514597,0.0992732,0.9990000000000001,11.0497,1.0416181,0.0828408,0.7071916,0.8129012,
         0.9275639999999999,0.4548811,1.84e-05,0.1052222,0.1670604,0.3017118,8.7632,3.0,15.0,10.0,11.0,
         13.0,234.6018,22.0,366.0,302.0,335.0,357.8,445,210,70,170,False,646300,0,2,55,1000,12.79383,,,
-        380.01217889785767,True,9.403965887786503,qwen2.5,/data/ModelEvalState/datasets/short_input_64_2k.jsonl,
+        380.01217889785767,True,9.403965887786503,qwen2.5,/data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,
         3000,256,Simulator""",
         """1569.3499,0.47306909999999996,0.03462,0.9990000000000001,6.4296,0.9368759999999999,
         0.051654200000000004,0.6978179999999999,0.7497718,0.8353029000000001,0.4186953,
         1.8100000000000003e-05,0.033464100000000004,0.0365732,0.1395875,4.9867,2.0,10.0,6.0,7.0,
         9.0,50.8523,8.0,72.0,59.25,65.0,71.13,445,210,70,170,False,646300,0,2,55,1000,6.48990055644,,,
-        576.2215044498444,True,6.108580632749877,qwen2.5,/data/ModelEvalState/datasets/short_input_64_2k.jsonl,
+        576.2215044498444,True,6.108580632749877,qwen2.5,/data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,
         3000,256,Simulator""",
         """2566.7401,0.5480697999999999,0.0736538,0.9990000000000001,10.5049,1.1309966999999999,0.0664723,
         0.7539478000000001,0.8749999,0.9987252,2.0093673,1.7899999999999998e-05,0.07268770000000001,
         0.09044840000000001,0.2738134,8.9731,6.0,15.0,10.0,11.0,13.0,160.7815,29.0,224.0,197.5,215.2,
         224.0,224,70,850,650,False,724300,3,0,202,1000,11.36709,,,394.799791097641,True,5.104055938300174,
-        qwen2.5,/data/ModelEvalState/datasets/short_input_64_2k.jsonl,3000,256,Simulator""",
+        qwen2.5,/data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,3000,256,Simulator""",
         """2033.3873,0.5258246000000001,0.044589199999999996,0.9990000000000001,8.319,1.1236912,0.0649515,
         0.7391481,0.8455796,0.9509563000000001,0.5170958000000001,1.7999999999999997e-05,0.0429984,0.0479505,
         0.18713370000000001,6.9698,4.0,13.0,8.0,9.0,11.71,81.7692,27.0,117.0,98.0,107.3,114.69,224,70,850,650,
         False,724300,3,0,202,1000,8.678341265579999,,,468.3717620372772,True,4.964495470257898,qwen2.5,
-        /data/ModelEvalState/datasets/short_input_64_2k.jsonl,3000,256,Simulator"""
+        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,3000,256,Simulator"""
 
     ]
     columns = datas[0].replace('\n', '').replace(' ', '').split(',')
@@ -354,7 +354,7 @@ class TestPSOOptimizer:
         return PSOOptimizer(MagicMock(), target_field=default_support_field)
 
 
-@patch("modelevalstate.config.config.field_to_param", )
+@patch("ms_serviceparam_optimizer.config.config.field_to_param", )
 def test_refine_optimization_candidates(field_to_param_patch):
     field_to_param_patch.side_effect = [[3, 4], [7, 1]]
     pso = PSOOptimizer(MagicMock(), target_field=default_support_field)
@@ -376,7 +376,7 @@ def test_refine_optimization_candidates(field_to_param_patch):
     assert len(res) == 3
 
 
-@patch("modelevalstate.config.config.field_to_param", )
+@patch("ms_serviceparam_optimizer.config.config.field_to_param", )
 def test_refine_optimization_candidates_last_concurrency(field_to_param_patch):
     field_to_param_patch.side_effect = [[3, 4], [7, 1], [2, 5], [3, 1], [2, 6], [9, 1]]
     my_support_field = [
@@ -436,8 +436,8 @@ def test_refine_optimization_candidates_last_concurrency(field_to_param_patch):
     assert len(res) == 2
 
 
-@patch("modelevalstate.optimizer.optimizer.is_mindie", return_value=True)
-@patch("modelevalstate.config.model_config.MindieModelConfig")
+@patch("ms_serviceparam_optimizer.optimizer.optimizer.is_mindie", return_value=True)
+@patch("ms_serviceparam_optimizer.config.model_config.MindieModelConfig")
 def test_prepare(mock_mindie_model_config, mock_is_mindie, mindie_config_file):
     optimizer = PSOOptimizer(MagicMock(), target_field=default_support_field[:5])
     with open(mindie_config_file, 'r') as f:
@@ -470,10 +470,10 @@ def test_run_plugin():
                                          success_rate=1)
     # 模拟prepare方法
 
-    with patch('modelevalstate.optimizer.global_best_custom.CustomGlobalBestPSO',
+    with patch('ms_serviceparam_optimizer.optimizer.global_best_custom.CustomGlobalBestPSO',
                            autospec=True) as mock_custom_global_best_pso:
         # 模拟enable_simulate上下文管理器
-        with patch('modelevalstate.optimizer.optimizer.enable_simulate',
+        with patch('ms_serviceparam_optimizer.optimizer.optimizer.enable_simulate',
                                autospec=True) as mock_enable_simulate:
             custom_global_instance = mock_custom_global_best_pso.return_value
             custom_global_instance.optimize.return_value = (100, [200, 10, 100])
@@ -503,9 +503,9 @@ def test_run_plugin():
             optimizer.scheduler.data_storage.get_best_result.assert_called_once()
 
 
-@patch("modelevalstate.optimizer.optimizer.PSOOptimizer")
-@patch("modelevalstate.optimizer.scheduler.Scheduler")
-@patch("modelevalstate.optimizer.scheduler.ScheduleWithMultiMachine")
+@patch("ms_serviceparam_optimizer.optimizer.optimizer.PSOOptimizer")
+@patch("ms_serviceparam_optimizer.optimizer.scheduler.Scheduler")
+@patch("ms_serviceparam_optimizer.optimizer.scheduler.ScheduleWithMultiMachine")
 def test_plugin_main(scheduler_multi, scheduler, psooptimizer):
     args = MagicMock()
     args.benchmark_policy = BenchMarkPolicy.vllm_benchmark.value
@@ -515,9 +515,9 @@ def test_plugin_main(scheduler_multi, scheduler, psooptimizer):
     args.engine = EnginePolicy.vllm.value
  
     # 调用被测试的方法
-    with patch("modelevalstate.optimizer.register.register_simulator"):
+    with patch("ms_serviceparam_optimizer.optimizer.register.register_simulator"):
         # 模拟 simulates 字典，确保 'vllm' 对应的模拟器类存在
-        with patch("modelevalstate.optimizer.optimizer.simulates", {'vllm': VllmSimulator}):
+        with patch("ms_serviceparam_optimizer.optimizer.optimizer.simulates", {'vllm': VllmSimulator}):
             with patch("shutil.which", return_value="path/to/benchmark"):
                 plugin_main(args)
     
@@ -526,7 +526,7 @@ def test_plugin_main(scheduler_multi, scheduler, psooptimizer):
 
 
 def test_best_params(generate_store):
-    from modelevalstate.optimizer.experience_fine_tunning import FineTune
+    from ms_serviceparam_optimizer.optimizer.experience_fine_tunning import FineTune
     optimizer_result = pd.read_csv(generate_store)
     my_support_field = [
     # max batch size 最小值要大于max_prefill_batch_size的最大值。
@@ -645,7 +645,7 @@ def test_best_params(generate_store):
 
 
 def test_best_params2(generate_store2):
-    from modelevalstate.optimizer.experience_fine_tunning import FineTune
+    from ms_serviceparam_optimizer.optimizer.experience_fine_tunning import FineTune
     optimizer_result = pd.read_csv(generate_store2)
     my_support_field = [
     # max batch size 最小值要大于max_prefill_batch_size的最大值。
@@ -752,7 +752,7 @@ def test_mindie_prepare_valid_input():
 
 
 class TestArgParse(unittest.TestCase):
-    @patch('modelevalstate.plugins.load_general_plugins')
+    @patch('ms_serviceparam_optimizer.plugins.load_general_plugins')
     def test_arg_parse_with_plugin(self, mock_load_general_plugins):
         mock_load_general_plugins.return_value = True
         parser = argparse.ArgumentParser()
@@ -761,7 +761,7 @@ class TestArgParse(unittest.TestCase):
         args = parser.parse_args(['optimizer'])
         self.assertEqual(args.func, plugin_main)
 
-    @patch('modelevalstate.plugins.load_general_plugins')
+    @patch('ms_serviceparam_optimizer.plugins.load_general_plugins')
     def test_arg_parse_with_load_breakpoint(self, mock_load_general_plugins):
         mock_load_general_plugins.return_value = True
         parser = argparse.ArgumentParser()
@@ -770,7 +770,7 @@ class TestArgParse(unittest.TestCase):
         args = parser.parse_args(['optimizer', '--load_breakpoint'])
         self.assertTrue(args.load_breakpoint)
 
-    @patch('modelevalstate.plugins.load_general_plugins')
+    @patch('ms_serviceparam_optimizer.plugins.load_general_plugins')
     def test_arg_parse_with_backup(self, mock_load_general_plugins):
         mock_load_general_plugins.return_value = True
         parser = argparse.ArgumentParser()
@@ -779,7 +779,7 @@ class TestArgParse(unittest.TestCase):
         args = parser.parse_args(['optimizer', '--backup'])
         self.assertTrue(args.backup)
 
-    @patch('modelevalstate.plugins.load_general_plugins')
+    @patch('ms_serviceparam_optimizer.plugins.load_general_plugins')
     def test_arg_parse_with_deploy_policy(self, mock_load_general_plugins):
         mock_load_general_plugins.return_value = True
         parser = argparse.ArgumentParser()
@@ -788,7 +788,7 @@ class TestArgParse(unittest.TestCase):
         args = parser.parse_args(['optimizer', '--deploy_policy', 'single'])
         self.assertEqual(args.deploy_policy, 'single')
 
-    @patch('modelevalstate.plugins.load_general_plugins')
+    @patch('ms_serviceparam_optimizer.plugins.load_general_plugins')
     def test_arg_parse_with_pd(self, mock_load_general_plugins):
         mock_load_general_plugins.return_value = True
         parser = argparse.ArgumentParser()

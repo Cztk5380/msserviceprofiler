@@ -17,9 +17,9 @@ import unittest
 from unittest.mock import patch, MagicMock, call
 import pandas as pd
 import numpy as np
-from modelevalstate.data_feature.dataset import MyDataSet
-from modelevalstate.inference.constant import OpAlgorithm
-from modelevalstate.inference.data_format_v1 import (
+from ms_serviceparam_optimizer.data_feature.dataset import MyDataSet
+from ms_serviceparam_optimizer.inference.constant import OpAlgorithm
+from ms_serviceparam_optimizer.inference.data_format_v1 import (
     MODEL_OP_FIELD,
     MODEL_STRUCT_FIELD,
     MODEL_CONFIG_FIELD,
@@ -27,9 +27,9 @@ from modelevalstate.inference.data_format_v1 import (
     ENV_FIELD,
     HARDWARE_FIELD,
 )
-from modelevalstate.inference.dataset import TOTAL_OUTPUT_LENGTH, \
+from ms_serviceparam_optimizer.inference.dataset import TOTAL_OUTPUT_LENGTH, \
     TOTAL_SEQ_LENGTH, TOTAL_PREFILL_TOKEN
-from modelevalstate.data_feature.dataset_with_swifter import MyDataSetWithSwifter  
+from ms_serviceparam_optimizer.data_feature.dataset_with_swifter import MyDataSetWithSwifter  
 
 
 class TestMyDataSetWithSwifter(unittest.TestCase):
@@ -43,8 +43,8 @@ class TestMyDataSetWithSwifter(unittest.TestCase):
         })
         self.dataset = MyDataSetWithSwifter()
 
-    @patch('modelevalstate.data_feature.dataset_with_swifter.logger.debug')
-    @patch('modelevalstate.data_feature.dataset_with_swifter.MyDataSetWithSwifter.'\
+    @patch('ms_serviceparam_optimizer.data_feature.dataset_with_swifter.logger.debug')
+    @patch('ms_serviceparam_optimizer.data_feature.dataset_with_swifter.MyDataSetWithSwifter.'\
            'proprocess_with_swifter')
     def test_preprocess_dispatch_success(self, mock_process, mock_logger):
         """测试swifter预处理成功路径"""
@@ -60,10 +60,10 @@ class TestMyDataSetWithSwifter(unittest.TestCase):
         mock_process.assert_called_once_with(self.sample_data)
         self.assertEqual(result, (expected_features, expected_labels))
 
-    @patch('modelevalstate.data_feature.dataset_with_swifter.logger.error')
-    @patch('modelevalstate.data_feature.dataset_with_swifter.MyDataSetWithSwifter.'\
+    @patch('ms_serviceparam_optimizer.data_feature.dataset_with_swifter.logger.error')
+    @patch('ms_serviceparam_optimizer.data_feature.dataset_with_swifter.MyDataSetWithSwifter.'\
         'proprocess_with_swifter')
-    @patch('modelevalstate.data_feature.dataset_with_swifter.MyDataSet.preprocess_dispatch')
+    @patch('ms_serviceparam_optimizer.data_feature.dataset_with_swifter.MyDataSet.preprocess_dispatch')
     def test_preprocess_dispatch_fallback(self, mock_parent, mock_process, mock_logger):
         """测试swifter失败时回退到父类实现"""
         # 模拟swifter处理失败
@@ -80,8 +80,8 @@ class TestMyDataSetWithSwifter(unittest.TestCase):
         mock_parent.assert_called_once_with(self.sample_data)
         self.assertEqual(result, expected_fallback)
 
-    @patch('modelevalstate.data_feature.dataset_with_swifter.logger.info')
-    @patch('modelevalstate.data_feature.dataset_with_swifter.MyDataSetWithSwifter.'\
+    @patch('ms_serviceparam_optimizer.data_feature.dataset_with_swifter.logger.info')
+    @patch('ms_serviceparam_optimizer.data_feature.dataset_with_swifter.MyDataSetWithSwifter.'\
            'proprocess_with_swifter')
     def test_preprocess_dispatch_none_input(self, mock_process, mock_logger):
         """测试None输入直接回退父类"""

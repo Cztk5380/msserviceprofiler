@@ -20,9 +20,9 @@ import numpy as np
 import pytest
 import torch
 
-from modelevalstate.inference.constant import BatchStage
-from modelevalstate.inference.simulate import ServiceField
-from modelevalstate.inference.simulate_vllm import SimulateVllm
+from ms_serviceparam_optimizer.inference.constant import BatchStage
+from ms_serviceparam_optimizer.inference.simulate import ServiceField
+from ms_serviceparam_optimizer.inference.simulate_vllm import SimulateVllm
 
 
 class TestGenerateFeatures:

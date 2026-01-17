@@ -25,11 +25,11 @@ import yaml
 import pytest
 import requests
 from msguard import GlobalConfig
-import modelevalstate
-from modelevalstate.config.config import get_settings, OptimizerConfigField, KubectlConfig, \
+import ms_serviceparam_optimizer
+from ms_serviceparam_optimizer.config.config import get_settings, OptimizerConfigField, KubectlConfig, \
         MindieConfig
-from modelevalstate.optimizer.simulator import enable_simulate_old
-from modelevalstate.optimizer.plugins.simulate import Simulator, DisaggregationSimulator
+from ms_serviceparam_optimizer.optimizer.simulator import enable_simulate_old
+from ms_serviceparam_optimizer.optimizer.plugins.simulate import Simulator, DisaggregationSimulator
 
 
 
@@ -103,7 +103,7 @@ def test_enable_simulate_with_simulator(tmpdir, monkeypatch):
     get_settings().mindie.config_path = config_path
     get_settings().mindie.config_bak_path = Path(tmpdir).joinpath("config_bak.json")
     simulator = Simulator(get_settings().mindie)
-    monkeypatch.setattr(modelevalstate.optimizer.simulator, "simulate_flag", True)
+    monkeypatch.setattr(ms_serviceparam_optimizer.optimizer.simulator, "simulate_flag", True)
     with enable_simulate_old(simulator) as flag:
         with open(config_path, 'r') as f:
             data = json.load(f)
@@ -139,7 +139,7 @@ def test_enable_simulate_with_simulator_plugin_params_exists(tmpdir, monkeypatch
     get_settings().mindie.config_path = config_path
     get_settings().mindie.config_bak_path = Path(tmpdir).joinpath("config_bak.json")
     simulator = Simulator(get_settings().mindie)
-    monkeypatch.setattr(modelevalstate.optimizer.simulator, "simulate_flag", True)
+    monkeypatch.setattr(ms_serviceparam_optimizer.optimizer.simulator, "simulate_flag", True)
     with enable_simulate_old(simulator) as flag:
         with open(config_path, 'r') as f:
             data = json.load(f)
@@ -258,13 +258,13 @@ class TestDisaggregationSimulator(unittest.TestCase):
         DisaggregationSimulator.set_config(origin_config, "a.d.0.c.e", 4)
         assert origin_config["a"]["d"][0]["c"]["e"] == 4
 
-    @patch('modelevalstate.optimizer.plugins.simulate.logger')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.logger')
     def test_is_int(self, mock_logger):
         # 测试is_int方法
         self.assertTrue(DisaggregationSimulator.is_int('123'))
         self.assertFalse(DisaggregationSimulator.is_int('abc'))
 
-    @patch('modelevalstate.optimizer.plugins.simulate.logger')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.logger')
     def test_stop(self, mock_logger):
         # 测试stop方法
         mindie_config = KubectlConfig()
@@ -348,7 +348,7 @@ class TestDisaggregationSimulator(unittest.TestCase):
             pd_config_data = json.load(f)
             self.assertEqual(pd_config_data["default_p_rate"], 2)
 
-    @patch('modelevalstate.optimizer.plugins.simulate.DisaggregationSimulator.test_curl')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.DisaggregationSimulator.test_curl')
     @patch('msguard.security.io.open_s')
     def test_health(self, mock_open, mock_test_curl):
         # Arrange
@@ -375,9 +375,9 @@ class TestDisaggregationSimulator(unittest.TestCase):
         mock_test_curl.assert_called_once()
         GlobalConfig.reset()
     
-    @patch('modelevalstate.optimizer.plugins.simulate.DisaggregationSimulator.update_config')
-    @patch('modelevalstate.optimizer.plugins.simulate.DisaggregationSimulator.start_server')
-    @patch('modelevalstate.optimizer.plugins.simulate.logger')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.DisaggregationSimulator.update_config')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.DisaggregationSimulator.start_server')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.logger')
     def test_run(self, mock_logger, mock_start_server, mock_update_config):
         # Arrange
         mindie_config = KubectlConfig()

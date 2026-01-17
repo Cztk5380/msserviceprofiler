@@ -16,7 +16,7 @@
 from unittest.mock import patch
 import pytest
 
-from modelevalstate.config.custom_command import VllmCommand
+from ms_serviceparam_optimizer.config.custom_command import VllmCommand
 
 
 class MockVllmCommandConfig:

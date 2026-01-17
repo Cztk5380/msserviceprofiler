@@ -25,7 +25,7 @@ import sqlite3
 import pandas as pd
 import numpy as np
 
-from modelevalstate.train.source_to_train import (
+from ms_serviceparam_optimizer.train.source_to_train import (
     DatabaseConnector,
     source_to_model,
     req_decodetimes,

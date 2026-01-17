@@ -16,8 +16,8 @@
 
 import argparse
 from msservice_advisor.msservice_advisor import advisor
-from modelevalstate.modelevalstate.optimizer import optimizer
-from modelevalstate.modelevalstate.train import source_to_train
+from ms_serviceparam_optimizer.ms_serviceparam_optimizer.optimizer import optimizer
+from ms_serviceparam_optimizer.ms_serviceparam_optimizer.train import source_to_train
 from ms_service_profiler.ms_service_profiler_ext import compare, split, analyze
 
 

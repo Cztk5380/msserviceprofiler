@@ -25,12 +25,12 @@ import pytest
 import numpy as np
 import torch
 
-from modelevalstate.config.config import get_settings
-from modelevalstate.inference.simulate import (
+from ms_serviceparam_optimizer.config.config import get_settings
+from ms_serviceparam_optimizer.inference.simulate import (
     Simulate, predict_queue, ServiceField, FileLogger, write_file, 
     signal_handler, sub_thread
 )
-from modelevalstate.inference.data_format_v1 import BatchField, RequestField
+from ms_serviceparam_optimizer.inference.data_format_v1 import BatchField, RequestField
 
 
 class TestWriteFileFunction:
@@ -164,7 +164,7 @@ class TestSignalHandler:
             mock_thread = MagicMock()
             mock_thread.is_alive.return_value = False
             
-            with patch('modelevalstate.inference.simulate.sub_thread', mock_thread):
+            with patch('ms_serviceparam_optimizer.inference.simulate.sub_thread', mock_thread):
                 signal_handler(file_logger)
             
             # 验证队列中放入None
@@ -183,7 +183,7 @@ class TestSignalHandler:
             mock_thread = MagicMock()
             mock_thread.is_alive.return_value = True
             
-            with patch('modelevalstate.inference.simulate.sub_thread', mock_thread):
+            with patch('ms_serviceparam_optimizer.inference.simulate.sub_thread', mock_thread):
                 with pytest.raises(TimeoutError, match="子线程未在指定时间完成"):
                     signal_handler(file_logger)
     
@@ -194,7 +194,7 @@ class TestSignalHandler:
             file_logger = FileLogger(file_path)
             file_logger.open_file()
             
-            with patch('modelevalstate.inference.simulate.sub_thread', None):
+            with patch('ms_serviceparam_optimizer.inference.simulate.sub_thread', None):
                 signal_handler(file_logger)
             
             # 验证队列中放入None
@@ -328,7 +328,7 @@ class TestIntegrationScenarios:
         ServiceField.request_field = (RequestField(50.0, 5, 10),) * 10
         
         # 模拟预测函数
-        with patch('modelevalstate.inference.simulate.predict_v1_with_cache') as mock_predict:
+        with patch('ms_serviceparam_optimizer.inference.simulate.predict_v1_with_cache') as mock_predict:
             mock_predict.return_value = (-1, 200000)
             
             # 第一次调用，应该调用预测函数

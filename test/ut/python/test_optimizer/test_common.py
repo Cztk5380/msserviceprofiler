@@ -17,7 +17,7 @@
 import subprocess
 import shutil
 
-from modelevalstate.common import get_module_version, get_npu_total_memory
+from ms_serviceparam_optimizer.common import get_module_version, get_npu_total_memory
 
 
 def test_module_version():

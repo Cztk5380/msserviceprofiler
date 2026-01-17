@@ -15,8 +15,8 @@
 # -------------------------------------------------------------------------
 from math import inf
 
-from modelevalstate.config.config import PerformanceIndex
-from modelevalstate.optimizer.performance_tunner import PerformanceTuner
+from ms_serviceparam_optimizer.config.config import PerformanceIndex
+from ms_serviceparam_optimizer.optimizer.performance_tunner import PerformanceTuner
 
 
 def test_minimum_algorithm():

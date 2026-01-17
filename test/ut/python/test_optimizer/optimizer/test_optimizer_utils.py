@@ -26,7 +26,7 @@ from loguru import logger
 
 from msguard import Rule, GlobalConfig
 from msguard.security import walk_s
-from modelevalstate.optimizer.utils import (
+from ms_serviceparam_optimizer.optimizer.utils import (
     remove_file,
     kill_children,
     kill_process,

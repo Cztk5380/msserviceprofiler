@@ -17,7 +17,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 import numpy as np
-from modelevalstate.optimizer.global_best_custom import CustomGlobalBestPSO
+from ms_serviceparam_optimizer.optimizer.global_best_custom import CustomGlobalBestPSO
 
 
 class TestCustomGlobalBestPSO(unittest.TestCase):
@@ -40,7 +40,7 @@ class TestCustomGlobalBestPSO(unittest.TestCase):
         self.assertIsNone(optimizer.breakpoint_cost)
         self.assertIsNone(optimizer.breakpoint_pos)
 
-    @patch('modelevalstate.optimizer.global_best_custom.compute_pbest')
+    @patch('ms_serviceparam_optimizer.optimizer.global_best_custom.compute_pbest')
     def test_init_with_breakpoints(self, mock_compute_pbest):
         """Test initialization with breakpoints"""
         breakpoint_pos = [[1, 1], [2, 2], [3, 3]]
@@ -57,7 +57,7 @@ class TestCustomGlobalBestPSO(unittest.TestCase):
         self.assertEqual(optimizer.breakpoint_cost, breakpoint_cost)
         self.assertEqual(optimizer.breakpoint_pos, breakpoint_pos)
 
-    @patch('modelevalstate.optimizer.global_best_custom.compute_pbest')
+    @patch('ms_serviceparam_optimizer.optimizer.global_best_custom.compute_pbest')
     def test_computer_next_pos_exact_particles(self, mock_compute_pbest):
         """Test computer_next_pos with exact number of particles"""
         breakpoint_pos = [[1, 1], [2, 2], [3, 3]]
@@ -74,7 +74,7 @@ class TestCustomGlobalBestPSO(unittest.TestCase):
         optimizer.computer_next_pos()
         self.assertEqual(optimizer.swarm.position.shape, (3, 2))
 
-    @patch('modelevalstate.optimizer.global_best_custom.compute_pbest')
+    @patch('ms_serviceparam_optimizer.optimizer.global_best_custom.compute_pbest')
     def test_computer_next_pos_partial_particles(self, mock_compute_pbest):
         """Test computer_next_pos with partial particles"""
         breakpoint_pos = [[1, 1], [2, 2], [3, 3], [4, 4]]
@@ -91,7 +91,7 @@ class TestCustomGlobalBestPSO(unittest.TestCase):
         optimizer.computer_next_pos()
         self.assertEqual(optimizer.swarm.position.shape, (3, 2))
 
-    @patch('modelevalstate.optimizer.global_best_custom.compute_pbest')
+    @patch('ms_serviceparam_optimizer.optimizer.global_best_custom.compute_pbest')
     def test_computer_next_pos_empty_current_cost(self, mock_compute_pbest):
         """Test computer_next_pos with empty current_cost"""
         breakpoint_pos = [[1, 1], [2, 2]]

@@ -21,8 +21,8 @@ import pytest
 import numpy as np
 import xgboost
 
-from modelevalstate.data_feature.dataset import MyDataSet
-from modelevalstate.model.xgb_state_model import StateXgbModel, plot_feature_importance, \
+from ms_serviceparam_optimizer.data_feature.dataset import MyDataSet
+from ms_serviceparam_optimizer.model.xgb_state_model import StateXgbModel, plot_feature_importance, \
     plot_pred_and_test
 
 
@@ -63,8 +63,8 @@ class TestStateXgbModel():
         assert model.show_feature_importance is False
 
     @staticmethod
-    @patch('modelevalstate.model.xgb_state_model.xgboost.Booster')
-    @patch('modelevalstate.model.xgb_state_model.xgboost.DMatrix')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.xgboost.Booster')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.xgboost.DMatrix')
     def test_predict(mock_dmatrix, mock_booster, tmp_path):
         # 创建模拟的Booster实例
         mock_model = MagicMock()
@@ -101,12 +101,12 @@ class TestStateXgbModel():
         mock_model.predict.assert_called_once_with(mock_dmatrix_instance)
 
     @staticmethod
-    @patch('modelevalstate.model.xgb_state_model.plt.show')
-    @patch('modelevalstate.model.xgb_state_model.plt.close')
-    @patch('modelevalstate.model.xgb_state_model.plt.savefig')
-    @patch('modelevalstate.model.xgb_state_model.plt.subplots')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plt.show')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plt.close')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plt.savefig')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plt.subplots')
     @patch('builtins.open', MagicMock())
-    @patch('modelevalstate.model.xgb_state_model.xgboost.plot_importance')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.xgboost.plot_importance')
     def test_plot_feature_importance(mock_plot, mock_subplots, mock_savefig, mock_close, mock_show, tmp_path):
         # 设置mock模型
         mock_model = MagicMock()
@@ -128,10 +128,10 @@ class TestStateXgbModel():
 
 
     @staticmethod
-    @patch('modelevalstate.model.xgb_state_model.xgboost.train')
-    @patch('modelevalstate.model.xgb_state_model.xgboost.DMatrix')
-    @patch('modelevalstate.model.xgb_state_model.plot_feature_importance')
-    @patch('modelevalstate.model.xgb_state_model.plot_pred_and_test')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.xgboost.train')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.xgboost.DMatrix')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plot_feature_importance')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plot_pred_and_test')
     def test_train_with_visualization(mock_plot_pred, mock_plot_feat, mock_dmatrix, mock_train, mock_dataset,
                                       tmp_path):
         # 设置mock返回
@@ -163,10 +163,10 @@ class TestStateXgbModel():
         mock_model.save_model.assert_called_once()
 
     @staticmethod
-    @patch('modelevalstate.model.xgb_state_model.xgboost.train')
-    @patch('modelevalstate.model.xgb_state_model.xgboost.DMatrix')
-    @patch('modelevalstate.model.xgb_state_model.plot_feature_importance')
-    @patch('modelevalstate.model.xgb_state_model.plot_pred_and_test')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.xgboost.train')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.xgboost.DMatrix')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plot_feature_importance')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plot_pred_and_test')
     def test_train_without_visualization(mock_plot_pred, mock_plot_feat, mock_dmatrix, mock_train, mock_dataset,
                                          tmp_path):
         # 设置mock返回
@@ -198,8 +198,8 @@ class TestStateXgbModel():
         mock_model.save_model.assert_called_once()
 
     @staticmethod
-    @patch('modelevalstate.model.xgb_state_model.xgboost.train')
-    @patch('modelevalstate.model.xgb_state_model.xgboost.DMatrix')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.xgboost.train')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.xgboost.DMatrix')
     def test_train_without_save(mock_dmatrix, mock_train, mock_dataset):
         # 设置mock返回
         mock_model = MagicMock(spec=xgboost.Booster)
@@ -221,15 +221,15 @@ class TestStateXgbModel():
         mock_model.save_model.assert_not_called()
 
     @staticmethod
-    @patch('modelevalstate.model.xgb_state_model.plt.show')
-    @patch('modelevalstate.model.xgb_state_model.plt.close')
-    @patch('modelevalstate.model.xgb_state_model.plt.savefig')
-    @patch('modelevalstate.model.xgb_state_model.plt.figure')
-    @patch('modelevalstate.model.xgb_state_model.plt.scatter')
-    @patch('modelevalstate.model.xgb_state_model.plt.title')
-    @patch('modelevalstate.model.xgb_state_model.plt.xlabel')
-    @patch('modelevalstate.model.xgb_state_model.plt.ylabel')
-    @patch('modelevalstate.model.xgb_state_model.plt.legend')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plt.show')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plt.close')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plt.savefig')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plt.figure')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plt.scatter')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plt.title')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plt.xlabel')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plt.ylabel')
+    @patch('ms_serviceparam_optimizer.model.xgb_state_model.plt.legend')
     def test_plot_pred_and_test(mock_legend, mock_ylabel, mock_xlabel, mock_title, mock_scatter, mock_figure,
                                 mock_savefig, mock_close, mock_show, tmp_path):
         # 创建模拟数据

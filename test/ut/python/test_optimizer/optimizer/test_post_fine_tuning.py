@@ -17,8 +17,8 @@ import math
 import numpy as np
 import pytest
 
-from modelevalstate.config.config import OptimizerConfigField, PerformanceIndex
-from modelevalstate.optimizer.experience_fine_tunning import FineTune, StopFineTune
+from ms_serviceparam_optimizer.config.config import OptimizerConfigField, PerformanceIndex
+from ms_serviceparam_optimizer.optimizer.experience_fine_tunning import FineTune, StopFineTune
 
 
 def test_update_field():

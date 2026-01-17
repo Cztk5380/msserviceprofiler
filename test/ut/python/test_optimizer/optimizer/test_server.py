@@ -18,10 +18,10 @@ from unittest.mock import Mock, patch, MagicMock
 import numpy as np
 import pytest
 
-from modelevalstate.config.config import CommunicationConfig, get_settings, \
+from ms_serviceparam_optimizer.config.config import CommunicationConfig, get_settings, \
     map_param_with_value, default_support_field
-from modelevalstate.optimizer.server import Scheduler
-from modelevalstate.optimizer.communication import CommunicationForFile, CustomCommand
+from ms_serviceparam_optimizer.optimizer.server import Scheduler
+from ms_serviceparam_optimizer.optimizer.communication import CommunicationForFile, CustomCommand
 
 
 def test_scheduler_init(tmpdir):
@@ -56,7 +56,7 @@ def test_backup_path_exists():
     params = "/existing/path"
     _cmd = scheduler.cmd.start
     scheduler.cmd.history = _cmd
-    with patch("modelevalstate.optimizer.server.Path") as mock_path:
+    with patch("ms_serviceparam_optimizer.optimizer.server.Path") as mock_path:
         mock_path.return_value.exists.return_value = True
         scheduler.backup(params)
 
@@ -72,7 +72,7 @@ def test_backup_path_not_exists():
     params = "/non/existing/path"
     _cmd = scheduler.cmd.start
     scheduler.cmd.history = _cmd
-    with patch("modelevalstate.optimizer.server.Path") as mock_path:
+    with patch("ms_serviceparam_optimizer.optimizer.server.Path") as mock_path:
         mock_path.return_value.exists.return_value = False
         mock_path.return_value.mkdir.return_value = None
         scheduler.backup(params)
@@ -276,7 +276,7 @@ def test_run_no_cmd():
 def test_run_unknown_cmd():
     scheduler = Scheduler(get_settings().communication)
     with patch.object(scheduler, 'get_cmd_param', return_value=('unknown_cmd', None)):
-        with patch('modelevalstate.optimizer.server.logger') as mock_logger:
+        with patch('ms_serviceparam_optimizer.optimizer.server.logger') as mock_logger:
             assert scheduler.run() == ''
             mock_logger.error.assert_called_once()
 
@@ -285,7 +285,7 @@ def test_run_no_param():
     scheduler = Scheduler(get_settings().communication)
     scheduler.command = MagicMock(return_value='result')
     with patch.object(scheduler, 'get_cmd_param', return_value=('command', None)):
-        with patch('modelevalstate.optimizer.server.getattr', return_value=scheduler.command):
+        with patch('ms_serviceparam_optimizer.optimizer.server.getattr', return_value=scheduler.command):
             assert scheduler.run() == 'result'
             scheduler.command.assert_called_once()
 
@@ -294,6 +294,6 @@ def test_run_with_param():
     scheduler = Scheduler(get_settings().communication)
     scheduler.command = MagicMock(return_value='result')
     with patch.object(scheduler, 'get_cmd_param', return_value=('command', 'param')):
-        with patch('modelevalstate.optimizer.server.getattr', return_value=scheduler.command):
+        with patch('ms_serviceparam_optimizer.optimizer.server.getattr', return_value=scheduler.command):
             assert scheduler.run() == 'result'
             scheduler.command.assert_called_once_with('param')

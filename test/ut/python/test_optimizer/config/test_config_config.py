@@ -16,7 +16,7 @@
 import unittest
 from copy import deepcopy
 import numpy as np
-from modelevalstate.config.config import map_param_with_value, OptimizerConfigField
+from ms_serviceparam_optimizer.config.config import map_param_with_value, OptimizerConfigField
 
 
 class TestMapParamWithValueRealFields(unittest.TestCase):

@@ -23,9 +23,9 @@ from unittest.mock import patch, MagicMock, mock_open
 import csv
 import pandas as pd
 from msguard import GlobalConfig
-from modelevalstate.config.config import PerformanceIndex, get_settings, AisBenchConfig, \
+from ms_serviceparam_optimizer.config.config import PerformanceIndex, get_settings, AisBenchConfig, \
     OptimizerConfigField
-from modelevalstate.optimizer.plugins.benchmark import parse_result, AisBench, VllmBenchMark
+from ms_serviceparam_optimizer.optimizer.plugins.benchmark import parse_result, AisBench, VllmBenchMark
 
 
 settings = get_settings()
@@ -148,9 +148,9 @@ models = [
 class TestAisbench:
     """使用pytest fixtures的AisBench测试类"""
 
-    @patch("modelevalstate.config.custom_command.shutil.which")
-    @patch('modelevalstate.optimizer.plugins.benchmark.AisBench.get_models_config_path')
-    @patch('modelevalstate.optimizer.plugins.benchmark.glob.glob')
+    @patch("ms_serviceparam_optimizer.config.custom_command.shutil.which")
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.benchmark.AisBench.get_models_config_path')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.benchmark.glob.glob')
     def test_get_performance_metric(self, mock_glob, mock_path, mock_which, aisbench_test_environment):
         """测试获取性能指标"""
         mock_which.return_value = "/usr/local/bin/aisbench"
@@ -164,9 +164,9 @@ class TestAisbench:
         result = AisBench(config).get_performance_metric('ttft')
         assert result == 0.1461383
 
-    @patch("modelevalstate.config.custom_command.shutil.which")
-    @patch('modelevalstate.optimizer.plugins.benchmark.AisBench.get_models_config_path')
-    @patch('modelevalstate.optimizer.plugins.benchmark.glob.glob')
+    @patch("ms_serviceparam_optimizer.config.custom_command.shutil.which")
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.benchmark.AisBench.get_models_config_path')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.benchmark.glob.glob')
     def test_get_performance_index(self, mock_glob, mock_path, mock_which, aisbench_test_environment):
         """测试获取性能索引"""
         mock_which.return_value = "/usr/local/bin/aisbench"
@@ -184,9 +184,9 @@ class TestAisbench:
         performance_index = AisBench(config).get_performance_index()
         assert performance_index.generate_speed == 1240.1267
 
-    @patch("modelevalstate.config.custom_command.shutil.which")
-    @patch('modelevalstate.optimizer.plugins.benchmark.AisBench.get_models_config_path')
-    @patch('modelevalstate.optimizer.plugins.benchmark.glob.glob')
+    @patch("ms_serviceparam_optimizer.config.custom_command.shutil.which")
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.benchmark.AisBench.get_models_config_path')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.benchmark.glob.glob')
     def test_get_best_concurrency(self, mock_glob, mock_path, mock_which, aisbench_test_environment):
         """测试获取最佳并发数"""
         mock_which.return_value = "/usr/local/bin/aisbench"
@@ -206,8 +206,8 @@ class TestAisbench:
 class TestBeforeRun:
     """使用pytest fixtures的BeforeRun测试类"""
 
-    @patch("modelevalstate.config.custom_command.shutil.which")
-    @patch('modelevalstate.optimizer.plugins.benchmark.AisBench.get_models_config_path')
+    @patch("ms_serviceparam_optimizer.config.custom_command.shutil.which")
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.benchmark.AisBench.get_models_config_path')
     def test_before_run_file_exists(self, mock_path, mock_which, before_run_test_environment):
         """测试文件存在且成功修改request_rate和batch_size的情况"""
         # 模拟导入模块
