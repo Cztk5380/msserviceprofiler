@@ -77,7 +77,7 @@ class OTLPForwarderService:
             logger.info(f"Receive KeyboardInterrupt, quit...")
             self.stop()
         except Exception as e:
-            logger.warning(f"Unexpected error occurred: {e}, quit...")
+            logger.error(f"Unexpected error occurred: {e}, quit...")
             self.stop()
 
     def stop(self):

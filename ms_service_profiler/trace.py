@@ -33,8 +33,7 @@ def main():
 
     if os.name != "nt" and os.getuid() == 0:
         logger.warning(
-            "Security Warning: Do not run this tool as root. "
-            "Running with elevated privileges may compromise system security. "
+            "Security Warning: Running with root privileges may compromise system security. "
             "Run the program as the user who runs MindIE."
         )
 
@@ -42,7 +41,7 @@ def main():
         service = OTLPForwarderService()
         service.start()
     except Exception as e:
-        logger.warning(f"Start OTLPForwarderService failed: {e}")
+        logger.error(f"Start OTLPForwarderService failed: {e}")
 
 
 if __name__ == '__main__':

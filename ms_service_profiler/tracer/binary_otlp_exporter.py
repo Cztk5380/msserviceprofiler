@@ -192,7 +192,7 @@ def create_exporter_from_env() -> Union[BinaryOTLPSpanExporter, None]:
             logger.info(f"Start {protocol} exporter, endpoint: {endpoint}")
             return _global_exporter
         except Exception as e:
-            logger.warning(f"Failed to create exporter: {str(e)}")
+            logger.error(f"Failed to create exporter: {str(e)}")
             _global_exporter = None
             return None
 
