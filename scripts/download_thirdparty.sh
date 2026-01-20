@@ -3,6 +3,9 @@
 # Copyright Huawei Technologies Co., Ltd. 2022-2022. All rights reserved.
 
 set -e
+
+pip install build
+
 CUR_DIR=$(dirname $(readlink -f $0))
 TOP_DIR=${CUR_DIR}/..
 
