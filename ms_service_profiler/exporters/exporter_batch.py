@@ -274,10 +274,10 @@ def add_columns_for_batch_size_and_tokens(batch_df):
     """
 
     BatchResult = namedtuple('BatchResult', [
-        'Prefill_batch_size',
-        'Decode_batch_size',
-        'Prefill_scheduled_tokens',
-        'Decode_scheduled_tokens',
+        'prefill_batch_size',
+        'decode_batch_size',
+        'prefill_scheduled_tokens',
+        'decode_scheduled_tokens',
         'total_scheduled_tokens'
     ])
 
@@ -340,8 +340,8 @@ def add_columns_for_batch_size_and_tokens(batch_df):
             return BatchResult(0, 0, 0, 0, 0)
 
     results = batch_df['res_list'].apply(process_res_list)
-    batch_df[['Prefill_batch_size', 'Decode_batch_size',
-              'Prefill_scheduled_tokens', 'Decode_scheduled_tokens',
+    batch_df[['prefill_batch_size', 'decode_batch_size',
+              'prefill_scheduled_tokens', 'decode_scheduled_tokens',
               'total_scheduled_tokens']] = pd.DataFrame(results.tolist(), index=batch_df.index)
 
     return batch_df
@@ -748,8 +748,8 @@ CREATE_BATCH_SIZE_VIEW_SQL = f"""
         SELECT 
             ROW_NUMBER() OVER (ORDER BY "start_datetime") - 1 AS batch_id,
             batch_size,
-            Prefill_batch_size,
-            Decode_batch_size
+            prefill_batch_size,
+            decode_batch_size
         FROM 
             batch
         WHERE 
@@ -758,8 +758,8 @@ CREATE_BATCH_SIZE_VIEW_SQL = f"""
     SELECT
         batch_id,
         batch_size as total_batch_size,
-        Prefill_batch_size,
-        Decode_batch_size
+        prefill_batch_size,
+        decode_batch_size
     FROM
         numbered_data
     ORDER BY
@@ -772,8 +772,8 @@ CREATE_BATCH_TOKEN_VIEW_SQL = f"""
         SELECT 
             ROW_NUMBER() OVER (ORDER BY "start_datetime") - 1 AS batch_id,
             total_scheduled_tokens,
-            Prefill_scheduled_tokens,
-            Decode_scheduled_tokens
+            prefill_scheduled_tokens,
+            decode_scheduled_tokens
         FROM 
             batch
         WHERE 
@@ -782,8 +782,8 @@ CREATE_BATCH_TOKEN_VIEW_SQL = f"""
     SELECT
         batch_id,
         total_scheduled_tokens,
-        Prefill_scheduled_tokens,
-        Decode_scheduled_tokens
+        prefill_scheduled_tokens,
+        decode_scheduled_tokens
     FROM
         numbered_data
     ORDER BY

@@ -194,7 +194,7 @@ class ExporterKVCacheData(ExporterBase):
                 
                 # 检测数据格式类型
                 has_old_format = ('deviceBlock=' in kvcache_df.columns and 
-                                 kvcache_df['name'].isin(['Allocate', 'AppendSlot', 'Free']).any())
+                                 kvcache_df['name'].isin(['Allocate', 'AppendSlot']).any())
                 
                 if has_old_format:
                     # 旧版采集数据处理逻辑
@@ -226,7 +226,7 @@ class ExporterKVCacheData(ExporterBase):
         if 'db' in cls.args.format or 'csv' in cls.args.format:
             # 检测数据格式类型
             has_old_format = ('deviceBlock=' in kvcache_df.columns and 
-                             kvcache_df['name'].isin(['Allocate', 'AppendSlot', 'Free']).any())
+                             kvcache_df['name'].isin(['Allocate', 'AppendSlot']).any())
             
             if has_old_format:
                 # 旧版数据格式：需要计算使用率

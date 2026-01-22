@@ -183,6 +183,26 @@ class PluginKVCacheMetrics(PluginBase):
                 metrics_df.loc[valid_mask, 'blocks_allocated'] = net_block_change[valid_mask].clip(lower=0)
                 metrics_df.loc[valid_mask, 'blocks_freed'] = (-net_block_change[valid_mask]).clip(lower=0)
 
+        # 方法2：使用 AllocatedBlocks= 计算（vLLM v1 采集的净变化量）
+        # 如果 blocks_allocated 和 blocks_freed 仍为0，尝试使用 AllocatedBlocks
+        if 'AllocatedBlocks=' in kvcache_data.columns:
+            allocated_series = kvcache_data['AllocatedBlocks=']
+            allocated_converted = pd.to_numeric(allocated_series, errors='coerce')
+            allocated_valid = allocated_converted.notna()
+
+            if allocated_valid.any():
+                allocated_values = allocated_converted[allocated_valid]
+
+                # 正值表示分配
+                positive_mask = allocated_values > 0
+                positive_indices = allocated_values[positive_mask].index
+                metrics_df.loc[positive_indices, 'blocks_allocated'] = allocated_values[positive_mask].astype(int)
+
+                # 负值表示释放
+                negative_mask = allocated_values < 0
+                negative_indices = allocated_values[negative_mask].index
+                metrics_df.loc[negative_indices, 'blocks_freed'] = (-allocated_values[negative_mask]).astype(int)
+
     @classmethod
     def _calculate_usage_rate_vectorized(cls, kvcache_data, metrics_df):
         """向量化计算使用率"""
