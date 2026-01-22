@@ -13,15 +13,12 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
-from enum import IntEnum, auto
 from collections import defaultdict
 import numpy as np
 import pandas as pd
 
 from ms_service_profiler.processor.processor_base import ProcessorBase
-from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger
-from ms_service_profiler.utils.error import KeyExcept
 
 MOE_HOT_DOMAIN_NAME = "eplb_observe"
 EXPERT_ROUTING_NAME = "expert_routing"
@@ -33,6 +30,83 @@ class ProcessorEplbObserve(ProcessorBase):
     def name(self):
         return "ProcessorEplbObserve"
 
+    def parse(self, data):
+        if data is None:
+            logger.warning("Input data is None, skip eplb_observe analysis.")
+            return None
+
+        data = [item for item in data if isinstance(item, pd.DataFrame) and not item.empty]
+
+        tx_data_df = pd.concat(data)
+
+        if tx_data_df is None:
+            logger.warning("No tx data in profiling data, skip moe eplb analysis.")
+            return None
+
+        # 从tx_data_df中筛选出专家负载对应domain域的数据
+        moe_hot_df = tx_data_df[tx_data_df["domain"] == MOE_HOT_DOMAIN_NAME]
+        if moe_hot_df.empty:
+            logger.warning("No eplb_observe data found in profiling data, skip eplb_observe analysis.")
+            return None
+
+        logger.info("Find eplb_observe data in profiling data, launch eplb observe analysis.")
+
+        # expert_hot_by_host data
+        expert_hot_by_host = defaultdict(dict)
+        expert_routing = {}
+        pod_time_stamp_dict = {}
+        for pod_name, df_by_host in moe_hot_df.groupby("hostuid"):
+            expert_routing_per_pod = defaultdict(list)
+
+            pod_time_stamp = []
+            for _, df_by_pid in df_by_host.groupby("pid"):
+                # expert_routing_by_pid shape: list: [eplb_perid][layer][instance_expert_num]
+                # expert_hot_per_pid shape: [eplb_period][iteration * layer * expert_per_rank]
+                expert_hot_per_pid, rank, expert_routing_by_pid, time_stamp = self.process_expert_hot(df_by_pid)
+                expert_hot_by_host[pod_name][rank] = expert_hot_per_pid
+                pod_time_stamp.append(time_stamp)
+                if len(expert_routing_by_pid) > 0:
+                    expert_routing_per_pod[rank] = expert_routing_by_pid
+
+            if expert_routing_per_pod:
+                expert_routing[pod_name] = expert_routing_per_pod
+
+            # 同一个pod且不同rank的timestamp会存在微小差距 取均值处理
+            certain_pod_time_stamp_avg = np.round(np.mean(np.array(pod_time_stamp), axis=0) / 1000000)
+            pod_time_stamp_dict[pod_name] = certain_pod_time_stamp_avg
+
+        # expert_hot_by_host shape: ["pod_name"]["rank"][eplb_period][iteration * layer * expert_per_rank]
+        # expert_routing shape: ["pod_name"]["rank"][eplb_period][layer][instance_expert_num]
+
+        # 获得实例instance-节点pod的映射
+        instance_pod_map = grouping_host_name(list(expert_hot_by_host.keys()))
+
+        # expert_hot_by_instance shape: ["instance_name"][rank][eplb_period][iteration][layer][expert_per_rank]
+        expert_hot_by_instance = transfer_expert_hot(expert_hot_by_host, instance_pod_map)
+        instance_time_stamp = mapping_time_stamp(pod_time_stamp_dict, instance_pod_map)
+
+        res = {
+            "time_stamp": instance_time_stamp
+        }
+
+        # 不存在路由表则直接返回
+        if not expert_routing:
+            # transposed_expert_hot shape: ["instance_name"][eplb_period][rank][iteration][layer][expert_per_rank]
+            transposed_expert_hot = {
+                key: transpose_eplb_iteration(value)
+                for key, value in expert_hot_by_instance.items()
+            }
+            res["expert_hot"] = transposed_expert_hot
+            return res
+
+        expert_map = self.mapping_expert_hot(expert_hot_by_instance, instance_pod_map, expert_routing)
+        transposed_expert_hot = {instance_name: transpose_eplb_iteration(value, len(expert_map.get(instance_name, [0])))
+                                 for instance_name, value in expert_hot_by_instance.items()}
+        res["expert_hot"] = transposed_expert_hot
+        # expert_map shape: ["instance_name][eplb_period][layer][total_expert_num]
+        res["expert_map"] = expert_map
+        return res
+
     @staticmethod
     def mapping_expert_hot(expert_hot_by_instance, instance_pod_map, expert_routing):
         # 每个instance对应的专家映射表是一致的 根据各卡的路由表 生成专家映射表
@@ -42,7 +116,7 @@ class ProcessorEplbObserve(ProcessorBase):
 
             # 每个instance的专家数 = instance中的rank数 * 每个rank的专家数
             instance_expert_num = len(expert_hot_by_instance[instance_name]) * \
-                len(expert_hot_by_instance[instance_name][0][0][0][0])
+                                  len(expert_hot_by_instance[instance_name][0][0][0][0])
 
             layer_num = len(list(expert_routing[pod_name].values())[0][0])
 
@@ -56,7 +130,7 @@ class ProcessorEplbObserve(ProcessorBase):
                 instance_expert_map.append(-np.ones([layer_num, instance_expert_num], dtype=np.int32))
 
             for pod_name in pod_name_list:
-                for _, routing_list in expert_routing[pod_name].items():
+                for rank, routing_list in expert_routing[pod_name].items():
                     instance_expert_map = update_expert_map(instance_expert_map, routing_list)
 
                 expert_map[instance_name] = instance_expert_map
@@ -94,6 +168,13 @@ class ProcessorEplbObserve(ProcessorBase):
                 split_expert_hot.append(
                     df_by_pid[(df_by_pid["markId"] > up_mark_id) & (df_by_pid["markId"] < down_mark_id)])
 
+        time_stamp = []
+        for period_data in split_expert_hot:
+            if period_data["start_time"].dtypes != "float":
+                raise ValueError("timestamp in profiling input should be number.")
+            time_stamp.append(period_data["start_time"].values[0])
+        time_stamp.append(period_data["start_time"].values[-1])
+
         # 检查rank的格式
         rank_list = list(set(df_by_pid["rank"].values.tolist()))
         if len(rank_list) != 1 or not isinstance(rank_list[0], int):
@@ -105,74 +186,7 @@ class ProcessorEplbObserve(ProcessorBase):
 
         rank = rank_list[0]
 
-        return expert_hot, rank, expert_routing_by_pid
-
-    def parse(self, data):
-        if data is None:
-            logger.warning("Input data is None, skip eplb_observe analysis.")
-            return None
-
-        data = [item for item in data if isinstance(item, pd.DataFrame) and not item.empty]
-
-        tx_data_df = pd.concat(data)
-
-        if tx_data_df is None:
-            logger.warning("No tx data in profiling data, skip moe eplb analysis.")
-            return None
-
-        # 从tx_data_df中筛选出专家负载对应domain域的数据
-        moe_hot_df = tx_data_df[tx_data_df["domain"] == MOE_HOT_DOMAIN_NAME]
-        if moe_hot_df.empty:
-            logger.warning("No eplb_observe data found in profiling data, skip eplb_observe analysis.")
-            return None
-
-        logger.info("Find eplb_observe data in profiling data, launch eplb observe analysis.")
-
-        # expert_hot_by_host data
-        expert_hot_by_host = defaultdict(dict)
-        expert_routing = {}
-        for pod_name, df_by_host in moe_hot_df.groupby("hostuid"):
-            expert_routing_per_pod = defaultdict(list)
-
-            for _, df_by_pid in df_by_host.groupby("pid"):
-                # expert_routing_by_pid shape: list: [eplb_perid][layer][instance_expert_num]
-                # expert_hot_per_pid shape: [eplb_period][iteration * layer * expert_per_rank]
-                expert_hot_per_pid, rank, expert_routing_by_pid = self.process_expert_hot(df_by_pid)
-                expert_hot_by_host[pod_name][rank] = expert_hot_per_pid
-                if len(expert_routing_by_pid) > 0:
-                    expert_routing_per_pod[rank] = expert_routing_by_pid
-
-            if expert_routing_per_pod:
-                expert_routing[pod_name] = expert_routing_per_pod
-
-        # expert_hot_by_host shape: ["pod_name"]["rank"][eplb_period][iteration * layer * expert_per_rank]
-        # expert_routing shape: ["pod_name"]["rank"][eplb_period][layer][instance_expert_num]
-
-        # 获得实例instance-节点pod的映射
-        instance_pod_map = grouping_host_name(list(expert_hot_by_host.keys()))
-
-        # expert_hot_by_instance shape: ["instance_name"][rank][eplb_period][iteration][layer][expert_per_rank]
-        expert_hot_by_instance = transfer_expert_hot(expert_hot_by_host, instance_pod_map)
-
-        res = {}
-
-        # 不存在路由表则直接返回
-        if not expert_routing:
-            # transposed_expert_hot shape: ["instance_name"][eplb_period][rank][iteration][layer][expert_per_rank]
-            transposed_expert_hot = {
-                key: transpose_eplb_iteration(value)
-                for key, value in expert_hot_by_instance.items()
-            }
-            res["expert_hot"] = transposed_expert_hot
-            return res
-
-        expert_map = self.mapping_expert_hot(expert_hot_by_instance, instance_pod_map, expert_routing)
-        transposed_expert_hot = {instance_name: transpose_eplb_iteration(value, len(expert_map.get(instance_name, [0])))
-                                 for instance_name, value in expert_hot_by_instance.items()}
-        res["expert_hot"] = transposed_expert_hot
-        # expert_map shape: ["instance_name][eplb_period][layer][total_expert_num]
-        res["expert_map"] = expert_map
-        return res
+        return expert_hot, rank, expert_routing_by_pid, time_stamp
 
 
 def transfer_hot_df_to_list(dataframe_list):
@@ -224,9 +238,19 @@ def transfer_expert_hot(expert_hot, instance_pod_map):
         for pod_name in pod_name_list:
             instance_expert_hot_dict.update(expert_hot[pod_name])
 
-        instance_expert_hot_list = [instance_expert_hot_dict.get(rank, None) \
-            for rank in sorted(instance_expert_hot_dict)]
+        instance_expert_hot_list = []
+        for rank in sorted(instance_expert_hot_dict):
+            instance_expert_hot_list.append(instance_expert_hot_dict.get(rank, None))
+
         res[instance_name] = instance_expert_hot_list
+    return res
+
+
+def mapping_time_stamp(pod_time_stamp, instance_pod_map):
+    res = {}
+    for instance_name, pod_name_list in instance_pod_map.items():
+        instance_time_stamp_avg = np.mean([pod_time_stamp.get(pod_name, 0) for pod_name in pod_name_list], axis=0)
+        res[instance_name] = instance_time_stamp_avg
     return res
 
 
