@@ -97,6 +97,7 @@ function parse_script_args() {
             let "install_path_num+=1"
             raw_path=${3#--install-path=}
             install_path="${raw_path%/}/ascend-toolkit/latest"
+            [ ! -d ${install_path} ] && mkdir -p ${install_path}
             check_path ${install_path}
             install_path=$(readlink -f ${install_path})
             check_path ${install_path}
