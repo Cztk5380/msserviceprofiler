@@ -206,8 +206,6 @@ class Scheduler:
                          f"simulator log {self.simulator.run_log}, benchmark log {self.benchmark.run_log}")
             self.error_info = e
             self.del_log = False
-        finally:
-            self.stop_target_server(self.del_log)
         return self.performance_index
 
     def run_with_request_rate(self, params: np.ndarray, params_field: Tuple[OptimizerConfigField]) -> PerformanceIndex:
@@ -256,8 +254,6 @@ class Scheduler:
                          f"simulator log {self.simulator.run_log}, benchmark log {self.benchmark.run_log}")
             self.error_info = e
             self.del_log = False
-        finally:
-            self.stop_target_server(self.del_log)
         return self.performance_index
 
 

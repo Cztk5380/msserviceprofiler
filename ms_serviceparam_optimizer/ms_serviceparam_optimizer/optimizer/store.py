@@ -74,9 +74,20 @@ class DataStorage:
             for k, v in filter_field.items():
                 # 不存在的字段 无法进行筛选
                 if k not in d:
+                    flag = True
                     continue
                 # 字段存在 但不等于目标字段，则去掉
-                if d[k].strip().lower() != v.strip().lower():
+                _d_value = d[k]
+                if isinstance(_d_value, int) and _d_value != int(v):
+                    flag = True
+                    break
+                elif isinstance(_d_value, float) and _d_value != float(v):
+                    flag = True
+                    break
+                elif isinstance(_d_value, bool) and _d_value != bool(v):
+                    flag = True
+                    break
+                elif str(_d_value).strip().lower() != str(v).strip().lower():
                     flag = True
                     break
             if flag:
