@@ -14,6 +14,7 @@
         <td>
             <a href="https://gitcode.com/mjsz11">mjsz11</a> /
             <a href="https://gitcode.com/yaohan404">yaohan404</a> /
+            <a href="https://gitcode.com/panyj1993">panyj1993</a> /
             <a href="https://gitcode.com/ChenHuiwen/">ChenHuiwen</a>
         </td>
     </tr>
@@ -40,10 +41,12 @@
         <td>
             <a href="https://gitcode.com/mjsz11">mjsz11</a> /
             <a href="https://gitcode.com/yaohan404">yaohan404</a> /
+          <a href="https://gitcode.com/panyj1993">panyj1993</a> /
             <a href="https://gitcode.com/ChenHuiwen/">ChenHuiwen</a>
         </td>
         <td>
-            <a href="https://gitcode.com/yaohan404">yaohan404</a>
+            <a href="https://gitcode.com/yaohan404">yaohan404</a> /
+          <a href="https://gitcode.com/panyj1993">panyj1993</a>
         </td>
     </tr>
 </table>
