@@ -20,7 +20,7 @@ from collections import namedtuple
 from unittest.mock import patch, MagicMock, call
 import pytest
 
-from ms_service_profiler.vllm_profiler.vllm_v1 import kvcache_hookers
+from ms_service_profiler.patcher.vllm.handlers.v1 import kvcache_handlers
 
 from .fake_ms_service_profiler import Profiler, Level
 
@@ -34,7 +34,7 @@ def test_free_given_valid_request_when_called_then_log_free():
     request = Request(request_id="req2", num_tokens=5)
     mock_original = MagicMock(return_value="result")
 
-    result = kvcache_hookers.free(mock_original, mock_this, request)
+    result = kvcache_handlers.free(mock_original, mock_this, request)
 
     mock_original.assert_called_with(mock_this, request)
     assert result == "result"
@@ -50,7 +50,7 @@ def test_get_computed_blocks_given_cache_hit_when_condition_met_then_log_hit_rat
     request = Request(request_id="req3", num_tokens=10)
     mock_original = MagicMock(return_value=(["block1", "block2"], 8))  # (blocks, num_new_computed_tokens)
 
-    result = kvcache_hookers.get_computed_blocks(mock_original, mock_this, request)
+    result = kvcache_handlers.get_computed_blocks(mock_original, mock_this, request)
 
     mock_original.assert_called_with(mock_this, request)
     assert result == (["block1", "block2"], 8)
@@ -66,7 +66,7 @@ def test_get_computed_blocks_given_insufficient_blocks_when_called_then_no_loggi
     request = Request(request_id="req4", num_tokens=10)
     mock_original = MagicMock(return_value=(["block1"],))  # Single element tuple
 
-    result = kvcache_hookers.get_computed_blocks(mock_original, mock_this, request)
+    result = kvcache_handlers.get_computed_blocks(mock_original, mock_this, request)
 
     mock_original.assert_called_with(mock_this, request)
     assert result == (["block1"],)
@@ -78,7 +78,7 @@ def test_get_computed_blocks_given_zero_tokens_when_called_then_no_logging():
     request = Request(request_id="req5", num_tokens=0)
     mock_original = MagicMock(return_value=(["block1", "block2"], 0))
 
-    result = kvcache_hookers.get_computed_blocks(mock_original, mock_this, request)
+    result = kvcache_handlers.get_computed_blocks(mock_original, mock_this, request)
 
     mock_original.assert_called_with(mock_this, request)
     assert result == (["block1", "block2"], 0)
@@ -90,7 +90,7 @@ def test_get_computed_blocks_given_negative_tokens_when_called_then_no_logging()
     request = Request(request_id="req6", num_tokens=-5)
     mock_original = MagicMock(return_value=(["block1", "block2"], 3))
 
-    result = kvcache_hookers.get_computed_blocks(mock_original, mock_this, request)
+    result = kvcache_handlers.get_computed_blocks(mock_original, mock_this, request)
 
     mock_original.assert_called_with(mock_this, request)
     assert result == (["block1", "block2"], 3)
@@ -102,7 +102,7 @@ def test_get_computed_blocks_given_no_new_tokens_when_called_then_log_zero_hit_r
     request = Request(request_id="req7", num_tokens=10)
     mock_original = MagicMock(return_value=(["block1", "block2"], 0))  # 0 new computed tokens
 
-    result = kvcache_hookers.get_computed_blocks(mock_original, mock_this, request)
+    result = kvcache_handlers.get_computed_blocks(mock_original, mock_this, request)
 
     mock_original.assert_called_with(mock_this, request)
     assert result == (["block1", "block2"], 0)

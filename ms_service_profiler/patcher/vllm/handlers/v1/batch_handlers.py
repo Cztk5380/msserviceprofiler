@@ -15,9 +15,8 @@
 # -------------------------------------------------------------------------
 from collections import Counter
 from ms_service_profiler import Profiler, Level
-from ..module_hook import vllm_hook
+from ms_service_profiler.patcher.core.module_hook import patcher
 from .utils import classify_requests, SharedHookState, create_state_getter
-from ..logger import logger
 
 
 def compare_deques(queue1, queue2):
@@ -56,7 +55,7 @@ class HookState(SharedHookState):
 _get_state = create_state_getter(HookState)
 
 
-@vllm_hook(
+@patcher(
     hook_points=[
         ("vllm.v1.core.sched.scheduler", "Scheduler.schedule"),
         ("vllm_ascend.core.scheduler", "AscendScheduler.schedule")
@@ -112,7 +111,7 @@ def schedule(original_func, this, *args, **kwargs):
     return scheduler_output
 
 
-@vllm_hook(("vllm.v1.core.sched.scheduler", "Scheduler.add_request"), min_version="0.9.1")
+@patcher(("vllm.v1.core.sched.scheduler", "Scheduler.add_request"), min_version="0.9.1")
 def add_request(original_func, this, request, *args, **kwargs):
     original_func(this, request, *args, **kwargs)
     prof_queue = Profiler(Level.INFO).domain("Schedule").res(request.request_id)

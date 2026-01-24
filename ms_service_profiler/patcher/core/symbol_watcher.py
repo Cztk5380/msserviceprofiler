@@ -17,6 +17,7 @@
 import importlib
 import importlib.abc
 import importlib.machinery as _machinery
+import sys
 from typing import Dict, Any, List, Tuple, Optional, Callable
 from .logger import logger
 from .dynamic_hook import make_default_time_hook, register_dynamic_hook
@@ -297,3 +298,31 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
             
         except Exception as e:
             logger.error(f"Failed to apply hook for symbol {symbol_path}: {e}")
+
+    def check_and_apply_existing_modules(self) -> bool:
+        """检查目标模块是否已经被导入，如果是则立即应用 hooks。
+        
+        遍历所有配置的 symbol，检查对应的模块是否已经加载，
+        如果是则立即应用相应的 hooks。
+
+        Args:
+            symbol_watcher: symbol监听器实例
+            
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.debug("Checking for already loaded modules...")
+        for _, symbol_info in self._symbol_hooks.items():
+            symbol_path = symbol_info['symbol']
+            module_path = symbol_path.split(':')[0]
+            
+            logger.debug(f"Checking module {module_path} for symbol {symbol_path}")
+            logger.debug(f"  - Module in sys.modules: {module_path in sys.modules}")
+            logger.debug(f"  - Symbol already applied: {symbol_path in self._applied_hooks}")
+            
+            # 检查模块是否已导入，且该 symbol 尚未应用
+            if module_path in sys.modules and symbol_path not in self._applied_hooks:
+                logger.debug(f"Module {module_path} already loaded, applying hooks immediately")
+                # 模拟模块加载完成事件
+                self._on_symbol_module_loaded(module_path)
+        return True

@@ -13,11 +13,8 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
-import os
-import time
-
 from ms_service_profiler import Profiler, Level
-from ..module_hook import vllm_hook
+from ms_service_profiler.patcher.core.module_hook import patcher
 
 
 def prof_add_request(request_id, prompt, *args, **kwargs):
@@ -28,7 +25,7 @@ def prof_add_request(request_id, prompt, *args, **kwargs):
 
 # generate -> add_request -> schedule -> execute_model
 # 在请求进入引擎时记录时间戳，用于后续计算队列等待时间
-@vllm_hook(
+@patcher(
     hook_points=[
         ("vllm.engine.llm_engine", "LLMEngine.add_request"),
         ("vllm.engine.async_llm_engine", "AsyncLLMEngine.add_request"),
@@ -41,19 +38,19 @@ def add_request_063(original_func, this, request_id, prompt, *args, **kwargs):
     return original_func(this, request_id, prompt, *args, **kwargs)
 
 
-@vllm_hook(("vllm.engine.llm_engine", "LLMEngine.add_request"), min_version="0.8.4")
+@patcher(("vllm.engine.llm_engine", "LLMEngine.add_request"), min_version="0.8.4")
 def add_request_084(original_func, this, request_id, prompt, *args, **kwargs):
     prof_add_request(request_id, prompt, *args, **kwargs)
     return original_func(this, request_id, prompt, *args, **kwargs)
 
 
-@vllm_hook(("vllm.engine.async_llm_engine", "AsyncLLMEngine.add_request"), min_version="0.8.4")
+@patcher(("vllm.engine.async_llm_engine", "AsyncLLMEngine.add_request"), min_version="0.8.4")
 async def add_request_async(original_func, this, request_id, prompt, *args, **kwargs):
     prof_add_request(request_id, prompt, *args, **kwargs)
     return original_func(this, request_id, prompt, *args, **kwargs)
 
 
-@vllm_hook(("vllm.engine.llm_engine", "LLMEngine._process_model_outputs"), min_version="0.8.4")
+@patcher(("vllm.engine.llm_engine", "LLMEngine._process_model_outputs"), min_version="0.8.4")
 def process_model_outputs(original_func, this, ctx, request_id=None, *args, **kwargs):
     if len(ctx.output_queue) == 0:
         return original_func(this, ctx, request_id, *args, **kwargs)
@@ -79,7 +76,7 @@ def process_model_outputs(original_func, this, ctx, request_id=None, *args, **kw
     return ret
 
 
-@vllm_hook(("vllm.engine.llm_engine", "LLMEngine.validate_output"), min_version="0.6.3", max_version="0.6.3")
+@patcher(("vllm.engine.llm_engine", "LLMEngine.validate_output"), min_version="0.6.3", max_version="0.6.3")
 def validate_output(original_func, this, output, output_type):
     profiler_recv = Profiler(Level.INFO).domain("Request")
     profiler_reply = Profiler(Level.INFO).domain("Request")

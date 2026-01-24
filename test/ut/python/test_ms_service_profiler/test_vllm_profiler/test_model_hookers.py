@@ -22,8 +22,8 @@ from collections import namedtuple
 from unittest.mock import patch, MagicMock, call
 import pytest
 
-from ms_service_profiler.vllm_profiler.vllm_v1 import model_hookers
-from ms_service_profiler.vllm_profiler.vllm_v1.utils import create_state_getter
+from ms_service_profiler.patcher.vllm.handlers.v1 import model_handlers
+from ms_service_profiler.patcher.vllm.handlers.v1.utils import create_state_getter
 
 from .fake_ms_service_profiler import Profiler, Level
 
@@ -32,7 +32,7 @@ from .fake_ms_service_profiler import Profiler, Level
 @pytest.fixture(autouse=True)
 def reset_state():
     # 重置状态获取器，以清空内部的线程本地状态
-    model_hookers._get_state = create_state_getter(model_hookers.HookState)
+    model_handlers._get_state = create_state_getter(model_handlers.HookState)
     Profiler.reset()
     yield
 
@@ -57,25 +57,25 @@ def create_request(request_id, token_count=10, computed_tokens=0):
 
 def test_get_state_given_first_call_when_no_existing_state_then_create_new_state():
     # 重新绑定获取器，确保是“第一次”获取
-    model_hookers._get_state = create_state_getter(model_hookers.HookState)
-    state = model_hookers._get_state()
-    assert isinstance(state, model_hookers.HookState)
+    model_handlers._get_state = create_state_getter(model_handlers.HookState)
+    state = model_handlers._get_state()
+    assert isinstance(state, model_handlers.HookState)
     # 再次获取应返回同一实例
-    assert model_hookers._get_state() is state
+    assert model_handlers._get_state() is state
 
 
 def test_get_state_given_existing_state_when_called_then_return_same_instance():
     # 首次获取并保存
-    state1 = model_hookers._get_state()
+    state1 = model_handlers._get_state()
     # 再次获取应返回相同实例
-    assert model_hookers._get_state() is state1
+    assert model_handlers._get_state() is state1
 
 
 def test_compute_logits_given_valid_input_when_called_then_profile_span():
     mock_original = MagicMock(return_value="logits")
     mock_this = MagicMock()
 
-    result = model_hookers.compute_logits(mock_original, mock_this, "input_ids", "scores")
+    result = model_handlers.compute_logits(mock_original, mock_this, "input_ids", "scores")
 
     mock_original.assert_called_with(mock_this, "input_ids", "scores")
     assert result == "logits"
@@ -89,7 +89,7 @@ def test_sampler_forward_given_valid_input_when_called_then_profile_span():
     mock_original = MagicMock(return_value="samples")
     mock_this = MagicMock()
 
-    result = model_hookers.sampler_forward(mock_original, mock_this, "input_ids")
+    result = model_handlers.sampler_forward(mock_original, mock_this, "input_ids")
 
     mock_original.assert_called_with(mock_this, "input_ids")
     assert result == "samples"
@@ -100,7 +100,7 @@ def test_sampler_forward_given_valid_input_when_called_then_profile_span():
 
 
 def test_execute_model_given_new_requests_when_processing_then_update_state_and_profile():
-    state = model_hookers.HookState()
+    state = model_handlers.HookState()
     req1 = create_request("req1", token_count=5)
     req2 = create_request("req2", token_count=3)
 
@@ -114,8 +114,8 @@ def test_execute_model_given_new_requests_when_processing_then_update_state_and_
 
     mock_original = MagicMock(return_value="output")
 
-    with patch.object(model_hookers, "_get_state", return_value=state):
-        result = model_hookers.execute_model(mock_original, MagicMock(), scheduler_output)
+    with patch.object(model_handlers, "_get_state", return_value=state):
+        result = model_handlers.execute_model(mock_original, MagicMock(), scheduler_output)
 
     assert result == "output"
     assert state.request_id_to_prompt_token_len == {"req1": 5, "req2": 3}
@@ -141,7 +141,7 @@ def test_execute_model_given_new_requests_when_processing_then_update_state_and_
 
 
 def test_execute_model_given_prefill_batch_when_processing_then_set_prefill_flag():
-    state = model_hookers.HookState()
+    state = model_handlers.HookState()
     state.request_id_to_prompt_token_len = {"req1": 5, "req2": 10}
     req1 = create_request("req1", token_count=10, computed_tokens=5)  # Partial processing
     req2 = create_request("req2", token_count=5, computed_tokens=5)  # Completed
@@ -156,8 +156,8 @@ def test_execute_model_given_prefill_batch_when_processing_then_set_prefill_flag
 
     mock_original = MagicMock()
 
-    with patch.object(model_hookers, "_get_state", return_value=state):
-        model_hookers.execute_model(mock_original, MagicMock(), scheduler_output)
+    with patch.object(model_handlers, "_get_state", return_value=state):
+        model_handlers.execute_model(mock_original, MagicMock(), scheduler_output)
 
     # 包含一个 Prefill 与一个 Decode，当前实现返回 "Prefill,Decode"
     batch_calls = Profiler.instance_calls[0]
@@ -165,7 +165,7 @@ def test_execute_model_given_prefill_batch_when_processing_then_set_prefill_flag
 
 
 def test_execute_model_given_decode_batch_when_processing_then_set_decode_flag():
-    state = model_hookers.HookState()
+    state = model_handlers.HookState()
     req1 = create_request("req1", token_count=10, computed_tokens=10)  # Completed
     req2 = create_request("req2", token_count=5, computed_tokens=5)  # Completed
 
@@ -179,8 +179,8 @@ def test_execute_model_given_decode_batch_when_processing_then_set_decode_flag()
 
     mock_original = MagicMock()
 
-    with patch.object(model_hookers, "_get_state", return_value=state):
-        model_hookers.execute_model(mock_original, MagicMock(), scheduler_output)
+    with patch.object(model_handlers, "_get_state", return_value=state):
+        model_handlers.execute_model(mock_original, MagicMock(), scheduler_output)
 
     # Should detect decode because all requests have computed tokens >= prompt length
     batch_calls = Profiler.instance_calls[0]
@@ -188,7 +188,7 @@ def test_execute_model_given_decode_batch_when_processing_then_set_decode_flag()
 
 
 def test_execute_model_given_no_requests_when_processing_then_no_profiling():
-    state = model_hookers.HookState()
+    state = model_handlers.HookState()
     scheduler_output = SchedulerOutput(
         scheduled_new_reqs=[],
         scheduled_cached_reqs=[],
@@ -199,8 +199,8 @@ def test_execute_model_given_no_requests_when_processing_then_no_profiling():
 
     mock_original = MagicMock(return_value="output")
 
-    with patch.object(model_hookers, "_get_state", return_value=state):
-        result = model_hookers.execute_model(mock_original, MagicMock(), scheduler_output)
+    with patch.object(model_handlers, "_get_state", return_value=state):
+        result = model_handlers.execute_model(mock_original, MagicMock(), scheduler_output)
 
     assert result == "output"
     assert len(Profiler.instance_calls) == 0
@@ -208,11 +208,11 @@ def test_execute_model_given_no_requests_when_processing_then_no_profiling():
 
 
 def test_set_forward_context_given_no_forward_profiler_when_used_then_create_new_profiler():
-    state = model_hookers.HookState()
+    state = model_handlers.HookState()
     mock_original = MagicMock()
 
-    with patch.object(model_hookers, "_get_state", return_value=state):
-        with model_hookers.set_forward_context(mock_original):
+    with patch.object(model_handlers, "_get_state", return_value=state):
+        with model_handlers.set_forward_context(mock_original):
             pass
 
     assert len(Profiler.instance_calls) == 1
@@ -223,12 +223,12 @@ def test_set_forward_context_given_no_forward_profiler_when_used_then_create_new
 
 
 def test_set_forward_context_given_existing_forward_profiler_when_used_then_reuse_profiler():
-    state = model_hookers.HookState()
+    state = model_handlers.HookState()
     state.forward_profiler = Profiler(Level.INFO)
     mock_original = MagicMock()
 
-    with patch.object(model_hookers, "_get_state", return_value=state):
-        with model_hookers.set_forward_context(mock_original):
+    with patch.object(model_handlers, "_get_state", return_value=state):
+        with model_handlers.set_forward_context(mock_original):
             pass
 
     # Should use existing profiler instead of creating new one
@@ -241,8 +241,8 @@ def test_set_forward_context_given_context_manager_when_used_then_call_original(
     mock_context = MagicMock()
     mock_original.return_value = mock_context
 
-    with patch.object(model_hookers, "_get_state", return_value=model_hookers.HookState()):
-        with model_hookers.set_forward_context(mock_original):
+    with patch.object(model_handlers, "_get_state", return_value=model_handlers.HookState()):
+        with model_handlers.set_forward_context(mock_original):
             pass
 
     mock_original.assert_called_once()
@@ -251,7 +251,7 @@ def test_set_forward_context_given_context_manager_when_used_then_call_original(
 
 
 def test_hook_state_initialization():
-    state = model_hookers.HookState()
+    state = model_handlers.HookState()
     assert state.forward_profiler is None
     assert state.execute_model_first_run is True
     assert state.begin_forward_first_run is True

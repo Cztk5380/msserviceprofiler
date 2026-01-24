@@ -16,7 +16,7 @@
 import threading
 from contextlib import contextmanager
 from ms_service_profiler import Profiler, Level
-from ..module_hook import vllm_hook
+from ms_service_profiler.patcher.core.module_hook import patcher
 
 
 # 线程安全的全局状态
@@ -40,7 +40,7 @@ def _get_state() -> HookState:
     return _thread_local.hook_state
 
 
-@vllm_hook(
+@patcher(
     hook_points=[
         ("vllm.executor.executor_base", "ExecutorBase.execute_model"),
         ("vllm.executor.executor_base", "DistributedExecutorBase.execute_model"),
@@ -74,7 +74,7 @@ def handle_execute_model(original_func, this, execute_model_req, *args, **kwargs
     return ret
 
 
-@vllm_hook(("vllm.worker.model_runner", "ModelRunner.execute_model"), min_version="0.6.3")
+@patcher(("vllm.worker.model_runner", "ModelRunner.execute_model"), min_version="0.6.3")
 def execute_model(original_func, this, model_input, kv_caches, *args, **kwargs):
     """模型执行钩子"""
     state = _get_state()
@@ -108,7 +108,7 @@ def execute_model(original_func, this, model_input, kv_caches, *args, **kwargs):
     return ret
 
 
-@vllm_hook(("vllm.attention.backends.utils", "CommonAttentionState.begin_forward"), min_version="0.6.3")
+@patcher(("vllm.attention.backends.utils", "CommonAttentionState.begin_forward"), min_version="0.6.3")
 def begin_forward(original_func, this, model_input, *args, **kwargs):
     """前向开始钩子"""
     state = _get_state()
@@ -123,7 +123,7 @@ def begin_forward(original_func, this, model_input, *args, **kwargs):
     return result
 
 
-@vllm_hook(("vllm.forward_context", "set_forward_context"), min_version="0.8.4")
+@patcher(("vllm.forward_context", "set_forward_context"), min_version="0.8.4")
 @contextmanager
 def set_forward_context(original_func, *args, **kwargs):
     """前向上下文钩子"""

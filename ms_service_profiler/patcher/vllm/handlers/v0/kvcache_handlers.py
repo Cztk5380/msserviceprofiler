@@ -15,12 +15,12 @@
 # -------------------------------------------------------------------------
 from ms_service_profiler import Profiler, Level
 
-from ..module_hook import vllm_hook
+from ms_service_profiler.patcher.core.module_hook import patcher
 
 GLOBAL_REQUEST_DICT = {}
 
 
-@vllm_hook(("vllm.core.block_manager", "SelfAttnBlockSpaceManager.allocate"), min_version="0.6.3")
+@patcher(("vllm.core.block_manager", "SelfAttnBlockSpaceManager.allocate"), min_version="0.6.3")
 def allocate(original_func, this, seq_group, *args, **kwargs):
     profiler = Profiler(Level.INFO)
     original_func(this, seq_group, *args, **kwargs)
@@ -29,7 +29,7 @@ def allocate(original_func, this, seq_group, *args, **kwargs):
     prof.metric("deviceBlock", len(this.block_tables)).event("Allocate")
 
 
-@vllm_hook(("vllm.core.block_manager", "SelfAttnBlockSpaceManager.append_slots"), min_version="0.6.3")
+@patcher(("vllm.core.block_manager", "SelfAttnBlockSpaceManager.append_slots"), min_version="0.6.3")
 def append_slots(original_func, this, seq, num_lookahead_slots, *args, **kwargs):
     profiler = Profiler(Level.INFO)
     request_id = seq.seq_id
@@ -46,7 +46,7 @@ def append_slots(original_func, this, seq, num_lookahead_slots, *args, **kwargs)
     return new_cows
 
 
-@vllm_hook(("vllm.core.block_manager", "SelfAttnBlockSpaceManager.swap_in"), min_version="0.6.3")
+@patcher(("vllm.core.block_manager", "SelfAttnBlockSpaceManager.swap_in"), min_version="0.6.3")
 def swap_in(original_func, this, seq_group, *args, **kwargs):
     profiler = Profiler(Level.INFO)
     res = original_func(this, seq_group, *args, **kwargs)
@@ -55,7 +55,7 @@ def swap_in(original_func, this, seq_group, *args, **kwargs):
     return res
 
 
-@vllm_hook(("vllm.core.block_manager", "SelfAttnBlockSpaceManager.swap_out"), min_version="0.6.3")
+@patcher(("vllm.core.block_manager", "SelfAttnBlockSpaceManager.swap_out"), min_version="0.6.3")
 def swap_out(original_func, this, seq_group, *args, **kwargs):
     profiler = Profiler(Level.INFO)
     res = original_func(this, seq_group, *args, **kwargs)
@@ -64,7 +64,7 @@ def swap_out(original_func, this, seq_group, *args, **kwargs):
     return res
 
 
-@vllm_hook(("vllm.core.block_manager", "SelfAttnBlockSpaceManager.free"), min_version="0.6.3")
+@patcher(("vllm.core.block_manager", "SelfAttnBlockSpaceManager.free"), min_version="0.6.3")
 def free(original_func, this, seq, *args, **kwargs):
     profiler = Profiler(Level.INFO)
     request_id = seq.seq_id
@@ -76,7 +76,7 @@ def free(original_func, this, seq, *args, **kwargs):
     profiler.domain("KVCache").res(request_id).metric("deviceBlock", len(this.block_tables)).event("Free")
 
 
-@vllm_hook(("vllm.engine.llm_engine", "LLMEngine._get_stats"), min_version="0.6.3")
+@patcher(("vllm.engine.llm_engine", "LLMEngine._get_stats"), min_version="0.6.3")
 def get_stats(original_func, this, *args, **kwargs):
     profiler = Profiler(Level.INFO)
     stats = original_func(this, *args, **kwargs)

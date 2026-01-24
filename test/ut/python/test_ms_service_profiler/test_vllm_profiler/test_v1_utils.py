@@ -21,7 +21,7 @@ from typing import List
 
 import pytest
 
-from ms_service_profiler.vllm_profiler.vllm_v1.utils import (
+from ms_service_profiler.patcher.vllm.handlers.v1.utils import (
     _iter_cached_req_id_and_num_comp,
     _iter_new_req_id_and_num_comp,
     classify_requests,

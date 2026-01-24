@@ -20,7 +20,7 @@ from collections import namedtuple
 from unittest.mock import patch, MagicMock, AsyncMock
 import pytest
 
-from ms_service_profiler.vllm_profiler.vllm_v1 import request_hookers
+from ms_service_profiler.patcher.vllm.handlers.v1 import request_handlers
 
 from .fake_ms_service_profiler import Profiler, Level
 
@@ -34,7 +34,7 @@ async def test_add_request_async_given_request_id_and_prompt_when_called_then_ev
     prompt = "Hello world"
 
     # Execute
-    result = await request_hookers.add_request_async(original_func, mock_this, request_id, prompt)
+    result = await request_handlers.add_request_async(original_func, mock_this, request_id, prompt)
 
     # Verify
     assert result == "original_result"
@@ -74,7 +74,7 @@ def test_process_outputs_given_empty_outputs_when_called_then_no_events_and_orig
     mock_this = MagicMock()
 
     # Execute
-    result = request_hookers.process_outputs(original_func, mock_this, [])
+    result = request_handlers.process_outputs(original_func, mock_this, [])
 
     # Verify
     assert result == "empty_result"
@@ -89,7 +89,7 @@ def test_process_outputs_given_finished_request_when_called_then_httpres_logged_
     mock_this = MagicMock(request_states={"req_finished": mock_state})
 
     # Execute
-    result = request_hookers.process_outputs(original_func, mock_this, [mock_output])
+    result = request_handlers.process_outputs(original_func, mock_this, [mock_output])
 
     # Verify
     assert result == "result"
@@ -117,7 +117,7 @@ def test_process_outputs_given_unfinished_request_when_httpres_not_logged():
     original_func = MagicMock()
 
     # Execute
-    request_hookers.process_outputs(original_func, mock_this, [mock_output])
+    request_handlers.process_outputs(original_func, mock_this, [mock_output])
 
     # Verify - Only detokenize should be logged
     assert len(Profiler.instance_calls) == 1
@@ -132,7 +132,7 @@ def test_process_outputs_given_missing_request_state_when_httpres_not_logged():
     original_func = MagicMock()
 
     # Execute
-    request_hookers.process_outputs(original_func, mock_this, [mock_output])
+    request_handlers.process_outputs(original_func, mock_this, [mock_output])
 
     # Verify
     assert len(Profiler.instance_calls) == 1
@@ -146,7 +146,7 @@ def test_process_outputs_given_missing_stats_when_none_reply_tokens():
     original_func = MagicMock()
 
     # Execute
-    request_hookers.process_outputs(original_func, mock_this, [mock_output])
+    request_handlers.process_outputs(original_func, mock_this, [mock_output])
 
     # Verify
     http_res_calls = Profiler.instance_calls[0]
@@ -165,7 +165,7 @@ def test_process_outputs_given_multiple_requests_then_events_logged():
     original_func = MagicMock()
 
     # Execute
-    request_hookers.process_outputs(original_func, mock_this, outputs)
+    request_handlers.process_outputs(original_func, mock_this, outputs)
 
     # Verify
     assert len(Profiler.instance_calls) == 3  # 2 httpRes + 1 detokenize
@@ -192,7 +192,7 @@ def test_process_outputs_given_arguments_then_correctly():
     extra_kwargs = {"key": "value"}
 
     # Execute
-    result = request_hookers.process_outputs(original_func, mock_this, [mock_output], *extra_args, **extra_kwargs)
+    result = request_handlers.process_outputs(original_func, mock_this, [mock_output], *extra_args, **extra_kwargs)
 
     # Verify
     assert result == "test_result"

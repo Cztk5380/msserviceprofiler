@@ -20,7 +20,7 @@
 # 三、示例
 # 示例 A：自定义 handler（单一 symbol）
 - symbol: vllm.v1.core.kv_cache_manager:KVCacheManager.free
-  handler: vllm_profiler.config.custom_handler_example:kvcache_manager_free_example_handler
+  handler: ms_service_profiler.patcher.config.custom_handler_example.kvcache_manager_free_example_handler
   domain: Example
   name: example_custom
 

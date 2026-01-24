@@ -21,8 +21,8 @@ from collections import namedtuple, deque, Counter
 from unittest.mock import patch, MagicMock, call
 import pytest
 
-from ms_service_profiler.vllm_profiler.vllm_v1 import batch_hookers
-from ms_service_profiler.vllm_profiler.vllm_v1.utils import create_state_getter
+from ms_service_profiler.patcher.vllm.handlers.v1 import batch_handlers
+from ms_service_profiler.patcher.vllm.handlers.v1.utils import create_state_getter
 
 from .fake_ms_service_profiler import Profiler, Level
 
@@ -36,7 +36,7 @@ SchedulerOutput = namedtuple(
 
 @pytest.fixture
 def hook_state():
-    state = batch_hookers.HookState()
+    state = batch_handlers.HookState()
     state.request_id_to_prompt_token_len = {}
     state.request_id_to_iter = {}
     return state
@@ -48,7 +48,7 @@ def mock_scheduler(hook_state):
     sched.running = deque()
     sched.waiting = deque()
 
-    with patch.object(batch_hookers, "_get_state", return_value=hook_state):
+    with patch.object(batch_handlers, "_get_state", return_value=hook_state):
         yield sched
 
 
@@ -79,7 +79,7 @@ def create_request(request_id, token_count=10):
     ],
 )
 def test_compare_deques_given_two_deques_when_difference_exists_then_return_counter_diff(q1, q2, expected):
-    result = batch_hookers.compare_deques(deque(q1), deque(q2))
+    result = batch_handlers.compare_deques(deque(q1), deque(q2))
     assert result == expected
 
 
@@ -87,7 +87,7 @@ def test_queue_profiler_given_enqueue_when_queue_changes_then_log_enqueue_event(
     before = deque([SequenceGroup("req1", (1, 2, 3))])
     after = deque([SequenceGroup("req1", (1, 2, 3)), SequenceGroup("req2", (4, 5))])
 
-    batch_hookers.queue_profiler(before, after, "test_queue")
+    batch_handlers.queue_profiler(before, after, "test_queue")
 
     assert len(Profiler.instance_calls) == 1
     calls = Profiler.instance_calls[0]
@@ -100,7 +100,7 @@ def test_queue_profiler_given_dequeue_when_queue_changes_then_log_dequeue_event(
     before = deque([SequenceGroup("req1", (1,)), SequenceGroup("req2", (2,))])
     after = deque([SequenceGroup("req2", (2,))])
 
-    batch_hookers.queue_profiler(before, after, "test_queue")
+    batch_handlers.queue_profiler(before, after, "test_queue")
 
     assert len(Profiler.instance_calls) == 1
     calls = Profiler.instance_calls[0]
@@ -112,24 +112,24 @@ def test_queue_profiler_given_no_changes_when_queues_identical_then_no_events_lo
     before = deque([SequenceGroup("req1", (1,))])
     after = deque([SequenceGroup("req1", (1,))])
 
-    batch_hookers.queue_profiler(before, after, "test_queue")
+    batch_handlers.queue_profiler(before, after, "test_queue")
     assert len(Profiler.instance_calls) == 0
 
 
 def test_get_state_given_first_call_when_no_existing_state_then_create_new_state():
     # 重新绑定获取器，确保是“第一次”获取
-    batch_hookers._get_state = create_state_getter(batch_hookers.HookState)
-    state = batch_hookers._get_state()
-    assert isinstance(state, batch_hookers.HookState)
+    batch_handlers._get_state = create_state_getter(batch_handlers.HookState)
+    state = batch_handlers._get_state()
+    assert isinstance(state, batch_handlers.HookState)
     # 再次获取应返回同一实例
-    assert batch_hookers._get_state() is state
+    assert batch_handlers._get_state() is state
 
 
 def test_get_state_given_existing_state_when_called_then_return_same_instance():
     # 首次获取并保存
-    state1 = batch_hookers._get_state()
+    state1 = batch_handlers._get_state()
     # 再次获取应返回相同实例
-    assert batch_hookers._get_state() is state1
+    assert batch_handlers._get_state() is state1
 
 
 def test_schedule_given_new_requests_when_processing_then_update_state_and_log(hook_state, mock_scheduler):
@@ -144,8 +144,8 @@ def test_schedule_given_new_requests_when_processing_then_update_state_and_log(h
     )
 
     mock_original = MagicMock(return_value=scheduler_output)
-    with patch.object(batch_hookers, "_get_state", return_value=hook_state):
-        result = batch_hookers.schedule(mock_original, mock_scheduler)
+    with patch.object(batch_handlers, "_get_state", return_value=hook_state):
+        result = batch_handlers.schedule(mock_original, mock_scheduler)
 
     assert result == scheduler_output
     assert hook_state.request_id_to_prompt_token_len == {
@@ -167,8 +167,8 @@ def test_schedule_given_finished_requests_when_processing_then_clean_state(hook_
     )
 
     mock_original = MagicMock(return_value=scheduler_output)
-    with patch.object(batch_hookers, "_get_state", return_value=hook_state):
-        batch_hookers.schedule(mock_original, mock_scheduler)
+    with patch.object(batch_handlers, "_get_state", return_value=hook_state):
+        batch_handlers.schedule(mock_original, mock_scheduler)
 
     assert "req2" not in hook_state.request_id_to_prompt_token_len
     assert "req2" not in hook_state.request_id_to_iter
@@ -184,8 +184,8 @@ def test_schedule_given_prefill_batch_when_iter_zero_then_set_batch_type(hook_st
     )
 
     mock_original = MagicMock(return_value=scheduler_output)
-    with patch.object(batch_hookers, "_get_state", return_value=hook_state):
-        batch_hookers.schedule(mock_original, mock_scheduler)
+    with patch.object(batch_handlers, "_get_state", return_value=hook_state):
+        batch_handlers.schedule(mock_original, mock_scheduler)
 
     # Verify batch type attribute
     span_calls = None
@@ -205,8 +205,8 @@ def test_schedule_given_no_requests_when_processing_then_early_return(hook_state
     )
 
     mock_original = MagicMock(return_value=scheduler_output)
-    with patch.object(batch_hookers, "_get_state", return_value=hook_state):
-        result = batch_hookers.schedule(mock_original, mock_scheduler)
+    with patch.object(batch_handlers, "_get_state", return_value=hook_state):
+        result = batch_handlers.schedule(mock_original, mock_scheduler)
 
     assert result == scheduler_output
     # Should still profile queues
@@ -219,8 +219,8 @@ def test_add_request_given_new_request_when_added_then_update_state_and_log(hook
     scheduler.waiting = deque([SequenceGroup("req1", [1, 2, 3])])
     request = create_request("req1")
 
-    with patch.object(batch_hookers, "_get_state", return_value=hook_state):
-        batch_hookers.add_request(MagicMock(), scheduler, request)
+    with patch.object(batch_handlers, "_get_state", return_value=hook_state):
+        batch_handlers.add_request(MagicMock(), scheduler, request)
 
     # Verify queue enqueue event
     assert any(call[0] == "event" and call[1] == "Enqueue" for calls in Profiler.instance_calls for call in calls)

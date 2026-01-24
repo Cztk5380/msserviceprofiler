@@ -15,7 +15,7 @@
 # -------------------------------------------------------------------------
 
 from ms_service_profiler import Profiler, Level
-from ..module_hook import vllm_hook
+from ms_service_profiler.patcher.core.module_hook import patcher
 from .utils import SharedHookState, create_state_getter
 
 
@@ -29,7 +29,7 @@ class MetaCollectionState(SharedHookState):
 _get_state = create_state_getter(MetaCollectionState)
 
 
-@vllm_hook(("vllm.v1.engine.core", "DPEngineCoreProc.add_request"), min_version="0.9.1")
+@patcher(("vllm.v1.engine.core", "DPEngineCoreProc.add_request"), min_version="0.9.1")
 def init_data_parallel(original_func, this, vllm_config, *args, **kwargs):
     ret = original_func(this, vllm_config, *args, **kwargs)
 

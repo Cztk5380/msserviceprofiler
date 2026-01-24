@@ -22,13 +22,13 @@ from unittest.mock import patch, MagicMock
 from packaging.version import Version
 import pytest
 
-from ms_service_profiler.vllm_profiler.module_hook import (
+from ms_service_profiler.patcher.core.module_hook import (
     import_object_from_string,
     HookHelper,
     VLLMHookerBase,
-    vllm_hook
+    patcher
 )
-from ms_service_profiler.vllm_profiler.registry import get_hook_registry, clear_hook_registry
+from ms_service_profiler.patcher.core.registry import get_hook_registry, clear_hook_registry
 
 
 # Test module setup
@@ -167,8 +167,8 @@ def test_vllmhookerbase_do_hook_given_hook_points_when_applying_then_functions_r
 
 
 # Test cases for vllm_hook decorator
-@vllm_hook(
-    hook_points=[("vllm_profiler.module_hook", "sample_function")],
+@patcher(
+    hook_points=[("patcher.core.module_hook", "sample_function")],
     min_version="1.0.0",
     max_version="2.0.0",
 )
@@ -197,7 +197,7 @@ def test_import_object_from_string_given_malformed_path_when_importing_then_retu
 def test_vllm_hook_given_empty_hook_points_when_registering_then_no_error(cleanup_hook_registry):
     """Test handling of empty hook points"""
 
-    @vllm_hook(hook_points=[])
+    @patcher(hook_points=[])
     def empty_profiler(ori_func, *args, **kwargs):
         pass
 
@@ -228,7 +228,7 @@ def test_vllmhookerbase_do_hook_given_caller_filter_when_calling_then_filters_co
         return "test_caller" if flag["match"] else "non_match"
 
     with patch(
-        "ms_service_profiler.vllm_profiler.module_hook.get_parents_name",
+        "ms_service_profiler.patcher.core.module_hook.get_parents_name",
         side_effect=fake_get_parents_name,
     ):
         # When caller name does not match, the hook should be bypassed.

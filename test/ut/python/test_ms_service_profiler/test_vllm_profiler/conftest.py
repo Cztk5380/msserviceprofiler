@@ -38,14 +38,14 @@ def mock_profiler_module():
 
     # 重新加载相关模块确保使用 mock
     modules_to_reload = [
-        "ms_service_profiler.vllm_profiler.vllm_v0.batch_hookers",
-        "ms_service_profiler.vllm_profiler.vllm_v1.batch_hookers",
-        "ms_service_profiler.vllm_profiler.vllm_v0.model_hookers",
-        "ms_service_profiler.vllm_profiler.vllm_v1.model_hookers",
-        "ms_service_profiler.vllm_profiler.vllm_v0.kvcache_hookers",
-        "ms_service_profiler.vllm_profiler.vllm_v1.kvcache_hookers",
-        "ms_service_profiler.vllm_profiler.vllm_v0.request_hookers",
-        "ms_service_profiler.vllm_profiler.vllm_v1.request_hookers",
+        "ms_service_profiler.patcher.vllm.handlers.v0.batch_handlers",
+        "ms_service_profiler.patcher.vllm.handlers.v1.batch_handlers",
+        "ms_service_profiler.patcher.vllm.handlers.v0.model_handlers",
+        "ms_service_profiler.patcher.vllm.handlers.v1.model_handlers",
+        "ms_service_profiler.patcher.vllm.handlers.v0.kvcache_handlers",
+        "ms_service_profiler.patcher.vllm.handlers.v1.kvcache_handlers",
+        "ms_service_profiler.patcher.vllm.handlers.v0.request_handlers",
+        "ms_service_profiler.patcher.vllm.handlers.v1.request_handlers",
     ]
     
     for module_name in modules_to_reload:
@@ -75,5 +75,5 @@ def reset_profiler():
 
 @pytest.fixture(autouse=True)
 def patch_model_hookers_synchronize():
-    with patch("ms_service_profiler.vllm_profiler.vllm_v1.model_hookers.synchronize"):
+    with patch("ms_service_profiler.patcher.vllm.handlers.v1.model_handlers.synchronize"):
         yield

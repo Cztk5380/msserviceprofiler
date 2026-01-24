@@ -699,7 +699,7 @@ class VLLMHookerBase(ABC):
         return wrapper
 
 
-def vllm_hook(
+def patcher(
     hook_points: Union[Tuple[str, str], List[Tuple[str, str]]],
     min_version: Optional[str] = None,
     max_version: Optional[str] = None,

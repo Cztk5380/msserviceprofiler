@@ -14,15 +14,14 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 
-from .logger import set_log_level
-from .service_profiler import ServiceProfiler
+from ..core.logger import set_log_level
+from .service_profiler import VLLMProfiler
 
 set_log_level("info")  # Default is info, put here for user changes
 
-
-_service_profiler = ServiceProfiler()
-
+# 创建vLLM专用的Profiler实例
+_vllm_profiler = VLLMProfiler()
 
 def register_service_profiler():
-    """初始化服务分析器（向后兼容接口）"""
-    _service_profiler.initialize()
+    """初始化vLLM服务分析器。"""
+    _vllm_profiler.initialize()

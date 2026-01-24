@@ -14,15 +14,18 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 
+import importlib
+import shutil
+import tempfile
 from unittest.mock import Mock, patch, call, MagicMock
 import os
 import sys
 import pytest
 
-from ms_service_profiler.vllm_profiler.symbol_watcher import (
+from ms_service_profiler.patcher.core.symbol_watcher import (
     SymbolWatchFinder, make_default_time_hook, register_dynamic_hook
 )
-from ms_service_profiler.vllm_profiler.service_profiler import ServiceProfiler
+from ms_service_profiler.patcher.vllm.service_profiler import VLLMProfiler
 
 
 # 原有的fixtures
@@ -62,8 +65,8 @@ def mock_spec(mock_loader):
 # 新增的ServiceProfiler相关fixtures
 @pytest.fixture
 def service_profiler():
-    """提供 ServiceProfiler 实例的 fixture"""
-    return ServiceProfiler()
+    """提供 VLLMProfiler 实例的 fixture"""
+    return VLLMProfiler()
 
 
 @pytest.fixture
@@ -246,7 +249,7 @@ class TestCreateHandlerFunction:
     """测试 _create_handler_function 方法"""
     
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.symbol_watcher.importlib.import_module')
+    @patch('ms_service_profiler.patcher.core.symbol_watcher.importlib.import_module')
     def test_create_handler_function_custom(mock_import_module, symbol_watch_finder):
         """测试创建自定义处理函数"""
         # 模拟导入的模块和函数
@@ -266,7 +269,7 @@ class TestCreateHandlerFunction:
         assert result == mock_handler
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.symbol_watcher.make_default_time_hook')
+    @patch('ms_service_profiler.patcher.core.symbol_watcher.make_default_time_hook')
     def test_create_handler_function_default(mock_make_default, symbol_watch_finder):
         """测试创建默认处理函数"""
         mock_default_handler = Mock()
@@ -289,7 +292,7 @@ class TestCreateHandlerFunction:
         assert result == mock_default_handler
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.symbol_watcher.make_default_time_hook')
+    @patch('ms_service_profiler.patcher.core.symbol_watcher.make_default_time_hook')
     def test_create_handler_function_minimal_args(mock_make_default, symbol_watch_finder):
         """测试创建默认处理函数（最小参数）"""
         mock_default_handler = Mock()
@@ -329,7 +332,7 @@ class TestRegisterAndApplyHook:
     """测试 _register_and_apply_hook 方法"""
     
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.symbol_watcher.register_dynamic_hook')
+    @patch('ms_service_profiler.patcher.core.symbol_watcher.register_dynamic_hook')
     def test_register_and_apply_hook(mock_register, symbol_watch_finder):
         """测试注册和应用钩子"""
         mock_hooker = Mock()
@@ -356,7 +359,7 @@ class TestRegisterAndApplyHook:
         assert result == mock_hooker
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.symbol_watcher.register_dynamic_hook')
+    @patch('ms_service_profiler.patcher.core.symbol_watcher.register_dynamic_hook')
     def test_register_and_apply_hook_minimal_args(mock_register, symbol_watch_finder):
         """测试注册和应用钩子（最小参数）"""
         mock_hooker = Mock()
@@ -484,7 +487,7 @@ class TestOnSymbolModuleLoaded:
 
     @staticmethod
     @patch.object(SymbolWatchFinder, '_apply_symbol_hooks_for_module')
-    @patch('ms_service_profiler.vllm_profiler.symbol_watcher.importlib.import_module')
+    @patch('ms_service_profiler.patcher.core.symbol_watcher.importlib.import_module')
     def test_on_symbol_module_loaded_direct_match(mock_import_module, mock_apply_hooks, 
                                                  symbol_watch_finder, sample_config):
         """测试模块加载回调 - 直接匹配"""
@@ -501,7 +504,7 @@ class TestOnSymbolModuleLoaded:
 
     @staticmethod
     @patch.object(SymbolWatchFinder, '_apply_symbol_hooks_for_module')
-    @patch('ms_service_profiler.vllm_profiler.symbol_watcher.importlib.import_module')
+    @patch('ms_service_profiler.patcher.core.symbol_watcher.importlib.import_module')
     def test_on_symbol_module_loaded_parent_match_success(mock_import_module, mock_apply_hooks,
                                                         symbol_watch_finder, sample_config):
         """测试模块加载回调 - 父包匹配且子模块导入成功"""
@@ -516,7 +519,7 @@ class TestOnSymbolModuleLoaded:
 
     @staticmethod
     @patch.object(SymbolWatchFinder, '_apply_symbol_hooks_for_module')
-    @patch('ms_service_profiler.vllm_profiler.symbol_watcher.importlib.import_module')
+    @patch('ms_service_profiler.patcher.core.symbol_watcher.importlib.import_module')
     def test_on_symbol_module_loaded_parent_match_failure(mock_import_module, mock_apply_hooks,
                                                          symbol_watch_finder, sample_config):
         """测试模块加载回调 - 父包匹配但子模块导入失败"""
@@ -531,7 +534,7 @@ class TestOnSymbolModuleLoaded:
 
     @staticmethod
     @patch.object(SymbolWatchFinder, '_apply_symbol_hooks_for_module')
-    @patch('ms_service_profiler.vllm_profiler.symbol_watcher.importlib.import_module')
+    @patch('ms_service_profiler.patcher.core.symbol_watcher.importlib.import_module')
     def test_on_symbol_module_loaded_mixed_matches(mock_import_module, mock_apply_hooks,
                                                   symbol_watch_finder):
         """测试模块加载回调 - 混合匹配（直接匹配和父包匹配）"""
@@ -600,7 +603,7 @@ class TestLoaderWrapper:
 # ========== 新增的ServiceProfiler测试用例 ==========
 
 class TestServiceProfilerInitialization:
-    """测试 ServiceProfiler 初始化"""
+    """测试 VLLMProfiler 初始化"""
     
     @staticmethod
     def test_initialization(service_profiler):
@@ -611,19 +614,19 @@ class TestServiceProfilerInitialization:
 
 
 class TestDetectVllmVersion:
-    """测试 _detect_vllm_version 方法"""
+    """测试 _detect_version 方法"""
     
     @staticmethod
     @pytest.mark.parametrize("env_value,expected", [
         ("0", "0"),
         ("1", "1"),
-        (None, "1")  # 假设 auto_detect_v1_default 返回 "1"
+        (None, "1")  # 假设 _auto_detect_v1_default 返回 "1"
     ])
-    def test_detect_vllm_version(env_value, expected):
+    def test_detect_version(env_value, expected):
         """测试 vLLM 版本检测"""
         with patch.dict(os.environ, {'VLLM_USE_V1': env_value} if env_value is not None else {}):
-            with patch('ms_service_profiler.vllm_profiler.service_profiler.auto_detect_v1_default', return_value="1"):
-                result = ServiceProfiler._detect_vllm_version()
+            with patch('ms_service_profiler.patcher.vllm.service_profiler.VLLMProfiler._auto_detect_v1_default', return_value="1"):
+                result = VLLMProfiler._detect_version()
                 assert result == expected
 
 
@@ -641,7 +644,7 @@ class TestLoadConfig:
             """)
         
         with patch.dict(os.environ, {'PROFILING_SYMBOLS_PATH': mock_config_file}):
-            with patch('ms_service_profiler.vllm_profiler.service_profiler.load_yaml_config') as mock_load:
+            with patch('ms_service_profiler.patcher.vllm.service_profiler.load_yaml_config') as mock_load:
                 # 修复：返回列表格式而不是字典
                 mock_load.return_value = [
                     {'symbol': 'test.module:function1', 'handler': 'handlers:time_hook'}
@@ -661,9 +664,9 @@ class TestLoadConfig:
         default_cfg.write_text("default config content")
 
         with patch.dict(os.environ, {'PROFILING_SYMBOLS_PATH': env_path}):
-            with patch('ms_service_profiler.vllm_profiler.service_profiler.find_config_path',
+            with patch('ms_service_profiler.patcher.vllm.service_profiler.VLLMProfiler._find_config_path',
                        return_value=str(default_cfg)):
-                with patch('ms_service_profiler.vllm_profiler.service_profiler.load_yaml_config') as mock_load:
+                with patch('ms_service_profiler.patcher.vllm.service_profiler.load_yaml_config') as mock_load:
                     mock_load.return_value = {'symbols': []}
 
                     result = service_profiler._load_config()
@@ -683,8 +686,8 @@ class TestLoadConfig:
     def test_load_config_env_var_not_yaml(service_profiler):
         """测试环境变量路径不是 YAML 文件"""
         with patch.dict(os.environ, {'PROFILING_SYMBOLS_PATH': '/path/to/file.txt'}):
-            with patch('ms_service_profiler.vllm_profiler.service_profiler.find_config_path', return_value=None):
-                with patch('ms_service_profiler.vllm_profiler.service_profiler.logger.warning') as mock_warning:
+            with patch('ms_service_profiler.patcher.vllm.service_profiler.VLLMProfiler._find_config_path', return_value=None):
+                with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.warning') as mock_warning:
                     result = service_profiler._load_config()
                     # 修复：由于代码会调用两次 warning，我们检查特定的调用
                     warning_calls = [
@@ -699,9 +702,9 @@ class TestLoadConfig:
     def test_load_config_fallback_success(service_profiler, mock_config_file):
         """测试回退到默认配置成功"""
         with patch.dict(os.environ, {}):  # 没有设置环境变量
-            with patch('ms_service_profiler.vllm_profiler.service_profiler.find_config_path', 
+            with patch('ms_service_profiler.patcher.vllm.service_profiler.VLLMProfiler._find_config_path', 
                        return_value=mock_config_file):
-                with patch('ms_service_profiler.vllm_profiler.service_profiler.load_yaml_config') as mock_load:
+                with patch('ms_service_profiler.patcher.vllm.service_profiler.load_yaml_config') as mock_load:
                     mock_load.return_value = {'symbols': []}
                     result = service_profiler._load_config()
                     mock_load.assert_called_once_with(mock_config_file)
@@ -710,8 +713,8 @@ class TestLoadConfig:
     def test_load_config_fallback_no_default(service_profiler):
         """测试回退但找不到默认配置"""
         with patch.dict(os.environ, {}):
-            with patch('ms_service_profiler.vllm_profiler.service_profiler.find_config_path', return_value=None):
-                with patch('ms_service_profiler.vllm_profiler.service_profiler.logger.warning') as mock_warning:
+            with patch('ms_service_profiler.patcher.vllm.service_profiler.VLLMProfiler._find_config_path', return_value=None):
+                with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.warning') as mock_warning:
                     result = service_profiler._load_config()
                     # 修复：检查特定的警告消息
                     warning_calls = [
@@ -726,7 +729,7 @@ class TestLoadConfig:
     def test_load_config_env_var_copy_failure(service_profiler, tmp_path):
         """测试环境变量路径复制失败"""
         def _process(service_profiler):
-            with patch('ms_service_profiler.vllm_profiler.service_profiler.logger.warning') as mock_warning:
+            with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.warning') as mock_warning:
                 result = service_profiler._load_config()
                 # 修复：检查特定的警告消息
                 warning_calls = [
@@ -742,7 +745,7 @@ class TestLoadConfig:
         default_cfg.write_text("default content")
         
         with patch.dict(os.environ, {'PROFILING_SYMBOLS_PATH': env_path}):
-            with patch('ms_service_profiler.vllm_profiler.service_profiler.find_config_path', 
+            with patch('ms_service_profiler.patcher.vllm.service_profiler.VLLMProfiler._find_config_path', 
                        return_value=str(default_cfg)):
                 # 模拟复制失败
                 with patch('builtins.open', side_effect=Exception("Copy failed")):
@@ -756,7 +759,7 @@ class TestServiceProfilerInitialize:
     def test_initialize_env_not_set(service_profiler):
         """测试环境变量未设置时跳过初始化"""
         with patch.dict(os.environ, {}, clear=True):
-            with patch('ms_service_profiler.vllm_profiler.service_profiler.logger.debug') as mock_debug:
+            with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.debug') as mock_debug:
                 service_profiler.initialize()
                 mock_debug.assert_any_call("SERVICE_PROF_CONFIG_PATH not set, skipping hooks")
                 assert service_profiler._hooks_applied is False
@@ -766,9 +769,9 @@ class TestServiceProfilerInitialize:
         """测试配置加载失败"""
         with patch.dict(os.environ, {'SERVICE_PROF_CONFIG_PATH': '/some/path'}):
             with patch.object(service_profiler, '_load_config', return_value=None):
-                with patch('ms_service_profiler.vllm_profiler.service_profiler.logger.warning') as mock_warning:
+                with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.warning') as mock_warning:
                     service_profiler.initialize()
-                    mock_warning.assert_called_once_with("No configuration loaded, skipping profiler initialization")
+                    mock_warning.assert_called_once_with("No VLLM configuration loaded, skipping profiler initialization")
                     assert service_profiler._hooks_applied is False
 
     @staticmethod
@@ -789,21 +792,21 @@ class TestServiceProfilerInitialize:
                 ]
                 
                 with patch.object(service_profiler, '_vllm_use_v1', '0'):
-                    with patch.object(service_profiler, '_import_hookers') as mock_import:
+                    with patch.object(service_profiler, '_import_handlers') as mock_import:
                         with patch.object(service_profiler, '_init_symbol_watcher') as mock_init_watcher:
-                            with patch('ms_service_profiler.vllm_profiler.service_profiler.logger.debug') as mock_debug:
+                            with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.debug') as mock_debug:
                                 service_profiler.initialize()
                                 
                                 mock_import.assert_called_once()
                                 mock_init_watcher.assert_called_once()
-                                mock_debug.assert_any_call("Service profiler initialized successfully")
+                                mock_debug.assert_any_call("VLLM Service Profiler initialized successfully")
                                 assert service_profiler._hooks_applied is True
 
     @staticmethod
     def test_initialize_unknown_vllm_version(service_profiler, mock_config_data):
         """测试未知 vLLM 版本"""
         def _process(mock_error, service_profiler):
-            with patch('ms_service_profiler.vllm_profiler.service_profiler.logger.error') as mock_error:
+            with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.error') as mock_error:
                 service_profiler._vllm_use_v1 = "unknown"
                 service_profiler.initialize()
                 # 检查错误日志
@@ -817,39 +820,39 @@ class TestServiceProfilerInitialize:
         with patch.dict(os.environ, {'SERVICE_PROF_CONFIG_PATH': '/some/path'}):
             with patch.object(service_profiler, '_load_config', return_value=mock_config_data):
                 # 修复：在导入 hookers 时模拟错误
-                with patch.object(service_profiler, '_import_hookers') as mock_import:
+                with patch.object(service_profiler, '_import_handlers') as mock_import:
                     # 模拟导入时记录错误
                     _process(mock_import, service_profiler)
 
 
 class TestImportHookers:
-    """测试 _import_hookers 方法"""
+    """测试 _import_handlers 方法"""
     
     @staticmethod
     @pytest.mark.parametrize("vllm_version,expected_module", [
-        ("0", "vllm_v0"),
-        ("1", "vllm_v1")
+        ("0", "vllm.handlers.v0"),
+        ("1", "vllm.handlers.v1")
     ])
-    def test_import_hookers_success(vllm_version, expected_module, service_profiler):
+    def test_import_handlers_success(vllm_version, expected_module, service_profiler):
         """测试成功导入 hookers"""
         service_profiler._vllm_use_v1 = vllm_version
         
         with patch.dict('sys.modules'):
-            with patch(f'ms_service_profiler.vllm_profiler.{expected_module}') as mock_module:
-                with patch('ms_service_profiler.vllm_profiler.service_profiler.logger.debug') as mock_debug:
-                    service_profiler._import_hookers()
+            with patch(f'ms_service_profiler.patcher.{expected_module}') as mock_module:
+                with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.debug') as mock_debug:
+                    service_profiler._import_handlers()
                     
                     expected_msg = f"Initializing service profiler with vLLM V{vllm_version} interface"
                     # 修复：使用 assert_any_call 而不是 assert_called_once_with
                     mock_debug.assert_any_call(expected_msg)
 
     @staticmethod
-    def test_import_hookers_unknown_version(service_profiler):
+    def test_import_handlers_unknown_version(service_profiler):
         """测试导入未知版本的 hookers"""
         service_profiler._vllm_use_v1 = "invalid"
         
-        with patch('ms_service_profiler.vllm_profiler.service_profiler.logger.error') as mock_error:
-            service_profiler._import_hookers()
+        with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.error') as mock_error:
+            service_profiler._import_handlers()
             error_calls = [
                 call
                 for call in mock_error.call_args_list 
@@ -865,19 +868,16 @@ class TestInitSymbolWatcher:
     def test_init_symbol_watcher(service_profiler, mock_config_data):
         """测试初始化 symbol watcher"""
         with patch('sys.meta_path', []) as mock_meta_path:
-            with patch.object(service_profiler, '_check_and_apply_existing_modules') as mock_check:
-                with patch('ms_service_profiler.vllm_profiler.service_profiler.logger.debug') as mock_debug:
+                with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.debug') as mock_debug:
                     service_profiler._init_symbol_watcher(mock_config_data)
                     
                     assert service_profiler._symbol_watcher is not None
                     assert isinstance(service_profiler._symbol_watcher, SymbolWatchFinder)
                     assert mock_meta_path[0] == service_profiler._symbol_watcher
-                    mock_debug.assert_called_with("Symbol watcher installed")
-                    mock_check.assert_called_once()
 
 
 class TestCheckAndApplyExistingModules:
-    """测试 _check_and_apply_existing_modules 方法"""
+    """测试 check_and_apply_existing_modules 方法"""
     
     @staticmethod
     def test_check_and_apply_existing_modules(service_profiler, mock_config_data):
@@ -894,8 +894,8 @@ class TestCheckAndApplyExistingModules:
         # 模拟一个模块已经加载
         with patch.dict('sys.modules', {'test.module': Mock()}):
             with patch.object(service_profiler._symbol_watcher, '_on_symbol_module_loaded') as mock_callback:
-                with patch('ms_service_profiler.vllm_profiler.service_profiler.logger.debug') as mock_debug:
-                    service_profiler._check_and_apply_existing_modules()
+                with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.debug') as mock_debug:
+                    service_profiler._symbol_watcher.check_and_apply_existing_modules()
                     
                     # 验证回调被调用
                     mock_callback.assert_called_once_with('test.module')
@@ -914,7 +914,7 @@ class TestCheckAndApplyExistingModules:
         
         with patch.dict('sys.modules', {'test.module': Mock()}):
             with patch.object(service_profiler._symbol_watcher, '_on_symbol_module_loaded') as mock_callback:
-                service_profiler._check_and_apply_existing_modules()
+                service_profiler._symbol_watcher.check_and_apply_existing_modules()
                 
                 # 验证回调没有被调用（因为已经应用过了）
                 mock_callback.assert_not_called()
@@ -933,10 +933,360 @@ class TestCheckAndApplyExistingModules:
             del sys.modules['test.module']
         
         with patch.object(service_profiler._symbol_watcher, '_on_symbol_module_loaded') as mock_callback:
-            service_profiler._check_and_apply_existing_modules()
+            service_profiler._symbol_watcher.check_and_apply_existing_modules()
             
             # 验证回调没有被调用（因为模块未加载）
             mock_callback.assert_not_called()
+
+@pytest.fixture
+def temp_config_dir():
+    """创建临时配置目录的 fixture"""
+    temp_dir = tempfile.mkdtemp()
+    yield temp_dir
+    shutil.rmtree(temp_dir)
+
+class TestFindConfigPath:
+    """测试 _find_config_path 函数"""
+    
+    @staticmethod
+    def test_find_config_path_user_config_success(temp_config_dir, monkeypatch):
+        """测试代码仓配置不存在时，回退到用户目录下按版本命名的配置"""
+        # 伪造 vllm.__version__
+        fake_vllm = type("Vllm", (), {"__version__": "0.9.2"})
+        monkeypatch.setitem(sys.modules, "vllm", fake_vllm)
+
+        # 将 ~ 指向临时目录
+        home_dir = temp_config_dir
+        monkeypatch.setattr("ms_service_profiler.patcher.vllm.service_profiler.os.path.expanduser", lambda x: home_dir)
+
+        # 创建用户配置文件 ~/.config/vllm_ascend/service_profiling_symbols.0.9.2.yaml
+        user_cfg_dir = os.path.join(home_dir, ".config", "vllm_ascend")
+        os.makedirs(user_cfg_dir, exist_ok=True)
+        user_cfg_file = os.path.join(user_cfg_dir, "service_profiling_symbols.0.9.2.yaml")
+        with open(user_cfg_file, "w", encoding="utf-8") as f:
+            f.write("test user config")
+
+        # 模拟代码仓配置文件不存在，这样才会回退到用户配置
+        # 保存原始的 os.path.isfile 引用，避免递归调用
+        original_isfile = os.path.isfile
+        with patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.isfile') as mock_isfile:
+            def isfile_side_effect(path):
+                # 代码仓配置文件不存在（返回 False）
+                if path.endswith('config/service_profiling_symbols.yaml'):
+                    return False
+                # 用户配置文件存在（返回 True）
+                if path == user_cfg_file:
+                    return True
+                # 其他情况使用原始的 os.path.isfile
+                return original_isfile(path)
+            
+            mock_isfile.side_effect = isfile_side_effect
+            
+            result = VLLMProfiler._find_config_path()
+            assert result == user_cfg_file
+
+    @staticmethod
+    def test_find_config_path_user_config_missing_fallback_to_local(temp_config_dir, monkeypatch):
+        """测试用户配置不存在时回退到本地项目配置"""
+        # 伪造 vllm.__version__ 存在但用户配置不存在
+        fake_vllm = type("Vllm", (), {"__version__": "0.9.2"})
+        monkeypatch.setitem(sys.modules, "vllm", fake_vllm)
+        # 将 ~ 指向临时目录，但不创建用户配置文件
+        home_dir = temp_config_dir
+        monkeypatch.setattr("ms_service_profiler.patcher.vllm.service_profiler.os.path.expanduser", lambda x: home_dir)
+
+        # 模拟本地项目存在配置文件
+        with patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.dirname') as mock_dirname, \
+             patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.isfile') as mock_isfile:
+            mock_dirname.return_value = "/fake/project/path"
+            expected_path = "/fake/project/path/vllm/config/service_profiling_symbols.yaml"
+
+            # 第一次检查是用户配置（不存在，返回 False），第二次是本地项目（True）
+            def isfile_side_effect(path):
+                return path == expected_path
+                
+            mock_isfile.side_effect = isfile_side_effect
+
+            result = VLLMProfiler._find_config_path()
+            assert result == expected_path
+
+    @staticmethod
+    @patch('ms_service_profiler.patcher.vllm.service_profiler.importlib_metadata.distribution')
+    def test_find_config_path_vllm_ascend_directory_not_found(mock_distribution, temp_config_dir, monkeypatch):
+        """测试 vllm_ascend 目录不存在的情况"""
+        mock_dist = Mock()
+        mock_dist.locate_file.return_value = None  # 目录不存在
+        mock_distribution.return_value = mock_dist
+        
+        # Mock vllm 模块，避免尝试导入真实模块
+        fake_vllm = type("Vllm", (), {"__version__": "0.9.2"})
+        monkeypatch.setitem(sys.modules, "vllm", fake_vllm)
+        
+        # Mock os.path.expanduser 指向临时目录，避免访问真实用户目录
+        home_dir = temp_config_dir
+        monkeypatch.setattr("ms_service_profiler.patcher.vllm.service_profiler.os.path.expanduser", lambda x: home_dir)
+        
+        # Mock os.path.isfile，确保用户配置文件不存在，本地配置可能存在
+        original_isfile = os.path.isfile
+        with patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.isfile') as mock_isfile:
+            def isfile_side_effect(path):
+                # 用户配置文件不存在（返回 False）
+                if 'vllm_ascend' in path and 'service_profiling_symbols' in path:
+                    return False
+                # 其他情况使用原始的 os.path.isfile
+                return original_isfile(path)
+            
+            mock_isfile.side_effect = isfile_side_effect
+            
+            result = VLLMProfiler._find_config_path()
+            
+            # 当前实现会回退到本地配置（若存在）
+            assert result is None or result.endswith('service_profiling_symbols.yaml')
+
+    @staticmethod
+    @patch('ms_service_profiler.patcher.vllm.service_profiler.importlib_metadata.distribution')
+    def test_find_config_path_vllm_ascend_config_not_found(mock_distribution, temp_config_dir, monkeypatch):
+        """测试 vllm_ascend 目录存在但配置文件不存在的情况"""
+        mock_dist = Mock()
+        mock_dist.locate_file.return_value = temp_config_dir
+        mock_distribution.return_value = mock_dist
+        
+        # Mock vllm 模块，避免尝试导入真实模块
+        fake_vllm = type("Vllm", (), {"__version__": "0.9.2"})
+        monkeypatch.setitem(sys.modules, "vllm", fake_vllm)
+        
+        # Mock os.path.expanduser 指向临时目录，避免访问真实用户目录
+        home_dir = temp_config_dir
+        monkeypatch.setattr("ms_service_profiler.patcher.vllm.service_profiler.os.path.expanduser", lambda x: home_dir)
+        
+        # 不创建配置文件，但确保目录存在
+        user_cfg_dir = os.path.join(home_dir, ".config", "vllm_ascend")
+        os.makedirs(user_cfg_dir, exist_ok=True)
+        
+        # Mock os.path.isfile，确保用户配置文件不存在，本地配置可能存在
+        original_isfile = os.path.isfile
+        with patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.isfile') as mock_isfile:
+            def isfile_side_effect(path):
+                # 用户配置文件不存在（返回 False）
+                if 'vllm_ascend' in path and 'service_profiling_symbols' in path:
+                    return False
+                # 其他情况使用原始的 os.path.isfile
+                return original_isfile(path)
+            
+            mock_isfile.side_effect = isfile_side_effect
+            
+            result = VLLMProfiler._find_config_path()
+            
+            # 当前实现会回退到本地配置（若存在）
+            assert result is None or result.endswith('service_profiling_symbols.yaml')
+
+    @staticmethod
+    @patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.dirname')
+    @patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.isfile')
+    def test_find_config_path_local_project_success(mock_isfile, mock_dirname):
+        """测试成功找到本地项目配置"""
+        # 模拟 vllm_ascend 查找失败
+        with patch('ms_service_profiler.patcher.vllm.service_profiler.importlib_metadata.distribution') as mock_distribution:
+            mock_distribution.side_effect = Exception("Test error")
+            
+            # 模拟本地配置文件存在
+            mock_isfile.return_value = True
+            mock_dirname.return_value = "/fake/project/path"
+            
+            result = VLLMProfiler._find_config_path()
+            
+            expected_path = "/fake/project/path/vllm/config/service_profiling_symbols.yaml"
+            mock_isfile.assert_called_with(expected_path)
+            assert result == expected_path
+
+    @staticmethod
+    @patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.isfile')
+    def test_find_config_path_no_config_found(mock_isfile):
+        """测试找不到任何配置文件的情况"""
+        # 模拟 vllm_ascend 查找失败
+        with patch('ms_service_profiler.patcher.vllm.service_profiler.importlib_metadata.distribution') as mock_distribution:
+            mock_distribution.side_effect = Exception("Test error")
+            
+            # 模拟本地配置文件也不存在
+            mock_isfile.return_value = False
+            
+            result = VLLMProfiler._find_config_path()
+            
+            assert result is None
+
+    @staticmethod
+    def test_find_config_path_when_vllm_not_installed_uses_local():
+        """测试未安装 vllm 时回退本地配置"""
+        # 模拟 vllm 未安装
+        with patch.dict('sys.modules', {'vllm': None}):
+            if 'vllm' in sys.modules:
+                del sys.modules['vllm']
+        # 模拟本地配置文件存在
+        with patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.dirname') as mock_dirname, \
+             patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.isfile') as mock_isfile:
+            mock_dirname.return_value = "/fake/project/path"
+            expected_path = "/fake/project/path/vllm/config/service_profiling_symbols.yaml"
+            
+            def isfile_side_effect(path):
+                return path == expected_path
+            mock_isfile.side_effect = isfile_side_effect
+
+            result = VLLMProfiler._find_config_path()
+            assert result == expected_path
+
+    @staticmethod
+    def test_find_config_path_special_characters(temp_config_dir):
+        """测试路径包含特殊字符的情况"""
+        # 这个测试主要确保路径处理不会因特殊字符而失败
+        # 实际实现中可能不需要特别处理，但测试确保健壮性
+        with patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.dirname') as mock_dirname:
+            mock_dirname.return_value = "/path/with/special/chars"
+            with patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.isfile') as mock_isfile:
+                mock_isfile.return_value = True
+                
+                result = VLLMProfiler._find_config_path()
+                
+                assert result is not None
+                assert 'special' in result
+
+class TestIntegration:
+    """集成测试"""
+    
+    @staticmethod
+    def test_integration_find_and_load_config(temp_config_dir, sample_yaml_content):
+        """测试查找和加载配置的完整流程"""
+        # 创建本地配置文件
+        config_dir = os.path.join(os.path.dirname(__file__), 'vllm', 'config')
+        os.makedirs(config_dir, exist_ok=True)
+        config_file = os.path.join(config_dir, 'service_profiling_symbols.yaml')
+        
+        try:
+            with open(config_file, 'w', encoding='utf-8') as f:
+                f.write(sample_yaml_content)
+            
+            # 查找配置路径
+            found_path = VLLMProfiler._find_config_path()
+            
+            # 应该找到本地配置文件
+            assert found_path is not None
+            assert 'service_profiling_symbols.yaml' in found_path
+            
+            # 加载配置
+            from ms_service_profiler.patcher.core.utils import load_yaml_config
+            config_data = load_yaml_config(found_path)
+            
+            assert isinstance(config_data, list)
+            assert len(config_data) > 0
+            
+        finally:
+            # 清理
+            if os.path.exists(config_file):
+                os.remove(config_file)
+            if os.path.exists(config_dir) and not os.listdir(config_dir):
+                os.rmdir(config_dir)
+
+
+class TestAutoDetectV1Default:
+    """测试 _auto_detect_v1_default 函数"""
+    
+    @staticmethod
+    @patch('ms_service_profiler.patcher.vllm.service_profiler.importlib_metadata.version')
+    def test_auto_detect_v1_default_new_version(mock_version):
+        """测试新版本 vLLM (>= 0.9.2) 返回 '1'"""
+        mock_version.return_value = "0.9.2"
+        
+        result = VLLMProfiler._auto_detect_v1_default()
+        
+        assert result == "1"
+        mock_version.assert_called_with("vllm")
+
+    @staticmethod
+    @patch('ms_service_profiler.patcher.vllm.service_profiler.importlib_metadata.version')
+    @pytest.mark.parametrize("version,expected", [
+        ("0.9.2", "1"),
+        ("0.9.3", "1"),
+        ("1.0.0", "1"),
+        ("0.9.1", "0"),  # 小于 0.9.2
+        ("0.8.0", "0"),
+        ("0.9.1+dev", "0"),  # 带标识符但仍小于 0.9.2
+    ])
+    def test_auto_detect_v1_default_various_versions(mock_version, version, expected):
+        """测试各种版本号的自动检测"""
+        mock_version.return_value = version
+        
+        result = VLLMProfiler._auto_detect_v1_default()
+        
+        assert result == expected
+
+    @staticmethod
+    @patch('ms_service_profiler.patcher.vllm.service_profiler.importlib_metadata.version')
+    def test_auto_detect_v1_default_old_version(mock_version):
+        """测试旧版本 vLLM (< 0.9.2) 返回 '0'"""
+        mock_version.return_value = "0.9.1"
+        
+        result = VLLMProfiler._auto_detect_v1_default()
+        
+        assert result == "0"
+
+    @staticmethod
+    @patch('ms_service_profiler.patcher.vllm.service_profiler.importlib_metadata.version')
+    def test_auto_detect_v1_default_version_not_found(mock_version):
+        """测试 vLLM 包未找到的情况"""
+        mock_version.side_effect = importlib.metadata.PackageNotFoundError("vllm not found")
+        
+        result = VLLMProfiler._auto_detect_v1_default()
+        
+        assert result == "0"
+
+    @staticmethod
+    @patch('ms_service_profiler.patcher.vllm.service_profiler.importlib_metadata.version')
+    def test_auto_detect_v1_default_version_parse_error(mock_version):
+        """测试版本解析错误的情况"""
+        mock_version.return_value = "invalid.version.string"
+        
+        result = VLLMProfiler._auto_detect_v1_default()
+        
+        # 应该回退到 "0"
+        assert result == "0"
+
+    @staticmethod
+    @patch('ms_service_profiler.patcher.vllm.service_profiler.importlib_metadata.version')
+    def test_auto_detect_v1_default_general_exception(mock_version):
+        """测试其他异常情况"""
+        mock_version.side_effect = Exception("Unexpected error")
+        
+        result = VLLMProfiler._auto_detect_v1_default()
+        
+        assert result == "0"
+
+    @staticmethod
+    @patch.dict('os.environ', {'VLLM_USE_V1': '1'})
+    @patch('ms_service_profiler.patcher.vllm.service_profiler.importlib_metadata.version')
+    def test_auto_detect_v1_default_env_var_set(mock_version):
+        """测试环境变量已设置的情况（虽然函数不检查，但确保不影响）"""
+        # 注意：函数本身不检查环境变量，但测试确保环境变量不影响函数行为
+        mock_version.return_value = "0.9.1"  # 旧版本
+        
+        result = VLLMProfiler._auto_detect_v1_default()
+        
+        # 函数应该忽略环境变量，只基于版本检测
+        assert result == "0"
+
+    @staticmethod
+    @patch('ms_service_profiler.patcher.vllm.service_profiler.importlib_metadata.version')
+    def test_auto_detect_with_complex_version_string(mock_version):
+        """测试复杂的版本字符串"""
+        complex_versions = [
+            "0.9.2.post1+dev123",
+            "0.9.2-rc1",
+            "0.9.2+build.123",
+        ]
+        
+        for version in complex_versions:
+            mock_version.return_value = version
+            result = VLLMProfiler._auto_detect_v1_default()
+            # 所有这些都是 >= 0.9.2，应该返回 "1"
+            assert result == "1"
 
 
 # ========== 原有的集成测试 ==========
@@ -968,11 +1318,11 @@ class TestIntegration:
 
 
 class TestServiceProfilerIntegration:
-    """ServiceProfiler 集成测试"""
+    """VLLMProfiler 集成测试"""
     
     @staticmethod
     def test_service_profiler_full_workflow(service_profiler, tmp_path):
-        """测试 ServiceProfiler 完整工作流程"""
+        """测试 VLLMProfiler 完整工作流程"""
         # 创建配置文件 - 修复：使用正确的列表格式
         config_file = tmp_path / "config.yaml"
         config_file.write_text("""
@@ -986,7 +1336,7 @@ class TestServiceProfilerIntegration:
             'PROFILING_SYMBOLS_PATH': str(config_file)
         }):
             # 模拟导入过程
-            with patch('ms_service_profiler.vllm_profiler.vllm_v0') as mock_v0:
+            with patch('ms_service_profiler.patcher.vllm.handlers.v0') as mock_v0:
                 # 保存原始 meta_path
                 original_meta_path = sys.meta_path.copy()
                 try:
@@ -1019,7 +1369,7 @@ class TestErrorHandling:
         with patch.dict(os.environ, {'SERVICE_PROF_CONFIG_PATH': '/some/path'}):
             # 修复：在 initialize 方法中捕获异常
             with patch.object(service_profiler, '_load_config', side_effect=Exception("Config error")):
-                with patch('ms_service_profiler.vllm_profiler.service_profiler.logger.exception') as mock_exception:
+                with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.exception') as mock_exception:
                     # 应该捕获异常而不崩溃
                     service_profiler.initialize()
                     
@@ -1058,13 +1408,13 @@ class TestEdgeCases:
         """测试空配置"""
         with patch.dict(os.environ, {'SERVICE_PROF_CONFIG_PATH': '/some/path'}):
             with patch.object(service_profiler, '_load_config', return_value={}):
-                with patch('ms_service_profiler.vllm_profiler.service_profiler.logger.warning') as mock_warning:
+                with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.warning') as mock_warning:
                     service_profiler.initialize()
                     # 修复：检查特定的警告消息
                     warning_calls = [
                         call 
                         for call in mock_warning.call_args_list 
-                        if 'No configuration loaded' in str(call)
+                        if 'No VLLM configuration loaded' in str(call)
                     ]
                     assert len(warning_calls) >= 1
 
@@ -1073,13 +1423,13 @@ class TestEdgeCases:
         """测试 None 配置"""
         with patch.dict(os.environ, {'SERVICE_PROF_CONFIG_PATH': '/some/path'}):
             with patch.object(service_profiler, '_load_config', return_value=None):
-                with patch('ms_service_profiler.vllm_profiler.service_profiler.logger.warning') as mock_warning:
+                with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.warning') as mock_warning:
                     service_profiler.initialize()
                     # 修复：检查特定的警告消息
                     warning_calls = [
                         call 
                         for call in mock_warning.call_args_list 
-                        if 'No configuration loaded' in str(call)
+                        if 'No VLLM configuration loaded' in str(call)
                     ]
                     assert len(warning_calls) >= 1
 

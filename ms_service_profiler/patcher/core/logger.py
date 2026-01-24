@@ -43,5 +43,5 @@ def set_logger(new_logger):
         new_logger.addHandler(stream_handler)
 
 
-logger = logging.getLogger("vllmProfiler")
+logger = logging.getLogger("ServiceProfiler")
 set_logger(logger)

@@ -13,13 +13,11 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
-from collections import Counter
 from ms_service_profiler import Profiler, Level
-from ..module_hook import vllm_hook
-from ..logger import logger
+from ms_service_profiler.patcher.core.module_hook import patcher
 
 
-@vllm_hook(("vllm.v1.core.kv_cache_manager", "KVCacheManager.free"), min_version="0.9.1")
+@patcher(("vllm.v1.core.kv_cache_manager", "KVCacheManager.free"), min_version="0.9.1")
 def free(original_func, this, request, *args, **kwargs):
     ret = original_func(this, request, *args, **kwargs)
     num_blocks = this.block_pool.get_num_free_blocks()
@@ -31,7 +29,7 @@ def free(original_func, this, request, *args, **kwargs):
     return ret
 
 
-@vllm_hook(("vllm.v1.core.kv_cache_manager", "KVCacheManager.get_computed_blocks"), min_version="0.9.1")
+@patcher(("vllm.v1.core.kv_cache_manager", "KVCacheManager.get_computed_blocks"), min_version="0.9.1")
 def get_computed_blocks(original_func, this, request, *args, **kwargs):
     ret = original_func(this, request, *args, **kwargs)
     if len(ret) > 1 and request.num_tokens > 0:

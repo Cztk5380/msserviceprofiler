@@ -35,7 +35,7 @@ dependencies = [
 "split" = "ms_service_profiler.ms_service_profiler_ext.split:arg_parse"
 
 [project.entry-points."vllm.general_plugins"]
-"msserviceprofiler" = "ms_service_profiler.vllm_profiler:register_service_profiler"
+"msserviceprofiler" = "ms_service_profiler.patcher.vllm:register_service_profiler"
 
 [project.optional-dependencies]
 profiler = ['torch', 'torch_npu']

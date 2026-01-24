@@ -15,10 +15,10 @@
 # -------------------------------------------------------------------------
 
 from ms_service_profiler import Profiler, Level
-from ..module_hook import vllm_hook
+from ms_service_profiler.patcher.core.module_hook import patcher
 
 
-@vllm_hook(
+@patcher(
     hook_points=[
         ("vllm.engine.async_llm_engine", "AsyncLLMEngine.add_request"),
         ("vllm.v1.engine.async_llm", "AsyncLLM.add_request")
@@ -31,7 +31,7 @@ async def add_request_async(original_func, this, request_id, prompt, *args, **kw
     return await original_func(this, request_id, prompt, *args, **kwargs)
 
 
-@vllm_hook(("vllm.v1.engine.output_processor", "OutputProcessor.process_outputs"), min_version="0.9.1")
+@patcher(("vllm.v1.engine.output_processor", "OutputProcessor.process_outputs"), min_version="0.9.1")
 def process_outputs(original_func, this, engine_core_outputs, *args, **kwargs):
     if len(engine_core_outputs) == 0:
         return original_func(this, engine_core_outputs, *args, **kwargs)

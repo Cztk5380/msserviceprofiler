@@ -20,13 +20,13 @@ import types
 from unittest.mock import MagicMock
 import pytest
 
-from ms_service_profiler.vllm_profiler.vllm_v0 import request_hookers
+from ms_service_profiler.patcher.vllm.handlers.v0 import request_handlers
 
 from .fake_ms_service_profiler import Profiler, Level
 
 
 def test_prof_add_request_given_valid_input_when_called_then_logs_events():
-    request_hookers.prof_add_request("req123", "prompt text")
+    request_handlers.prof_add_request("req123", "prompt text")
     assert len(Profiler.instance_calls) == 2
     # First call chain
     assert ("domain", "Request") in Profiler.instance_calls[0]
@@ -45,7 +45,7 @@ def test_add_request_sync_given_valid_input_when_called_then_profiler_and_origin
         return "ok"
 
     this = object()
-    func = getattr(request_hookers, func_name)
+    func = getattr(request_handlers, func_name)
     result = func(original_func, this, "req1", "promptX", 1, key="v")
     assert result == "ok"
     # Profiler should be called first
@@ -76,7 +76,7 @@ def test_process_model_outputs_given_empty_queue_when_called_then_returns_origin
         return "empty-ok"
 
     ctx = make_ctx([])
-    result = request_hookers.process_model_outputs(original_func, object(), ctx)
+    result = request_handlers.process_model_outputs(original_func, object(), ctx)
     assert result == "empty-ok"
     assert not Profiler.instance_calls
 
@@ -90,7 +90,7 @@ def test_process_model_outputs_given_non_empty_queue_and_finished_seq_when_calle
     scheduler_outputs = types.SimpleNamespace(scheduled_seq_groups=[types.SimpleNamespace(seq_group=seq_group)])
     skip = set()
     ctx = make_ctx([(None, [meta], scheduler_outputs, None, None, None, skip)])
-    result = request_hookers.process_model_outputs(original_func, object(), ctx)
+    result = request_handlers.process_model_outputs(original_func, object(), ctx)
     assert result == "res-ok"
     flat_calls = [
         item for chain in Profiler.instance_calls for item in chain
@@ -109,7 +109,7 @@ def test_process_model_outputs_given_skip_index_when_called_then_skips_token_met
     scheduler_outputs = types.SimpleNamespace(scheduled_seq_groups=[types.SimpleNamespace(seq_group=seq_group)])
     skip = {0}
     ctx = make_ctx([(None, [meta], scheduler_outputs, None, None, None, skip)])
-    result = request_hookers.process_model_outputs(original_func, object(), ctx)
+    result = request_handlers.process_model_outputs(original_func, object(), ctx)
     assert result == "res-skip"
     # Should have no metric logs but still detokenize
     flat_calls = [
@@ -129,7 +129,7 @@ def test_validate_output_given_finished_true_when_called_then_logs_and_returns()
         prompt_token_ids=[1, 2, 3],
         outputs=[types.SimpleNamespace(token_ids=[4, 5])],
     )
-    result = request_hookers.validate_output(original_func, object(), output, "ot")
+    result = request_handlers.validate_output(original_func, object(), output, "ot")
     assert result == "val-ok"
     flat_calls = [
         item for chain in Profiler.instance_calls for item in chain
@@ -145,7 +145,7 @@ def test_validate_output_given_finished_false_when_called_then_no_metrics_logged
     output = types.SimpleNamespace(
         finished=False, request_id="reqVal2", prompt_token_ids=[1], outputs=[types.SimpleNamespace(token_ids=[2])]
     )
-    result = request_hookers.validate_output(original_func, object(), output, "ot")
+    result = request_handlers.validate_output(original_func, object(), output, "ot")
     assert result == "no-metrics"
     flat_calls = [
         item for chain in Profiler.instance_calls for item in chain

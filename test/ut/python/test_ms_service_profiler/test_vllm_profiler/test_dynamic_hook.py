@@ -19,7 +19,7 @@ from unittest.mock import ANY
 
 import pytest
 
-from ms_service_profiler.vllm_profiler.dynamic_hook import (
+from ms_service_profiler.patcher.core.dynamic_hook import (
     FuncCallContext, 
     DynamicHooker, 
     register_dynamic_hook, 
@@ -123,7 +123,7 @@ class TestDynamicHooker:
         assert hooker.caller_filter is None
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.import_object_from_string')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.import_object_from_string')
     def test_dynamic_hooker_init(mock_import_object, sample_hook_list, mock_hook_func):
         """测试 DynamicHooker init 方法"""
         # 模拟导入的对象
@@ -163,7 +163,7 @@ class TestRegisterDynamicHook:
     @staticmethod
     def test_register_dynamic_hook(sample_hook_list, mock_hook_func):
         """测试 register_dynamic_hook 函数"""
-        with patch('ms_service_profiler.vllm_profiler.dynamic_hook.DynamicHooker') as mock_dynamic_hooker:
+        with patch('ms_service_profiler.patcher.core.dynamic_hook.DynamicHooker') as mock_dynamic_hooker:
             mock_hooker_instance = Mock()
             mock_dynamic_hooker.return_value = mock_hooker_instance
             
@@ -191,7 +191,7 @@ class TestRegisterDynamicHook:
     @staticmethod
     def test_register_dynamic_hook_default_args(sample_hook_list, mock_hook_func):
         """测试 register_dynamic_hook 函数（默认参数）"""
-        with patch('ms_service_profiler.vllm_profiler.dynamic_hook.DynamicHooker') as mock_dynamic_hooker:
+        with patch('ms_service_profiler.patcher.core.dynamic_hook.DynamicHooker') as mock_dynamic_hooker:
             mock_hooker_instance = Mock()
             mock_dynamic_hooker.return_value = mock_hooker_instance
             
@@ -219,8 +219,8 @@ class TestMakeDefaultTimeHook:
             # 重新导入以应用模拟
             import importlib
             import sys
-            if 'ms_service_profiler.vllm_profiler.dynamic_hook' in sys.modules:
-                importlib.reload(sys.modules['ms_service_profiler.vllm_profiler.dynamic_hook'])
+            if 'ms_service_profiler.patcher.core.dynamic_hook' in sys.modules:
+                importlib.reload(sys.modules['ms_service_profiler.patcher.core.dynamic_hook'])
             
             result_func = make_default_time_hook("test_domain", "test_name")
             
@@ -235,7 +235,7 @@ class TestMakeDefaultTimeHook:
             assert result == "result"
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.Profiler')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.Profiler')
     def test_make_default_time_hook_with_profiler_no_attributes(mock_profiler):
         """测试有 profiler 但无属性的情况"""
         mock_profiler_instance = Mock()
@@ -256,7 +256,7 @@ class TestMakeDefaultTimeHook:
         assert result == "result"
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.Profiler')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.Profiler')
     def test_make_default_time_hook_with_attributes(mock_profiler, sample_attributes):
         """测试有属性和 profiler 的情况"""
         mock_profiler_instance = Mock()
@@ -269,7 +269,7 @@ class TestMakeDefaultTimeHook:
         mock_kwargs = {'input_ids': [1, 2, 3]}
         
         # 模拟内部函数的行为
-        with patch('ms_service_profiler.vllm_profiler.dynamic_hook._safe_eval_expr') as mock_safe_eval:
+        with patch('ms_service_profiler.patcher.core.dynamic_hook._safe_eval_expr') as mock_safe_eval:
             mock_safe_eval.side_effect = [6, 3, "test_model"]  # 模拟三个属性的返回值
             
             result = result_func(mock_original, *mock_args, **mock_kwargs)
@@ -283,7 +283,7 @@ class TestMakeDefaultTimeHook:
             ])
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.Profiler')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.Profiler')
     def test_make_default_time_hook_attribute_eval_failure(mock_profiler, sample_attributes):
         """测试属性表达式执行失败的情况"""
         mock_profiler_instance = Mock()
@@ -295,7 +295,7 @@ class TestMakeDefaultTimeHook:
         mock_args = (Mock(),)
         mock_kwargs = {'input_ids': [1, 2, 3]}
         
-        with patch('ms_service_profiler.vllm_profiler.dynamic_hook._safe_eval_expr') as mock_safe_eval:
+        with patch('ms_service_profiler.patcher.core.dynamic_hook._safe_eval_expr') as mock_safe_eval:
             mock_safe_eval.return_value = None  # 所有表达式执行失败
             
             result = result_func(mock_original, *mock_args, **mock_kwargs)
@@ -304,7 +304,7 @@ class TestMakeDefaultTimeHook:
             mock_profiler_instance.attr.assert_not_called()
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.Profiler')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.Profiler')
     def test_make_default_time_hook_invalid_attributes(mock_profiler):
         """测试无效属性配置的情况"""
         mock_profiler_instance = Mock()
@@ -321,7 +321,7 @@ class TestMakeDefaultTimeHook:
         
         mock_original = Mock(return_value="result")
         
-        with patch('ms_service_profiler.vllm_profiler.dynamic_hook._safe_eval_expr') as mock_safe_eval:
+        with patch('ms_service_profiler.patcher.core.dynamic_hook._safe_eval_expr') as mock_safe_eval:
             mock_safe_eval.return_value = 5
             
             result = result_func(mock_original, 1, 2, 3)
@@ -344,7 +344,7 @@ class TestHandlerResolver:
         assert resolver2.prefer_builtin is False
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.importlib.import_module')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.importlib.import_module')
     def test_try_import_success(mock_import_module):
         """测试成功导入 handler"""
         mock_module = Mock()
@@ -358,7 +358,7 @@ class TestHandlerResolver:
         assert result == mock_handler
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.importlib.import_module')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.importlib.import_module')
     def test_try_import_module_not_found(mock_import_module):
         """测试导入模块失败"""
         mock_import_module.side_effect = ImportError("Module not found")
@@ -368,7 +368,7 @@ class TestHandlerResolver:
         assert result is None
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.importlib.import_module')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.importlib.import_module')
     def test_try_import_function_not_found(mock_import_module):
         """测试导入函数不存在"""
         mock_module = Mock()
@@ -380,7 +380,7 @@ class TestHandlerResolver:
         assert result is None
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.make_default_time_hook')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.make_default_time_hook')
     def test_resolve_explicit_timer(mock_make_default):
         """测试解析显式 timer handler"""
         mock_timer = Mock()
@@ -400,7 +400,7 @@ class TestHandlerResolver:
         assert result == mock_timer
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.make_default_time_hook')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.make_default_time_hook')
     def test_resolve_none_handler(mock_make_default):
         """测试解析 None handler（隐式 timer）"""
         mock_timer = Mock()
@@ -420,8 +420,8 @@ class TestHandlerResolver:
         assert result == mock_timer
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.HandlerResolver._try_import')
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.make_default_time_hook')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.HandlerResolver._try_import')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.make_default_time_hook')
     def test_resolve_custom_handler_success(mock_make_default, mock_try_import):
         """测试成功解析自定义 handler"""
         mock_custom_handler = Mock()
@@ -442,8 +442,8 @@ class TestHandlerResolver:
         mock_make_default.assert_not_called()
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.HandlerResolver._try_import')
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.make_default_time_hook')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.HandlerResolver._try_import')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.make_default_time_hook')
     def test_resolve_custom_handler_fallback(mock_make_default, mock_try_import):
         """测试自定义 handler 导入失败回退到 timer"""
         mock_timer = Mock()
@@ -465,7 +465,7 @@ class TestHandlerResolver:
         assert result == mock_timer
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.make_default_time_hook')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.make_default_time_hook')
     def test_resolve_other_handler_value(mock_make_default):
         """测试解析其他 handler 值（回退到 timer）"""
         mock_timer = Mock()
@@ -485,7 +485,7 @@ class TestHandlerResolver:
         assert result == mock_timer
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.make_default_time_hook')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.make_default_time_hook')
     def test_resolve_with_attributes(mock_make_default):
         """测试解析带有属性的 handler"""
         mock_timer = Mock()
@@ -507,7 +507,7 @@ class TestHandlerResolver:
         assert result == mock_timer
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.make_default_time_hook')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.make_default_time_hook')
     def test_resolve_name_from_points(mock_make_default):
         """测试从 points 中提取名称"""
         mock_timer = Mock()
@@ -526,7 +526,7 @@ class TestHandlerResolver:
         assert result == mock_timer
 
     @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.dynamic_hook.make_default_time_hook')
+    @patch('ms_service_profiler.patcher.core.dynamic_hook.make_default_time_hook')
     def test_resolve_default_name(mock_make_default):
         """测试使用默认名称"""
         mock_timer = Mock()
@@ -722,8 +722,8 @@ class TestInternalFunctions:
         hook_func = make_default_time_hook("test", "test")
         
         # 模拟成功的表达式执行
-        with patch('ms_service_profiler.vllm_profiler.dynamic_hook._build_safe_locals') as mock_build_locals, \
-             patch('ms_service_profiler.vllm_profiler.dynamic_hook._execute_pipe_expression') as mock_execute:
+        with patch('ms_service_profiler.patcher.core.dynamic_hook._build_safe_locals') as mock_build_locals, \
+             patch('ms_service_profiler.patcher.core.dynamic_hook._execute_pipe_expression') as mock_execute:
             mock_build_locals.return_value = {'args': (1, 2, 3), 'len': len}
             mock_execute.return_value = 3
             
@@ -734,8 +734,8 @@ class TestInternalFunctions:
             assert result == 3
         
         # 模拟表达式执行失败
-        with patch('ms_service_profiler.vllm_profiler.dynamic_hook._build_safe_locals') as mock_build_locals, \
-             patch('ms_service_profiler.vllm_profiler.dynamic_hook._execute_pipe_expression') as mock_execute:
+        with patch('ms_service_profiler.patcher.core.dynamic_hook._build_safe_locals') as mock_build_locals, \
+             patch('ms_service_profiler.patcher.core.dynamic_hook._execute_pipe_expression') as mock_execute:
             mock_build_locals.return_value = {'args': (1, 2, 3), 'len': len}
             mock_execute.side_effect = Exception("Test error")
             

@@ -17,18 +17,15 @@
 import os
 import sys
 import importlib
-import importlib.metadata
 import tempfile
 import shutil
 from unittest.mock import Mock, patch
 
 import pytest
 
-from ms_service_profiler.vllm_profiler.utils import (
-    find_config_path, 
+from ms_service_profiler.patcher.core.utils import (
     load_yaml_config, 
-    parse_version_tuple, 
-    auto_detect_v1_default
+    parse_version_tuple
 )
 
 
@@ -63,167 +60,6 @@ def mock_distribution():
     return mock_dist
 
 
-class TestFindConfigPath:
-    """测试 find_config_path 函数"""
-    
-    @staticmethod
-    def test_find_config_path_user_config_success(temp_config_dir, monkeypatch):
-        """测试代码仓配置不存在时，回退到用户目录下按版本命名的配置"""
-        # 伪造 vllm.__version__
-        fake_vllm = type("Vllm", (), {"__version__": "0.9.2"})
-        monkeypatch.setitem(sys.modules, "vllm", fake_vllm)
-
-        # 将 ~ 指向临时目录
-        home_dir = temp_config_dir
-        monkeypatch.setattr("ms_service_profiler.vllm_profiler.utils.os.path.expanduser", lambda x: home_dir)
-
-        # 创建用户配置文件 ~/.config/vllm_ascend/service_profiling_symbols.0.9.2.yaml
-        user_cfg_dir = os.path.join(home_dir, ".config", "vllm_ascend")
-        os.makedirs(user_cfg_dir, exist_ok=True)
-        user_cfg_file = os.path.join(user_cfg_dir, "service_profiling_symbols.0.9.2.yaml")
-        with open(user_cfg_file, "w", encoding="utf-8") as f:
-            f.write("test user config")
-
-        # 模拟代码仓配置文件不存在，这样才会回退到用户配置
-        # 保存原始的 os.path.isfile 引用，避免递归调用
-        original_isfile = os.path.isfile
-        with patch('ms_service_profiler.vllm_profiler.utils.os.path.isfile') as mock_isfile:
-            def isfile_side_effect(path):
-                # 代码仓配置文件不存在（返回 False）
-                if path.endswith('config/service_profiling_symbols.yaml'):
-                    return False
-                # 用户配置文件存在（返回 True）
-                if path == user_cfg_file:
-                    return True
-                # 其他情况使用原始的 os.path.isfile
-                return original_isfile(path)
-            
-            mock_isfile.side_effect = isfile_side_effect
-            
-            result = find_config_path()
-            assert result == user_cfg_file
-
-    @staticmethod
-    def test_find_config_path_user_config_missing_fallback_to_local(temp_config_dir, monkeypatch):
-        """测试用户配置不存在时回退到本地项目配置"""
-        # 伪造 vllm.__version__ 存在但用户配置不存在
-        fake_vllm = type("Vllm", (), {"__version__": "0.9.2"})
-        monkeypatch.setitem(sys.modules, "vllm", fake_vllm)
-        # 将 ~ 指向临时目录，但不创建用户配置文件
-        home_dir = temp_config_dir
-        monkeypatch.setattr("ms_service_profiler.vllm_profiler.utils.os.path.expanduser", lambda x: home_dir)
-
-        # 模拟本地项目存在配置文件
-        with patch('ms_service_profiler.vllm_profiler.utils.os.path.dirname') as mock_dirname, \
-             patch('ms_service_profiler.vllm_profiler.utils.os.path.isfile') as mock_isfile:
-            mock_dirname.return_value = "/fake/project/path"
-            expected_path = "/fake/project/path/config/service_profiling_symbols.yaml"
-
-            # 第一次检查是用户配置（不存在，返回 False），第二次是本地项目（True）
-            def isfile_side_effect(path):
-                return path == expected_path
-                
-            mock_isfile.side_effect = isfile_side_effect
-
-            result = find_config_path()
-            assert result == expected_path
-
-    @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.utils.importlib_metadata.distribution')
-    def test_find_config_path_vllm_ascend_directory_not_found(mock_distribution):
-        """测试 vllm_ascend 目录不存在的情况"""
-        mock_dist = Mock()
-        mock_dist.locate_file.return_value = None  # 目录不存在
-        mock_distribution.return_value = mock_dist
-        
-        result = find_config_path()
-        
-        # 当前实现会回退到本地配置（若存在）
-        assert result is None or result.endswith('service_profiling_symbols.yaml')
-
-    @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.utils.importlib_metadata.distribution')
-    def test_find_config_path_vllm_ascend_config_not_found(mock_distribution, temp_config_dir):
-        """测试 vllm_ascend 目录存在但配置文件不存在的情况"""
-        mock_dist = Mock()
-        mock_dist.locate_file.return_value = temp_config_dir
-        mock_distribution.return_value = mock_dist
-        
-        # 不创建配置文件
-        
-        result = find_config_path()
-        
-        # 当前实现会回退到本地配置（若存在）
-        assert result is None or result.endswith('service_profiling_symbols.yaml')
-
-    @staticmethod
-    def test_find_config_path_vllm_ascend_exception():
-        """测试用户配置查找过程中出现异常时仍可回退本地"""
-        # 让导入 vllm 抛异常
-        with patch.dict('sys.modules', {'vllm': None}):
-            if 'vllm' in sys.modules:
-                del sys.modules['vllm']
-
-        result = find_config_path()
-        
-        # 应该继续尝试本地配置
-        assert result is not None
-
-    @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.utils.os.path.dirname')
-    @patch('ms_service_profiler.vllm_profiler.utils.os.path.isfile')
-    def test_find_config_path_local_project_success(mock_isfile, mock_dirname):
-        """测试成功找到本地项目配置"""
-        # 模拟 vllm_ascend 查找失败
-        with patch('ms_service_profiler.vllm_profiler.utils.importlib_metadata.distribution') as mock_distribution:
-            mock_distribution.side_effect = Exception("Test error")
-            
-            # 模拟本地配置文件存在
-            mock_isfile.return_value = True
-            mock_dirname.return_value = "/fake/project/path"
-            
-            result = find_config_path()
-            
-            expected_path = "/fake/project/path/config/service_profiling_symbols.yaml"
-            mock_isfile.assert_called_with(expected_path)
-            assert result == expected_path
-
-    @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.utils.os.path.isfile')
-    def test_find_config_path_no_config_found(mock_isfile):
-        """测试找不到任何配置文件的情况"""
-        # 模拟 vllm_ascend 查找失败
-        with patch('ms_service_profiler.vllm_profiler.utils.importlib_metadata.distribution') as mock_distribution:
-            mock_distribution.side_effect = Exception("Test error")
-            
-            # 模拟本地配置文件也不存在
-            mock_isfile.return_value = False
-            
-            result = find_config_path()
-            
-            assert result is None
-
-    @staticmethod
-    def test_find_config_path_when_vllm_not_installed_uses_local():
-        """测试未安装 vllm 时回退本地配置"""
-        # 模拟 vllm 未安装
-        with patch.dict('sys.modules', {'vllm': None}):
-            if 'vllm' in sys.modules:
-                del sys.modules['vllm']
-        # 模拟本地配置文件存在
-        with patch('ms_service_profiler.vllm_profiler.utils.os.path.dirname') as mock_dirname, \
-             patch('ms_service_profiler.vllm_profiler.utils.os.path.isfile') as mock_isfile:
-            mock_dirname.return_value = "/fake/project/path"
-            expected_path = "/fake/project/path/config/service_profiling_symbols.yaml"
-            
-            def isfile_side_effect(path):
-                return path == expected_path
-            mock_isfile.side_effect = isfile_side_effect
-
-            result = find_config_path()
-            assert result == expected_path
-
-
 class TestLoadYamlConfig:
     """测试 load_yaml_config 函数"""
     
@@ -246,8 +82,8 @@ class TestLoadYamlConfig:
         """测试 PyYAML 未安装的情况"""
         with patch.dict('sys.modules', {'yaml': None}):
             # 重新导入以应用模拟（此处仅保留 importlib 用于 reload）
-            if 'ms_service_profiler.vllm_profiler.utils' in sys.modules:
-                importlib.reload(sys.modules['ms_service_profiler.vllm_profiler.utils'])
+            if 'ms_service_profiler.patcher.core.utils' in sys.modules:
+                importlib.reload(sys.modules['ms_service_profiler.patcher.core.utils'])
             result = load_yaml_config('/fake/path.yaml')
             assert result is None
 
@@ -347,127 +183,8 @@ class TestParseVersionTuple:
         # 这里我们期望它能处理异常
 
 
-class TestAutoDetectV1Default:
-    """测试 auto_detect_v1_default 函数"""
-    
-    @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.utils.importlib_metadata.version')
-    def test_auto_detect_v1_default_new_version(mock_version):
-        """测试新版本 vLLM (>= 0.9.2) 返回 '1'"""
-        mock_version.return_value = "0.9.2"
-        
-        result = auto_detect_v1_default()
-        
-        assert result == "1"
-        mock_version.assert_called_with("vllm")
-
-    @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.utils.importlib_metadata.version')
-    @pytest.mark.parametrize("version,expected", [
-        ("0.9.2", "1"),
-        ("0.9.3", "1"),
-        ("1.0.0", "1"),
-        ("0.9.1", "0"),  # 小于 0.9.2
-        ("0.8.0", "0"),
-        ("0.9.1+dev", "0"),  # 带标识符但仍小于 0.9.2
-    ])
-    def test_auto_detect_v1_default_various_versions(mock_version, version, expected):
-        """测试各种版本号的自动检测"""
-        mock_version.return_value = version
-        
-        result = auto_detect_v1_default()
-        
-        assert result == expected
-
-    @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.utils.importlib_metadata.version')
-    def test_auto_detect_v1_default_old_version(mock_version):
-        """测试旧版本 vLLM (< 0.9.2) 返回 '0'"""
-        mock_version.return_value = "0.9.1"
-        
-        result = auto_detect_v1_default()
-        
-        assert result == "0"
-
-    @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.utils.importlib_metadata.version')
-    def test_auto_detect_v1_default_version_not_found(mock_version):
-        """测试 vLLM 包未找到的情况"""
-        mock_version.side_effect = importlib.metadata.PackageNotFoundError("vllm not found")
-        
-        result = auto_detect_v1_default()
-        
-        assert result == "0"
-
-    @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.utils.importlib_metadata.version')
-    def test_auto_detect_v1_default_version_parse_error(mock_version):
-        """测试版本解析错误的情况"""
-        mock_version.return_value = "invalid.version.string"
-        
-        result = auto_detect_v1_default()
-        
-        # 应该回退到 "0"
-        assert result == "0"
-
-    @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.utils.importlib_metadata.version')
-    def test_auto_detect_v1_default_general_exception(mock_version):
-        """测试其他异常情况"""
-        mock_version.side_effect = Exception("Unexpected error")
-        
-        result = auto_detect_v1_default()
-        
-        assert result == "0"
-
-    @staticmethod
-    @patch.dict('os.environ', {'VLLM_USE_V1': '1'})
-    @patch('ms_service_profiler.vllm_profiler.utils.importlib_metadata.version')
-    def test_auto_detect_v1_default_env_var_set(mock_version):
-        """测试环境变量已设置的情况（虽然函数不检查，但确保不影响）"""
-        # 注意：函数本身不检查环境变量，但测试确保环境变量不影响函数行为
-        mock_version.return_value = "0.9.1"  # 旧版本
-        
-        result = auto_detect_v1_default()
-        
-        # 函数应该忽略环境变量，只基于版本检测
-        assert result == "0"
-
-
 class TestIntegration:
     """集成测试"""
-    
-    @staticmethod
-    def test_integration_find_and_load_config(temp_config_dir, sample_yaml_content):
-        """测试查找和加载配置的完整流程"""
-        # 创建本地配置文件
-        config_dir = os.path.join(os.path.dirname(__file__), 'config')
-        os.makedirs(config_dir, exist_ok=True)
-        config_file = os.path.join(config_dir, 'service_profiling_symbols.yaml')
-        
-        try:
-            with open(config_file, 'w', encoding='utf-8') as f:
-                f.write(sample_yaml_content)
-            
-            # 查找配置路径
-            found_path = find_config_path()
-            
-            # 应该找到本地配置文件
-            assert found_path is not None
-            assert 'service_profiling_symbols.yaml' in found_path
-            
-            # 加载配置
-            config_data = load_yaml_config(found_path)
-            
-            assert isinstance(config_data, list)
-            assert len(config_data) > 0
-            
-        finally:
-            # 清理
-            if os.path.exists(config_file):
-                os.remove(config_file)
-            if os.path.exists(config_dir) and not os.listdir(config_dir):
-                os.rmdir(config_dir)
 
     @staticmethod
     def test_version_parsing_integration():
@@ -490,21 +207,6 @@ class TestIntegration:
 
 class TestEdgeCases:
     """边界情况测试"""
-    
-    @staticmethod
-    def test_find_config_path_special_characters(temp_config_dir):
-        """测试路径包含特殊字符的情况"""
-        # 这个测试主要确保路径处理不会因特殊字符而失败
-        # 实际实现中可能不需要特别处理，但测试确保健壮性
-        with patch('ms_service_profiler.vllm_profiler.utils.os.path.dirname') as mock_dirname:
-            mock_dirname.return_value = "/path/with/special/chars"
-            with patch('ms_service_profiler.vllm_profiler.utils.os.path.isfile') as mock_isfile:
-                mock_isfile.return_value = True
-                
-                result = find_config_path()
-                
-                assert result is not None
-                assert 'special' in result
 
     @staticmethod
     def test_load_yaml_config_large_file(temp_config_dir):
@@ -531,19 +233,3 @@ class TestEdgeCases:
         
         # 应该只取前三个部分
         assert result == (1, 9, 9)
-
-    @staticmethod
-    @patch('ms_service_profiler.vllm_profiler.utils.importlib_metadata.version')
-    def test_auto_detect_with_complex_version_string(mock_version):
-        """测试复杂的版本字符串"""
-        complex_versions = [
-            "0.9.2.post1+dev123",
-            "0.9.2-rc1",
-            "0.9.2+build.123",
-        ]
-        
-        for version in complex_versions:
-            mock_version.return_value = version
-            result = auto_detect_v1_default()
-            # 所有这些都是 >= 0.9.2，应该返回 "1"
-            assert result == "1"

@@ -21,7 +21,7 @@ from collections import namedtuple
 from unittest.mock import MagicMock
 import pytest
 
-from ms_service_profiler.vllm_profiler.vllm_v0 import model_hookers
+from ms_service_profiler.patcher.vllm.handlers.v0 import model_handlers
 
 from .fake_ms_service_profiler import Profiler, Level
 
@@ -63,12 +63,12 @@ class FakeModelInput:
 # Reset thread local state between tests
 @pytest.fixture(autouse=True)
 def reset_state():
-    if hasattr(model_hookers._thread_local, "hook_state"):
-        delattr(model_hookers._thread_local, "hook_state")
+    if hasattr(model_handlers._thread_local, "hook_state"):
+        delattr(model_handlers._thread_local, "hook_state")
     Profiler.reset()
     yield
-    if hasattr(model_hookers._thread_local, "hook_state"):
-        delattr(model_hookers._thread_local, "hook_state")
+    if hasattr(model_handlers._thread_local, "hook_state"):
+        delattr(model_handlers._thread_local, "hook_state")
     Profiler.reset()
 
 
@@ -90,7 +90,7 @@ def test_handle_execute_model_given_metadata_when_various_prompts_then_correct_b
     original_func = MagicMock(return_value="ok")
 
     # Act
-    result = model_hookers.handle_execute_model(original_func, "this", req)
+    result = model_handlers.handle_execute_model(original_func, "this", req)
 
     # Assert
     assert result == "ok"
@@ -108,7 +108,7 @@ def test_execute_model_given_first_run_when_called_then_skip_profiling():
     model_input = FakeModelInput(True, {"id1": 1}, 2)
 
     # First call should skip profiling
-    result = model_hookers.execute_model(original_func, "this", model_input, "kv")
+    result = model_handlers.execute_model(original_func, "this", model_input, "kv")
     assert result == "first_ok"
     # No profiler recorded
     assert not Profiler.instance_calls
@@ -117,12 +117,12 @@ def test_execute_model_given_first_run_when_called_then_skip_profiling():
 @pytest.mark.parametrize("prefill", [True, False])
 def test_execute_model_given_second_run_when_prefill_varies_then_batch_type_correct(prefill):
     # Prepare state to skip first run branch
-    state = model_hookers._get_state()
+    state = model_handlers._get_state()
     state.execute_model_first_run = False
     original_func = MagicMock(return_value="ok")
     model_input = FakeModelInput(prefill, {"id1": 1, "id2": 2}, 3)
 
-    result = model_hookers.execute_model(original_func, "this", model_input, "kv")
+    result = model_handlers.execute_model(original_func, "this", model_input, "kv")
     assert result == "ok"
     calls_flat = sum(Profiler.instance_calls, [])
     expected_type = "Prefill" if prefill else "Decode"
@@ -134,28 +134,28 @@ def test_begin_forward_given_first_run_when_called_then_skip_append():
     original_func = MagicMock(return_value="res")
     model_input = FakeModelInput(True, {"id1": 1}, 1)
 
-    result = model_hookers.begin_forward(original_func, "this", model_input)
+    result = model_handlers.begin_forward(original_func, "this", model_input)
     assert result == "res"
-    state = model_hookers._get_state()
+    state = model_handlers._get_state()
     assert state.forward_profiler == []
 
 
 def test_begin_forward_given_second_run_when_called_then_append_profiler():
-    state = model_hookers._get_state()
+    state = model_handlers._get_state()
     state.begin_forward_first_run = False
     original_func = MagicMock(return_value="res")
     model_input = FakeModelInput(True, {"id1": 1, "id2": 2}, 1)
 
-    result = model_hookers.begin_forward(original_func, "this", model_input)
+    result = model_handlers.begin_forward(original_func, "this", model_input)
     assert result == "res"
-    state = model_hookers._get_state()
+    state = model_handlers._get_state()
     assert len(state.forward_profiler) == 1
     calls_flat = sum(Profiler.instance_calls, [])
     assert any(c[0] == "res" for c in calls_flat)
 
 
 def test_set_forward_context_given_profiler_exists_when_enter_then_start_and_end_called():
-    state = model_hookers._get_state()
+    state = model_handlers._get_state()
     dummy_prof = Profiler(Level.INFO)
     state.forward_profiler.append(dummy_prof)
 
@@ -168,7 +168,7 @@ def test_set_forward_context_given_profiler_exists_when_enter_then_start_and_end
 
     import contextlib
 
-    with model_hookers.set_forward_context(orig_ctx):
+    with model_handlers.set_forward_context(orig_ctx):
         pass
     calls_flat = sum(Profiler.instance_calls, [])
     assert ("span_start", "forward") in calls_flat
@@ -185,7 +185,7 @@ def test_set_forward_context_given_no_profiler_when_enter_then_no_start_or_end()
 
     import contextlib
 
-    with model_hookers.set_forward_context(orig_ctx):
+    with model_handlers.set_forward_context(orig_ctx):
         pass
     calls_flat = sum(Profiler.instance_calls, [])
     assert ("span_start", "forward") not in calls_flat

@@ -108,7 +108,7 @@ msserviceprofiler analyze --input-path=./ --output-path output
 点位配置文件已在 vLLM-ascend 以及工具中内置：
 
 - 默认加载路径：`~/.config/vllm_ascend/service_profiling_symbols.MAJOR.MINOR.PATCH.yaml`（适用于 vLLM-ascend 框架且文件名随已安装的 vllm 版本变化）
-- 备用加载路径：`工具安装路径/msserviceprofiler/vllm_profiler/config/service_profiling_symbols.yaml`
+- 备用加载路径：`工具安装路径/ms_service_profiler/patcher/vllm/config/service_profiling_symbols.yaml`
 
 如需自定义采集点，推荐通过设置环境变量`PROFILING_SYMBOLS_PATH`，将一份点位配置文件复制到工作目录进行修改使用。
 
@@ -133,7 +133,7 @@ msserviceprofiler analyze --input-path=./ --output-path output
 
 ```yaml
 - symbol: vllm.v1.core.kv_cache_manager:KVCacheManager.free
-  handler: vllm_profiler.config.custom_handler_example:kvcache_manager_free_example_handler
+  handler: ms_service_profiler.patcher.config.custom_handler_example.kvcache_manager_free_example_handler
   domain: Example
   name: example_custom
 ```

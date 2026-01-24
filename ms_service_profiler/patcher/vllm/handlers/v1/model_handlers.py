@@ -15,7 +15,7 @@
 # -------------------------------------------------------------------------
 from contextlib import contextmanager
 from ms_service_profiler import Profiler, Level
-from ..module_hook import vllm_hook
+from ms_service_profiler.patcher.core.module_hook import patcher
 from .utils import classify_requests, SharedHookState, create_state_getter
 try:
     import torch_npu
@@ -42,7 +42,7 @@ class HookState(SharedHookState):
 _get_state = create_state_getter(HookState)
 
 
-@vllm_hook(
+@patcher(
     hook_points=("vllm.model_executor.layers.logits_processor", "LogitsProcessor.forward"), 
     min_version="0.9.1"
 )
@@ -56,7 +56,7 @@ def compute_logits(original_func, this, *args, **kwargs):
     return ret
 
 
-@vllm_hook(hook_points=("vllm.v1.sample.sampler", "Sampler.forward"), min_version="0.9.1")
+@patcher(hook_points=("vllm.v1.sample.sampler", "Sampler.forward"), min_version="0.9.1")
 def sampler_forward(original_func, this, *args, **kwargs):
     """处理执行模型钩子"""
     prof = Profiler(Level.INFO).domain("Execute").span_start("sample")
@@ -67,7 +67,7 @@ def sampler_forward(original_func, this, *args, **kwargs):
     return ret
 
 
-@vllm_hook(
+@patcher(
     hook_points=[
         ("vllm.v1.executor.abstract", "Executor.execute_model"),
         ("vllm.v1.executor.multiproc_executor", "MultiprocExecutor.execute_model")
@@ -94,7 +94,7 @@ def execute_model(original_func, this, scheduler_output, *args, **kwargs):
     return ret
 
 
-@vllm_hook(("vllm.forward_context", "set_forward_context"), min_version="0.9.1")
+@patcher(("vllm.forward_context", "set_forward_context"), min_version="0.9.1")
 @contextmanager
 def set_forward_context(original_func, *args, **kwargs):
     """前向上下文钩子"""
@@ -108,7 +108,7 @@ def set_forward_context(original_func, *args, **kwargs):
         state.forward_profiler = None
 
 
-@vllm_hook(("vllm_ascend.utils", "ProfileExecuteDuration.capture_async"), min_version="0.9.1")
+@patcher(("vllm_ascend.utils", "ProfileExecuteDuration.capture_async"), min_version="0.9.1")
 @contextmanager
 def capture_async(original_func, this, duration_tag, *args, **kwargs):
     """前向上下文钩子"""

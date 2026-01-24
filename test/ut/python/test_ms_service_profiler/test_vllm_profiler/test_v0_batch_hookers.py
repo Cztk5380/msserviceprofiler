@@ -20,7 +20,7 @@ from collections import deque, Counter
 from unittest.mock import MagicMock
 import pytest
 
-from ms_service_profiler.vllm_profiler.vllm_v0 import batch_hookers
+from ms_service_profiler.patcher.vllm.handlers.v0 import batch_handlers
 
 from .fake_ms_service_profiler import Profiler, Level
 
@@ -28,7 +28,7 @@ from .fake_ms_service_profiler import Profiler, Level
 def test_compare_deques_given_nonempty_when_diff_then_correct_counter():
     q1 = deque([1, 2, 2, 3])
     q2 = deque([2, 3])
-    result = batch_hookers.compare_deques(q1, q2)
+    result = batch_handlers.compare_deques(q1, q2)
     assert isinstance(result, Counter)
     assert result == Counter({1: 1, 2: 1})
 
@@ -36,7 +36,7 @@ def test_compare_deques_given_nonempty_when_diff_then_correct_counter():
 def test_compare_deques_given_equal_when_no_diff_then_empty_counter():
     q1 = deque([1, 2])
     q2 = deque([1, 2])
-    result = batch_hookers.compare_deques(q1, q2)
+    result = batch_handlers.compare_deques(q1, q2)
     assert result == Counter()
 
 
@@ -48,7 +48,7 @@ class DummySeqGroup:
 def test_queue_profiler_given_changes_when_elements_removed_and_added_then_logs_both():
     before = [DummySeqGroup("A"), DummySeqGroup("B")]
     after = [DummySeqGroup("B"), DummySeqGroup("C")]
-    batch_hookers.queue_profiler(before, after, "test_queue")
+    batch_handlers.queue_profiler(before, after, "test_queue")
     # Should log Dequeue for A and Enqueue for C
     all_calls = sum(Profiler.instance_calls, [])
     assert any([c[0] == "event" and c[1] == "Dequeue" for c in all_calls])
@@ -99,7 +99,7 @@ def test_simple_hooks_log_and_call_original(func_name, args):
         called["yes"] = True
 
     this = MagicMock(running=[MagicMock(request_id="rx")], waiting=[1], swapped=[1])
-    func = getattr(batch_hookers, func_name)
+    func = getattr(batch_handlers, func_name)
     func(orig_func, this, *args)
     assert called.get("yes", False) is True
     assert Profiler.instance_calls  # some logging occurred
@@ -114,7 +114,7 @@ def test_swap_out_given_can_swap_out_true_then_logs():
     def orig_func(*a, **k):
         called["yes"] = True
 
-    batch_hookers.swap_out(orig_func, this, seq_group)
+    batch_handlers.swap_out(orig_func, this, seq_group)
     assert called["yes"] is True
     assert any([c[0] == "metric_inc" for c in sum(Profiler.instance_calls, [])])
 
@@ -123,5 +123,5 @@ def test_swap_out_given_can_swap_out_false_then_no_logs():
     seq_group = MagicMock(request_id="s2")
     bm = MagicMock(can_swap_out=lambda sg: False)
     this = MagicMock(block_manager=bm)
-    batch_hookers.swap_out(lambda *a, **k: None, this, seq_group)
+    batch_handlers.swap_out(lambda *a, **k: None, this, seq_group)
     assert not any([c[0] == "metric_inc" for c in sum(Profiler.instance_calls, [])])
