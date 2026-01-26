@@ -4,7 +4,7 @@
 
 vLLM 服务化性能采集工具（vLLM Service Profiler）是用于监测和采集 vLLM-ascend 推理服务框架内部执行流程性能数据的工具。该工具通过采集关键流程的起止时间、识别关键函数或迭代、记录关键事件并捕获多种类型的信息，帮助用户快速定位性能瓶颈。
 
-vLLM Profiler 适用于在 vLLM-ascend 推理服务过程中进行性能监测和优化分析，覆盖从准备、采集、解析到结果展示的完整流程。
+vLLM Service Profiler 适用于在 vLLM-ascend 推理服务过程中进行性能监测和优化分析，覆盖从准备、采集、解析到结果展示的完整流程。
 
 ### 基本概念
 
@@ -296,4 +296,5 @@ def custom_handler(original_func, this, *args, **kwargs):
 采集配置可以参考[数据采集](./msserviceprofiler_serving_tuning_instruct.md#数据采集)中的配置文件创建的说明以及注意事项的澄清。
 
 >![](public_sys-resources/icon-note.gif) **须知：**
-> 目前 vLLM Profiler 暂不支持`torch_prof_stack`，`torch_prof_modules`，`torch_prof_step_num`三项配置的使能。
+> - 目前 vLLM Service Profiler 暂不支持 `torch_prof_stack`、`torch_prof_modules`、`torch_prof_step_num` 三项配置的使能。
+> - vLLM Service Profiler 在 `acl_task_time` 参数配置为1时，不支持同时配置vLLM原生Torch Profiler 的 `VLLM_TORCH_PROFILER_DIR` 环境变量进行性能数据采集。
