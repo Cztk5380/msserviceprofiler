@@ -15,6 +15,7 @@
 # -------------------------------------------------------------------------
 import importlib
 import json
+import os
 import re
 from pathlib import Path
 import subprocess
@@ -140,23 +141,28 @@ class AisBench(BenchmarkInterface):
 
     def get_best_concurrency(self):
         output_path = Path(self.config.output_path)
-        rate_files = glob.glob(f"{output_path}/*/performances/*/*dataset.json")
-        for json_file in rate_files:
-            with open_s(json_file, "r") as f:
-                try:
-                    data = json.load(f)
-                except json.decoder.JSONDecodeError as e:
-                    logger.error(f"{e}, file: {json_file}")
-                    continue
-            _concurrency = float(data["Concurrency"]["total"])
-            _concurrency *= self.config.best_concurrency_coefficient
-            _max_concurrency = float(data["Max Concurrency"]["total"])
-            if _concurrency < self.config.best_concurrency_threshold:
-                best_concurrency = self.config.best_concurrency_threshold
-            else:
-                best_concurrency = int(min(_concurrency, _max_concurrency))
-            return best_concurrency
-        raise ValueError(f"Not Found concurrency value. fiels: {rate_files}")
+        csv_files = glob.glob(f"{output_path}/*/performances/*/*.csv")
+        if len(csv_files) != 1:
+            logger.error(f"The ais bench result for csv files are not unique, result files {csv_files}; "
+                         f"output path: {output_path}. please check")
+        dir_path = os.path.dirname(csv_files[0])
+        file_name = os.path.splitext(os.path.basename(csv_files[0]))[0]
+        # 生成 JSON 文件的路径
+        json_file = os.path.join(dir_path, f"{file_name}.json")
+
+        with open_s(json_file, "r") as f:
+            try:
+                data = json.load(f)
+            except json.decoder.JSONDecodeError as e:
+                raise ValueError(f"JSON文件格式错误，无法找到并发值。文件路径: {json_file}") from e
+        _concurrency = float(data["Concurrency"]["total"])
+        _concurrency *= self.config.best_concurrency_coefficient
+        _max_concurrency = float(data["Max Concurrency"]["total"])
+        if _concurrency < self.config.best_concurrency_threshold:
+            best_concurrency = self.config.best_concurrency_threshold
+        else:
+            best_concurrency = int(min(_concurrency, _max_concurrency))
+        return best_concurrency
 
     def get_performance_index(self):
         output_path = Path(self.config.output_path)
@@ -169,21 +175,28 @@ class AisBench(BenchmarkInterface):
         performance_index.time_per_output_token = self.get_performance_metric(
             self.config.performance_config.time_per_output_token.metric,
             self.config.performance_config.time_per_output_token.algorithm)
-        rate_files = glob.glob(f"{output_path}/*/performances/*/*dataset.json")
-        for json_file in rate_files:
-            with open_s(json_file, "r") as f:
-                try:
-                    data = json.load(f)
-                except json.decoder.JSONDecodeError as e:
-                    logger.error(f"{e}, file: {json_file}")
-                    continue
-            total_requests = data["Total Requests"]["total"]
-            success_req = data["Success Requests"]["total"]
-            performance_index.throughput = float(data["Request Throughput"]["total"].split()[0])
-            if total_requests != 0:
-                performance_index.success_rate = success_req / total_requests
-                output_average = data["Output Token Throughput"]["total"]
-                performance_index.generate_speed = float(output_average.split()[0])
+        csv_files = glob.glob(f"{output_path}/*/performances/*/*.csv")
+        if len(csv_files) != 1:
+            logger.error(f"The ais bench result for csv files are not unique, result files {csv_files}; "
+                         f"output path: {output_path}. please check")
+        dir_path = os.path.dirname(csv_files[0])
+        file_name = os.path.splitext(os.path.basename(csv_files[0]))[0]
+
+        # 生成 JSON 文件的路径
+        json_file = os.path.join(dir_path, f"{file_name}.json")
+
+        with open_s(json_file, "r") as f:
+            try:
+                data = json.load(f)
+            except json.decoder.JSONDecodeError as e:
+                raise ValueError(f"JSON文件格式错误，无法找到总请求数。文件路径: {json_file}") from e
+        total_requests = data["Total Requests"]["total"]
+        success_req = data["Success Requests"]["total"]
+        performance_index.throughput = float(data["Request Throughput"]["total"].split()[0])
+        if total_requests != 0:
+            performance_index.success_rate = success_req / total_requests
+            output_average = data["Output Token Throughput"]["total"]
+            performance_index.generate_speed = float(output_average.split()[0])
         return performance_index
 
     def before_run(self, run_params: Optional[Tuple[OptimizerConfigField]] = None):

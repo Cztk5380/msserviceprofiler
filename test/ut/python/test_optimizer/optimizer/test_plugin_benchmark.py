@@ -175,7 +175,7 @@ class TestAisbench:
         mock_glob.side_effect = [
             [str(aisbench_test_environment["csv_path"])],  # 第一次调用返回CSV文件
             [str(aisbench_test_environment["csv_path"])],  # 第二次调用返回CSV文件
-            [str(aisbench_test_environment["json_path"])]  # 第三次调用返回JSON文件
+            [str(aisbench_test_environment["csv_path"])]  # 第三次调用返回JSON文件
         ]
         
         config = AisBenchConfig()
