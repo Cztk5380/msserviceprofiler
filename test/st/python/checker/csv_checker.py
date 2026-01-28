@@ -73,9 +73,7 @@ def check_batch_csv(output_path):
         expected_header = [
             "name",
             "res_list",
-            "start_time",
-            "end_time",
-            "total_batch_size",
+            "batch_size",
             "during_time(ms)",
         ]
 
@@ -88,9 +86,7 @@ def check_batch_csv(output_path):
         # 每列是否有值
         check_df_col_has_no_nan_value(df, "name")
         check_df_col_has_no_nan_value(df, "res_list")
-        check_df_col_has_no_nan_value(df, "start_time")
-        check_df_col_has_no_nan_value(df, "end_time")
-        check_df_col_has_no_nan_value(df, "total_batch_size")
+        check_df_col_has_no_nan_value(df, "batch_size")
         check_df_col_has_no_nan_value(df[df['name'] != 'Execute'], "batch_type")
         check_df_col_has_no_nan_value(df, "during_time(ms)")
 
@@ -118,7 +114,6 @@ def check_kvcache_csv(output_path, complete_req_cnt=0):
         # 每列是否有值
         check_df_col_has_no_nan_value(df, "name")
         check_df_col_has_no_nan_value(df, "start_time")
-        check_df_col_has_no_nan_value(df, "total_blocks")
         check_df_col_has_no_nan_value(df, "kvcache_usage_rate")
 
         # 检查事件出现次数
@@ -153,7 +148,7 @@ def check_forward_csv(output_path, card_nums=0, device_nums=0):
 
         df = pd.read_csv(csv_file_path)
 
-        expected_header = [name_col_name, relative_col_name, "start_time", "end_time", \
+        expected_header = [name_col_name, relative_col_name, "start_time(ms)", "end_time(ms)", \
             "during_time(ms)", "bubble_time(ms)", batch_size_col_name, batch_type_col_name, \
             "forward_iter", "dp_rank", prof_col_name, hostname_col_name]
 

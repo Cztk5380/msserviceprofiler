@@ -108,10 +108,11 @@ def test_export_with_csv_format():
             'hostuid': [1, 2, 3],
             'pid': [101, 101, 102],
             'start_datetime': [1696321692, 1696321693, 1696321694],
-            'relative_timestamp(ms)': [0, 0.01, 0],
+            'relative_timestamp(ms)': [0.0, 0.01, 0.0],
             'waiting': np.array([10, None, None]),
             'running': np.array([None, 15, None]),
-            'swapped': np.array([None, None, 20])
+            'swapped': np.array([None, None, 20]),
+            'timestamp(ms)': [1.0, 1.01, 1.02]
         })
         print(mock_save_dataframe_to_csv.call_args[0][0]['relative_timestamp(ms)'])
         pd.testing.assert_frame_equal(mock_save_dataframe_to_csv.call_args[0][0], expected_df)

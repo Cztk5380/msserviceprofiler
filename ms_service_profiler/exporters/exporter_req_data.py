@@ -177,8 +177,8 @@ class ExporterReqData(ExporterBase):
             req_base_info['cache_hit_rate'] = req_base_info['cache_hit_rate'].replace('', 'N/A').fillna('N/A')
 
         required_colunms = [
-            'rid', 'start_time', 'start_datetime', 'recvTokenSize=', 'replyTokenSize=',
-            'execution_time', 'que_wait_time', 'ttft', 'cache_hit_rate'
+            'rid', 'start_datetime', 'recvTokenSize=', 'replyTokenSize=',
+            'execution_time', 'que_wait_time', 'ttft', 'cache_hit_rate', 'start_time'
         ]
         filtered_df = req_base_info.reindex(columns=required_colunms)
 
@@ -194,10 +194,9 @@ class ExporterReqData(ExporterBase):
         # 数据完整性检查之后，重命名之前添加排序逻辑
         filtered_df = filtered_df.sort_values(by='start_time').reset_index(drop=True)
 
-        filtered_df = filtered_df.drop(columns=['start_time'])
-
         filtered_df = filtered_df.rename(columns={
                 'rid': 'http_rid',
+                'start_time': 'start_time(ms)',
                 'recvTokenSize=': 'recv_token_size',
                 'replyTokenSize=': 'reply_token_size',
                 'ttft': 'first_token_latency',

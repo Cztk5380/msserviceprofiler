@@ -27,8 +27,8 @@ from ms_service_profiler.utils.timer import timer
 
 REQUIED_NAME = set(["forward"])
 FORWARD_REMAME_COLUMNS = {
-    "start_datetime": "start_time",
-    "end_datetime": "end_time",
+    "start_time": "start_time(ms)",
+    "end_time": "end_time(ms)",
     "during_time": "during_time(ms)",
     "relative_start_time": "relative_start_time(ms)",
     "bubble_time": "bubble_time(ms)"
@@ -77,7 +77,10 @@ class ExporterForwardData(ExporterBase):
         forward_df = forward_df.drop(columns=DELETE_COLUMNS)
         forward_df["forward_iter"] = forward_df.groupby("prof_id").cumcount() + 1
         forward_df = forward_df.sort_values(by=["start_time"]).reset_index(drop=True)
-        forward_df = forward_df.drop(columns=['start_time', 'end_time'])
+
+        if 'start_time' in forward_df.columns and 'end_time' in forward_df.columns:
+            forward_df['start_time'] = forward_df['start_time']
+            forward_df['end_time'] = forward_df['end_time']
 
         data_link_df = pd.DataFrame({
             'source_name': ['rid'],
@@ -114,10 +117,10 @@ def get_batch_name(dataframe):
 def get_filter_forward_df(required_name, forward_df):
     mask = forward_df["name"].isin(required_name)
 
-    ori_columns = ["name", "relative_start_time", "start_datetime", "end_datetime", "start_time", "end_time",
+    ori_columns = ["name", "relative_start_time", "start_datetime", "end_datetime",
                    "during_time", "bubble_time", "batch_size", "batch_type",
                    "forward_iter", "rid", "rid_list", "dp_rank", "prof_id", "hostname",
-                   "pid", "tid"]
+                   "pid", "tid", "start_time", "end_time"]
 
     missing_columns = set(ori_columns) - set(forward_df.columns)
     for col in missing_columns:

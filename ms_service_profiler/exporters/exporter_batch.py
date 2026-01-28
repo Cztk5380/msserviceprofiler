@@ -40,18 +40,32 @@ def filter_batch_df(batch_name, batch_df, tx_data_df=None):
 
     filtered_df = batch_df[batch_df['name'].isin(['modelExec', 'Execute', batch_name])].copy()
 
+    # 新增：添加 start_time 和 end_time 字段
+    if 'start_time' in batch_df.columns and 'start_time' not in filtered_df.columns:
+        filtered_df['start_time'] = batch_df.loc[filtered_df.index, 'start_time']
+    if 'end_time' in batch_df.columns and 'end_time' not in filtered_df.columns:
+        filtered_df['end_time'] = batch_df.loc[filtered_df.index, 'end_time']
+
     # 新增：为 BatchSchedule 行匹配上层计算好的 KVCache 字段
     filtered_df = add_precomputed_kv_cache_fields(filtered_df, tx_data_df)
 
     base_columns = [
         'name', 'res_list', 'start_datetime', 'end_datetime', 'during_time',
         'batch_type', 'prof_id', 'batch_size',
-        # 新增 KVCache 字段
-        'total_blocks', 'used_blocks', 'free_blocks',
-        'blocks_allocated', 'blocks_freed', 'kvcache_usage_rate'
+        'start_time', 'end_time'
     ]
-    batch_columns = [col for col in base_columns if col in filtered_df.columns]
 
+    # 动态添加 KVCache 字段（仅当有非空值时）
+    kv_cache_columns = ['total_blocks', 'used_blocks', 'free_blocks',
+                        'blocks_allocated', 'blocks_freed', 'kvcache_usage_rate']
+    for col in kv_cache_columns:
+        if col in filtered_df.columns:
+            non_zero_mask = filtered_df[col] != 0
+            non_na_mask = filtered_df[col].notna()
+            if (non_zero_mask & non_na_mask).any():
+                base_columns.append(col)
+
+    batch_columns = [col for col in base_columns if col in filtered_df.columns]
     join_columns = batch_columns + ['pid']
     existing_columns = [col for col in join_columns if col in filtered_df.columns]
     filtered_df = filtered_df[existing_columns]
@@ -65,9 +79,16 @@ def filter_batch_df(batch_name, batch_df, tx_data_df=None):
     if 'pid' in filtered_df.columns:
         filtered_df = filtered_df.drop(columns=['pid'])
 
-    desired_order = [col for col in base_columns if col in filtered_df.columns]
-    remaining_columns = [col for col in filtered_df.columns if col not in desired_order]
-    filtered_df = filtered_df[desired_order + remaining_columns]
+    if 'start_time' in filtered_df.columns:
+        filtered_df = filtered_df.rename(columns={'start_time': 'start_time(ms)'})
+    if 'end_time' in filtered_df.columns:
+        filtered_df = filtered_df.rename(columns={'end_time': 'end_time(ms)'})
+
+    all_cols = filtered_df.columns.tolist()
+    time_cols = ['start_time(ms)', 'end_time(ms)']
+    non_time_cols = [col for col in all_cols if col not in time_cols]
+    final_order = non_time_cols + [col for col in time_cols if col in all_cols]
+    filtered_df = filtered_df[final_order]
 
     return filtered_df
 
@@ -98,7 +119,6 @@ def add_precomputed_kv_cache_fields(batch_df, tx_data_df):
     # 初始化新列并获取批处理调度数据
     new_columns = ['total_blocks', 'used_blocks', 'free_blocks',
                    'blocks_allocated', 'blocks_freed', 'kvcache_usage_rate']
-    batch_df = _initialize_columns(batch_df, new_columns)
 
     # 获取并验证 BatchSchedule 数据
     batch_schedule_mask, batch_count = _get_batch_schedule_info(batch_df)
@@ -120,6 +140,10 @@ def add_precomputed_kv_cache_fields(batch_df, tx_data_df):
 
     # 检查最终结果
     _log_final_results(batch_df, new_columns, total_matched, total_unmatched)
+
+    for col in new_columns:
+        if col in batch_df.columns and batch_df[col].isna().all():
+            batch_df = batch_df.drop(columns=[col])
 
     return batch_df
 
@@ -722,10 +746,9 @@ class ExporterBatchData(ExporterBase):
 
 
 BATCH_RENAME_COLS = {
-    'start_datetime': 'start_time',
-    'end_datetime': 'end_time',
+    'start_time': 'start_time(ms)',
+    'end_time': 'end_time(ms)',
     'during_time': 'during_time(ms)',
-    'batch_size': 'total_batch_size',
 }
 
 CREATE_BATCH_TABLE_CONFIG = TableConfig(

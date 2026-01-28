@@ -75,7 +75,7 @@ class ExporterReqStatus(ExporterBase):
 
             desired_columns = [ColumnConst.HOSTUID_COLUMN, ColumnConst.PID_COLUMN, \
                 ColumnConst.START_DATETIME_COLUMN, ColumnConst.RELATIVE_TIMESTAMP_MS_COLUMN, \
-                'waiting', 'running', 'swapped']
+                'waiting', 'running', 'swapped', ColumnConst.TIMESTAMP_MS_COLUMN]
             df = df[desired_columns]
 
             output = cls.args.output_path
