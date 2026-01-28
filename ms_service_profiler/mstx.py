@@ -173,17 +173,17 @@ class LibServiceProfiler:
             self.func_mark_event(bytes(msg, encoding="utf-8"))
 
     def mark_event_ex(self, name: str, domain: str, msg: str):
-        """
-        记录增强事件：name（事件名）、domain（分类域）、msg（详细信息）
-        对应 C 接口: MarkEventEx(const char* name, const char* domain, const char* msg)
-        """
         self.init()
         if self.func_mark_event_ex is not None:
             self.func_mark_event_ex(
-                bytes(name, encoding="utf-8"),
-                bytes(domain, encoding="utf-8"),
-                bytes(msg, encoding="utf-8")
+                bytes(name, "utf-8"),
+                bytes(domain, "utf-8"),
+                bytes(msg, "utf-8")
             )
+        elif self.func_mark_event is not None:
+            import json
+            legacy = json.dumps({"name": name, "domain": domain, "msg": msg}, ensure_ascii=False)
+            self.func_mark_event(bytes(legacy, "utf-8"))
 
     def span_end_ex(self, name: str, domain: str, msg: str, span_handle: int):
         self.init()
@@ -194,6 +194,17 @@ class LibServiceProfiler:
                 bytes(msg, "utf-8"),
                 span_handle
             )
+        elif self.func_end_span is not None:
+            self.func_end_span(span_handle)
+            if self.func_mark_event is not None:
+                import json
+                extra = json.dumps({
+                    "type": "span_end_fallback",
+                    "name": name,
+                    "domain": domain,
+                    "msg": msg
+                }, ensure_ascii=False)
+                self.func_mark_event(bytes(extra, "utf-8"))
 
     def start_profiler(self):
         self.init()

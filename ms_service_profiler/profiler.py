@@ -95,6 +95,7 @@ class Profiler:
         if not self._enable:
             return
         self._name = "Launch"
+        self._attr["type"] = MarkType.TYPE_EVENT
         self._mark_event_ex()
 
     def link(self, from_rid, to_rid):
@@ -123,24 +124,22 @@ class Profiler:
     def span_end(self):
         if not self._enable or self._span_handle is None:
             return
+
         msg = self._get_attrs_json()
-        service_profiler.span_end_ex(
-            self._name,
-            self._domain or "",
-            msg,
-            self._span_handle
-        )
+        domain = self._domain or ""
+        span_name = self._name
+        service_profiler.span_end_ex(span_name, domain, msg, self._span_handle)
+
         self._span_handle = None
 
     def _mark_event_ex(self):
         if not self._enable:
             return
+
         msg = self._get_attrs_json()
-        service_profiler.mark_event_ex(
-            self._name,
-            self._domain or "",
-            msg
-        )
+        domain = self._domain or ""
+        name = self._name
+        service_profiler.mark_event_ex(name, domain, msg)
 
     def add_meta_info(self, meta_key, meta_data):
         if self._enable:
