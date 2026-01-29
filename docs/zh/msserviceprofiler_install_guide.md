@@ -22,7 +22,7 @@ apt-get install lcov
 #### pip 安装 msserviceprofiler
 ```shell
 # 安装构建依赖
-apt-get install libsqlite3-dev
+apt-get install libsqlite3-dev  # 在RHEL/CentOS/Fedora等使用`yum`的系统上，应使用 yum install sqlite sqlite-devel 
 # 当前只提供源码安装
 git clone https://gitcode.com/Ascend/msserviceprofiler.git
 cd msserviceprofiler
