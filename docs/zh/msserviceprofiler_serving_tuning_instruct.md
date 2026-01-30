@@ -311,24 +311,26 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 |--|--|
 |name|用于区分组batch和执行batch。name为batchFrameworkProcessing表示组batch；name为modelExec表示执行batch。|
 |res_list|batch组合情况。|
-|start_time|组batch或执行batch的开始时间。|
-|end_time|组batch或执行batch的结束时间。|
-|batch_type|batch中的请求状态（prefill和decode）。|
+|start_datetime|组batch或执行batch的开始时间。|
+|end_datetime|组batch或执行batch的结束时间。|
 |during_time(ms)|执行时间，单位ms。|
+|batch_type|batch中的请求状态（prefill和decode）。|
 |prof_id|标识不同的卡。对于相同的卡，该字段值相同。|
-|total_batch_size|记录组batch过程中的总batch大小。|
-|total_blocks|记录KVCache总内存块的数量，从原始TotalBlocks获取。|
-|used_blocks|记录调度后实际占用内存块的数量，计算方式total_blocks - free_blocks。|
-|free_blocks|记录调度执行后剩余可用内存块的数量，从原始FreeBlocksAfter字段获取。|
-|blocks_allocated|记录本次调度操作消耗的KVCache资源，计算方式FreeBlocksBefore - FreeBlocksAfter。|
-|blocks_freed|记录的是本次调度操作释放的KVCache资源，计算方式FreeBlocksAfter - FreeBlocksBefore。|
-|kvcache_usage_rate|计算本次调度过程中KVCache的内存使用百分比，计算方式used_blocks / total_blocks。|
+|batch_size|记录组batch过程中的总batch大小。|
 |prefill_batch_size|记录调度过程中prefill阶段的batch大小。|
 |decode_batch_size|记录调度过程中decode阶段的batch大小。|
+|total_blocks|记录KVCache总内存块的数量，从原始TotalBlocks获取。当前仅支持vllm场景。|
+|used_blocks|记录调度后实际占用内存块的数量，计算方式total_blocks - free_blocks。当前仅支持vllm场景。|
+|free_blocks|记录调度执行后剩余可用内存块的数量，从原始FreeBlocksAfter字段获取。当前仅支持vllm场景。|
+|blocks_allocated|记录本次调度操作消耗的KVCache资源，计算方式FreeBlocksBefore - FreeBlocksAfter。当前仅支持vllm场景。|
+|blocks_freed|记录的是本次调度操作释放的KVCache资源，计算方式FreeBlocksAfter - FreeBlocksBefore。当前仅支持vllm场景。|
+|kvcache_usage_rate|计算本次调度过程中KVCache的内存使用百分比，计算方式used_blocks / total_blocks。当前仅支持vllm场景。|
 |prefill_scheduled_tokens|记录调度过程中prefill占用的token数。|
 |decode_scheduled_tokens|记录调度过程中decode占用的token数。|
 |total_scheduled_tokens|记录调度过程中的总token数。|
-|dp_rank|标识batch的DP信息。对于相同的DP域，该字段值相同。|
+|dp_rank|标识batch的DP信息。对于相同的DP域，该字段值相同。若无DP域，则该字段值为<NA>。|
+|start_time(ms)|组batch或执行batch的开始时间时间戳。|
+|end_time(ms)|组batch或执行batch的结束时间时间戳。|
 
 ### **kvcache.csv**
 
@@ -338,14 +340,16 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 
 |字段|说明|
 |--|--|
+|rid|标注KVCache事件的请求ID。|
 |domain|标注KVCache事件。|
 |name|具体改变显存使用的方法。|
 |start_time|发生显存使用情况变更的时间。|
-|total_blocks|记录KVCache总内存块的数量，从原始TotalBlocks获取。|
-|used_blocks|记录调度后实际占用内存块的数量，计算方式total_blocks - free_blocks。|
-|free_blocks|记录调度执行后剩余可用内存块的数量，从原始FreeBlocksAfter字段获取。|
-|blocks_allocated|记录本次调度操作消耗的KVCache资源，计算方式FreeBlocksBefore - FreeBlocksAfter。|
-|blocks_freed|记录本次调度操作释放的KVCache资源，计算方式FreeBlocksAfter - FreeBlocksBefore。|
+|total_blocks|记录KVCache总内存块的数量，从原始TotalBlocks获取。当前仅支持vllm场景。|
+|used_blocks|记录调度后实际占用内存块的数量，计算方式total_blocks - free_blocks。当前仅支持vllm场景。|
+|free_blocks|记录调度执行后剩余可用内存块的数量，从原始FreeBlocksAfter字段获取。当前仅支持vllm场景。|
+|blocks_allocated|记录本次调度操作消耗的KVCache资源，计算方式FreeBlocksBefore - FreeBlocksAfter。当前仅支持vllm场景。|
+|blocks_freed|记录本次调度操作释放的KVCache资源，计算方式FreeBlocksAfter - FreeBlocksBefore。当前仅支持vllm场景。|
+|device_kvcache_left|计算本次显存操作后KVCache的剩余量。为MindIE框架独有。|
 |kvcache_usage_rate|计算本次调度过程中KVCache的内存使用百分比，计算方式used_blocks / total_blocks。|
 
 ### **request.csv**
@@ -364,6 +368,7 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 |queue_wait_time(ms)|请求在整个推理过程中在队列中等待的时间，这里包括waiting状态和pending状态的时间，单位ms。|
 |first_token_latency(ms)|首Token时延，单位ms。|
 |cache_hit_rate|缓存命中率。|
+|start_time(ms)|请求到达时间时间戳。|
 
 ### **forward.csv**
 
@@ -375,8 +380,8 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 |--|--|
 |name|标注forward事件，代表模型前向执行过程。|
 |relative_start_time(ms)|每台机器上forward与第一个forward之间的时间。|
-|start_time|forward的开始时间。|
-|end_time|forward的结束时间。|
+|start_datetime|forward的开始时间。|
+|end_datetime|forward的结束时间。|
 |during_time(ms)|forward的执行时间，单位ms。|
 |bubble_time(ms)|forward之间的空泡时间，单位ms。|
 |batch_size|forward处理的请求数量。|
@@ -385,6 +390,8 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 |dp_rank|标识forward的DP信息，相同DP域该列的值相同。|
 |prof_id|标识不同卡，相同的卡该列的值相同。|
 |hostname|标识不同机器，相同机器该列的值相同。|
+|start_time(ms)|forward的开始时间时间戳。|
+|end_time(ms)|forward的结束时间时间戳。|
 
 ### **pd\_split\_communication.csv**
 
@@ -487,11 +494,12 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 |--|--|
 |hostuid|节点ID。|
 |pid|进程ID。|
-|timestamp(ms)|时间戳，单位ms。|
+|start_datetime|请求到达时间。|
 |relative_timestamp(ms)|相对时间戳，单位ms。|
 |waiting|处于waiting状态的请求个数。|
 |running|处于running状态的请求个数。|
 |swapped|处于swapped状态的请求个数。|
+|timestamp(ms)|时间戳，单位ms。|
 
 ### **\{host\_name\}\_eplb\_\{i\}\_summed\_hot\_map\_by\_expert.png**
 
@@ -611,7 +619,7 @@ cd grafana-v11.3.0/bin/
 
 2.  新建dashboard，导入折线图。
 
-    在/xxx/Ascend/cann-_\{version\}_/tools/msserviceprofiler/python/ms\_service\_profiler/views/路径下包含可视化文件profiler\_visualization.json，修改json文件中datasource的uid为步骤2中记录的uid。
+    在/xxx/Ascend/cann-_\{version\}_/tools/msserviceprofiler/python/ms\_service\_profiler/views/路径下包含可视化文件profiler\_visualization.json，修改json文件中datasource的uid为上述步骤中记录的uid。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >{version}为CANN软件包版本，支持CANN 8.1.RC1及之后的版本。
@@ -644,16 +652,17 @@ cd grafana-v11.3.0/bin/
 
 |可视化图像名称|描述|
 |--|--|
-|Batch Size by Batch ID|记录BatchSchedule过程中每个batch包含的请求数量折线图。根据时间排序，区分prefill和decode。|
-|Request Status|服务中处于不同状态下的请求数目随时间变化的折线图。|
-|Kvcache usage percent|所有请求Kvcache使用率随时间变换折线图。包含所有请求的Kvcache使用率情况。|
-|first_token_latency|所有请求首token时延随时间变化折线图。包含所有请求首token时延的平均值avg，分位值p99、p90、p50等。|
-|prefill_generate_speed_latency|所有请求prefill阶段，不同时刻吞吐的token平均时延随时间变化折线图。包含所有请求不同时刻吞吐的token平均时延的平均值avg，分位值p99、p90、p50等。|
-|decode_generate_speed_latency|所有请求decode阶段，不同时刻吞吐的token平均时延随时间变化折线图。包含所有请求不同时刻吞吐的token平均时延的平均值avg，分位值p99、p90、p50等。|
-|request_latency|所有请求端到端时延随时间变化折线图。包含所有请求端到端时延的平均值avg，分位值p99、p90、p50等。|
+|Batch_Size_curve|BatchSchedule过程中每个batch包含的请求数量折线图。根据时间排序，区分prefill和decode。|
+|Batch_Token_curve|BatchSchedule过程中的总Token数折线图。区分prefill和decode。|
+|Request_Status_curve|服务中处于不同状态下的队列大小随时间变化的折线图。|
+|Kvcache_usage_percent_curve|所有请求Kvcache使用率随时间变换折线图。包含所有请求的Kvcache使用率情况。|
+|First_Token_Latency_curve|所有请求首token时延随时间变化折线图。包含所有请求首token时延的平均值avg，分位值p99、p90、p50等。|
+|Prefill_Generate_Speed_Latency_curve|所有请求prefill阶段，不同时刻吞吐的token平均时延随时间变化折线图。包含所有请求不同时刻吞吐的token平均时延的平均值avg，分位值p99、p90、p50等。|
+|Decode_Generate_Speed_Latency_curve|所有请求decode阶段，不同时刻吞吐的token平均时延随时间变化折线图。包含所有请求不同时刻吞吐的token平均时延的平均值avg，分位值p99、p90、p50等。|
+|Request_Latency_curve|所有请求端到端时延随时间变化折线图。包含所有请求端到端时延的平均值avg，分位值p99、p90、p50等。|
 
 
--   Batch Size by Batch ID
+-   Batch_Size_curve
 
     记录BatchSchedule过程中每个batch包含的请求数量折线图。
 
@@ -661,21 +670,21 @@ cd grafana-v11.3.0/bin/
 
     纵轴：记录对应batch的batch size，区分prefill batch和decode batch。
 
-    **图 10**  Batch Size by Batch ID<a name="fig11458160171513"></a>  
+    **图 10**  Batch_Size_curve<a name="fig11458160171513"></a>  
     ![](figures/Batch-Size-by-Batch-ID.png "Batch-Size-by-Batch-ID")
 
--   Request Status
+-   Request_Status_curve
 
-    服务化过程中处于不同状态下的请求数目随时间变化的折线图。
+    服务化过程中处于不同状态下的队列大小随时间变化的折线图。
 
     横轴：服务化推理运行时间轴。
 
-    纵轴：当前时刻处于该状态的请求总数。
+    纵轴：当前时刻处于该状态的队列大小。
 
-    **图 11**  Request Status<a name="fig332101019263"></a>  
+    **图 11**  Request_Status_curve<a name="fig332101019263"></a>  
     ![](figures/Request-Status.png "Request-Status")
 
--   Kvcache usage percent
+-   Kvcache_usage_percent_curve
 
     所有请求Kvcache使用率随时间变化折线图。
 
@@ -683,51 +692,51 @@ cd grafana-v11.3.0/bin/
 
     纵轴：所有请求Kvcache使用率的变化情况。单位：百分率%。
 
-    **图 12**  Kvcache usage percent<a name="fig248583622618"></a>  
+    **图 12**  Kvcache_usage_percent_curve<a name="fig248583622618"></a>  
     ![](figures/Kvcache-usage-percent.png "Kvcache-usage-percent")
 
--   first\_token\_latency
+-   First_Token_Latency_curve
 
     所有请求token时延随时间变化折线图。
 
     横轴：服务化推理运行时间轴。
 
-    纵轴：所有请求首token时延的平均值avg，分位值p99、p90、p50。单位：us。
+    纵轴：所有请求首token时延的平均值avg，分位值p99、p90、p50，最小值min。单位：us。
 
-    **图 13**  first\_token\_latency<a name="fig51649142712"></a>  
+    **图 13**  First\_Token\_Latency\_curve<a name="fig51649142712"></a>  
     ![](figures/first_token_latency.png "first_token_latency")
 
--   prefill\_generate\_speed\_latency
+-   Prefill\_Generate\_Speed\_Latency\_curve
 
     所有请求prefill阶段，不同时刻吞吐的token平均时延随时间变化折线图。
 
     横轴：服务化推理运行时间轴。
 
-    纵轴：所有请求prefill阶段不同时刻吞吐的token平均时延的平均值avg，分位值p99、p90、p50。单位：token个数/s。
+    纵轴：所有请求prefill阶段不同时刻吞吐的token平均时延的平均值avg，分位值p99、p90、p50，平均值avg。单位：token个数/s。
 
-    **图 14**  prefill\_generate\_speed\_latency<a name="fig162756333277"></a>  
+    **图 14**  Prefill\_Generate\_Speed\_Latency\_curve<a name="fig162756333277"></a>  
     ![](figures/prefill_generate_speed_latency.png "prefill_generate_speed_latency")
 
--   decode\_generate\_speed\_latency
+-   Decode\_Generate\_Speed\_Latency\_curve
 
     所有请求decode阶段，不同时刻吞吐的token平均时延随时间变化折线图。
 
     横轴：服务化推理运行时间轴。
 
-    纵轴：所有请求decode阶段不同时刻吞吐的token平均时延的平均值avg，分位值p99、p90、p50。单位：token个数/s。
+    纵轴：所有请求decode阶段不同时刻吞吐的token平均时延的平均值avg，分位值p99、p90、p50，平均值avg。单位：token个数/s。
 
-    **图 15**  decode\_generate\_speed\_latency<a name="fig413355815278"></a>  
+    **图 15**  Decode\_Generate\_Speed\_Latency\_curve<a name="fig413355815278"></a>  
     ![](figures/decode_generate_speed_latency.png "decode_generate_speed_latency")
 
--   request\_latency
+-   Request\_Latency\_curve
 
     所有请求端到端时延随时间变化折线图。
 
     横轴：服务化推理运行时间轴。
 
-    纵轴：所有请求端到端时延的平均值avg，分位值p99、p90、p50。单位：us。
+    纵轴：所有请求端到端时延的平均值avg，分位值p99、p90、p50，平均值avg。单位：us。
 
-    **图 16**  request\_latency<a name="fig7181141962810"></a>  
+    **图 16**  Request\_Latency\_curve<a name="fig7181141962810"></a>  
     ![](figures/request_latency.png "request_latency")
 
 
