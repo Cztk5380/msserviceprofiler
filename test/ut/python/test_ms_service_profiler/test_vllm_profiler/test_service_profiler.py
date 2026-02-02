@@ -999,7 +999,7 @@ class TestFindConfigPath:
         with patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.dirname') as mock_dirname, \
              patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.isfile') as mock_isfile:
             mock_dirname.return_value = "/fake/project/path"
-            expected_path = "/fake/project/path/vllm/config/service_profiling_symbols.yaml"
+            expected_path = "/fake/project/path/config/service_profiling_symbols.yaml"
 
             # 第一次检查是用户配置（不存在，返回 False），第二次是本地项目（True）
             def isfile_side_effect(path):
@@ -1095,7 +1095,7 @@ class TestFindConfigPath:
             
             result = VLLMProfiler._find_config_path()
             
-            expected_path = "/fake/project/path/vllm/config/service_profiling_symbols.yaml"
+            expected_path = "/fake/project/path/config/service_profiling_symbols.yaml"
             mock_isfile.assert_called_with(expected_path)
             assert result == expected_path
 
@@ -1125,7 +1125,7 @@ class TestFindConfigPath:
         with patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.dirname') as mock_dirname, \
              patch('ms_service_profiler.patcher.vllm.service_profiler.os.path.isfile') as mock_isfile:
             mock_dirname.return_value = "/fake/project/path"
-            expected_path = "/fake/project/path/vllm/config/service_profiling_symbols.yaml"
+            expected_path = "/fake/project/path/config/service_profiling_symbols.yaml"
             
             def isfile_side_effect(path):
                 return path == expected_path

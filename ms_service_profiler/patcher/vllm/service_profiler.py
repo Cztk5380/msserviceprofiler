@@ -81,7 +81,7 @@ class VLLMProfiler:
         """
         # 1) local project config path
         try:
-            local_candidate = os.path.join(os.path.dirname(__file__), 'vllm', 'config', 'service_profiling_symbols.yaml')
+            local_candidate = os.path.join(os.path.dirname(__file__), 'config', 'service_profiling_symbols.yaml')
             if os.path.isfile(local_candidate):
                 logger.debug(f"Loading profiling symbols from local config file: {local_candidate}")
                 return local_candidate
