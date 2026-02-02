@@ -164,7 +164,7 @@ class ExporterLatency(ExporterBase):
         """
 
         def event_filter(df):
-            return df["event"].isin(["BatchSchedule", "Execute"])
+            return df["event"].isin(["BatchSchedule", "batchFrameworkProcessing", "modelExec", "Execute", "modelRunnerExec"])
 
         # 获取基础速度数据
         speed_data = ExporterLatency._calculate_speed_from_events(
@@ -197,7 +197,7 @@ class ExporterLatency(ExporterBase):
     def gen_exporter_decode_gen_speed_views(req_event_df):
 
         def event_filter(df):
-            return df["event"] == "Execute"
+            return df["event"].isin(["Execute", "modelExec", "modelRunnerExec", "batchFrameworkProcessing"])
 
         # 获取基础速度数据
         speed_data = ExporterLatency._calculate_speed_from_events(
@@ -386,7 +386,7 @@ class ExporterLatency(ExporterBase):
         speed_data = []
 
         # 查找 BatchSchedule (iter=0)
-        batch_schedule_mask = (group['event'] == 'BatchSchedule') & (group['iter'] == 0)
+        batch_schedule_mask = (group['event'].isin(["BatchSchedule", "batchFrameworkProcessing"])) & (group['iter'] == 0)
         if not batch_schedule_mask.any():
             return speed_data
 
@@ -398,8 +398,8 @@ class ExporterLatency(ExporterBase):
         if pd.isna(num_tokens) or num_tokens <= 0:
             return speed_data
 
-        # 查找第一个 Execute (iter=0)
-        execute_mask = (group['event'] == 'Execute') & (group['iter'] == 0)
+        # 查找第一个 Execute/modelExec/modelRunnerExec (iter=0)
+        execute_mask = (group['event'].isin(["modelExec", "Execute", "modelRunnerExec"])) & (group['iter'] == 0)
         if not execute_mask.any():
             return speed_data
 

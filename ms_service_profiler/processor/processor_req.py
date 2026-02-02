@@ -84,7 +84,7 @@ class ProcessorReq(ProcessorBase):
 
         # forward 之后补充
         batch_data_df = data_df[data_df["name"].isin(["BatchSchedule", "modelExec", "batchFrameworkProcessing",
-                                                      "Execute", "preprocess", "forward"])]
+                                                      "Execute", "preprocess", "forward", "modelRunnerExec"])]
 
 
         # 先不考虑 batch_id 重复的情况
@@ -220,7 +220,7 @@ class ProcessorReq(ProcessorBase):
     def _process_batch_events(self, req_event_df: pd.DataFrame, batch_event_df: pd.DataFrame,
                               batch_attr_df: pd.DataFrame) -> pd.DataFrame:
         """处理批次事件"""
-        model_exec_df = batch_event_df[batch_event_df["event"].isin(["modelExec", "Execute"])]
+        model_exec_df = batch_event_df[batch_event_df["event"].isin(["modelExec", "Execute", "modelRunnerExec"])]
 
         batch_attr_explode_by_req_df = batch_attr_df.explode('req_list')
         batch_attr_explode_by_req_df['rid'] = batch_attr_explode_by_req_df['req_list'].map(
@@ -253,7 +253,7 @@ class ProcessorReq(ProcessorBase):
     def _process_batch_schedule_events(self, req_event_df: pd.DataFrame, batch_event_df: pd.DataFrame,
                                        batch_attr_df: pd.DataFrame) -> pd.DataFrame:
         """处理批次调度事件"""
-        batch_schedule_events = batch_event_df[batch_event_df["event"] == "BatchSchedule"]
+        batch_schedule_events = batch_event_df[batch_event_df["event"].isin(["BatchSchedule", "batchFrameworkProcessing"])]
         if batch_schedule_events.empty:
             return req_event_df
 
@@ -261,7 +261,7 @@ class ProcessorReq(ProcessorBase):
             batch_attr_df.set_index('batch_id'), on='batch_id', rsuffix='_attr'
         )
         schedule_data_joined = original_schedule_data_df[
-            original_schedule_data_df["event"] == "BatchSchedule"
+            original_schedule_data_df["event"].isin(["BatchSchedule", "batchFrameworkProcessing"])
             ]
         if schedule_data_joined.empty:
             return req_event_df
@@ -289,7 +289,7 @@ class ProcessorReq(ProcessorBase):
 
         prefill_start_dict = {
             'rid': prefill_schedule['rid'],
-            'event': 'BatchSchedule',
+            'event': prefill_schedule['event'],
             'iter': prefill_schedule['iter'],
             'start_time': prefill_schedule['start_time'],
             'end_time': prefill_schedule['end_time'],
