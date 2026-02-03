@@ -96,7 +96,7 @@ function parse_script_args() {
         --install-path=*)
             let "install_path_num+=1"
             raw_path=${3#--install-path=}
-            install_path="${raw_path%/}/ascend-toolkit/latest"
+            install_path="${raw_path%/}"
             [ ! -d ${install_path} ] && mkdir -p ${install_path}
             check_path ${install_path}
             install_path=$(readlink -f ${install_path})
@@ -145,9 +145,9 @@ function execute_run() {
 
 function get_default_install_path() {
     if [ "$UID" = "0" ]; then
-        echo "/usr/local/Ascend/ascend-toolkit/latest"
+        echo "/usr/local/Ascend/cann"
     else
-        echo "${HOME}/Ascend/ascend-toolkit/latest"
+        echo "${HOME}/Ascend/cann"
     fi
 }
 
