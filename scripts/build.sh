@@ -17,7 +17,7 @@ VERSION="none"
 MAKESELF_DIR=${TOP_DIR}/opensource/makeself
 CREATE_RUN_SCRIPT=${MAKESELF_DIR}/makeself.sh
 CONTROL_PARAM_SCRIPT=${MAKESELF_DIR}/makeself-header.sh
-MSSERVICE_RUN_NAME="mindstudio-msserviceprofiler"
+MSSERVICE_RUN_NAME="mindstudio-service-profiler"
 MAIN_SCRIPT=main.sh
 INSTALL_SCRIPT=install.sh
 
@@ -88,12 +88,11 @@ function get_version() {
 }
 
 function get_package_name() {
-    local product="Ascend"
     local name=${MSSERVICE_RUN_NAME}
 
     local version=$(echo $(get_version) | cut -d '.' -f 1,2,3)
     local os_arch=$(arch)
-    echo "${product}-${name}_${version}_linux-${os_arch}.run"
+    echo "${name}_${version}_${os_arch}.run"
 }
 
 function create_run_package() {
