@@ -37,6 +37,7 @@ from ms_service_profiler.exporters.utils import (
     is_empty_directory,
     visual_db_fp,
     db_write_lock,
+    get_path_total_size,
 )
 
 
@@ -134,4 +135,108 @@ def test_check_output_path_valid_failure_not_writable(tmpdir):
 
     with pytest.raises(argparse.ArgumentTypeError, match="File is not writable"):
         check_output_path_valid(str(test_dir))
+
+
+class TestGetPathTotalSize:
+    """测试 get_path_total_size 函数"""
+
+    def test_single_file_size(self, tmpdir):
+        """测试单个文件大小计算"""
+        test_dir = str(tmpdir)
+        test_file = os.path.join(test_dir, "test.txt")
+        content = "Hello World" * 100
+        with open(test_file, 'w') as f:
+            f.write(content)
+        assert os.path.exists(test_file), f"File not found: {test_file}"
+        actual_size = os.path.getsize(test_file)
+        assert actual_size == len(content.encode()), f"os.path.getsize mismatch: {actual_size} != {len(content.encode())}"
+        result = get_path_total_size(test_file)
+        assert result == len(content.encode()), f"Expected {len(content.encode())}, got {result}"
+
+    def test_directory_with_multiple_files(self, tmpdir):
+        """测试包含多个文件的目录"""
+        test_dir = str(tmpdir.mkdir("test_dir"))
+        file1 = os.path.join(test_dir, "file1.txt")
+        file2 = os.path.join(test_dir, "file2.txt")
+        file3 = os.path.join(test_dir, "file3.txt")
+        with open(file1, 'w') as f:
+            f.write("a" * 100)
+        with open(file2, 'w') as f:
+            f.write("b" * 200)
+        with open(file3, 'w') as f:
+            f.write("c" * 300)
+        result = get_path_total_size(test_dir)
+        assert result == 600
+
+    def test_nested_directory(self, tmpdir):
+        """测试嵌套目录"""
+        root_dir = str(tmpdir.mkdir("root"))
+        sub_dir = os.path.join(root_dir, "subdir")
+        os.makedirs(sub_dir)
+        file1 = os.path.join(root_dir, "root_file.txt")
+        file2 = os.path.join(sub_dir, "sub_file.txt")
+        with open(file1, 'w') as f:
+            f.write("x" * 100)
+        with open(file2, 'w') as f:
+            f.write("y" * 200)
+        result = get_path_total_size(root_dir)
+        assert result == 300
+
+    def test_empty_directory(self, tmpdir):
+        """测试空目录"""
+        test_dir = str(tmpdir.mkdir("empty_dir"))
+        result = get_path_total_size(test_dir)
+        assert result == 0
+
+    def test_symlink_is_skipped(self, tmpdir):
+        """测试符号链接被跳过"""
+        test_dir = str(tmpdir.mkdir("test_dir"))
+        real_file = os.path.join(test_dir, "real_file.txt")
+        link_path = os.path.join(test_dir, "link.txt")
+        with open(real_file, 'w') as f:
+            f.write("content" * 100)
+        os.symlink(real_file, link_path)
+        result = get_path_total_size(test_dir)
+        assert result == 700
+
+    def test_size_exceeds_500mb_warning_threshold(self, tmpdir):
+        """测试超过500MB阈值时的警告逻辑（模拟parse.py中的检查）"""
+        test_dir = str(tmpdir.mkdir("large_dir"))
+        large_file = os.path.join(test_dir, "large_file.bin")
+        DATA_SIZE_WARNING_THRESHOLD = 500 * 1024 * 1024
+        with open(large_file, 'wb') as f:
+            f.write(b'x' * (DATA_SIZE_WARNING_THRESHOLD + 1024 * 1024))
+        input_size = get_path_total_size(test_dir)
+        assert input_size > DATA_SIZE_WARNING_THRESHOLD
+
+    def test_size_boundary_499mb_no_warning(self, tmpdir):
+        """测试499MB不应该触发警告"""
+        test_dir = str(tmpdir.mkdir("dir_499mb"))
+        test_file = os.path.join(test_dir, "file.bin")
+        DATA_SIZE_WARNING_THRESHOLD = 500 * 1024 * 1024
+        with open(test_file, 'wb') as f:
+            f.write(b'x' * (DATA_SIZE_WARNING_THRESHOLD - 1024 * 1024))
+        input_size = get_path_total_size(test_dir)
+        assert input_size < DATA_SIZE_WARNING_THRESHOLD
+
+    def test_size_boundary_500mb_no_warning(self, tmpdir):
+        """测试500MB（边界值）不应该触发警告"""
+        test_dir = str(tmpdir.mkdir("dir_500mb"))
+        test_file = os.path.join(test_dir, "file.bin")
+        DATA_SIZE_WARNING_THRESHOLD = 500 * 1024 * 1024
+        with open(test_file, 'wb') as f:
+            f.write(b'x' * DATA_SIZE_WARNING_THRESHOLD)
+        input_size = get_path_total_size(test_dir)
+        assert input_size == DATA_SIZE_WARNING_THRESHOLD
+
+    def test_size_boundary_501mb_warning(self, tmpdir):
+        """测试501MB应该触发警告"""
+        test_dir = str(tmpdir.mkdir("dir_501mb"))
+        test_file = os.path.join(test_dir, "file.bin")
+        DATA_SIZE_WARNING_THRESHOLD = 500 * 1024 * 1024
+        with open(test_file, 'wb') as f:
+            f.write(b'x' * (DATA_SIZE_WARNING_THRESHOLD + 1024 * 1024))
+        input_size = get_path_total_size(test_dir)
+        assert input_size > DATA_SIZE_WARNING_THRESHOLD
+        
 

@@ -507,3 +507,34 @@ def check_columns_valid(df, column_list, exporter_name):
 
 def is_root():
     return os.name != "nt" and os.getuid() == 0
+
+
+def get_path_total_size(path: str) -> int:
+    """
+    安全地计算目录的总大小（递归所有子目录和文件）
+
+    Args:
+        path: 目录或文件路径
+
+    Returns:
+        总大小（字节）
+    """
+    if os.path.isfile(path):
+        try:
+            return os.path.getsize(path)
+        except (OSError, IOError) as e:
+            logger.warning(f"Cannot read file {path}: {e}")
+            return 0
+    
+    total_size = 0
+    for root, dirs, files in os.walk(path, followlinks=False):
+        for file_name in files:
+            file_path = os.path.join(root, file_name)
+            if os.path.islink(file_path):
+                continue
+            if os.path.isfile(file_path):
+                try:
+                    total_size += os.path.getsize(file_path)
+                except (OSError, IOError) as e:
+                    logger.warning(f"Cannot read file {file_path}: {e}")
+    return total_size

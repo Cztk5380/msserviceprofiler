@@ -28,12 +28,13 @@ import ms_service_profiler.pipeline
 import ms_service_profiler.data_source
 from ms_service_profiler.exporters.factory import ExporterFactory
 from ms_service_profiler.plugins import custom_plugins
-from ms_service_profiler.utils.log import logger, set_log_level
+from ms_service_profiler.utils.log import logger, set_log_level, Color
 from ms_service_profiler.utils.timer import Timer
 from ms_service_profiler.utils.error import ParseError, LoadDataError
 from ms_service_profiler.exporters.utils import (
     create_sqlite_db, check_input_dir_valid,
-    check_output_path_valid, is_root)
+    check_output_path_valid, is_root, get_path_total_size)
+from ms_service_profiler.utils.constants import DATA_SIZE_WARNING_THRESHOLD, KILOBYTE
 from ms_service_profiler.task.task_register import get_dag
 from ms_service_profiler.task.task_manager import tasks_run
 from ms_service_profiler.task.task import register
@@ -110,6 +111,18 @@ def main():
 
     # 初始化日志等级
     set_log_level(args.log_level)
+
+    # 检查输入数据大小
+    try:
+        input_size = get_path_total_size(args.input_path)
+        if input_size > DATA_SIZE_WARNING_THRESHOLD:
+            logger.info(
+                f"{Color.BRIGHT_YELLOW}Large file detected: {input_size / KILOBYTE / KILOBYTE:.1f}MB (>500MB). "
+                f"This may lead to longer processing time. "
+                f"To optimize performance, use: --format db csv {Color.RESET}"
+            )
+    except OSError as e:
+        logger.error(f"Failed to calculate input data size: {e}")
 
     exporters = ExporterFactory.create_exporters(args)
 

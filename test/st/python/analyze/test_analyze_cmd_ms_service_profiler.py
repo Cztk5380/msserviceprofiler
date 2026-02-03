@@ -29,7 +29,7 @@ import pytest
 from pytest_check import check
 import pandas as pd
 from jsonschema import validate, ValidationError
-from ms_service_profiler.exporters.utils import CURVE_VIEW_NAME_LIST
+from ms_service_profiler.exporters.utils import CURVE_VIEW_NAME_LIST, get_path_total_size
 from executor.exec_parse import ExecParse
 
 
@@ -583,8 +583,11 @@ class TestAnalyzeCmd():
 
 
 def test_prase_ms_service_profiler_data(smoke_args, tmp_workspace):
-    # 校验msserviceprofiler打点采集数据解析功能是否正常解析，校验输出文件及内容
+    # 校验输入文件大小
     input_path = os.path.join(smoke_args.get("workspace"), "smokedata/analyze/latest_PD_competition")
+    assert get_path_total_size(input_path) > 0, "Smoke test failed: directory size should be greater than 0"
+
+    # 校验msserviceprofiler打点采集数据解析功能是否正常解析，校验输出文件及内容
     output_path = tmp_workspace
     parser = ExecParse()
     parser.set_input_path(input_path)
@@ -629,9 +632,12 @@ def test_prase_ms_service_profiler_data(smoke_args, tmp_workspace):
 
 
 def test_parse_data_in_pd_separate(smoke_args, tmp_workspace):
-    # 校验msserviceprofiler打点PD分离数据解析功能是否正常解析，校验输出文件及内容
+    # 校验输入文件大小
     
     input_path = os.path.join(smoke_args.get("workspace"), "smokedata//analyze/latest_PD_split")
+    assert get_path_total_size(input_path) > 0, "Smoke test failed: directory size should be greater than 0"
+
+    # 校验msserviceprofiler打点PD分离数据解析功能是否正常解析，校验输出文件及内容
     output_path = tmp_workspace
     parser = ExecParse()
     parser.set_input_path(input_path)

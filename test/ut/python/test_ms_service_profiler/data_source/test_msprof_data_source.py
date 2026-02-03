@@ -286,3 +286,33 @@ def test_load_memory_data_with_none_db_path():
     """
     result = MsprofDataSource.load_memory_data(None)
     assert result is None
+
+
+class TestGenMsprofCommand:
+    """测试 gen_msprof_command 函数"""
+
+    def test_basic_command_without_format_args(self):
+        """测试不带 format_args 时生成基本命令"""
+        result = MsprofDataSource.gen_msprof_command("/output/path")
+        assert result == "msprof --export=on --output=/output/path"
+
+    def test_command_with_json_format_args(self):
+        """测试 format_args 包含 json 时不添加 --type=db"""
+        result = MsprofDataSource.gen_msprof_command("/output/path", format_args=['json', 'csv'])
+        assert result == "msprof --export=on --output=/output/path"
+        assert "--type=db" not in result
+
+    def test_command_with_db_format_args(self):
+        """测试 format_args 不包含 json 时添加 --type=db"""
+        result = MsprofDataSource.gen_msprof_command("/output/path", format_args=['db', 'csv'])
+        assert result == "msprof --export=on --output=/output/path --type=db"
+
+    def test_command_with_empty_format_args(self):
+        """测试 format_args 为空列表时不添加 --type=db"""
+        result = MsprofDataSource.gen_msprof_command("/output/path", format_args=[])
+        assert result == "msprof --export=on --output=/output/path"
+
+    def test_invalid_path_with_spaces(self):
+        """测试路径包含空格时抛出异常"""
+        with pytest.raises(ValueError, match="is invalid"):
+            MsprofDataSource.gen_msprof_command("/output/path with spaces")

@@ -255,11 +255,15 @@ class MsprofDataSource(BaseDataSource):
         )
 
     @classmethod
-    def gen_msprof_command(cls, full_path):
+    def gen_msprof_command(cls, full_path, format_args=None):
         if len(full_path.split()) != 1:
             raise ValueError(f"{full_path} is invalid.")
 
         command = f"msprof --export=on --output={full_path}"
+
+        if format_args and 'json' not in format_args:
+            command += " --type=db"
+
         logger.debug("command: %s", command)
         return command
 
@@ -317,9 +321,10 @@ class MsprofDataSource(BaseDataSource):
             "start_info": "start_info",
             "msprof": ("msprof_*.json", True)
         }
+        format_args = getattr(self._args, 'format', None)
         cur_path = str(prof_path)
         if self.is_need_msprof(cur_path):
-            command = self.gen_msprof_command(cur_path)
+            command = self.gen_msprof_command(cur_path, format_args)
             self.clear_last_msprof_output(cur_path)
             self.run_msprof_command(command)
         filepaths = self.get_filepaths(prof_path, file_filter)
