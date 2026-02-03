@@ -53,6 +53,7 @@
 #include "msServiceProfiler/DBExecutor/DbExecutorServiceData.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorSliceData.h"
 #include "msServiceProfiler/DBExecutor/DbExecutorMetaData.h"
+#include "msServiceProfiler/ServiceProfilerInterface.h"
 #include "msServiceProfiler/ServiceProfilerManager.h"
 
 namespace {
@@ -301,6 +302,20 @@ void StopServerProfiler()
 {
     // 对外接口，用户线程，通过原子变量，将关闭事件通知到 Manager 工作线程
     msServiceProfiler::ServiceProfilerManager::GetInstance().NotifyStopProfiler();
+}
+
+// 显式导出：避免 -fvisibility=hidden 造成符号被隐藏
+MS_SERVICE_PROFILER_API void RegisterProfilerStartCallback(void (*callback)())
+{
+    // 对外接口，用户线程，注册 mstx 启动回调
+    msServiceProfiler::ServiceProfilerManager::GetInstance().RegisterStartCallback(callback);
+}
+
+// 显式导出：避免 -fvisibility=hidden 造成符号被隐藏
+MS_SERVICE_PROFILER_API void RegisterProfilerStopCallback(void (*callback)())
+{
+    // 对外接口，用户线程，注册 mstx 停止回调
+    msServiceProfiler::ServiceProfilerManager::GetInstance().RegisterStopCallback(callback);
 }
 
 bool IsEnable(uint32_t level)
@@ -774,6 +789,16 @@ void ServiceProfilerManager::StartProfiler(bool isInit)
     config_->SetEnable(true);
     started_ = true;
     notifyStarted = true;  // 处理完同步一次状态, 等待下一次通知
+    
+    // 调用 Python 回调以启用 hooks
+    if (startCallback_ != nullptr) {
+        PROF_LOGD("Calling Python start callback");  // LCOV_EXCL_LINE
+        try {
+            startCallback_();
+        } catch (...) {
+            PROF_LOGE("Python start callback threw an exception");  // LCOV_EXCL_LINE
+        }
+    }
 }
 
 void ServiceProfilerManager::StartAclProfiler(const std::string &profPath, uint32_t deviceID)
@@ -896,6 +921,30 @@ void ServiceProfilerManager::NotifyDeviceID(uint32_t deviceID)
     deviceID_ = deviceID;
 }
 
+void ServiceProfilerManager::RegisterStartCallback(void (*callback)())
+{
+    // 注册 mstx 启动回调
+    startCallback_ = callback;
+    PROF_LOGD("Profiler start callback registered");  // LCOV_EXCL_LINE
+    
+    // 如果 profiler 已经启动，立即调用回调（解决时序问题）
+    if (started_ && callback != nullptr) {
+        PROF_LOGI("Profiler already started, calling start callback immediately");  // LCOV_EXCL_LINE
+        try {
+            callback();
+        } catch (...) {
+            PROF_LOGE("Start callback threw an exception");  // LCOV_EXCL_LINE
+        }
+    }
+}
+
+void ServiceProfilerManager::RegisterStopCallback(void (*callback)())
+{
+    // 注册 mstx 停止回调
+    stopCallback_ = callback;
+    PROF_LOGD("Profiler stop callback registered");  // LCOV_EXCL_LINE
+}
+
 void ServiceProfilerManager::StopProfiler()
 {
     // 只 Manager 的工作线程
@@ -923,5 +972,15 @@ void ServiceProfilerManager::StopProfiler()
 
     started_ = false;
     notifyStarted = false;  // 处理完同步一次状态, 等待下一次通知
+    
+    // 调用 Python 回调
+    if (stopCallback_ != nullptr) {
+        PROF_LOGD("Calling Python stop callback");  // LCOV_EXCL_LINE
+        try {
+            stopCallback_();
+        } catch (...) {
+            PROF_LOGE("Python stop callback threw an exception");  // LCOV_EXCL_LINE
+        }
+    }
 }
 }  // namespace msServiceProfiler

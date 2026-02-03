@@ -18,6 +18,7 @@ import importlib
 import importlib.abc
 import importlib.machinery as _machinery
 import sys
+import threading
 from typing import Dict, Any, List, Tuple, Optional, Callable
 from .logger import logger
 from .dynamic_hook import make_default_time_hook, register_dynamic_hook
@@ -43,13 +44,116 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
         self._symbol_hooks = {}
         self._config_loaded = False
         self._applied_hooks = set()  # 记录已应用的 hook，避免重复
+        self._prepared_hookers = []  # 存储准备好但未应用的 hooker 实例
+        self._applied_hookers = []   # 已实际 init() 应用过的 hooker（用于 disable 时 recover）
+        self._symbol_to_hooker = {}  # 映射：symbol_path -> hooker 实例
+        self._auto_apply_enabled = False
+        self._lock = threading.Lock()
+
+    def set_auto_apply(self, enabled: bool):
+        """设置是否在 hook 准备完成后立刻应用（init）。"""
+        self._auto_apply_enabled = bool(enabled)
+
+    def get_applied_hookers(self):
+        """获取所有已实际应用过的 hookers（会随运行增长）。"""
+        with self._lock:
+            return list(self._applied_hookers)
     
-    def load_symbol_config(self, config_data: List[Dict[str, Any]]):
+    def recover_hookers_for_symbols(self, symbol_paths: set):
+        """恢复指定 symbol 路径对应的已应用 hookers。
+        
+        Args:
+            symbol_paths: 需要恢复的 symbol 路径集合
+        """
+        with self._lock:
+            hookers_to_recover = []
+            for symbol_path in symbol_paths:
+                if symbol_path in self._symbol_to_hooker:
+                    hooker = self._symbol_to_hooker[symbol_path]
+                    if hooker in self._applied_hookers:
+                        hookers_to_recover.append(hooker)
+            
+            for hooker in hookers_to_recover:
+                try:
+                    for hook_helper in hooker.hooks:
+                        hook_helper.recover()
+                    logger.debug(f"Recovered hooker for removed symbol")
+                except Exception as e:
+                    logger.error(f"Failed to recover hooker: {e}")
+    
+    def load_symbol_config(self, config_data: List[Dict[str, Any]], hooks_enabled: bool = False):
         """加载 symbol 配置。
         
         Args:
             config_data: 配置数据列表
+            hooks_enabled: hooks 是否当前已启用，如果为 True 且配置中有删除的 symbol，
+                          会立即恢复对应的已应用 hookers
         """
+        # 收集新配置中的所有 symbol 路径
+        new_symbol_paths = set()
+        for symbol_config in config_data:
+            if isinstance(symbol_config, dict) and 'symbol' in symbol_config:
+                new_symbol_paths.add(symbol_config['symbol'])
+        
+        # 清理不再存在于新配置中的 symbol 的相关记录
+        if self._config_loaded:
+            removed_symbols = self._applied_hooks - new_symbol_paths
+            if removed_symbols:
+                logger.debug(f"Removing {len(removed_symbols)} symbols from config (no longer in new config)")
+                
+                # 清理 applied_hooks 记录
+                self._applied_hooks -= removed_symbols
+                
+                # 清理 prepared_hookers 和 applied_hookers 中对应的 hookers
+                with self._lock:
+                    prepared_hookers_to_remove = []
+                    applied_hookers_to_remove = []
+                    
+                    for symbol_path in removed_symbols:
+                        if symbol_path in self._symbol_to_hooker:
+                            hooker = self._symbol_to_hooker[symbol_path]
+                            
+                            # 无论 hooker 是否已应用，都从 prepared_hookers 中移除
+                            # 这样 apply_all_hooks 时不会重新应用被删除的 symbol
+                            if hooker in self._prepared_hookers:
+                                prepared_hookers_to_remove.append(hooker)
+                            
+                            # 如果 hooker 已经应用，也需要从 applied_hookers 中移除
+                            if hooker in self._applied_hookers:
+                                applied_hookers_to_remove.append(hooker)
+                            
+                            # 从映射中移除
+                            del self._symbol_to_hooker[symbol_path]
+                    
+                    # 从 prepared_hookers 中移除被删除 symbol 对应的 hookers
+                    for hooker in prepared_hookers_to_remove:
+                        self._prepared_hookers.remove(hooker)
+                        logger.debug(f"Removed prepared hooker for removed symbol")
+                    
+                    # 处理已应用的 hookers
+                    if hooks_enabled and applied_hookers_to_remove:
+                        # 如果 hooks 当前已启用，立即恢复这些 hookers
+                        logger.debug(f"Recovering {len(applied_hookers_to_remove)} applied hookers for removed symbols (hooks currently enabled)")
+                        for hooker in applied_hookers_to_remove:
+                            try:
+                                for hook_helper in hooker.hooks:
+                                    hook_helper.recover()
+                                logger.debug(f"Recovered hooker for removed symbol")
+                            except Exception as e:
+                                logger.error(f"Failed to recover hooker: {e}")
+                    
+                    # 从 applied_hookers 中移除已应用的 hookers
+                    for hooker in applied_hookers_to_remove:
+                        self._applied_hookers.remove(hooker)
+                        if hooks_enabled:
+                            logger.debug(f"Removed applied hooker for removed symbol (already recovered)")
+                        else:
+                            logger.debug(f"Removed applied hooker for removed symbol (will be recovered on disable)")
+                    
+                    total_removed = len(prepared_hookers_to_remove) + len(applied_hookers_to_remove)
+                    if total_removed > 0:
+                        logger.debug(f"Removed {total_removed} hookers ({len(prepared_hookers_to_remove)} prepared, {len(applied_hookers_to_remove)} applied) for removed symbols")
+        
         self._symbol_hooks = {}
         for i, symbol_config in enumerate(config_data):
             symbol_id = f"symbol_{i}"
@@ -146,6 +250,15 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
             fullname: 完整模块名
         """
         logger.debug(f"SymbolWatchFinder: Module loaded callback for {fullname}")
+        # 委托给 _prepare_hooks_for_module
+        self._prepare_hooks_for_module(fullname)
+    
+    def _prepare_hooks_for_module(self, fullname: str):
+        """准备模块的 hooks（但不立即应用）。
+        
+        Args:
+            fullname: 完整模块名
+        """
         # 找到该模块对应的所有 symbols
         module_symbols = []
         for symbol_id, symbol_info in self._symbol_hooks.items():
@@ -161,13 +274,13 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
                     logger.debug(f"Failed to import {module_path}: {e}")
         
         if module_symbols:
-            logger.debug(f"Detected symbol module loaded: {fullname}, applying {len(module_symbols)} hooks")
+            logger.debug(f"Detected symbol module loaded: {fullname}, preparing {len(module_symbols)} hooks")
             for _, symbol_info in module_symbols:
-                logger.debug(f"  - Applying hook for {symbol_info['symbol']}")
-            self._apply_symbol_hooks_for_module(fullname, module_symbols)
+                logger.debug(f"  - Preparing hook for {symbol_info['symbol']}")
+            self._prepare_symbol_hooks_for_module(fullname, module_symbols)
     
-    def _apply_symbol_hooks_for_module(self, module_name: str, module_symbols: List[Tuple[str, Dict[str, Any]]]):
-        """为特定模块应用 symbol hooks。
+    def _prepare_symbol_hooks_for_module(self, module_name: str, module_symbols: List[Tuple[str, Dict[str, Any]]]):
+        """为特定模块准备 symbol hooks（但不立即应用）。
         
         Args:
             module_name: 模块名称
@@ -176,10 +289,10 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
         try:
             for symbol_id, _ in module_symbols:
                 full_info = self._symbol_hooks.get(symbol_id, {})
-                self._apply_single_symbol_hook(symbol_id, full_info)
+                self._prepare_single_symbol_hook(symbol_id, full_info)
                 
         except Exception as e:
-            logger.error(f"Failed to apply symbol hooks for module {module_name}: {e}")
+            logger.error(f"Failed to prepare symbol hooks for module {module_name}: {e}")
     
     def _parse_symbol_path(self, symbol_path: str) -> Tuple[str, str, Optional[str]]:
         """解析 symbol 路径，返回 (module_path, method_name, class_name)。
@@ -238,10 +351,10 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
         hook_point = f"{class_name}.{method_name}" if class_name else method_name
         return [(module_path, hook_point)]
 
-    def _register_and_apply_hook(
+    def _register_hook_only(
             self, symbol_info: dict, hook_points: List[Tuple[str, str]], handler_func_obj: Callable
         ):
-        """注册并应用 hook。
+        """注册 hook（但不立即应用）。
         
         Args:
             symbol_info: symbol 配置信息
@@ -251,7 +364,7 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
         Returns:
             DynamicHooker: 注册的 hooker 实例
         """
-        # 注册动态 hook
+        # 注册动态 hook（但不调用 init()）
         hooker = register_dynamic_hook(
             hook_list=hook_points,
             hook_func=handler_func_obj,
@@ -260,12 +373,37 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
             caller_filter=symbol_info.get('caller_filter')
         )
         
-        # 立即应用 hook
-        hooker.init()
+        # 不立即应用 hook，等待 apply_all_hooks() 调用
         return hooker
+    
+    def apply_all_hooks(self):
+        """应用所有准备好的 hooks。
+        
+        Returns:
+            List: 所有已应用的 hooker 实例列表
+        """
+        # enable 后：后续新 module 的 hook 也应自动应用
+        self.set_auto_apply(True)
 
-    def _apply_single_symbol_hook(self, symbol_id: str, symbol_info: dict):
-        """应用单个 symbol 的 hook。
+        logger.info(f"Applying {len(self._prepared_hookers)} prepared hooks...")
+        applied_now = 0
+
+        for hooker in list(self._prepared_hookers):
+            try:
+                hooker.init()
+                with self._lock:
+                    if hooker not in self._applied_hookers:
+                        self._applied_hookers.append(hooker)
+                applied_now += 1
+                logger.debug(f"Applied hooker: {hooker.applied_hook_func_name}")
+            except Exception as e:
+                logger.error(f"Failed to apply hooker {hooker}: {e}")
+
+        logger.info(f"Successfully applied {applied_now} hooks")
+        return self.get_applied_hookers()
+
+    def _prepare_single_symbol_hook(self, symbol_id: str, symbol_info: dict):
+        """准备单个 symbol 的 hook（但不立即应用）。
         
         Args:
             symbol_id: symbol 标识符
@@ -274,9 +412,9 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
         try:
             symbol_path = symbol_info['symbol']
             
-            # 检查是否已经应用过这个 hook
+            # 检查是否已经准备过这个 hook
             if symbol_path in self._applied_hooks:
-                logger.debug(f"Hook for {symbol_path} already applied, skipping")
+                logger.debug(f"Hook for {symbol_path} already prepared, skipping")
                 return
             
             # 解析 symbol 路径
@@ -288,41 +426,54 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
             # 构建 hook 点列表
             hook_points = self._build_hook_points(module_path, method_name, class_name)
             
-            # 注册并应用 hook
-            self._register_and_apply_hook(symbol_info, hook_points, handler_func_obj)
+            # 注册 hook（但不立即应用）
+            hooker = self._register_hook_only(symbol_info, hook_points, handler_func_obj)
             
-            # 记录已应用的 hook
+            # 保存 hooker 实例
+            self._prepared_hookers.append(hooker)
+            
+            # 记录 symbol 到 hooker 的映射
+            self._symbol_to_hooker[symbol_path] = hooker
+            
+            # 记录已准备的 hook
             self._applied_hooks.add(symbol_path)
             
-            logger.debug(f"Applied hook for symbol {symbol_path}")
+            logger.debug(f"Prepared hook for symbol {symbol_path}")
+
+            # 如果已经处于 enabled 状态，则模块一加载就应立即 apply（否则会出现“prepared 但不生效”）
+            if self._auto_apply_enabled:
+                try:
+                    hooker.init()
+                    with self._lock:
+                        if hooker not in self._applied_hookers:
+                            self._applied_hookers.append(hooker)
+                    logger.debug(f"Auto-applied hook for symbol {symbol_path}")
+                except Exception as e:
+                    logger.error(f"Failed to auto-apply hook for symbol {symbol_path}: {e}")
             
         except Exception as e:
-            logger.error(f"Failed to apply hook for symbol {symbol_path}: {e}")
+            logger.error(f"Failed to prepare hook for symbol {symbol_path}: {e}")
 
     def check_and_apply_existing_modules(self) -> bool:
-        """检查目标模块是否已经被导入，如果是则立即应用 hooks。
+        """检查目标模块是否已经被导入，如果是则立即准备 hooks。
         
         遍历所有配置的 symbol，检查对应的模块是否已经加载，
-        如果是则立即应用相应的 hooks。
-
-        Args:
-            symbol_watcher: symbol监听器实例
-            
+        如果是则模拟模块加载完成事件以准备相应的 hooks。
+        
         Returns:
             bool: 操作是否成功
         """
         logger.debug("Checking for already loaded modules...")
         for _, symbol_info in self._symbol_hooks.items():
-            symbol_path = symbol_info['symbol']
-            module_path = symbol_path.split(':')[0]
+            symbol_path = symbol_info["symbol"]
+            module_path = symbol_path.split(":")[0]
             
             logger.debug(f"Checking module {module_path} for symbol {symbol_path}")
             logger.debug(f"  - Module in sys.modules: {module_path in sys.modules}")
-            logger.debug(f"  - Symbol already applied: {symbol_path in self._applied_hooks}")
+            logger.debug(f"  - Symbol already prepared: {symbol_path in self._applied_hooks}")
             
-            # 检查模块是否已导入，且该 symbol 尚未应用
+            # 检查模块是否已导入，且该 symbol 尚未准备
             if module_path in sys.modules and symbol_path not in self._applied_hooks:
-                logger.debug(f"Module {module_path} already loaded, applying hooks immediately")
-                # 模拟模块加载完成事件
+                logger.debug(f"Module {module_path} already loaded, preparing hooks")
                 self._on_symbol_module_loaded(module_path)
         return True

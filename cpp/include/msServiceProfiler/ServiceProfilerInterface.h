@@ -182,6 +182,20 @@ MS_SERVICE_PROFILER_API void MarkEventEx(
     const char* name,
     const char* domain,
     const char* msg);
+
+/**
+ * @brief 注册 Profiler 启动回调函数（由 mstx 调用）
+ * @param callback [in] 启动回调函数指针，在 profiling 启动时被调用
+ * @note mstx 注册后，会在 StartProfiler 时调用此回调，mstx 再分发给各 Profiler（vLLM、SGLang 等）
+ */
+MS_SERVICE_PROFILER_API void RegisterProfilerStartCallback(void (*callback)());
+
+/**
+ * @brief 注册 Profiler 停止回调函数（由 mstx 调用）
+ * @param callback [in] 停止回调函数指针，在 profiling 停止时被调用
+ * @note mstx 注册后，会在 StopProfiler 时调用此回调，mstx 再分发给各 Profiler（vLLM、SGLang 等）
+ */
+MS_SERVICE_PROFILER_API void RegisterProfilerStopCallback(void (*callback)());
 }
 
 #ifndef ENABLE_SERVICE_PROF_UNIT_TEST

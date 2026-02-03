@@ -14,38 +14,55 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 
+"""
+vLLM 框架适配器。
+
+职责：
+- 框架特定的配置加载
+- 版本检测
+- 初始化 SymbolWatchFinder + HookController
+- 对外暴露 enable_hooks/disable_hooks
+
+依赖：
+- HookController（控制层）
+- SymbolWatchFinder（执行层）
+"""
+
 import os
 import sys
 import importlib_metadata
-from typing import Optional
+from typing import Optional, Tuple, Callable
 
 from ..core.utils import load_yaml_config, parse_version_tuple, check_profiling_enabled
 from ..core.symbol_watcher import SymbolWatchFinder
+from ..core.hook_controller import HookController
 from ..core.logger import logger
 
 
 class VLLMProfiler:
-    """vLLM框架专用Profiler，直接组合使用小模块。"""
+    """vLLM 框架适配器。
+    
+    该类只负责 vLLM 特定的逻辑：
+    - 配置文件路径查找
+    - vLLM 版本检测
+    - handlers 导入
+    
+    hook 的启用/禁用由 HookController 统一管理。
+    """
     
     def __init__(self):
-        """初始化vLLM Profiler。"""
+        """初始化 vLLM Profiler。"""
         self._vllm_use_v1 = VLLMProfiler._detect_version()
-        self._symbol_watcher = None
-        self._hooks_applied = False
+        self._controller: Optional[HookController] = None
+        self._initialized = False
+    
+    # -------------------------------------------------------------------------
+    # 版本检测
+    # -------------------------------------------------------------------------
     
     @staticmethod
     def _auto_detect_v1_default() -> str:
-        """根据已安装的 vLLM 版本自动决定默认 V1 使用情况。
-        
-        启发式规则：对于较新的 vLLM (>= 0.9.2) 默认使用 V1，否则使用 V0。
-        如果无法确定版本，为了安全起见回退到 V0。
-        
-        Returns:
-            str: "1" 表示使用 V1，"0" 表示使用 V0
-            
-        Note:
-            该方法会检查环境变量 VLLM_USE_V1，如果未设置则自动检测。
-        """
+        """根据已安装的 vLLM 版本自动决定默认 V1 使用情况。"""
         try:
             vllm_version = importlib_metadata.version("vllm")
             major, minor, patch = parse_version_tuple(vllm_version)
@@ -54,41 +71,35 @@ class VLLMProfiler:
                 f"VLLM_USE_V1 not set, auto-detected via vLLM {vllm_version}: default {'1' if use_v1 else '0'}"
             )
             return "1" if use_v1 else "0"
-        except Exception as e:
+        except Exception:
             logger.info("VLLM_USE_V1 not set and vLLM version unknown; default to 0 (V0)")
             return "0"
 
     @staticmethod
     def _detect_version() -> str:
-        """检测 vLLM 版本。
-        
-        Returns:
-            str: vLLM 版本标识
-        """
+        """检测 vLLM 版本。"""
         env_v1 = os.environ.get('VLLM_USE_V1')
         return env_v1 if env_v1 is not None else VLLMProfiler._auto_detect_v1_default()
     
+    # -------------------------------------------------------------------------
+    # 配置加载
+    # -------------------------------------------------------------------------
+    
     @staticmethod
     def _find_config_path() -> Optional[str]:
-        """查找性能分析配置文件，按优先级顺序查找。
-        
-        查找顺序：
-        1. 本项目目录: <this>/vllm/config/service_profiling_symbols.yaml
-        2. 用户配置目录: ~/.config/vllm_ascend/service_profiling_symbols.{VLLM_VERSION}.yaml
-
-        Returns:
-            Optional[str]: 配置文件路径，如果未找到则返回 None
-        """
+        """查找性能分析配置文件，按优先级顺序查找。"""
         # 1) local project config path
         try:
-            local_candidate = os.path.join(os.path.dirname(__file__), 'config', 'service_profiling_symbols.yaml')
+            local_candidate = os.path.join(
+                os.path.dirname(__file__), 'config', 'service_profiling_symbols.yaml'
+            )
             if os.path.isfile(local_candidate):
                 logger.debug(f"Loading profiling symbols from local config file: {local_candidate}")
                 return local_candidate
         except Exception as e:
             logger.warning(f"Failed to find profiling symbols from local project: {e}")
         
-        # 2) user config path: ~/.config/vllm_ascend/service_profiling_symbols.{VLLM_VERSION}.yaml
+        # 2) user config path
         try:
             try:
                 import vllm  # type: ignore
@@ -98,7 +109,7 @@ class VLLMProfiler:
                 vllm_version = None
             
             try:
-                from vllm_ascend import register_service_profiling # type: ignore
+                from vllm_ascend import register_service_profiling  # type: ignore
                 register_service_profiling()
             except Exception as e:
                 logger.debug(f"Cannot using register_service_profiling to get default symbols config: {e}")
@@ -106,9 +117,7 @@ class VLLMProfiler:
             if vllm_version:
                 home_dir = os.path.expanduser('~')
                 candidate = os.path.join(
-                    home_dir,
-                    '.config',
-                    'vllm_ascend',
+                    home_dir, '.config', 'vllm_ascend',
                     f"service_profiling_symbols.{vllm_version}.yaml",
                 )
                 if os.path.isfile(candidate):
@@ -120,11 +129,7 @@ class VLLMProfiler:
         return None
 
     def _load_config(self):
-        """加载配置文件。
-        
-        Returns:
-            Optional[Dict]: 配置数据，失败时返回 None
-        """
+        """加载配置文件。"""
         def _write_profiling_symbols(env_path, default_cfg):
             try:
                 parent_dir = os.path.dirname(env_path) or '.'
@@ -142,12 +147,9 @@ class VLLMProfiler:
         
         env_path = os.environ.get('PROFILING_SYMBOLS_PATH')
         if env_path and str(env_path).lower().endswith(('.yaml', '.yml')):
-            # 环境变量目标文件已存在：直接加载
             if os.path.isfile(env_path):
                 logger.debug(f"Loading profiling symbols from env path: {env_path}")
                 return load_yaml_config(env_path)
-
-        # 目标文件不存在：若有默认配置，尝试复制填充
             if default_cfg:
                 result = _write_profiling_symbols(env_path, default_cfg)
                 if result is not None:
@@ -157,17 +159,17 @@ class VLLMProfiler:
         elif env_path and not str(env_path).lower().endswith(('.yaml', '.yml')):
             logger.warning(f"PROFILING_SYMBOLS_PATH is not a yaml file: {env_path}")
 
-        # 回退：按默认查找顺序加载
         if not default_cfg:
             logger.warning("No config file found")
             return None
         return load_yaml_config(default_cfg)
     
+    # -------------------------------------------------------------------------
+    # 初始化
+    # -------------------------------------------------------------------------
+    
     def _import_handlers(self):
-        """按版本导入内置 handlers。
-        
-        根据 vLLM 版本导入相应的内置 hooker 模块。
-        """
+        """按版本导入内置 handlers。"""
         if self._vllm_use_v1 == "0":
             logger.debug("Initializing service profiler with vLLM V0 interface")
             from .handlers.v0 import batch_handlers, kvcache_handlers, model_handlers, request_handlers
@@ -176,23 +178,6 @@ class VLLMProfiler:
             from .handlers.v1 import batch_handlers, kvcache_handlers, meta_handlers, model_handlers, request_handlers
         else:
             logger.error(f"unknown vLLM interface version: VLLM_USE_V1={self._vllm_use_v1}")
-            return
-    
-    def _init_symbol_watcher(self, config_data):
-        """初始化 symbol 监听器。
-        
-        Args:
-            config_data: 配置数据
-        """
-        self._symbol_watcher = SymbolWatchFinder()
-        self._symbol_watcher.load_symbol_config(config_data)
-        
-        # 安装到 sys.meta_path
-        sys.meta_path.insert(0, self._symbol_watcher)
-        logger.debug("Symbol watcher installed")
-        
-        # 检查目标模块是否已经被导入，如果是则立即应用 hooks
-        self._symbol_watcher.check_and_apply_existing_modules()
 
     def initialize(self) -> bool:
         """初始化服务分析器。
@@ -201,50 +186,101 @@ class VLLMProfiler:
         1. 检查环境变量
         2. 加载配置文件
         3. 导入内置 handlers
-        4. 初始化 symbol 监听器
+        4. 创建 SymbolWatchFinder 和 HookController
         
         Returns:
             bool: 初始化是否成功
         """
         try:
-            # 1. 检查环境是否启用
             if not check_profiling_enabled():
                 return False
             logger.debug("Initializing VLLM Service Profiler")
             
-            # 2. 加载vLLM特定配置
+            # 1. 加载配置
             config_data = self._load_config()
             if not config_data:
                 logger.warning("No VLLM configuration loaded, skipping profiler initialization")
                 return False
             
-            # 3. 按版本导入内置 handlers
+            # 2. 导入 handlers
             self._import_handlers()
             
-            # 4. 创建并初始化symbol监听器
-            self._init_symbol_watcher(config_data)
-
-            self._hooks_applied = True
+            # 3. 创建 SymbolWatchFinder 并安装
+            watcher = SymbolWatchFinder()
+            watcher.load_symbol_config(config_data)
+            sys.meta_path.insert(0, watcher)
+            logger.debug("Symbol watcher installed")
+            
+            # 4. 为已加载的模块准备 hooks
+            watcher.check_and_apply_existing_modules()
+            
+            # 5. 创建 HookController
+            self._controller = HookController(watcher)
+            
+            self._initialized = True
             logger.debug("VLLM Service Profiler initialized successfully")
             return True
+            
         except Exception as e:
             logger.exception("Failed to initialize VLLM Service Profiler: %s", str(e))
-        self._hooks_applied = False
-    
+            self._initialized = False
+            return False
+
+    # -------------------------------------------------------------------------
+    # Hooks 生命周期（委托给 HookController）
+    # -------------------------------------------------------------------------
+
+    @property
+    def initialized(self) -> bool:
+        """Profiler 是否已初始化。"""
+        return self._initialized
+
+    @property
+    def hooks_enabled(self) -> bool:
+        """hooks 是否已启用。"""
+        if self._controller is None:
+            return False
+        return self._controller.enabled
+
+    def enable_hooks(self) -> None:
+        """启用所有 hooks。"""
+        if self._controller is None:
+            logger.warning("Profiler not initialized, cannot enable hooks")
+            return
+        self._controller.enable(self._load_config)
+
+    def disable_hooks(self) -> None:
+        """禁用所有 hooks。"""
+        if self._controller is None:
+            logger.warning("Profiler not initialized, cannot disable hooks")
+            return
+        self._controller.disable()
+
+    # -------------------------------------------------------------------------
+    # C++ 回调（委托给 HookController）
+    # -------------------------------------------------------------------------
+
+    def get_callbacks(self) -> Tuple[Callable[[], None], Callable[[], None]]:
+        """返回可注册到 C++ 的回调函数对（start, stop）。
+        
+        Returns:
+            (on_start_callback, on_stop_callback)
+        """
+        if self._controller is None:
+            # 如果还没初始化，返回空操作的回调
+            def noop():
+                logger.warning("Profiler not initialized, callback ignored")
+            return noop, noop
+        return self._controller.get_callbacks(self._load_config)
+
     @property
     def vllm_version(self) -> str:
-        """获取vLLM版本标识。
-        
-        Returns:
-            str: vLLM版本标识
-        """
+        """获取 vLLM 版本标识。"""
         return self._vllm_use_v1
-    
+
     @property
-    def hooks_applied(self) -> bool:
-        """获取hooks是否已应用的状态。
-        
-        Returns:
-            bool: hooks是否已应用
-        """
-        return self._hooks_applied
+    def _symbol_watcher(self):
+        """SymbolWatchFinder 实例。未初始化时为 None。"""
+        if self._controller is None:
+            return None
+        return self._controller._watcher

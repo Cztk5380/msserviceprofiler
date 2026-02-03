@@ -14,14 +14,38 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 
-from ..core.logger import set_log_level
+"""
+vLLM 服务分析器入口模块。
+"""
+
+from ..core.logger import set_log_level, logger
 from .service_profiler import VLLMProfiler
+from ...mstx import service_profiler as mstx_profiler
 
-set_log_level("info")  # Default is info, put here for user changes
+set_log_level("info")
 
-# 创建vLLM专用的Profiler实例
+# 创建 vLLM 专用的 Profiler 实例
 _vllm_profiler = VLLMProfiler()
 
+
 def register_service_profiler():
-    """初始化vLLM服务分析器。"""
-    _vllm_profiler.initialize()
+    """初始化 vLLM 服务分析器并注册回调。"""
+    # 1. 初始化 profiler
+    ok = _vllm_profiler.initialize()
+    if not ok:
+        return
+
+    # 2. 获取回调函数
+    on_start, on_stop = _vllm_profiler.get_callbacks()
+
+    # 3. 注册回调到 mstx
+    start_result = mstx_profiler.register_profiler_start_callback(on_start)
+    stop_result = mstx_profiler.register_profiler_stop_callback(on_stop)
+    
+    # 4. 根据结果处理
+    if start_result.is_dynamic and stop_result.is_dynamic:
+        logger.info("Successfully registered VLLM profiler callbacks (dynamic mode)")
+        logger.info("Hooks will be enabled/disabled automatically by profiler start/stop signals")
+    else:
+        logger.info("C++ library does not support dynamic callbacks, enabling hooks immediately (legacy mode)")
+        _vllm_profiler.enable_hooks()

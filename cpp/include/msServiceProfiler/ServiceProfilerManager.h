@@ -115,6 +115,10 @@ namespace msServiceProfiler {
             return config_->GetProfPath();
         }
 
+        void RegisterStartCallback(void (*callback)());
+
+        void RegisterStopCallback(void (*callback)());
+
     private:
         ServiceProfilerManager();
 
@@ -169,6 +173,10 @@ namespace msServiceProfiler {
         //
         // 其实还是存在极其小的风险。如果出现，一般是偶现问题。目前还没发现这个原因导致的问题。
         std::shared_ptr<Config> config_;
+
+        // Python 回调函数指针
+        void (*startCallback_)(void) = nullptr;
+        void (*stopCallback_)(void) = nullptr;
     };
 }  // namespace msServiceProfiler
 
