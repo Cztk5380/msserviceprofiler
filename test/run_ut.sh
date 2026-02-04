@@ -27,12 +27,102 @@ PROJECT_DIR=$(readlink -f ${CUR_DIR}/..)
 BUILD_DIR=${PROJECT_DIR}/build
 ENABLE_CACHE="${ENABLE_CACHE:-0}"
 
+LINE_COV_TARGET=80
+BRANCH_COV_TARGET=60
+TARGET_DATE="${TARGET_DATE:-2026/2/28}"
+
+declare -A BASELINE_LINE_COV=(
+    ["ms_service_profiler"]=73
+    ["ms_serviceparam_optimizer"]=76
+    ["msservice_advisor"]=80
+)
+
+BASELINE_DATE="${BASELINE_DATE:-2026/2/4}"
+
 
 function clean() {
     [[ "${ENABLE_CACHE}" != "1" && -d "${BUILD_DIR}" ]] && rm -rf "${BUILD_DIR}"
 
     if [ ! -d ${COV_DIR} ]; then
         mkdir -p ${COV_DIR}
+    fi
+}
+
+
+# ------------------------------------------------------------------------------
+# Coverage Check Rules
+# - Verify overall coverage for modified modules
+# - Coverage requirements rise linearly daily based on each module's baseline coverage
+# - Target Date: 2026-02-28 | Line Coverage Target: 80% | Branch Coverage Target: 60%
+
+# Usage Example:
+#   ./test/run_ut.sh ms_service_profiler
+# ------------------------------------------------------------------------------
+function check_coverage() {
+    local module_name=$1
+    echo "[check_coverage]模块: $module_name"
+
+    local total_line=$(python3 -m coverage report | grep "TOTAL" | awk '{print $6}' | sed 's/%//')
+    local total_branch=$(python3 -m coverage report | grep "TOTAL" | awk '{branch_total=$4; branch_miss=$5; branch_cov=(branch_total-branch_miss)*100/branch_total; printf "%.0f", branch_cov}')
+
+    if [ -z "$total_line" ]; then
+        echo "[check_coverage]错误: 无法获取覆盖率报告"
+        exit 1
+    fi
+
+    if [ -z "$total_branch" ]; then
+        total_branch="0"
+    fi
+
+    local baseline_line=${BASELINE_LINE_COV[$module_name]:-0}
+
+    if [ "$baseline_line" -eq "0" ]; then
+        baseline_line=$LINE_COV_TARGET
+        return 0
+    fi
+
+    local current_timestamp=$(date +%s)
+    local baseline_timestamp=$(date -d "$BASELINE_DATE" +%s 2>/dev/null || echo "0")
+    local target_timestamp=$(date -d "$TARGET_DATE" +%s 2>/dev/null || echo "0")
+
+    if [ "$baseline_timestamp" -eq "0" ] || [ "$target_timestamp" -eq "0" ]; then
+        echo "[check_coverage]错误: 无法解析日期格式 '$BASELINE_DATE' 或 '$TARGET_DATE'"
+        exit 1
+    fi
+
+    local total_days=$(( (target_timestamp - baseline_timestamp) / 86400 ))
+    local current_days=$(( (current_timestamp - baseline_timestamp) / 86400 ))
+
+    if [ "$current_days" -lt 0 ]; then
+        current_days=0
+    fi
+
+    if [ "$current_days" -gt "$total_days" ]; then
+        current_days=$total_days
+    fi
+
+    local progress=$(awk "BEGIN {printf \"%.2f\", $current_days * 100 / $total_days}")
+    local line_cov_requirement=$(awk "BEGIN {printf \"%.2f\", $baseline_line + ($LINE_COV_TARGET - $baseline_line) * $current_days / $total_days}")
+    local branch_cov_requirement=$BRANCH_COV_TARGET
+    local failed=0
+
+    if (( $(awk "BEGIN {print ($total_line < $line_cov_requirement) ? 1 : 0}") )); then
+        echo "[check_coverage]行覆盖率 ${total_line}% 低于要求 ${line_cov_requirement}%"
+        failed=1
+    else
+        echo "[check_coverage]行覆盖率 ${total_line}% 达标"
+    fi
+
+    if (( $(awk "BEGIN {print ($total_branch < $branch_cov_requirement) ? 1 : 0}") )); then
+        echo "[check_coverage]分支覆盖率 ${total_branch}% 低于要求 ${branch_cov_requirement}%"
+        failed=1
+    else
+        echo "[check_coverage]分支覆盖率 ${total_branch}% 达标"
+    fi
+
+    if [ $failed -eq 1 ]; then
+        echo "[check_coverage]覆盖率检查失败！请为修改的模块添加足够的测试用例"
+        exit 1
     fi
 }
 
@@ -44,6 +134,7 @@ function run_ms_service_profiler_python_ut() {
     python3 -m coverage run --branch --source "${PROJECT_DIR}/ms_service_profiler" --omit="test/*" -m pytest ${UT_DIR}
     python3 -m coverage report -m
     python3 -m coverage xml -o ${COV_DIR}/coverage.xml
+    check_coverage "ms_service_profiler"
 }
 
 
@@ -84,6 +175,7 @@ function run_ms_serviceparam_optimizer_ut() {
 
     python3 -m coverage report -m
     python3 -m coverage xml -o ${COV_DIR}/coverage.xml
+    check_coverage "ms_serviceparam_optimizer"
 }
 
 
@@ -103,6 +195,7 @@ function run_msservice_advisor_ut() {
  
     python3 -m coverage report -m
     python3 -m coverage xml -o ${COV_DIR}/coverage.xml
+    check_coverage "msservice_advisor"
 }
 
 
