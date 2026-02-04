@@ -51,3 +51,4 @@ test = [
 [tool.scikit-build]
 cmake.version = ">=3.11"
 build-dir = "build/{wheel_tag}"
+wheel.py-api = "py3"
