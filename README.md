@@ -69,6 +69,16 @@ Trace数据监测工具采集MindIE Motor服务中的请求响应时间、响应
 ### [服务化拆解工具](docs/zh/service_performance_split_tool_instruct.md)
 基于msServiceProfiler工具采集的性能数据，提供性能数据拆解能力，可以对batch内各阶段耗时进行分析。具体请参见服务化拆解工具。
 
+## 贡献指导
+介绍如何向msServiceProfiler反馈问题、需求以及为msServiceProfiler贡献的代码开发流程，具体请参见[为MindStudio ServiceProfiler贡献](CONTRIBUTING.md)。
+
+## 联系我们
+
+<div>
+  <a href="https://raw.gitcode.com/kali20gakki1/Imageshack/raw/main/CDC0BEE2-8F11-477D-BD55-77A15417D7D1_4_5005_c.jpeg">
+    <img src="https://img.shields.io/badge/WeChat-07C160?style=for-the-badge&logo=wechat&logoColor=white"></a>
+</div>
+
 ## 免责声明
 ### 致msServiceProfiler使用者
 
