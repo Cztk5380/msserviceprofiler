@@ -609,7 +609,7 @@ class TestServiceProfilerInitialization:
     def test_initialization(service_profiler):
         """测试初始化状态"""
         assert service_profiler.hooks_enabled is False
-        assert service_profiler._symbol_watcher is None
+        assert service_profiler._controller is None
         assert hasattr(service_profiler, '_vllm_use_v1')
 
 
@@ -870,9 +870,9 @@ class TestInitSymbolWatcher:
                     with patch('sys.meta_path', []) as mock_meta_path:
                         service_profiler.initialize()
                         assert service_profiler._controller is not None
-                        assert service_profiler._symbol_watcher is not None
-                        assert isinstance(service_profiler._symbol_watcher, SymbolWatchFinder)
-                        assert mock_meta_path[0] == service_profiler._symbol_watcher
+                        assert service_profiler._controller._watcher is not None
+                        assert isinstance(service_profiler._controller._watcher, SymbolWatchFinder)
+                        assert mock_meta_path[0] == service_profiler._controller._watcher
 
 
 class TestCheckAndApplyExistingModules:
@@ -891,9 +891,9 @@ class TestCheckAndApplyExistingModules:
         service_profiler._controller = HookController(watcher)
         
         with patch.dict('sys.modules', {'test.module': Mock()}):
-            with patch.object(service_profiler._symbol_watcher, '_on_symbol_module_loaded') as mock_callback:
+            with patch.object(service_profiler._controller._watcher, '_on_symbol_module_loaded') as mock_callback:
                 with patch('ms_service_profiler.patcher.vllm.service_profiler.logger.debug') as mock_debug:
-                    service_profiler._symbol_watcher.check_and_apply_existing_modules()
+                    service_profiler._controller._watcher.check_and_apply_existing_modules()
                     mock_callback.assert_called_once_with('test.module')
 
     @staticmethod
@@ -908,8 +908,8 @@ class TestCheckAndApplyExistingModules:
         service_profiler._controller = HookController(watcher)
         
         with patch.dict('sys.modules', {'test.module': Mock()}):
-            with patch.object(service_profiler._symbol_watcher, '_on_symbol_module_loaded') as mock_callback:
-                service_profiler._symbol_watcher.check_and_apply_existing_modules()
+            with patch.object(service_profiler._controller._watcher, '_on_symbol_module_loaded') as mock_callback:
+                service_profiler._controller._watcher.check_and_apply_existing_modules()
                 mock_callback.assert_not_called()
 
     @staticmethod
@@ -924,8 +924,8 @@ class TestCheckAndApplyExistingModules:
         if 'test.module' in sys.modules:
             del sys.modules['test.module']
         
-        with patch.object(service_profiler._symbol_watcher, '_on_symbol_module_loaded') as mock_callback:
-            service_profiler._symbol_watcher.check_and_apply_existing_modules()
+        with patch.object(service_profiler._controller._watcher, '_on_symbol_module_loaded') as mock_callback:
+            service_profiler._controller._watcher.check_and_apply_existing_modules()
             mock_callback.assert_not_called()
 
 @pytest.fixture
@@ -1337,7 +1337,7 @@ class TestServiceProfilerIntegration:
     
                     # 验证状态
                     assert service_profiler._initialized is True
-                    assert service_profiler._symbol_watcher is not None
+                    assert service_profiler._controller._watcher is not None
                     
                 finally:
                     # 恢复原始 meta_path

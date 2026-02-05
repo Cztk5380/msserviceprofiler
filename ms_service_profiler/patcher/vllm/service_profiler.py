@@ -277,10 +277,3 @@ class VLLMProfiler:
     def vllm_version(self) -> str:
         """获取 vLLM 版本标识。"""
         return self._vllm_use_v1
-
-    @property
-    def _symbol_watcher(self):
-        """SymbolWatchFinder 实例。未初始化时为 None。"""
-        if self._controller is None:
-            return None
-        return self._controller._watcher
