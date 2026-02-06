@@ -79,6 +79,7 @@ class SGLangPatcher:
     def _import_handlers(self):
         """导入内置 handlers。
         """
+        from .handlers import scheduler_handlers, request_handlers, model_handlers
         logger.debug("Initializing service patcher with SGLang interface")
 
     def initialize(self) -> bool:

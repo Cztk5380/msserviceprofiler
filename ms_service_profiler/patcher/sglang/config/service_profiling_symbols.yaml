@@ -1,0 +1,110 @@
+# ===== Scheduler =====
+- symbol: sglang.srt.managers.scheduler:Scheduler.recv_requests
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.scheduler_handlers:recv_requests
+  name: recvReq
+
+- symbol: sglang.srt.managers.scheduler:Scheduler.handle_generate_request
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.scheduler_handlers:request_dispatcher
+  name: processReq
+
+- symbol: sglang.srt.managers.scheduler:Scheduler.handle_embedding_request
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.scheduler_handlers:request_dispatcher
+  name: processReq
+
+- symbol: sglang.srt.managers.scheduler:Scheduler.get_next_batch_to_run
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.scheduler_handlers:get_next_batch_to_run
+  name: batchFrameworkProcessing
+
+- symbol: sglang.srt.managers.scheduler:Scheduler.run_batch
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.scheduler_handlers:run_batch
+  name: modelExec
+
+- symbol: sglang.srt.managers.scheduler:Scheduler.process_batch_result
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.scheduler_handlers:process_batch_result
+  name: postprocess
+
+- symbol: sglang.srt.managers.scheduler:Scheduler._add_request_to_queue
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.scheduler_handlers:add_request_to_queue
+
+- symbol: sglang.srt.managers.scheduler:Scheduler.get_new_batch_prefill
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.scheduler_handlers:get_new_batch_prefill
+
+- symbol: sglang.srt.managers.schedule_batch:Req.init_next_round_input
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.scheduler_handlers:init_next_round_input
+  name: HitCache
+
+- symbol: sglang.srt.managers.scheduler_output_processor_mixin:SchedulerOutputProcessorMixin.process_batch_result_prefill
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.scheduler_handlers:process_batch_result_prefill
+  name: PrefillEnd
+
+- symbol: sglang.srt.managers.scheduler_output_processor_mixin:SchedulerOutputProcessorMixin.process_batch_result_decode
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.scheduler_handlers:process_batch_result_decode
+  name: DecodeEnd
+
+# ===== Request =====
+- symbol: sglang.srt.managers.detokenizer_manager:DetokenizerManager.handle_batch_token_id_out
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.request_handlers:handle_batch_token_id_out
+  name: detokenize
+
+- symbol: sglang.srt.managers.tokenizer_manager:TokenizerManager._tokenize_one_request
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.request_handlers:tokenize_one_request
+  name: tokenize
+
+- symbol: sglang.srt.managers.tokenizer_manager:TokenizerManager._batch_tokenize_and_process
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.request_handlers:batch_tokenize_and_process
+  name: tokenize
+
+- symbol: sglang.srt.managers.tokenizer_manager:TokenizerManager._send_one_request
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.request_handlers:send_one_request
+  name: send_to_scheduler.dispatch
+
+- symbol: sglang.srt.managers.tokenizer_manager:TokenizerManager._send_batch_request
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.request_handlers:send_batch_request
+  name: send_to_scheduler.dispatch
+
+- symbol: sglang.srt.managers.tokenizer_manager:TokenizerManager._wait_one_response
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.request_handlers:wait_one_response
+  name: httpRes
+
+- symbol: sglang.srt.managers.io_struct:GenerateReqInput.normalize_batch_and_arguments
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.request_handlers:normalize_batch_and_arguments
+  name: httpReq
+
+- symbol: sglang.srt.managers.io_struct:EmbeddingReqInput.normalize_batch_and_arguments
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.request_handlers:normalize_batch_and_arguments
+  name: httpReq
+
+# ===== Model =====
+- symbol: sglang.srt.model_executor.forward_batch_info:ForwardBatch.init_new
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.model_handlers:init_new
+  name: preprocess
+
+- symbol: sglang.srt.model_executor.model_runner:ModelRunner.forward
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.model_handlers:forward
+  name: forward
+
+- symbol: sglang.srt.model_executor.model_runner:ModelRunner.sample
+  min_version: "0.5.4"
+  handler: ms_service_profiler.patcher.sglang.handlers.model_handlers:sample
+  name: sample
