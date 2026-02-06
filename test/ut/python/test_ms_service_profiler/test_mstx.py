@@ -138,7 +138,8 @@ class TestLibServiceProfiler(unittest.TestCase):
         self.service_profiler.func_is_enable.assert_called_once_with(1)
 
     def test_add_meta_info(self):
-        # 测试add_meta_info方法
+        # 测试add_meta_info方法（避免 init 覆盖 mock）
+        self.service_profiler.is_initialized = True
         self.service_profiler.func_add_meta_info = MagicMock()
         self.service_profiler.add_meta_info("key", "value")
         self.service_profiler.func_add_meta_info.assert_called_once_with(b"key", b"value")
@@ -446,6 +447,50 @@ class TestLibServiceProfiler(unittest.TestCase):
         self.service_profiler.is_initialized = True
         self.service_profiler.init()
         self.assertTrue(self.service_profiler.is_initialized)
+
+    def test_ensure_cpp_callbacks_registered_already_registered(self):
+        # 测试已注册时直接返回 True，不重复注册
+        self.service_profiler._cpp_callbacks_registered = True
+        result = self.service_profiler._ensure_cpp_callbacks_registered()
+        self.assertTrue(result)
+        self.assertEqual(len(self.service_profiler._c_callback_refs), 0)
+
+    @patch("ms_service_profiler.utils.file_open_check.get_valid_lib_path")
+    def test_ensure_cpp_callbacks_registered_lib_none(self, mock_get_valid_lib_path):
+        # 测试 lib 加载失败时返回 False
+        mock_get_valid_lib_path.return_value = None
+        profiler = LibServiceProfiler()
+        profiler.init()
+        result = profiler._ensure_cpp_callbacks_registered()
+        self.assertFalse(result)
+
+    def test_ensure_cpp_callbacks_registered_no_register_funcs(self):
+        # 测试 C++ 无注册函数时返回 False（legacy）
+        self.service_profiler.init()
+        self.service_profiler.lib = MagicMock()
+        self.service_profiler._func_register_start_callback = None
+        self.service_profiler._func_register_stop_callback = None
+        result = self.service_profiler._ensure_cpp_callbacks_registered()
+        self.assertFalse(result)
+
+    def test_register_start_callback_message_dynamic(self):
+        # 测试 dynamic 模式返回的 message
+        callback = MagicMock()
+        self.service_profiler.init()
+        self.service_profiler.lib = MagicMock()
+        self.service_profiler._func_register_start_callback = MagicMock()
+        self.service_profiler._func_register_stop_callback = MagicMock()
+        self.service_profiler._cpp_callbacks_registered = False
+        result = self.service_profiler.register_profiler_start_callback(callback)
+        self.assertEqual(result.message, "Callback registered successfully")
+
+    def test_register_stop_callback_message_legacy(self):
+        # 测试 legacy 模式返回的 message
+        callback = MagicMock()
+        self.service_profiler._func_register_start_callback = None
+        self.service_profiler._func_register_stop_callback = None
+        result = self.service_profiler.register_profiler_stop_callback(callback)
+        self.assertEqual(result.message, "C++ library does not support dynamic callbacks")
 
 
 if __name__ == '__main__':
