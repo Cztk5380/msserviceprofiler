@@ -86,45 +86,46 @@ class TestRecoverHookersForSymbols:
         # 仅记录错误，不抛出
 
 
-class TestLoadSymbolConfigRemovedSymbols:
-    """测试 load_symbol_config 中“删除的 symbol”分支（hooks_enabled 与恢复逻辑）。"""
+class TestLoadHandlersRemovedSymbols:
+    """测试 load_handlers 中“删除的 symbol”分支（hooks_enabled 与恢复逻辑）。"""
 
     def test_load_config_first_time_no_removed(self, watcher):
-        config = [{"symbol": "a.b:func1"}, {"symbol": "c.d:func2"}]
+        handlers = {"a.b:func1": [MagicMock()], "c.d:func2": [MagicMock()]}
         with patch("ms_service_profiler.patcher.core.symbol_watcher.logger"):
-            watcher.load_symbol_config(config)
+            watcher.load_handlers(handlers)
 
         assert watcher._config_loaded is True
-        assert len(watcher._symbol_hooks) == 2
-        assert "symbol_0" in watcher._symbol_hooks
-        assert watcher._symbol_hooks["symbol_0"]["symbol"] == "a.b:func1"
+        assert len(watcher._symbol_handlers) == 2
+        assert "a.b:func1" in watcher._symbol_handlers
+        assert watcher._symbol_handlers["a.b:func1"] == handlers["a.b:func1"]
 
-    def test_load_config_invalid_entry_not_dict(self, watcher):
-        config = [{"symbol": "a:func"}, "not_a_dict"]
+    def test_load_handlers_empty_dict(self, watcher):
         with patch("ms_service_profiler.patcher.core.symbol_watcher.logger"):
-            watcher.load_symbol_config(config)
+            watcher.load_handlers({})
 
-        assert len(watcher._symbol_hooks) == 1
+        assert watcher._config_loaded is True
+        assert len(watcher._symbol_handlers) == 0
 
-    def test_load_config_missing_symbol_key(self, watcher):
-        config = [{"symbol": "a:func"}, {"domain": "Test"}]
+    def test_load_handlers_single_symbol(self, watcher):
+        handlers = {"a:func": [MagicMock()]}
         with patch("ms_service_profiler.patcher.core.symbol_watcher.logger"):
-            watcher.load_symbol_config(config)
+            watcher.load_handlers(handlers)
 
-        assert len(watcher._symbol_hooks) == 1
+        assert len(watcher._symbol_handlers) == 1
+        assert "a:func" in watcher._symbol_handlers
 
     def test_load_config_removed_symbols_hooks_disabled(self, watcher):
         watcher._config_loaded = True
         watcher._applied_hooks = {"old.mod:func"}
         hooker = MagicMock()
-        watcher._symbol_to_hooker["old.mod:func"] = hooker
+        watcher._symbol_to_hooker["old.mod:func"] = [hooker]
         watcher._prepared_hookers = [hooker]
         watcher._applied_hookers = [hooker]
 
-        new_config = [{"symbol": "new.mod:func2"}]
+        new_handlers = {"new.mod:func2": [MagicMock()]}
 
         with patch("ms_service_profiler.patcher.core.symbol_watcher.logger"):
-            watcher.load_symbol_config(new_config, hooks_enabled=False)
+            watcher.load_handlers(new_handlers, hooks_enabled=False)
 
         assert "old.mod:func" not in watcher._symbol_to_hooker
         assert "old.mod:func" not in watcher._applied_hooks
@@ -137,37 +138,41 @@ class TestLoadSymbolConfigRemovedSymbols:
         hook_helper = MagicMock()
         hooker = MagicMock()
         hooker.hooks = [hook_helper]
-        watcher._symbol_to_hooker["old.mod:func"] = hooker
+        watcher._symbol_to_hooker["old.mod:func"] = [hooker]
         watcher._prepared_hookers = [hooker]
         watcher._applied_hookers = [hooker]
 
-        new_config = [{"symbol": "new.mod:func2"}]
+        new_handlers = {"new.mod:func2": [MagicMock()]}
 
         with patch("ms_service_profiler.patcher.core.symbol_watcher.logger"):
-            watcher.load_symbol_config(new_config, hooks_enabled=True)
+            watcher.load_handlers(new_handlers, hooks_enabled=True)
 
         hook_helper.recover.assert_called_once()
         assert "old.mod:func" not in watcher._symbol_to_hooker
         assert hooker not in watcher._applied_hookers
 
 
-class TestLoadSymbolConfigPrepareHooks:
-    """测试 load 后 _prepare_single_symbol_hook 相关分支（通过 check_and_apply 或 find_spec 间接）。"""
+class TestPrepareHandlersForModule:
+    """测试 _prepare_handlers_for_module 异常分支。"""
 
-    def test_prepare_symbol_hooks_for_module_exception(self, watcher):
-        watcher._symbol_hooks = {"symbol_0": {"symbol": "mod:func"}}
+    def test_prepare_handlers_for_module_exception(self, watcher):
+        watcher._symbol_handlers = {"mod:func": [MagicMock()]}
         watcher._config_loaded = True
+        handler_list = [MagicMock()]
+        handler_list[0].register.side_effect = RuntimeError("prepare error")
 
-        with patch.object(
-            watcher, "_prepare_single_symbol_hook", side_effect=RuntimeError("prepare error")
-        ), patch("ms_service_profiler.patcher.core.symbol_watcher.logger"):
-            watcher._prepare_symbol_hooks_for_module(
-                "mod", [("symbol_0", {"symbol": "mod:func"})]
+        with patch("ms_service_profiler.patcher.core.symbol_watcher.logger"):
+            watcher._prepare_handlers_for_module(
+                "mod", [("mod:func", handler_list)]
             )
 
+        # 仅验证不抛异常（异常被捕获并记录）
+        assert "mod:func" not in watcher._applied_hooks
 
+
+@pytest.mark.skip(reason="API moved to ConfigLoader: _parse_symbol_path / _build_hook_points")
 class TestParseSymbolPathAndBuildHookPoints:
-    """测试 _parse_symbol_path 与 _build_hook_points。"""
+    """测试 _parse_symbol_path 与 _build_hook_points（已迁移至 ConfigLoader）。"""
 
     def test_parse_symbol_path_class_method(self, watcher):
         module_path, method_name, class_name = watcher._parse_symbol_path("mod.path:ClassName.method_name")
@@ -190,8 +195,9 @@ class TestParseSymbolPathAndBuildHookPoints:
         assert points == [("mod", "func")]
 
 
+@pytest.mark.skip(reason="API moved to ConfigLoader: _create_handler_function")
 class TestCreateHandlerFunction:
-    """测试 _create_handler_function。"""
+    """测试 _create_handler_function（已迁移至 ConfigLoader）。"""
 
     def test_create_handler_no_handler_uses_default_timer(self, watcher):
         with patch("ms_service_profiler.patcher.core.symbol_watcher.make_default_time_hook") as mock_make:
@@ -253,16 +259,16 @@ class TestIsTargetSymbol:
 
     def test_direct_match(self, watcher):
         watcher._config_loaded = True
-        watcher._symbol_hooks = {"s0": {"symbol": "mod.path:func"}}
+        watcher._symbol_handlers = {"mod.path:func": []}
         assert watcher._is_target_symbol("mod.path") is True
 
     def test_parent_package_match(self, watcher):
         watcher._config_loaded = True
-        watcher._symbol_hooks = {"s0": {"symbol": "parent.child.grand:func"}}
+        watcher._symbol_handlers = {"parent.child.grand:func": []}
         assert watcher._is_target_symbol("parent") is True
         assert watcher._is_target_symbol("parent.child") is True
 
     def test_no_match(self, watcher):
         watcher._config_loaded = True
-        watcher._symbol_hooks = {"s0": {"symbol": "other.mod:func"}}
+        watcher._symbol_handlers = {"other.mod:func": []}
         assert watcher._is_target_symbol("some.other") is False

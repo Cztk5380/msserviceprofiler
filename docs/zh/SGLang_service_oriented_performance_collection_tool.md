@@ -140,8 +140,7 @@ python -m ms_service_profiler.parse --input-path=$PWD
 采集配置可以参考[数据采集](./msserviceprofiler_serving_tuning_instruct.md#数据采集)中的配置文件创建的说明以及注意事项的澄清。
 
 >![](public_sys-resources/icon-note.gif) **须知：**
-> - 目前 vLLM Service Profiler 暂不支持 `torch_prof_stack`、`torch_prof_modules`、`torch_prof_step_num` 三项配置的使能。
-> - vLLM Service Profiler 在 `acl_task_time` 参数配置为1时，不支持同时配置vLLM原生Torch Profiler 的 `VLLM_TORCH_PROFILER_DIR` 环境变量进行性能数据采集。
+> - 目前 SGLang Service Profiler 暂不支持 `torch_prof_stack`、`torch_prof_modules`、`torch_prof_step_num` 三项配置的使能。
 
 ### 解析数据命令行参数说明
 解析数据命令行参数说明可参考[数据解析](./msserviceprofiler_serving_tuning_instruct.md#数据解析)。

@@ -33,7 +33,8 @@ import sys
 import importlib_metadata
 from typing import Optional, Tuple, Callable
 
-from ..core.utils import load_yaml_config, parse_version_tuple, check_profiling_enabled
+from ..core.utils import parse_version_tuple, check_profiling_enabled
+from ..core.config_loader import ConfigLoader
 from ..core.symbol_watcher import SymbolWatchFinder
 from ..core.hook_controller import HookController
 from ..core.logger import logger
@@ -86,9 +87,8 @@ class VLLMProfiler:
     # -------------------------------------------------------------------------
     
     @staticmethod
-    def _find_config_path() -> Optional[str]:
-        """查找性能分析配置文件，按优先级顺序查找。"""
-        # 1) local project config path
+    def _find_default_config_path() -> Optional[str]:
+        """查找默认配置文件路径（仅本地或用户目录，不含环境变量）。"""
         try:
             local_candidate = os.path.join(
                 os.path.dirname(__file__), 'config', 'service_profiling_symbols.yaml'
@@ -98,8 +98,6 @@ class VLLMProfiler:
                 return local_candidate
         except Exception as e:
             logger.warning(f"Failed to find profiling symbols from local project: {e}")
-        
-        # 2) user config path
         try:
             try:
                 import vllm  # type: ignore
@@ -107,13 +105,11 @@ class VLLMProfiler:
             except Exception as e:
                 logger.debug(f"vllm not available for version detection: {e}")
                 vllm_version = None
-            
             try:
                 from vllm_ascend import register_service_profiling  # type: ignore
                 register_service_profiling()
             except Exception as e:
                 logger.debug(f"Cannot using register_service_profiling to get default symbols config: {e}")
-
             if vllm_version:
                 home_dir = os.path.expanduser('~')
                 candidate = os.path.join(
@@ -125,12 +121,29 @@ class VLLMProfiler:
                     return candidate
         except Exception as e:
             logger.warning(f"Failed to find profiling symbols from default path: {e}")
-
         return None
 
+    @classmethod
+    def _find_config_path(cls) -> Optional[str]:
+        """查找性能分析配置文件，按优先级：环境变量(yml) > 本地 > 用户目录。"""
+        env_path = os.environ.get('PROFILING_SYMBOLS_PATH')
+        if env_path and str(env_path).lower().endswith(('.yaml', '.yml')):
+            path = env_path
+        else:
+            path = cls._find_default_config_path()
+        if path:
+            logger.info("Using profiling config path: %s", path)
+        return path
+
     def _load_config(self):
-        """加载配置文件。"""
-        def _write_profiling_symbols(env_path, default_cfg):
+        """加载配置文件。
+
+        Returns:
+            Optional[Dict[str, List[DynamicHooker]]]: 由 ConfigLoader 解析得到的 Handler 列表，
+                失败时返回 None
+        """
+        def _write_profiling_symbols(env_path: str, default_cfg: str):
+            """将默认配置写入 env_path 并加载。"""
             try:
                 parent_dir = os.path.dirname(env_path) or '.'
                 os.makedirs(parent_dir, exist_ok=True)
@@ -138,18 +151,18 @@ class VLLMProfiler:
                         open(env_path, 'w', encoding='utf-8') as dst:
                     dst.write(src.read())
                 logger.debug(f"Wrote profiling symbols to env path: {env_path}")
-                return load_yaml_config(env_path)
+                logger.info("Loading vLLM profiling symbols from: %s", env_path)
+                return ConfigLoader(env_path).load()
             except Exception as e:
                 logger.warning(f"Failed to write profiling symbols to env path {env_path}: {e}")
                 return None
 
-        default_cfg = self._find_config_path()
-        
+        default_cfg = self._find_default_config_path()
         env_path = os.environ.get('PROFILING_SYMBOLS_PATH')
         if env_path and str(env_path).lower().endswith(('.yaml', '.yml')):
             if os.path.isfile(env_path):
-                logger.debug(f"Loading profiling symbols from env path: {env_path}")
-                return load_yaml_config(env_path)
+                logger.info("Loading vLLM profiling symbols from: %s", env_path)
+                return ConfigLoader(env_path).load()
             if default_cfg:
                 result = _write_profiling_symbols(env_path, default_cfg)
                 if result is not None:
@@ -162,7 +175,8 @@ class VLLMProfiler:
         if not default_cfg:
             logger.warning("No config file found")
             return None
-        return load_yaml_config(default_cfg)
+        logger.info("Loading vLLM profiling symbols from: %s", default_cfg)
+        return ConfigLoader(default_cfg).load()
     
     # -------------------------------------------------------------------------
     # 初始化
@@ -195,28 +209,19 @@ class VLLMProfiler:
             if not check_profiling_enabled():
                 return False
             logger.debug("Initializing VLLM Service Profiler")
-            
-            # 1. 加载配置
-            config_data = self._load_config()
-            if not config_data:
-                logger.warning("No VLLM configuration loaded, skipping profiler initialization")
+            # 仅校验配置路径存在，不在此处加载配置（ConfigLoader.load / _resolve_handler_func
+            # 推迟到 HookController.enable 时执行，即 _enabled 为 True 时再加载）
+            if not self._find_config_path():
+                logger.warning("No VLLM config path found, skipping profiler initialization")
                 return False
-            
-            # 2. 导入 handlers
+            # 导入 handlers
             self._import_handlers()
-            
-            # 3. 创建 SymbolWatchFinder 并安装
+            # 创建 SymbolWatchFinder（未加载配置）并安装
             watcher = SymbolWatchFinder()
-            watcher.load_symbol_config(config_data)
             sys.meta_path.insert(0, watcher)
             logger.debug("Symbol watcher installed")
-            
-            # 4. 为已加载的模块准备 hooks
-            watcher.check_and_apply_existing_modules()
-            
-            # 5. 创建 HookController
+            # 创建 HookController；首次 enable() 时再加载配置并 load_handlers
             self._controller = HookController(watcher)
-            
             self._initialized = True
             logger.debug("VLLM Service Profiler initialized successfully")
             return True
@@ -243,11 +248,12 @@ class VLLMProfiler:
         return self._controller.enabled
 
     def enable_hooks(self) -> None:
-        """启用所有 hooks。"""
+        """启用所有 hooks（先加载配置得到 Handler 列表，再交给 controller.enable）。"""
         if self._controller is None:
             logger.warning("Profiler not initialized, cannot enable hooks")
             return
-        self._controller.enable(self._load_config)
+        handlers = self._load_config()
+        self._controller.enable(handlers)
 
     def disable_hooks(self) -> None:
         """禁用所有 hooks。"""

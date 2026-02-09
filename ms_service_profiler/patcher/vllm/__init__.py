@@ -19,7 +19,7 @@ vLLM 服务分析器入口模块。
 """
 
 from ..core.logger import set_log_level, logger
-from .service_profiler import VLLMProfiler
+from .service_patcher import VLLMProfiler
 from ...mstx import service_profiler as mstx_profiler
 
 set_log_level("info")

@@ -134,24 +134,25 @@ class TestFindConfigPath:
 
 
 class TestLoadConfig:
-    """测试 _load_config 静态方法"""
+    """测试 _load_config 方法"""
     
     @staticmethod
-    def test_load_config_given_valid_path_when_load_succeeds_then_return_config():
-        """测试成功加载配置文件"""
-        # 测试：给定有效路径，当加载成功时，返回配置
-        mock_config = [{'symbol': 'test:function', 'handler': 'handlers:time_hook'}]
-        
+    def test_load_config_given_valid_path_when_load_succeeds_then_return_handlers():
+        """测试成功加载配置文件（通过 ConfigLoader 返回 Handler 字典）"""
+        mock_handlers = {'test:function': [MagicMock()]}
         with patch.object(SGLangPatcher, '_find_config_path', return_value='/mock/path.yaml'):
-            with patch('ms_service_profiler.patcher.sglang.service_patcher.load_yaml_config', 
-                      return_value=mock_config) as mock_load:
+            with patch('ms_service_profiler.patcher.sglang.service_patcher.ConfigLoader') as MockConfigLoader:
+                mock_loader_instance = MagicMock()
+                mock_loader_instance.load.return_value = mock_handlers
+                MockConfigLoader.return_value = mock_loader_instance
                 with patch('ms_service_profiler.patcher.sglang.service_patcher.logger.info') as mock_info:
-                    result = SGLangPatcher._load_config()
-                    
-                    assert result == mock_config
-                    mock_load.assert_called_once_with('/mock/path.yaml')
+                    patcher = SGLangPatcher()
+                    result = patcher._load_config()
+                    assert result == mock_handlers
+                    MockConfigLoader.assert_called_once_with('/mock/path.yaml')
+                    mock_loader_instance.load.assert_called_once()
                     mock_info.assert_called_once_with(
-                        "Loading SGLang profiling symbols path: %s",
+                        "Loading SGLang profiling symbols from: %s",
                         '/mock/path.yaml'
                     )
     
@@ -161,7 +162,8 @@ class TestLoadConfig:
         # 测试：给定无路径，当查找返回None时，记录警告
         with patch.object(SGLangPatcher, '_find_config_path', return_value=None):
             with patch('ms_service_profiler.patcher.sglang.service_patcher.logger.warning') as mock_warning:
-                result = SGLangPatcher._load_config()
+                patcher = SGLangPatcher()
+                result = patcher._load_config()
                 
                 assert result is None
                 mock_warning.assert_called_once_with("No SGLang profiling config found.")
@@ -212,92 +214,61 @@ class TestInitialize:
     
     @staticmethod
     def test_initialize_given_no_config_when_load_returns_none_then_log_warning_and_return_false():
-        """测试无配置时的初始化逻辑"""
-        # 测试：给定无配置，当加载返回None时，记录警告并返回False
+        """测试无配置路径时的初始化逻辑（不调用 _load_config，仅校验 _find_config_path）"""
         patcher = SGLangPatcher()
-        
-        with patch('ms_service_profiler.patcher.sglang.service_patcher.check_profiling_enabled', 
+        with patch('ms_service_profiler.patcher.sglang.service_patcher.check_profiling_enabled',
                   return_value=True):
-            with patch.object(patcher, '_load_config', return_value=None):
+            with patch.object(patcher, '_find_config_path', return_value=None):
                 with patch('ms_service_profiler.patcher.sglang.service_patcher.logger.warning') as mock_warning:
                     with patch('ms_service_profiler.patcher.sglang.service_patcher.logger.debug') as mock_debug:
                         result = patcher.initialize()
-                        
                         assert result is False
                         mock_debug.assert_called_once_with("Initializing SGLang Service Patcher")
                         mock_warning.assert_called_once_with(
-                            "No SGLang configuration loaded, skipping patcher initialization"
+                            "No SGLang config path found, skipping patcher initialization"
                         )
     
     @staticmethod
     def test_initialize_given_valid_config_when_all_steps_succeed_then_return_true():
-        """测试成功初始化完整流程"""
-        # 测试：给定有效配置，当所有步骤成功时，返回True
+        """测试成功初始化（仅校验路径、创建 watcher/controller，配置推迟到 enable 时加载）"""
         patcher = SGLangPatcher()
-        mock_config = [{'symbol': 'test:function'}]
-        
-        # 保存原始meta_path以恢复
         original_meta_path = sys.meta_path.copy()
-        
         try:
-            with patch('ms_service_profiler.patcher.sglang.service_patcher.check_profiling_enabled', 
+            with patch('ms_service_profiler.patcher.sglang.service_patcher.check_profiling_enabled',
                       return_value=True):
-                with patch.object(patcher, '_load_config', return_value=mock_config):
+                with patch.object(patcher, '_find_config_path', return_value='/fake/config.yaml'):
                     with patch.object(patcher, '_import_handlers'):
                         with patch('ms_service_profiler.patcher.sglang.service_patcher.SymbolWatchFinder') as MockSWF:
                             with patch('ms_service_profiler.patcher.sglang.service_patcher.HookController') as MockHC:
-                                # 模拟SymbolWatchFinder
                                 mock_watcher = Mock()
-                                mock_watcher.load_symbol_config = Mock()
-                                mock_watcher.check_and_apply_existing_modules = Mock()
                                 MockSWF.return_value = mock_watcher
-                                
-                                # 模拟HookController
                                 mock_controller = Mock()
                                 MockHC.return_value = mock_controller
-                                
                                 with patch('ms_service_profiler.patcher.sglang.service_patcher.logger.debug') as mock_debug:
-                                    # 使用 MagicMock 来模拟 sys.meta_path
                                     mock_meta_path = []
                                     with patch('sys.meta_path', mock_meta_path):
                                         result = patcher.initialize()
-                                        
-                                        # 验证结果
                                         assert result is True
-                                        # 注意：原代码中没有设置 _initialized，这里不检查
                                         assert patcher._controller == mock_controller
-                                        
-                                        # 验证调用顺序
-                                        mock_watcher.load_symbol_config.assert_called_once_with(mock_config)
-                                        mock_watcher.check_and_apply_existing_modules.assert_called_once()
+                                        mock_watcher.load_handlers.assert_not_called()
                                         MockHC.assert_called_once_with(mock_watcher)
-                                        
-                                        # 验证日志
-                                        debug_calls = mock_debug.call_args_list
-                                        assert len(debug_calls) >= 3
-                                        debug_str = str(debug_calls)
+                                        debug_str = str(mock_debug.call_args_list)
                                         assert "Initializing SGLang Service Patcher" in debug_str
                                         assert "Symbol watcher installed" in debug_str
                                         assert "SGLang Service Patcher initialized successfully" in debug_str
-                                        
-                                        # 验证watcher被插入到meta_path
                                         assert mock_watcher in mock_meta_path
         finally:
-            # 恢复原始meta_path
             sys.meta_path = original_meta_path
     
     @staticmethod
     def test_initialize_given_exception_when_any_step_fails_then_log_exception_and_return_false():
         """测试初始化过程中出现异常的处理逻辑"""
-        # 测试：给定异常，当任何步骤失败时，记录异常并返回False
         patcher = SGLangPatcher()
-        
-        with patch('ms_service_profiler.patcher.sglang.service_patcher.check_profiling_enabled', 
+        with patch('ms_service_profiler.patcher.sglang.service_patcher.check_profiling_enabled',
                   return_value=True):
-            with patch.object(patcher, '_load_config', side_effect=Exception("Test error")):
+            with patch.object(patcher, '_find_config_path', side_effect=Exception("Test error")):
                 with patch('ms_service_profiler.patcher.sglang.service_patcher.logger.exception') as mock_exception:
                     result = patcher.initialize()
-                    
                     assert result is False
                     mock_exception.assert_called_once()
 
@@ -352,20 +323,19 @@ class TestHookLifecycle:
             patcher.enable_hooks()
             
             mock_warning.assert_called_once_with(
-                "Profiler not initialized, cannot enable hooks"
+                "Patcher not initialized, cannot enable hooks"
             )
     
     @staticmethod
     def test_enable_hooks_given_controller_exists_when_called_then_delegate_to_controller():
-        """测试存在控制器时启用hooks的委托逻辑"""
-        # 测试：给定存在控制器，当调用启用时，委托给控制器
+        """测试存在控制器时启用 hooks：先 _load_config 得到 handlers，再 enable(handlers)"""
         patcher = SGLangPatcher()
         mock_controller = Mock()
         patcher._controller = mock_controller
-        
-        patcher.enable_hooks()
-        
-        mock_controller.enable.assert_called_once_with(patcher._load_config)
+        mock_handlers = {"sym:func": [MagicMock()]}
+        with patch.object(patcher, "_load_config", return_value=mock_handlers):
+            patcher.enable_hooks()
+        mock_controller.enable.assert_called_once_with(mock_handlers)
     
     @staticmethod
     def test_disable_hooks_given_no_controller_when_called_then_log_warning():
@@ -377,7 +347,7 @@ class TestHookLifecycle:
             patcher.disable_hooks()
             
             mock_warning.assert_called_once_with(
-                "Profiler not initialized, cannot disable hooks"
+                "Patcher not initialized, cannot disable hooks"
             )
     
     @staticmethod
@@ -407,8 +377,8 @@ class TestHookLifecycle:
             
             assert mock_warning.call_count == 2  # 每个回调调用一次警告
             mock_warning.assert_has_calls([
-                call("Profiler not initialized, callback ignored"),
-                call("Profiler not initialized, callback ignored")
+                call("Patcher not initialized, callback ignored"),
+                call("Patcher not initialized, callback ignored")
             ])
     
     @staticmethod
@@ -437,22 +407,22 @@ class TestIntegration:
         """测试完整工作流程"""
         # 测试：给定有效环境，当初始化时，所有组件正常工作
         patcher = SGLangPatcher()
-        mock_config = [{'symbol': 'test.module:function'}]
-        
+        mock_handlers = {'test.module:function': [MagicMock()]}  # ConfigLoader 返回的 Handler 格式
+
         # 保存原始meta_path
         original_meta_path = sys.meta_path.copy()
-        
+
         try:
             # 模拟环境
-            with patch('ms_service_profiler.patcher.sglang.service_patcher.check_profiling_enabled', 
+            with patch('ms_service_profiler.patcher.sglang.service_patcher.check_profiling_enabled',
                       return_value=True):
-                with patch.object(patcher, '_load_config', return_value=mock_config):
+                with patch.object(patcher, '_load_config', return_value=mock_handlers):
                     with patch.object(patcher, '_import_handlers'):
                         with patch('ms_service_profiler.patcher.sglang.service_patcher.SymbolWatchFinder') as MockSWF:
                             with patch('ms_service_profiler.patcher.sglang.service_patcher.HookController') as MockHC:
                                 # 创建模拟对象
                                 mock_watcher = Mock()
-                                mock_watcher.load_symbol_config = Mock()
+                                mock_watcher.load_handlers = Mock()
                                 mock_watcher.check_and_apply_existing_modules = Mock()
                                 MockSWF.return_value = mock_watcher
                                 
@@ -473,7 +443,7 @@ class TestIntegration:
                                 
                                 # 3. 启用hooks
                                 patcher.enable_hooks()
-                                mock_controller.enable.assert_called_once_with(patcher._load_config)
+                                mock_controller.enable.assert_called_once_with(mock_handlers)
                                 
                                 # 4. 禁用hooks
                                 patcher.disable_hooks()
@@ -491,31 +461,30 @@ class TestEdgeCases:
     """测试边界条件"""
     
     @staticmethod
-    def test_load_config_given_empty_config_when_loaded_then_return_empty_list():
-        """测试加载空配置文件"""
-        # 测试：给定空配置，当加载时，返回空列表
+    def test_load_config_given_empty_config_when_loaded_then_return_empty_dict():
+        """测试加载空配置文件（ConfigLoader 返回空字典）"""
+        # 测试：给定空配置，当加载时，返回空字典
         with patch.object(SGLangPatcher, '_find_config_path', return_value='/mock/path.yaml'):
-            with patch('ms_service_profiler.patcher.sglang.service_patcher.load_yaml_config', 
-                      return_value=[]):
-                result = SGLangPatcher._load_config()
-                assert result == []
+            with patch('ms_service_profiler.patcher.sglang.service_patcher.ConfigLoader') as MockConfigLoader:
+                mock_loader_instance = MagicMock()
+                mock_loader_instance.load.return_value = {}
+                MockConfigLoader.return_value = mock_loader_instance
+                patcher = SGLangPatcher()
+                result = patcher._load_config()
+                assert result == {}
     
     @staticmethod
     def test_initialize_given_empty_config_list_when_loaded_then_continue_initialization():
-        """测试加载空配置列表时的初始化逻辑"""
-        # 测试：给定空配置列表，当加载时，继续初始化
+        """测试无配置路径时初始化失败"""
         patcher = SGLangPatcher()
-        
-        # 注意：空列表在Python中为False，所以会触发警告并返回False
-        with patch('ms_service_profiler.patcher.sglang.service_patcher.check_profiling_enabled', 
+        with patch('ms_service_profiler.patcher.sglang.service_patcher.check_profiling_enabled',
                   return_value=True):
-            with patch.object(patcher, '_load_config', return_value=[]):
+            with patch.object(patcher, '_find_config_path', return_value=None):
                 with patch('ms_service_profiler.patcher.sglang.service_patcher.logger.warning') as mock_warning:
                     result = patcher.initialize()
-                    
                     assert result is False
                     mock_warning.assert_called_once_with(
-                        "No SGLang configuration loaded, skipping patcher initialization"
+                        "No SGLang config path found, skipping patcher initialization"
                     )
     
     @staticmethod

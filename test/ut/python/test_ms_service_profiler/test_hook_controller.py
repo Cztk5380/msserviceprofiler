@@ -15,7 +15,7 @@ from ms_service_profiler.patcher.core.symbol_watcher import SymbolWatchFinder
 def mock_watcher():
     """提供模拟的 SymbolWatchFinder。"""
     w = MagicMock(spec=SymbolWatchFinder)
-    w.load_symbol_config = MagicMock()
+    w.load_handlers = MagicMock()
     w.check_and_apply_existing_modules = MagicMock()
     w.apply_all_hooks = MagicMock(return_value=[MagicMock(), MagicMock()])
     w.set_auto_apply = MagicMock()
@@ -49,17 +49,16 @@ class TestHookControllerEnable:
     """测试 enable 方法。"""
 
     def test_enable_success_first_time(self, hook_controller, mock_watcher):
-        load_config = Mock(return_value=[{"symbol": "mod:func"}])
+        handlers = {"mod:func": [MagicMock(), MagicMock()]}
         mock_watcher.apply_all_hooks.return_value = [MagicMock(), MagicMock()]
 
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
-            n = hook_controller.enable(load_config)
+            n = hook_controller.enable(handlers)
 
         assert n == 2
         assert hook_controller._enabled is True
-        load_config.assert_called_once()
-        mock_watcher.load_symbol_config.assert_called_once_with(
-            [{"symbol": "mod:func"}], hooks_enabled=False
+        mock_watcher.load_handlers.assert_called_once_with(
+            handlers, hooks_enabled=False
         )
         mock_watcher.check_and_apply_existing_modules.assert_called_once()
         mock_watcher.apply_all_hooks.assert_called_once()
@@ -67,45 +66,39 @@ class TestHookControllerEnable:
 
     def test_enable_reload_when_already_enabled(self, hook_controller, mock_watcher):
         hook_controller._enabled = True
-        load_config = Mock(return_value=[{"symbol": "mod:func"}])
+        handlers = {"mod:func": [MagicMock()]}
         mock_watcher.apply_all_hooks.return_value = [MagicMock()]
 
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
-            n = hook_controller.enable(load_config)
+            n = hook_controller.enable(handlers)
 
         assert n == 1
-        mock_watcher.load_symbol_config.assert_called_once_with(
-            [{"symbol": "mod:func"}], hooks_enabled=True
+        mock_watcher.load_handlers.assert_called_once_with(
+            handlers, hooks_enabled=True
         )
 
     def test_enable_empty_config(self, hook_controller, mock_watcher):
-        load_config = Mock(return_value=[])
-
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
-            n = hook_controller.enable(load_config)
+            n = hook_controller.enable({})
 
         assert n == 0
         assert hook_controller._enabled is False
-        load_config.assert_called_once()
-        mock_watcher.load_symbol_config.assert_not_called()
+        mock_watcher.load_handlers.assert_not_called()
         mock_watcher.apply_all_hooks.assert_not_called()
 
     def test_enable_none_config(self, hook_controller, mock_watcher):
-        load_config = Mock(return_value=None)
-
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
-            n = hook_controller.enable(load_config)
+            n = hook_controller.enable(None)
 
         assert n == 0
-        load_config.assert_called_once()
-        mock_watcher.load_symbol_config.assert_not_called()
+        mock_watcher.load_handlers.assert_not_called()
 
     def test_enable_exception(self, hook_controller, mock_watcher):
-        load_config = Mock(return_value=[{"symbol": "mod:func"}])
-        mock_watcher.load_symbol_config.side_effect = RuntimeError("load error")
+        handlers = {"mod:func": [MagicMock()]}
+        mock_watcher.load_handlers.side_effect = RuntimeError("load error")
 
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
-            n = hook_controller.enable(load_config)
+            n = hook_controller.enable(handlers)
 
         assert n == 0
         assert hook_controller._enabled is False
@@ -174,16 +167,17 @@ class TestHookControllerGetCallbacks:
         assert callable(on_stop)
 
     def test_on_start_callback_calls_enable(self, hook_controller, mock_watcher):
-        load_config = Mock(return_value=[{"symbol": "mod:func"}])
+        handlers = {"mod:func": [MagicMock()]}
+        get_handlers = Mock(return_value=handlers)
         mock_watcher.apply_all_hooks.return_value = [MagicMock()]
 
-        on_start, _ = hook_controller.get_callbacks(load_config)
+        on_start, _ = hook_controller.get_callbacks(get_handlers)
 
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
             on_start()
 
-        load_config.assert_called_once()
-        mock_watcher.load_symbol_config.assert_called_once()
+        get_handlers.assert_called_once()
+        mock_watcher.load_handlers.assert_called_once_with(handlers, hooks_enabled=False)
 
     def test_on_stop_callback_calls_disable(self, hook_controller, mock_watcher):
         hook_controller._enabled = True

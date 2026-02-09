@@ -29,12 +29,12 @@ Hook 控制器：统一管理 hook 的启用/禁用状态和流程。
 
 from __future__ import annotations
 
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from .logger import logger
 from .symbol_watcher import SymbolWatchFinder
 
-ConfigLoader = Callable[[], Optional[List[dict]]]
+GetHandlers = Callable[[], Optional[dict]]
 
 
 class HookController:
@@ -64,15 +64,16 @@ class HookController:
         """hooks 是否已启用。"""
         return self._enabled
     
-    def enable(self, load_config: ConfigLoader) -> int:
+    def enable(self, handlers: Optional[dict]) -> int:
         """启用 hooks（支持重复调用以动态更新配置）。
         
-        每次调用都会重新加载配置，支持动态增删点位：
+        每次调用使用传入的 Handler 字典，支持动态增删点位：
         - 新增的点位：准备并应用 hooks
         - 删除的点位：recover 对应的 hooks
         
         Args:
-            load_config: 返回配置列表的可调用对象
+            handlers: ConfigLoader.load() 的解析结果，即 symbol_path -> List[DynamicHooker]；
+                由调用方（如 enable_hooks）在外部加载后传入，本方法不依赖 ConfigLoader
             
         Returns:
             当前已启用的 hook 数量
@@ -83,13 +84,11 @@ class HookController:
             else:
                 logger.info("Enabling profiler hooks...")
             
-            # 1. 加载配置（如果已启用，删除的 symbol 会被 recover）
-            config = load_config()
-            if not config:
+            if not handlers:
                 logger.warning("No configuration loaded")
                 return 0
-            
-            self._watcher.load_symbol_config(config, hooks_enabled=self._enabled)
+
+            self._watcher.load_handlers(handlers, hooks_enabled=self._enabled)
             
             # 2. 为已加载的模块准备 hooks
             self._watcher.check_and_apply_existing_modules()
@@ -146,11 +145,12 @@ class HookController:
             logger.exception("Failed to disable hooks: %s", str(e))
             return 0
     
-    def get_callbacks(self, load_config: ConfigLoader) -> Tuple[Callable[[], None], Callable[[], None]]:
+    def get_callbacks(self, get_handlers: GetHandlers) -> Tuple[Callable[[], None], Callable[[], None]]:
         """返回可注册到 C++ 的回调函数对（start, stop）。
         
         Args:
-            load_config: 返回配置列表的可调用对象（注入到 enable 回调中）
+            get_handlers: 可调用对象，返回 Handler 字典（如 service 的 _load_config）；
+                on_start 被调用时会先执行 get_handlers() 取得结果再传给 enable()
             
         Returns:
             (on_start_callback, on_stop_callback)
@@ -158,7 +158,8 @@ class HookController:
         def on_start() -> None:
             try:
                 logger.info("Received profiler start signal from C++")
-                self.enable(load_config)
+                handlers = get_handlers()
+                self.enable(handlers)
             except Exception as e:
                 logger.exception(f"Failed to handle profiler start: {e}")
 
