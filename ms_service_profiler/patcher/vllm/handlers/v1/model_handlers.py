@@ -36,6 +36,7 @@ class HookState(SharedHookState):
         self.forward_profiler = None
         self.execute_model_first_run = True
         self.begin_forward_first_run = True
+        self.request_id_list = []
 
 
 # 线程本地存储获取器（每文件独立线程状态）
@@ -94,6 +95,30 @@ def execute_model(original_func, this, scheduler_output, *args, **kwargs):
     return ret
 
 
+@patcher(
+    hook_points=[
+        ("vllm_ascend.worker.model_runner_v1", "NPUModelRunner.execute_model")
+    ],
+    min_version="0.9.1",
+)
+def execute_model_runner(original_func, this, scheduler_output, *args, **kwargs):
+    """处理执行模型运行钩子"""
+    state = _get_state()
+    request_id_list, _, _ = classify_requests(state, scheduler_output)
+
+    if request_id_list:
+        prof = Profiler(Level.INFO).domain("Execute")
+        prof.res(request_id_list)
+        prof.span_start("modelRunnerExec")
+        state.forward_profiler = Profiler(Level.INFO).domain("Execute").res(request_id_list)
+        state.request_id_list = request_id_list
+
+    ret = original_func(this, scheduler_output, *args, **kwargs)
+    if request_id_list:
+        prof.span_end()
+    return ret
+
+
 @patcher(("vllm.forward_context", "set_forward_context"), min_version="0.9.1")
 @contextmanager
 def set_forward_context(original_func, *args, **kwargs):
@@ -113,6 +138,9 @@ def set_forward_context(original_func, *args, **kwargs):
 def capture_async(original_func, this, duration_tag, *args, **kwargs):
     """前向上下文钩子"""
     prof = Profiler(Level.INFO).domain("Execute").span_start(duration_tag)
+    if duration_tag == "forward":
+        state = _get_state()
+        prof.res(state.request_id_list)
     synchronize(duration_tag == "forward")
     with original_func(this, duration_tag, *args, **kwargs) as ret:
         yield ret

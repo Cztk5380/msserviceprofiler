@@ -525,7 +525,7 @@ def get_path_total_size(path: str) -> int:
         except (OSError, IOError) as e:
             logger.warning(f"Cannot read file {path}: {e}")
             return 0
-    
+
     total_size = 0
     for root, dirs, files in os.walk(path, followlinks=False):
         for file_name in files:
@@ -538,3 +538,19 @@ def get_path_total_size(path: str) -> int:
                 except (OSError, IOError) as e:
                     logger.warning(f"Cannot read file {file_path}: {e}")
     return total_size
+
+
+def get_filter_span_df(df: pd.DataFrame, required_columns: list, time_columns=None) -> pd.DataFrame:
+    """
+    过滤并准备span数据
+    """
+    if time_columns is None:
+        time_columns = []
+    missing_columns = set(required_columns) - set(df.columns)
+    for col in missing_columns:
+        df[col] = None
+    df['name'] = df['name'].apply(lambda x: x if isinstance(x, str) else "None")
+    if time_columns:
+        df[time_columns] = df[time_columns].astype(float)
+
+    return df.reindex(columns=required_columns)

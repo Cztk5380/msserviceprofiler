@@ -28,7 +28,7 @@ from ms_service_profiler.exporters.exporter_pd_comm import ExporterPDComm
 @pytest.fixture
 def mock_args():
     """模拟初始化参数"""
-    return {"config": "test_config"}
+    return type('Args', (object,), {"config": "test_config", "span": None, "output_path": "/tmp", "format": ["csv"]})
 
 
 def test_create_exporters(mock_args):

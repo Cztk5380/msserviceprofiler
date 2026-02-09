@@ -95,6 +95,12 @@ def _setup_parser_arguments(parser):
         default=['db', 'csv', 'json'],
         choices=['db', 'csv', 'json'],
         help='Format to save')
+    parser.add_argument(
+        '--span',
+        nargs='*',
+        default=None,
+        help='Select target span info'
+    )
 
 
 def arg_parse(subparsers):
@@ -125,8 +131,7 @@ def main():
         logger.error(f"Failed to calculate input data size: {e}")
 
     exporters = ExporterFactory.create_exporters(args)
-
-    if 'db' in args.format:
+    if 'db' in args.format and args.span is None:
         create_sqlite_db(args.output_path)
 
     # 解析数据并导出

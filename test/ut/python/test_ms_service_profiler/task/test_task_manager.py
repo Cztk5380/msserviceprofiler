@@ -61,6 +61,7 @@ class TestTaskManager(unittest.TestCase):
         # 初始化任务信息
         self.task_manager.init_task(finished_task_name)
         self.task_manager.init_task(next_task_name)
+        self.task_manager.total_tasks = 2
         self.task_manager.create_pool(TaskRegisterInfo('123', None, list(), list()), list(),
                                       TaskDag(dict(), dict(), list(), list()), None)
         
@@ -158,6 +159,7 @@ class TestTaskManager(unittest.TestCase):
         
         # 初始化任务信息
         self.task_manager.init_task(task_name)
+        self.task_manager.total_tasks = 1
         self.task_manager.pool_owner.append(None)
         self.task_manager.pool.append(SubprocessInfo())
         

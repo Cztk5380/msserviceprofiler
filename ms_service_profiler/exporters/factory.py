@@ -28,6 +28,8 @@ from ms_service_profiler.exporters.exporter_eplb_observe import ExporterEplbObse
 from ms_service_profiler.exporters.exporter_forward import ExporterForwardData
 from ms_service_profiler.exporters.exporter_coordinator import ExporterCoordinator
 from ms_service_profiler.exporters.exporter_op_summary import ExporterOpSummaryCopier
+from ms_service_profiler.exporters.exporter_span import ExporterSpan
+from ms_service_profiler.exporters.exporter_statistic import ExporterStatistic
 
 
 # 插件工厂类
@@ -35,14 +37,17 @@ class ExporterFactory:
     exporter_cls = [ExporterTrace, ExporterReqStatus, ExporterReqData, ExporterBatchData, \
                     ExporterKVCacheData, ExporterLatency, ExporterPDComm, ExporterMspti, \
                     ExporterEpBalance, ExporterMoe, ExporterForwardData, ExporterCoordinator, \
-                    ExporterOpSummaryCopier, ExporterEplbObserve]
+                    ExporterOpSummaryCopier, ExporterEplbObserve, ExporterSpan, ExporterStatistic]
 
     @staticmethod
     def create_exporters(args):
         exporters = []
-        enable_exporter = ['trace', 'req_status', 'req_data', 'batch_data', 'kvcache_data', 'latency', 'pd_comm',
+        if args.span is not None:
+            enable_exporter = ['span', 'statistic']
+        else:
+            enable_exporter = ['trace', 'req_status', 'req_data', 'batch_data', 'kvcache_data', 'latency', 'pd_comm',
                            "ep_balance", "moe_analysis", "forward_data", 'coordinator', 'op_summary_copier',
-                           'expert_hot']
+                           'expert_hot', 'statistic']
 
         for name in enable_exporter:
             exporters.append(ExporterFactory.create(name, args))

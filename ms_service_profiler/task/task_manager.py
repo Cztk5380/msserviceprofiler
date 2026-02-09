@@ -21,6 +21,7 @@ from multiprocessing import Pool
 from ms_service_profiler.task.task_register import filter_dag
 from ms_service_profiler.task.task_register import TaskDag
 from ms_service_profiler.task.task import Task
+
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger, Color
 from ms_service_profiler.utils.error import OtherTaskError
@@ -61,6 +62,10 @@ class TaskManager:
         self.manager_recv_queue = Queue()
         self.pool = []
         self.pool_owner = []
+        # 进度统计
+        self.total_tasks = 0
+        self.finished_tasks = 0
+        self.error_tasks = 0
         
     def init_task(self, task_name) -> None:
         self.task_manager_info_dict.setdefault(task_name, dict(process_pool_info=[],
@@ -135,11 +140,22 @@ class TaskManager:
             
         return True, error_flag
 
+    def update_task_progress(self, flag='finished'):
+        if flag == 'finished':
+            self.finished_tasks += 1
+        elif flag == 'error':
+            self.error_tasks += 1
+        completed_tasks = self.finished_tasks + self.error_tasks
+        progress = min(completed_tasks / self.total_tasks * 100, 100)
+        error_msg = f", {self.error_tasks} tasks failed" if self.error_tasks > 0 else ""
+        logger.info(f"Progress: {progress:.1f}% ({completed_tasks}/{self.total_tasks} tasks completed{error_msg})")
+
     def set_task_finished(self, finished_task_name, next_task_set):
         task_manager_info = self.init_task(finished_task_name)
         if task_manager_info["state"] != 'error':
             task_manager_info["state"] = "finished"
             logger.info(f"{Color.BRIGHT_GREEN}task [{finished_task_name}] finished.{Color.RESET}")
+            self.update_task_progress()
         # 将这个进程信息转移到下一个task中去
         for pool_index, next_task_name in next_task_set:
             self.pool_owner[pool_index] = next_task_name
@@ -172,6 +188,7 @@ class TaskManager:
             task_manager_info.get("gather_data").clear()
         if err_msg:
             logger.error(f"{Color.BRIGHT_RED}task [{error_task_name}] error. due to {err_msg} {Color.RESET}")
+            self.update_task_progress(flag='error')
 
         task_manager_info["state"] = "error"
         return self.fill_gater_data(error_task_name, error_index, err_msg, ignore_error_state=True)
@@ -347,8 +364,13 @@ def tasks_run(data_source_tasks, task_dag, input_path, args):
         # 创建进程池
         src_dag = filter_dag(task_dag, data_source_task.name)
         
+        # 统计总任务数
+        for task_name, _ in src_dag.get_ordered_task_names():
+            task_manager.total_tasks += 1
+        
         task_manager.create_pool(data_source_task, single_data_list, src_dag, args)
 
-    # 所有都开始
+    # 输出统计信息
     if has_tasks:
+        logger.info(f"Total tasks: {task_manager.total_tasks}")
         task_manager.start()
