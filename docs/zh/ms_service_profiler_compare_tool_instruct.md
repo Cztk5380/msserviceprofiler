@@ -39,6 +39,7 @@
 **前提条件**
 1. 已完成服务化性能数据采集
 2. 准备待比对的input_path和golden_path数据目录
+3. 如果需要算子比对结果，需要输入2个目录下有算子的_ascend_pt结尾的文件
 
 **操作步骤**
 1. 执行比对命令：
@@ -58,13 +59,12 @@
 
 提供服务化场景的性能数据差异分析，支持生成：
 - Excel格式的结构化比对报告
-- Grafana可视化仪表盘数据源
-- 多维度（服务级/Request级/Batch级）指标对比
+- 算子比对功能当前仅支持输入目录中包含以“_ascend_pt”为后缀的算子数据文件，请确保输入路径下存在符合此命名规范的目录。
 
 ### 命令格式
 
 ```
-msserviceprofiler compare [options] input_path golden_path
+msserviceprofiler compare [options] input_path golden_path --output-path [output-path]
 ```
 
 ### 参数说明
@@ -82,8 +82,6 @@ msserviceprofiler compare [options] input_path golden_path
 # 执行默认比对
 msserviceprofiler compare ./profiling_data/v1 ./profiling_data/v2
 
-# 带自定义输出的比对
-msserviceprofiler compare ./data/new ./data/base --output-path ./diff_analysis
 ```
 
 ### 输出结果文件说明
@@ -94,35 +92,14 @@ msserviceprofiler compare ./data/new ./data/base --output-path ./diff_analysis
 
 ```
 |- output_path
-    |- compare_result.xlsx
-    |- compare_result.db
-    |- compare_visualization.json
+    |- span_comparation_result.csv
+    
 ```
 
 
-|结果文件|说明|
-|---|---|
-|compare_result.xlsx|展示所有数据 pair 的绝对误差和相对误差。包含有多个标签页，每个标签页以不同维度展示服务化数据|
-|compare_result.db|比对结果数据库，用于Grafana数据源|
-|compare_visualization.json|用于创建 Grafana 仪表盘|
+| 结果文件                        | 说明                                              |
+|-----------------------------|-------------------------------------------------|
+| span_comparation_result.csv | 展示所有数据 pair 的绝对误差和相对误差。包含有多个span名字，展示不同span时间差异 |
 
-比对结果支持 Excel 直接展示和 Grafana 可视化，Grafana 可视化参考 https://grafana.org.cn/
 
-#### compare_result.xlsx文件说明
 
-| 标签页       | 内容描述                     | 关键字段                          |
-|-------------|----------------------------|----------------------------------|
-| Service     | 服务级指标对比              | 吞吐量、平均时延、资源利用率       |
-| Request     | 请求级指标对比              | 请求ID、处理阶段耗时、状态码       |
-| Batch       | 批处理任务对比              | BatchID、预处理耗时、推理耗时      |
-
-结果示例如下：
-
-|Metric|Data Source|value1|value2|
-|---|---|---|---|
-|Metric1|input_data|0.9|1.2|
-|Metric1|golden_data|1.0|1.0|
-|Metric1|Difference|0.1|-10%|0.2|20%|
-|Metric2|input_data|0.9|1.2|
-|Metric2|golden_data|1.0|1.0|
-|Metric2|Difference|0.1|-10%|0.2|20%|

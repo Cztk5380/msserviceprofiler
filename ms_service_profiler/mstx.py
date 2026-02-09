@@ -370,16 +370,15 @@ class LibServiceProfiler:
                 span_handle
             )
         elif self.func_end_span is not None:
-            self.func_end_span(span_handle)
-            if self.func_mark_event is not None:
+            if self.func_mark_span_attr is not None:
                 import json
                 extra = json.dumps({
-                    "type": "span_end_fallback",
                     "name": name,
                     "domain": domain,
                     "msg": msg
                 }, ensure_ascii=False)
-                self.func_mark_event(bytes(extra, "utf-8"))
+                self.func_mark_span_attr(bytes(extra, "utf-8"), span_handle)
+            self.func_end_span(span_handle)
 
     # -------------------------------------------------------------------------
     # Profiler 控制方法

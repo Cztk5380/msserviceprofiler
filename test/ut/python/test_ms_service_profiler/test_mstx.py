@@ -174,18 +174,33 @@ class TestLibServiceProfiler(unittest.TestCase):
         )
 
     def test_span_end_ex_fallback(self):
-        # 测试span_end_ex回退逻辑
+        # 测试 span_end_ex 回退逻辑：当 func_span_end_ex 为 None 时，走 func_end_span + func_mark_span_attr 路径
         self.service_profiler.func_span_end_ex = None
         self.service_profiler.func_end_span = MagicMock()
-        self.service_profiler.func_mark_event = MagicMock()
+        self.service_profiler.func_mark_span_attr = MagicMock()  # 注意：现在是 mark_span_attr，不是 mark_event
+
+        # 调用方法
         self.service_profiler.span_end_ex("test_name", "test_domain", "test_msg", 12345)
+
+        # 断言 func_end_span 被调用
         self.service_profiler.func_end_span.assert_called_once_with(12345)
-        self.service_profiler.func_mark_event.assert_called_once()
+
+        # 断言 func_mark_span_attr 被调用（带 JSON bytes）
+        self.service_profiler.func_mark_span_attr.assert_called_once()
+
+        # 检查传入的参数
+        call_args = self.service_profiler.func_mark_span_attr.call_args[0][0]  # 第一个位置参数
+        self.assertIsInstance(call_args, bytes)
+
+        # 解码并解析 JSON
+        extra_str = call_args.decode("utf-8")
         import json
-        call_args = self.service_profiler.func_mark_event.call_args[0][0]
-        result = json.loads(call_args)
-        self.assertEqual(result["type"], "span_end_fallback")
+        result = json.loads(extra_str)
+
+        # 验证内容
         self.assertEqual(result["name"], "test_name")
+        self.assertEqual(result["domain"], "test_domain")
+        self.assertEqual(result["msg"], "test_msg")
 
     def test_is_domain_enable(self):
         # 测试is_domain_enable方法
