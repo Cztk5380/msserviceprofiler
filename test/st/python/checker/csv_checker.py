@@ -103,7 +103,7 @@ def check_kvcache_csv(output_path, complete_req_cnt=0):
         if complete_req_cnt:
             assert len(df) > 0, f"{csv_file_path} is empty."
 
-        expected_header = ["domain", "start_time", "name", "kvcache_usage_rate"]
+        expected_header = ["start_time", "name", "kvcache_usage_rate"]
 
         # 表头
         check_df_expected_column(df, expected_header)

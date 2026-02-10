@@ -212,7 +212,7 @@ class ExporterKVCacheData(ExporterBase):
                     # 新版数据格式处理
                     # 选择需要的列 - 包括插件计算出的指标列
                     selected_columns = [
-                        'domain', 'name', 'start_datetime',
+                        'name', 'start_datetime',
                         'total_blocks', 'used_blocks', 'free_blocks',
                         'blocks_allocated', 'blocks_freed', 'kvcache_usage_rate'
                     ]

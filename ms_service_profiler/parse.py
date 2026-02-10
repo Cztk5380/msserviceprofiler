@@ -125,7 +125,8 @@ def main():
             logger.info(
                 f"{Color.BRIGHT_YELLOW}Large file detected: {input_size / KILOBYTE / KILOBYTE:.1f}MB (>500MB). "
                 f"This may lead to longer processing time. "
-                f"To optimize performance, use: --format db csv {Color.RESET}"
+                f"To optimize performance, use: --format db csv. "
+                f"If --format is already configured, please ignore this message {Color.RESET}."
             )
     except OSError as e:
         logger.error(f"Failed to calculate input data size: {e}")

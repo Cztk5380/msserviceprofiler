@@ -328,7 +328,7 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 |prefill_scheduled_tokens|记录调度过程中prefill占用的token数。|
 |decode_scheduled_tokens|记录调度过程中decode占用的token数。|
 |total_scheduled_tokens|记录调度过程中的总token数。|
-|dp_rank|标识batch的DP信息。对于相同的DP域，该字段值相同。若无DP域，则该字段值为<NA>。|
+|dp_rank|标识batch的DP信息。对于相同的DP域，该字段值相同。若无DP域，则该字段值为` <NA> `。|
 |start_time(ms)|组batch或执行batch的开始时间时间戳。|
 |end_time(ms)|组batch或执行batch的结束时间时间戳。|
 
@@ -340,8 +340,7 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 
 |字段|说明|
 |--|--|
-|rid|标注KVCache事件的请求ID。|
-|domain|标注KVCache事件。|
+|rid|标注KVCache事件的请求ID。该字段仅在MindIE场景下有值。|
 |name|具体改变显存使用的方法。|
 |start_time|发生显存使用情况变更的时间。|
 |total_blocks|记录KVCache总内存块的数量，从原始TotalBlocks获取。当前仅支持vllm场景。|
@@ -387,7 +386,7 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 |batch_size|forward处理的请求数量。|
 |batch_type|forward中的请求状态。|
 |forward_iter|不同卡上forward的迭代序号。|
-|dp_rank|标识forward的DP信息，相同DP域该列的值相同。|
+|dp_rank|标识forward的DP信息，相同DP域该列的值相同。若无DP域，则该字段值为0。|
 |prof_id|标识不同卡，相同的卡该列的值相同。|
 |hostname|标识不同机器，相同机器该列的值相同。|
 |start_time(ms)|forward的开始时间时间戳。|
