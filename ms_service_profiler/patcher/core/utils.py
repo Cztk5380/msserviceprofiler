@@ -15,6 +15,7 @@
 # -------------------------------------------------------------------------
 
 import os
+import threading
 from typing import Optional, Dict, Any, List
 from .logger import logger
 
@@ -99,3 +100,30 @@ def parse_version_tuple(version_str: str) -> tuple:
     while len(nums) < 3:
         nums.append(0)
     return tuple(nums[:3])
+
+
+class SharedHookState:
+    """共享的 hook 状态类。"""
+
+    def __init__(self):
+        """初始化 SharedHookState。"""
+        self.request_id_to_prompt_token_len: Dict[str, int] = {}
+        self.request_id_to_iter: Dict[str, int] = {}
+        self._lock = threading.RLock()  # 添加锁保证线程安全
+
+
+# 全局单例实例
+_GLOBAL_SHARED_STATE = None
+_GLOBAL_STATE_LOCK = threading.Lock()
+
+
+def get_shared_state() -> SharedHookState:
+    """获取全局共享的 SharedHookState 实例（线程安全）。"""
+    global _GLOBAL_SHARED_STATE
+
+    if _GLOBAL_SHARED_STATE is None:
+        with _GLOBAL_STATE_LOCK:
+            if _GLOBAL_SHARED_STATE is None:  # 双重检查锁定
+                _GLOBAL_SHARED_STATE = SharedHookState()
+
+    return _GLOBAL_SHARED_STATE

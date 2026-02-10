@@ -15,6 +15,8 @@
 # -------------------------------------------------------------------------
 
 from ms_service_profiler import Profiler, Level
+from ms_service_profiler.profiler import prof_step
+from ms_service_profiler.mstx import service_profiler
 from ms_service_profiler.patcher.core.module_hook import patcher
 
 
@@ -38,6 +40,11 @@ def init_new(original_func, *args, **kwargs):
 )
 def forward(original_func, *args, **kwargs):
     prof = Profiler(Level.INFO).domain("ModelExecute").span_start("forward")
+
+    step_num = service_profiler.get_torch_prof_step_num()
+    
+    if step_num and step_num > 0:
+        prof_step()
 
     output = original_func(*args, **kwargs)
 
