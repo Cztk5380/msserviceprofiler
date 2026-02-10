@@ -161,7 +161,7 @@ class ExporterStatistic(ExporterBase):
         if forward_df is None or forward_df.empty:
             return {'all_times': all_bubble_times, 'rid_times': rid_bubble_times}
 
-        for pid, group in forward_df.groupby(['pid']):
+        for pid, group in forward_df.groupby('pid'):
             group_sorted = group.sort_values('start_time').reset_index(drop=True)
             if len(group_sorted) >= 2:
                 for i in range(1, len(group_sorted)):

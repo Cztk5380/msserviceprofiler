@@ -259,16 +259,17 @@ def custom_handler(original_func, this, *args, **kwargs):
 
 解析完成后，`output` 目录下会生成下面表格中列出的交付件：
 
-|          输出件          | 说明                                                                                                         |
-|:---------------------:|:-----------------------------------------------------------------------------------------------------------|
-| `chrome_tracing.json` | 记录推理服务化请求trace数据，可使用不同可视化工具进行查看，详细介绍请参考[数据可视化](./msserviceprofiler_serving_tuning_instruct.md#数据可视化)       |
-|     `profiler.db`     | 用于生成可视化折线图的SQLite数据库文件，详细介绍请参考[ profiler.db 说明](./msserviceprofiler_serving_tuning_instruct.md#profilerdb) |
-|     `request.csv`     | 记录服务化推理请求为粒度的详细数据，详细介绍请参考[ request.csv 说明](./msserviceprofiler_serving_tuning_instruct.md#requestcsv)      |
-| `request_summary.csv` | 请求总体统计指标                                                                                                   |
-|     `kvcache.csv`     | 记录推理过程的显存使用情况，详细介绍请参考[ kvcache.csv 说明](./msserviceprofiler_serving_tuning_instruct.md#kvcachecsv)          |
-|      `batch.csv`      | 记录服务化推理batch为粒度的详细数据，详细介绍请参考[ batch.csv 说明](./msserviceprofiler_serving_tuning_instruct.md#batchcsv)       |
-|  `batch_summary.csv`  | 批次调度总体统计指标                                                                                                 |
-| `service_summary.csv` | 服务化维度总体统计指标                                                                                                |
+|          输出件          | 说明                                                                                                                                         |
+|:---------------------:|:-------------------------------------------------------------------------------------------------------------------------------------------|
+| `chrome_tracing.json` | 记录推理服务化请求trace数据，可使用不同可视化工具进行查看，详细介绍请参考[数据可视化](./msserviceprofiler_serving_tuning_instruct.md#数据可视化)                                       |
+|     `profiler.db`     | 用于生成可视化折线图的SQLite数据库文件，详细介绍请参考[ profiler.db 说明](./msserviceprofiler_serving_tuning_instruct.md#profilerdb)                                 |
+|     `request.csv`     | 记录服务化推理请求为粒度的详细数据，详细介绍请参考[ request.csv 说明](./msserviceprofiler_serving_tuning_instruct.md#requestcsv)                                      |
+| `request_summary.csv` | 请求总体统计指标                                                                                                                                   |
+|     `kvcache.csv`     | 记录推理过程的显存使用情况，详细介绍请参考[ kvcache.csv 说明](./msserviceprofiler_serving_tuning_instruct.md#kvcachecsv)                                          |
+|      `batch.csv`      | 记录服务化推理batch为粒度的详细数据，详细介绍请参考[ batch.csv 说明](./msserviceprofiler_serving_tuning_instruct.md#batchcsv)                                       |
+|  `batch_summary.csv`  | 批次调度总体统计指标                                                                                                                                 |
+| `service_summary.csv` | 服务化维度总体统计指标                                                                                                                                |
+|     `span_info/`      | 包含forward.csv, batchFrameworkProcessing.csv等关键span信息，详细介绍请参考[ span_info 目录说明 ](./msserviceprofiler_serving_tuning_instruct.md#span_info目录) |
 
 >![](public_sys-resources/icon-note.gif) **说明：**
 > 输出结果文件与domain域的采集有强关联关系，具体对照可以参照[domain域与解析结果对照表](./msserviceprofiler_serving_tuning_instruct.md#解析结果)。

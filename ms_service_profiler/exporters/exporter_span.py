@@ -86,4 +86,3 @@ class ExporterSpan(ExporterBase):
             if 'during_time' in group_df:
                 group_df['during_time'] = group_df['during_time'].map(lambda x: f"{float(x):.2f}")
             write_result_to_csv(group_df, output_path, span_name, RENAME_COLUMNS)
-            logger.info(f"Write {span_name}.csv successfully")
