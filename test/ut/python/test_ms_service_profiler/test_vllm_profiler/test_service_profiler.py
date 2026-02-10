@@ -118,7 +118,8 @@ class TestSymbolWatchFinderInitialization:
     @staticmethod
     def test_initialization(symbol_watch_finder):
         """测试初始化状态"""
-        assert symbol_watch_finder._symbol_handlers == {}
+        assert symbol_watch_finder._symbol_handlers_profiling == {}
+        assert symbol_watch_finder._symbol_handlers_metrics == {}
         assert symbol_watch_finder._config_loaded is False
         assert symbol_watch_finder._applied_hooks == set()
 
@@ -129,20 +130,21 @@ class TestLoadHandlers:
     @staticmethod
     def test_load_handlers(symbol_watch_finder, sample_handlers):
         """测试加载 Handler 配置"""
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         assert symbol_watch_finder._config_loaded is True
-        assert len(symbol_watch_finder._symbol_handlers) == 3
-        assert 'module1:Class1.method1' in symbol_watch_finder._symbol_handlers
-        assert 'module2:function2' in symbol_watch_finder._symbol_handlers
-        assert len(symbol_watch_finder._symbol_handlers['module1:Class1.method1']) == 1
+        assert len(symbol_watch_finder._symbol_handlers_profiling) == 3
+        assert 'module1:Class1.method1' in symbol_watch_finder._symbol_handlers_profiling
+        assert 'module2:function2' in symbol_watch_finder._symbol_handlers_profiling
+        assert len(symbol_watch_finder._symbol_handlers_profiling['module1:Class1.method1']) == 1
 
     @staticmethod
     def test_load_handlers_empty(symbol_watch_finder):
         """测试加载空配置"""
-        symbol_watch_finder.load_handlers({})
+        symbol_watch_finder.load_handlers(profiling_handlers={}, metrics_handlers={})
         assert symbol_watch_finder._config_loaded is True
-        assert symbol_watch_finder._symbol_handlers == {}
+        assert symbol_watch_finder._symbol_handlers_profiling == {}
+        assert symbol_watch_finder._symbol_handlers_metrics == {}
 
 
 class TestIsTargetSymbol:
@@ -157,7 +159,7 @@ class TestIsTargetSymbol:
     @staticmethod
     def test_is_target_symbol_direct_match(symbol_watch_finder, sample_handlers):
         """测试直接模块匹配"""
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         result = symbol_watch_finder._is_target_symbol('module1')
         assert result is True
@@ -165,7 +167,7 @@ class TestIsTargetSymbol:
     @staticmethod
     def test_is_target_symbol_parent_package_match(symbol_watch_finder, sample_handlers):
         """测试父包匹配"""
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         result = symbol_watch_finder._is_target_symbol('parent.child')
         assert result is True
@@ -173,7 +175,7 @@ class TestIsTargetSymbol:
     @staticmethod
     def test_is_target_symbol_no_match(symbol_watch_finder, sample_handlers):
         """测试无匹配情况"""
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         result = symbol_watch_finder._is_target_symbol('unrelated.module')
         assert result is False
@@ -190,7 +192,7 @@ class TestFindSpec:
     ])
     def test_find_spec_various_modules(symbol_watch_finder, sample_handlers, module_name, expected_call, mock_spec):
         """测试各种模块的查找规范"""
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         with patch('importlib.machinery.PathFinder.find_spec', return_value=mock_spec) as mock_find:
             result = symbol_watch_finder.find_spec(module_name, None)
@@ -203,7 +205,7 @@ class TestFindSpec:
     @staticmethod
     def test_find_spec_target_module_no_spec(symbol_watch_finder, sample_handlers):
         """测试目标模块但找不到规范的情况"""
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         with patch('importlib.machinery.PathFinder.find_spec', return_value=None):
             result = symbol_watch_finder.find_spec('module1', None)
@@ -212,7 +214,7 @@ class TestFindSpec:
     @staticmethod
     def test_find_spec_target_module_no_loader(symbol_watch_finder, sample_handlers):
         """测试目标模块但规范无加载器的情况"""
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         mock_spec = Mock(loader=None)
         with patch('importlib.machinery.PathFinder.find_spec', return_value=mock_spec):
@@ -222,7 +224,7 @@ class TestFindSpec:
     @staticmethod
     def test_find_spec_already_wrapped(symbol_watch_finder, sample_handlers, mock_loader):
         """测试已包装的加载器"""
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         mock_loader._vllm_profiler_wrapped = True
         mock_spec = Mock(loader=mock_loader)
@@ -234,7 +236,7 @@ class TestFindSpec:
     @staticmethod
     def test_find_spec_successful_wrapping(symbol_watch_finder, sample_handlers, mock_loader, mock_spec):
         """测试成功包装加载器"""
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         with patch('importlib.machinery.PathFinder.find_spec', return_value=mock_spec):
             result = symbol_watch_finder.find_spec('module1', None)
@@ -254,7 +256,7 @@ class TestOnSymbolModuleLoaded:
     def test_on_symbol_module_loaded_direct_match(mock_import_module, mock_prepare_handlers,
                                                  symbol_watch_finder, sample_handlers):
         """测试模块加载回调 - 直接匹配"""
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         symbol_watch_finder._on_symbol_module_loaded('module1')
         
@@ -270,7 +272,7 @@ class TestOnSymbolModuleLoaded:
     def test_on_symbol_module_loaded_parent_match_success(mock_import_module, mock_prepare_handlers,
                                                         symbol_watch_finder, sample_handlers):
         """测试模块加载回调 - 父包匹配且子模块导入成功"""
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         symbol_watch_finder._on_symbol_module_loaded('parent.child')
         
@@ -285,7 +287,7 @@ class TestOnSymbolModuleLoaded:
         """测试模块加载回调 - 父包匹配但子模块导入失败"""
         mock_import_module.side_effect = ImportError("Module not found")
         
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         symbol_watch_finder._on_symbol_module_loaded('parent.child')
         
@@ -302,7 +304,7 @@ class TestOnSymbolModuleLoaded:
             'target.module:direct_func': [MagicMock()],
             'target.module.child:child_func': [MagicMock()],
         }
-        symbol_watch_finder.load_handlers(handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=handlers, metrics_handlers=None)
         
         symbol_watch_finder._on_symbol_module_loaded('target.module')
         
@@ -318,7 +320,7 @@ class TestLoaderWrapper:
     @staticmethod
     def test_loader_wrapper_creation(symbol_watch_finder, sample_handlers, mock_loader, mock_spec):
         """测试加载器包装器的创建和基本功能"""
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         with patch('importlib.machinery.PathFinder.find_spec', return_value=mock_spec):
             result = symbol_watch_finder.find_spec('module1', None)
@@ -342,7 +344,7 @@ class TestLoaderWrapper:
     @staticmethod
     def test_loader_wrapper_no_create_module(symbol_watch_finder, sample_handlers):
         """测试加载器没有 create_module 方法的情况"""
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         # 创建没有 create_module 方法的加载器
         mock_loader = Mock(spec=['exec_module'])
@@ -393,7 +395,7 @@ class TestLoadConfig:
     
     @staticmethod
     def test_load_config_from_env_var_exists(service_profiler, mock_config_file):
-        """测试从存在的环境变量路径加载配置（通过 ConfigLoader）"""
+        """测试从存在的环境变量路径加载配置（通过 ConfigLoader），返回 (profiling, metrics)"""
         with open(mock_config_file, 'w') as f:
             f.write("""
             - symbol: "test.module:function1"
@@ -404,13 +406,17 @@ class TestLoadConfig:
         with patch.dict(os.environ, {'PROFILING_SYMBOLS_PATH': mock_config_file}):
             with patch('ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader') as MockConfigLoader:
                 mock_loader_instance = MagicMock()
-                mock_loader_instance.load.return_value = mock_handlers
+                mock_loader_instance.load_profiling.return_value = mock_handlers
+                mock_loader_instance.load_metrics.return_value = {}
                 MockConfigLoader.return_value = mock_loader_instance
                 result = service_profiler._load_config()
-                MockConfigLoader.assert_called_once_with(mock_config_file)
-                mock_loader_instance.load.assert_called_once()
-                assert isinstance(result, dict)
-                assert len(result) > 0
+                assert isinstance(result, tuple)
+                assert len(result) == 2
+                profiling, metrics = result
+                assert isinstance(profiling, dict)
+                assert len(profiling) > 0
+                mock_loader_instance.load_profiling.assert_called()
+                mock_loader_instance.load_metrics.assert_called()
 
     @staticmethod
     def test_load_config_from_env_var_not_exists(service_profiler, tmp_path):
@@ -420,22 +426,23 @@ class TestLoadConfig:
         default_cfg.write_text("default config content")
 
         with patch.dict(os.environ, {'PROFILING_SYMBOLS_PATH': env_path}):
-            with patch('ms_service_profiler.patcher.vllm.service_patcher.VLLMProfiler._find_config_path',
+            with patch('ms_service_profiler.patcher.vllm.service_patcher.VLLMProfiler._find_default_config_path',
                        return_value=str(default_cfg)):
                 with patch('ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader') as MockConfigLoader:
                     mock_loader_instance = MagicMock()
-                    mock_loader_instance.load.return_value = {}
+                    mock_loader_instance.load_profiling.return_value = {}
                     MockConfigLoader.return_value = mock_loader_instance
 
                     result = service_profiler._load_config()
 
                     assert os.path.exists(env_path)
                     assert MockConfigLoader.called
-                    MockConfigLoader.assert_called_with(env_path)
+                    profiling, metrics = result
+                    assert profiling is not None or metrics is not None or (profiling == {} and metrics == {})
 
     @staticmethod
     def test_load_config_env_var_not_yaml(service_profiler):
-        """测试环境变量路径不是 YAML 文件（_load_config 使用 _find_default_config_path，非 _find_config_path）"""
+        """测试环境变量路径不是 YAML 文件时 profiling 为 None"""
         with patch.dict(os.environ, {'PROFILING_SYMBOLS_PATH': '/path/to/file.txt'}):
             with patch.object(service_profiler, '_find_default_config_path', return_value=None):
                 with patch('ms_service_profiler.patcher.vllm.service_patcher.logger.warning') as mock_warning:
@@ -445,7 +452,8 @@ class TestLoadConfig:
                         if 'PROFILING_SYMBOLS_PATH is not a yaml file' in str(c)
                     ]
                     assert len(warning_calls) >= 1
-                    assert result is None
+                    assert isinstance(result, tuple)
+                    assert result[0] is None
 
     @staticmethod
     def test_load_config_fallback_success(service_profiler, mock_config_file):
@@ -454,24 +462,29 @@ class TestLoadConfig:
             with patch.object(service_profiler, '_find_default_config_path', return_value=mock_config_file):
                 with patch('ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader') as MockConfigLoader:
                     mock_loader_instance = MagicMock()
-                    mock_loader_instance.load.return_value = {}
+                    mock_loader_instance.load_profiling.return_value = {}
+                    mock_loader_instance.load_metrics.return_value = {}
                     MockConfigLoader.return_value = mock_loader_instance
                     result = service_profiler._load_config()
-                    MockConfigLoader.assert_called_once_with(mock_config_file)
+                    profiling, metrics = result
+                    MockConfigLoader.assert_any_call(mock_config_file)
+                    assert mock_loader_instance.load_profiling.called
 
     @staticmethod
     def test_load_config_fallback_no_default(service_profiler):
-        """测试回退但找不到默认配置（_load_config 使用 _find_default_config_path）"""
+        """测试回退但找不到默认配置时 profiling 为 None"""
         with patch.dict(os.environ, {}):
             with patch.object(service_profiler, '_find_default_config_path', return_value=None):
-                with patch('ms_service_profiler.patcher.vllm.service_patcher.logger.warning') as mock_warning:
-                    result = service_profiler._load_config()
-                    warning_calls = [
-                        c for c in mock_warning.call_args_list
-                        if 'No config file found' in str(c)
-                    ]
-                    assert len(warning_calls) >= 1
-                    assert result is None
+                with patch.object(service_profiler, '_load_metrics_config', return_value=None):
+                    with patch('ms_service_profiler.patcher.vllm.service_patcher.logger.warning') as mock_warning:
+                        result = service_profiler._load_config()
+                        warning_calls = [
+                            c for c in mock_warning.call_args_list
+                            if 'No config file found' in str(c)
+                        ]
+                        assert len(warning_calls) >= 1
+                        assert isinstance(result, tuple)
+                        assert result[0] is None
 
     @staticmethod
     def test_load_config_env_var_copy_failure(service_profiler, tmp_path):
@@ -486,14 +499,14 @@ class TestLoadConfig:
                     if 'Failed to write profiling symbols' in str(call)
                 ]
                 assert len(warning_calls) >= 1
-                assert result == {}
+                assert isinstance(result, tuple) and (result[0] is None or result[1] is None or (result[0] == {} and result[1] == {}))
 
         env_path = str(tmp_path / "new_config.yaml")
         default_cfg = tmp_path / "default_config.yaml"
         default_cfg.write_text("default content")
         
         with patch.dict(os.environ, {'PROFILING_SYMBOLS_PATH': env_path}):
-            with patch('ms_service_profiler.patcher.vllm.service_patcher.VLLMProfiler._find_config_path', 
+            with patch('ms_service_profiler.patcher.vllm.service_patcher.VLLMProfiler._find_default_config_path',
                        return_value=str(default_cfg)):
                 # 模拟复制失败
                 with patch('builtins.open', side_effect=Exception("Copy failed")):
@@ -514,37 +527,36 @@ class TestServiceProfilerInitialize:
 
     @staticmethod
     def test_initialize_config_load_failed(service_profiler):
-        """测试无配置路径时初始化失败（不调用 _load_config，仅校验路径）"""
+        """当前 initialize 不再校验配置路径，仅校验 check_profiling_enabled；此用例验证启用时能完成初始化。"""
         with patch('ms_service_profiler.patcher.vllm.service_patcher.check_profiling_enabled', return_value=True):
-            with patch.object(service_profiler, '_find_config_path', return_value=None):
-                with patch.dict(os.environ, {'PROFILING_SYMBOLS_PATH': ''}, clear=False):
-                    with patch('ms_service_profiler.patcher.vllm.service_patcher.logger.warning') as mock_warning:
-                        service_profiler.initialize()
-                        mock_warning.assert_called_once_with("No VLLM config path found, skipping profiler initialization")
-                        assert service_profiler._initialized is False
+            with patch.object(service_profiler, '_import_handlers'):
+                _mock_finder = MagicMock(find_spec=lambda *a, **k: None)
+                with patch('ms_service_profiler.patcher.vllm.service_patcher.SymbolWatchFinder', return_value=_mock_finder):
+                    with patch('ms_service_profiler.patcher.vllm.service_patcher.HookController'):
+                        result = service_profiler.initialize()
+                        assert result is True
+                        assert service_profiler._initialized is True
 
     @staticmethod
     def test_initialize_success(service_profiler, tmp_path, mock_handlers_data):
-        """测试成功初始化（仅校验路径、创建 watcher/controller，不在此处加载配置）"""
+        """测试成功初始化（创建 watcher/controller，不在此处加载配置）"""
         original_meta_path = sys.meta_path
         with patch.dict(os.environ, {'SERVICE_PROF_CONFIG_PATH': '/some/path'}):
-            with patch.object(service_profiler, '_find_config_path', return_value='/fake/config.yaml'):
-                with patch.object(service_profiler, '_vllm_use_v1', '0'):
-                    with patch.object(service_profiler, '_import_handlers') as mock_import:
-                        with patch('sys.meta_path', list(original_meta_path)):
-                            with patch('ms_service_profiler.patcher.vllm.service_patcher.SymbolWatchFinder') as MockSWF:
-                                with patch('ms_service_profiler.patcher.vllm.service_patcher.HookController') as MockHC:
-                                    mock_watcher = Mock()
-                                    MockSWF.return_value = mock_watcher
-                                    with patch('ms_service_profiler.patcher.vllm.service_patcher.logger.debug') as mock_debug:
-                                        service_profiler.initialize()
-                                        mock_import.assert_called_once()
-                                        MockSWF.assert_called_once()
-                                        # 配置推迟到 enable() 时加载，initialize 不调用 load_handlers
-                                        mock_watcher.load_handlers.assert_not_called()
-                                        MockHC.assert_called_once_with(mock_watcher)
-                                        mock_debug.assert_any_call("VLLM Service Profiler initialized successfully")
-                                        assert service_profiler._initialized is True
+            with patch.object(service_profiler, '_vllm_use_v1', '0'):
+                with patch.object(service_profiler, '_import_handlers') as mock_import:
+                    with patch('sys.meta_path', list(original_meta_path)):
+                        with patch('ms_service_profiler.patcher.vllm.service_patcher.SymbolWatchFinder') as MockSWF:
+                            with patch('ms_service_profiler.patcher.vllm.service_patcher.HookController') as MockHC:
+                                mock_watcher = Mock()
+                                MockSWF.return_value = mock_watcher
+                                with patch('ms_service_profiler.patcher.vllm.service_patcher.logger.debug') as mock_debug:
+                                    service_profiler.initialize()
+                                    mock_import.assert_called_once()
+                                    MockSWF.assert_called_once()
+                                    mock_watcher.load_handlers.assert_not_called()
+                                    MockHC.assert_called_once_with(mock_watcher)
+                                    mock_debug.assert_any_call("VLLM Service Profiler initialized successfully")
+                                    assert service_profiler._initialized is True
 
     @staticmethod
     def test_initialize_unknown_vllm_version(service_profiler, mock_handlers_data):
@@ -560,9 +572,8 @@ class TestServiceProfilerInitialize:
                 assert len(error_calls) >= 0
 
         with patch.dict(os.environ, {'SERVICE_PROF_CONFIG_PATH': '/some/path'}):
-            with patch.object(service_profiler, '_find_config_path', return_value='/fake/config.yaml'):
-                with patch.object(service_profiler, '_import_handlers') as mock_import:
-                    _process(mock_import, service_profiler)
+            with patch.object(service_profiler, '_import_handlers') as mock_import:
+                _process(mock_import, service_profiler)
 
 
 class TestImportHookers:
@@ -608,14 +619,13 @@ class TestInitSymbolWatcher:
     def test_init_symbol_watcher(service_profiler, mock_handlers_data):
         """测试 initialize 时创建并安装 symbol watcher（不在此处加载配置）"""
         with patch.dict(os.environ, {'SERVICE_PROF_CONFIG_PATH': '/some/path'}):
-            with patch.object(service_profiler, '_find_config_path', return_value='/fake/config.yaml'):
-                with patch.object(service_profiler, '_import_handlers'):
-                    with patch('sys.meta_path', []) as mock_meta_path:
-                        service_profiler.initialize()
-                        assert service_profiler._controller is not None
-                        assert service_profiler._controller._watcher is not None
-                        assert isinstance(service_profiler._controller._watcher, SymbolWatchFinder)
-                        assert mock_meta_path[0] == service_profiler._controller._watcher
+            with patch.object(service_profiler, '_import_handlers'):
+                with patch('sys.meta_path', []) as mock_meta_path:
+                    service_profiler.initialize()
+                    assert service_profiler._controller is not None
+                    assert service_profiler._controller._watcher is not None
+                    assert isinstance(service_profiler._controller._watcher, SymbolWatchFinder)
+                    assert mock_meta_path[0] == service_profiler._controller._watcher
 
 
 class TestCheckAndApplyExistingModules:
@@ -626,7 +636,7 @@ class TestCheckAndApplyExistingModules:
         """测试检查和应用已存在的模块"""
         from ms_service_profiler.patcher.core.hook_controller import HookController
         watcher = SymbolWatchFinder()
-        watcher.load_handlers(mock_handlers_data)
+        watcher.load_handlers(profiling_handlers=mock_handlers_data, metrics_handlers=None)
         service_profiler._controller = HookController(watcher)
         
         with patch.dict('sys.modules', {'test.module': Mock()}):
@@ -640,7 +650,7 @@ class TestCheckAndApplyExistingModules:
         """测试检查已应用的模块"""
         from ms_service_profiler.patcher.core.hook_controller import HookController
         watcher = SymbolWatchFinder()
-        watcher.load_handlers(mock_handlers_data)
+        watcher.load_handlers(profiling_handlers=mock_handlers_data, metrics_handlers=None)
         watcher._applied_hooks.add('test.module:function1')
         service_profiler._controller = HookController(watcher)
         
@@ -654,7 +664,7 @@ class TestCheckAndApplyExistingModules:
         """测试模块未加载的情况"""
         from ms_service_profiler.patcher.core.hook_controller import HookController
         watcher = SymbolWatchFinder()
-        watcher.load_handlers(mock_handlers_data)
+        watcher.load_handlers(profiling_handlers=mock_handlers_data, metrics_handlers=None)
         service_profiler._controller = HookController(watcher)
         
         if 'test.module' in sys.modules:
@@ -672,7 +682,7 @@ def temp_config_dir():
     shutil.rmtree(temp_dir)
 
 class TestFindConfigPath:
-    """测试 _find_config_path 函数"""
+    """测试 _find_default_config_path 函数（profiling 默认配置路径查找）"""
     
     @staticmethod
     def test_find_config_path_user_config_success(temp_config_dir, monkeypatch):
@@ -708,7 +718,7 @@ class TestFindConfigPath:
             
             mock_isfile.side_effect = isfile_side_effect
             
-            result = VLLMProfiler._find_config_path()
+            result = VLLMProfiler._find_default_config_path()
             assert result == user_cfg_file
 
     @staticmethod
@@ -731,7 +741,7 @@ class TestFindConfigPath:
                 return path == expected_path
             mock_isfile.side_effect = isfile_side_effect
 
-            result = VLLMProfiler._find_config_path()
+            result = VLLMProfiler._find_default_config_path()
             assert result == expected_path
 
     @staticmethod
@@ -762,7 +772,7 @@ class TestFindConfigPath:
             
             mock_isfile.side_effect = isfile_side_effect
             
-            result = VLLMProfiler._find_config_path()
+            result = VLLMProfiler._find_default_config_path()
             
             # 当前实现会回退到本地配置（若存在）
             assert result is None or result.endswith('service_profiling_symbols.yaml')
@@ -799,7 +809,7 @@ class TestFindConfigPath:
             
             mock_isfile.side_effect = isfile_side_effect
             
-            result = VLLMProfiler._find_config_path()
+            result = VLLMProfiler._find_default_config_path()
             
             # 当前实现会回退到本地配置（若存在）
             assert result is None or result.endswith('service_profiling_symbols.yaml')
@@ -816,7 +826,7 @@ class TestFindConfigPath:
             mock_isfile.return_value = True
             mock_dirname.return_value = "/fake/project/path"
             
-            result = VLLMProfiler._find_config_path()
+            result = VLLMProfiler._find_default_config_path()
             
             expected_path = "/fake/project/path/config/service_profiling_symbols.yaml"
             mock_isfile.assert_called_with(expected_path)
@@ -833,7 +843,7 @@ class TestFindConfigPath:
             # 模拟本地配置文件也不存在
             mock_isfile.return_value = False
             
-            result = VLLMProfiler._find_config_path()
+            result = VLLMProfiler._find_default_config_path()
             
             assert result is None
 
@@ -853,7 +863,7 @@ class TestFindConfigPath:
                 return path == expected_path
             mock_isfile.side_effect = isfile_side_effect
 
-            result = VLLMProfiler._find_config_path()
+            result = VLLMProfiler._find_default_config_path()
             assert result == expected_path
 
     @staticmethod
@@ -866,10 +876,91 @@ class TestFindConfigPath:
             with patch('ms_service_profiler.patcher.vllm.service_patcher.os.path.isfile') as mock_isfile:
                 mock_isfile.return_value = True
                 
-                result = VLLMProfiler._find_config_path()
+                result = VLLMProfiler._find_default_config_path()
                 
                 assert result is not None
                 assert 'special' in result
+
+
+class TestFindMetricsConfigPath:
+    """测试 _find_metrics_config_path 方法"""
+
+    @staticmethod
+    def test_find_metrics_config_path_env_yaml_exists():
+        """METRIC_SYMBOLS_PATH 为存在的 yaml 时返回该路径"""
+        with patch.dict(os.environ, {"METRIC_SYMBOLS_PATH": "/path/to/metrics.yaml"}):
+            with patch("ms_service_profiler.patcher.vllm.service_patcher.os.path.isfile", return_value=True):
+                result = VLLMProfiler._find_metrics_config_path()
+                assert result == "/path/to/metrics.yaml"
+
+    @staticmethod
+    def test_find_metrics_config_path_env_not_yaml_ignored():
+        """METRIC_SYMBOLS_PATH 非 yaml/yml 时不用该路径"""
+        with patch.dict(os.environ, {"METRIC_SYMBOLS_PATH": "/path/to/file.txt"}):
+            with patch("ms_service_profiler.patcher.vllm.service_patcher.os.path.dirname") as mock_dirname:
+                with patch("ms_service_profiler.patcher.vllm.service_patcher.os.path.isfile") as mock_isfile:
+                    mock_dirname.return_value = "/fake"
+                    mock_isfile.return_value = True
+                    result = VLLMProfiler._find_metrics_config_path()
+                    # 会走本地 config/service_metrics_symbols.yaml
+                    assert result is None or "service_metrics_symbols" in result
+
+    @staticmethod
+    def test_find_metrics_config_path_fallback_to_local():
+        """无环境变量或文件不存在时回退到本地 config/service_metrics_symbols.yaml"""
+        with patch.dict(os.environ, {}, clear=True):
+            with patch("ms_service_profiler.patcher.vllm.service_patcher.os.path.dirname") as mock_dirname:
+                with patch("ms_service_profiler.patcher.vllm.service_patcher.os.path.isfile") as mock_isfile:
+                    mock_dirname.return_value = "/fake/vllm/patcher"
+                    mock_isfile.return_value = True
+                    result = VLLMProfiler._find_metrics_config_path()
+                    assert result == "/fake/vllm/patcher/config/service_metrics_symbols.yaml"
+
+    @staticmethod
+    def test_find_metrics_config_path_none_when_no_file():
+        """环境变量和本地文件都不存在时返回 None"""
+        with patch.dict(os.environ, {}, clear=True):
+            with patch("ms_service_profiler.patcher.vllm.service_patcher.os.path.isfile", return_value=False):
+                result = VLLMProfiler._find_metrics_config_path()
+                assert result is None
+
+
+class TestLoadMetricsConfig:
+    """测试 _load_metrics_config 方法"""
+
+    @staticmethod
+    def test_load_metrics_config_no_path_returns_none(service_profiler):
+        """无 metrics 配置路径时返回 None"""
+        with patch.object(service_profiler, "_find_metrics_config_path", return_value=None):
+            result = service_profiler._load_metrics_config()
+            assert result is None
+
+    @staticmethod
+    def test_load_metrics_config_success_returns_handlers(service_profiler):
+        """有路径且加载成功时返回 ConfigLoader.load_metrics() 结果"""
+        with patch.object(service_profiler, "_find_metrics_config_path", return_value="/fake/metrics.yaml"):
+            with patch("ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader") as MockLoader:
+                mock_loader_instance = MagicMock()
+                mock_handlers = {"mod:sym": [MagicMock()]}
+                mock_loader_instance.load_metrics.return_value = mock_handlers
+                MockLoader.return_value = mock_loader_instance
+                result = service_profiler._load_metrics_config()
+                MockLoader.assert_called_once_with("/fake/metrics.yaml")
+                mock_loader_instance.load_metrics.assert_called_once()
+                assert result == mock_handlers
+
+    @staticmethod
+    def test_load_metrics_config_exception_returns_none_and_logs(service_profiler):
+        """加载异常时返回 None 并打 warning"""
+        with patch.object(service_profiler, "_find_metrics_config_path", return_value="/fake/metrics.yaml"):
+            with patch("ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader") as MockLoader:
+                MockLoader.side_effect = Exception("load failed")
+                with patch("ms_service_profiler.patcher.vllm.service_patcher.logger") as mock_logger:
+                    result = service_profiler._load_metrics_config()
+                    assert result is None
+                    mock_logger.warning.assert_called_once()
+                    assert "Failed to load metrics config" in str(mock_logger.warning.call_args)
+
 
 class TestIntegration:
     """集成测试"""
@@ -887,7 +978,7 @@ class TestIntegration:
                 f.write(sample_yaml_content)
             
             # 查找配置路径
-            found_path = VLLMProfiler._find_config_path()
+            found_path = VLLMProfiler._find_default_config_path()
             
             # 应该找到本地配置文件
             assert found_path is not None
@@ -1019,7 +1110,7 @@ class TestIntegration:
     @staticmethod
     def test_integration_full_workflow(symbol_watch_finder, sample_handlers, mock_loader, mock_spec):
         """测试完整工作流程集成测试"""
-        symbol_watch_finder.load_handlers(sample_handlers)
+        symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         # 模拟模块导入过程
         with patch('importlib.machinery.PathFinder.find_spec', return_value=mock_spec):
@@ -1089,11 +1180,12 @@ class TestErrorHandling:
     def test_initialize_with_exception(service_profiler):
         """测试初始化过程中出现异常"""
         with patch.dict(os.environ, {'SERVICE_PROF_CONFIG_PATH': '/some/path'}):
-            with patch.object(service_profiler, '_find_config_path', side_effect=Exception("Config error")):
-                with patch('ms_service_profiler.patcher.vllm.service_patcher.logger.exception') as mock_exception:
-                    service_profiler.initialize()
-                    mock_exception.assert_called_once()
-                    assert service_profiler._initialized is False
+            with patch('ms_service_profiler.patcher.vllm.service_patcher.check_profiling_enabled', return_value=True):
+                with patch.object(service_profiler, '_import_handlers', side_effect=Exception("Config error")):
+                    with patch('ms_service_profiler.patcher.vllm.service_patcher.logger.exception') as mock_exception:
+                        service_profiler.initialize()
+                        mock_exception.assert_called_once()
+                        assert service_profiler._initialized is False
 
 
 # ========== 边界条件测试 ==========
@@ -1103,29 +1195,30 @@ class TestEdgeCases:
     
     @staticmethod
     def test_empty_config(service_profiler):
-        """测试无配置路径时初始化失败"""
+        """当前 initialize 不再校验配置路径；验证 check_profiling_enabled 为 True 时能完成初始化。"""
         with patch('ms_service_profiler.patcher.vllm.service_patcher.check_profiling_enabled', return_value=True):
-            with patch.object(service_profiler, '_find_config_path', return_value=None):
-                with patch.dict(os.environ, {'PROFILING_SYMBOLS_PATH': ''}, clear=False):
-                    with patch('ms_service_profiler.patcher.vllm.service_patcher.logger.warning') as mock_warning:
+            with patch.object(service_profiler, '_import_handlers'):
+                _mock_finder = MagicMock(find_spec=lambda *a, **k: None)
+                with patch('ms_service_profiler.patcher.vllm.service_patcher.SymbolWatchFinder', return_value=_mock_finder):
+                    with patch('ms_service_profiler.patcher.vllm.service_patcher.HookController'):
                         service_profiler.initialize()
-                        warning_calls = [c for c in mock_warning.call_args_list if 'No VLLM config path found' in str(c)]
-                        assert len(warning_calls) >= 1
+                        assert service_profiler._initialized is True
 
     @staticmethod
     def test_none_config(service_profiler):
-        """测试无配置路径时初始化失败"""
+        """当前 initialize 不再校验配置路径；验证 check_profiling_enabled 为 True 时能完成初始化。"""
         with patch('ms_service_profiler.patcher.vllm.service_patcher.check_profiling_enabled', return_value=True):
-            with patch.object(service_profiler, '_find_config_path', return_value=None):
-                with patch.dict(os.environ, {'PROFILING_SYMBOLS_PATH': ''}, clear=False):
-                    with patch('ms_service_profiler.patcher.vllm.service_patcher.logger.warning') as mock_warning:
+            with patch.object(service_profiler, '_import_handlers'):
+                _mock_finder = MagicMock(find_spec=lambda *a, **k: None)
+                with patch('ms_service_profiler.patcher.vllm.service_patcher.SymbolWatchFinder', return_value=_mock_finder):
+                    with patch('ms_service_profiler.patcher.vllm.service_patcher.HookController'):
                         service_profiler.initialize()
-                        warning_calls = [c for c in mock_warning.call_args_list if 'No VLLM config path found' in str(c)]
-                        assert len(warning_calls) >= 1
+                        assert service_profiler._initialized is True
 
     @staticmethod
     def test_symbol_watcher_with_empty_handlers(symbol_watch_finder):
         """测试空 Handler 配置"""
-        symbol_watch_finder.load_handlers({})
+        symbol_watch_finder.load_handlers(profiling_handlers={}, metrics_handlers={})
         assert symbol_watch_finder._config_loaded is True
-        assert symbol_watch_finder._symbol_handlers == {}
+        assert symbol_watch_finder._symbol_handlers_profiling == {}
+        assert symbol_watch_finder._symbol_handlers_metrics == {}

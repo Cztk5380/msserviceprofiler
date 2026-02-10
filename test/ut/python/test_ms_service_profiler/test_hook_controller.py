@@ -53,12 +53,12 @@ class TestHookControllerEnable:
         mock_watcher.apply_all_hooks.return_value = [MagicMock(), MagicMock()]
 
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
-            n = hook_controller.enable(handlers)
+            n = hook_controller.enable(profiling_handlers=handlers, metrics_handlers=None)
 
         assert n == 2
         assert hook_controller._enabled is True
         mock_watcher.load_handlers.assert_called_once_with(
-            handlers, hooks_enabled=False
+            profiling_handlers=handlers, metrics_handlers=None, hooks_enabled=False
         )
         mock_watcher.check_and_apply_existing_modules.assert_called_once()
         mock_watcher.apply_all_hooks.assert_called_once()
@@ -70,16 +70,16 @@ class TestHookControllerEnable:
         mock_watcher.apply_all_hooks.return_value = [MagicMock()]
 
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
-            n = hook_controller.enable(handlers)
+            n = hook_controller.enable(profiling_handlers=handlers, metrics_handlers=None)
 
         assert n == 1
         mock_watcher.load_handlers.assert_called_once_with(
-            handlers, hooks_enabled=True
+            profiling_handlers=handlers, metrics_handlers=None, hooks_enabled=True
         )
 
     def test_enable_empty_config(self, hook_controller, mock_watcher):
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
-            n = hook_controller.enable({})
+            n = hook_controller.enable(profiling_handlers={}, metrics_handlers=None)
 
         assert n == 0
         assert hook_controller._enabled is False
@@ -88,7 +88,7 @@ class TestHookControllerEnable:
 
     def test_enable_none_config(self, hook_controller, mock_watcher):
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
-            n = hook_controller.enable(None)
+            n = hook_controller.enable(profiling_handlers=None, metrics_handlers=None)
 
         assert n == 0
         mock_watcher.load_handlers.assert_not_called()
@@ -98,7 +98,7 @@ class TestHookControllerEnable:
         mock_watcher.load_handlers.side_effect = RuntimeError("load error")
 
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
-            n = hook_controller.enable(handlers)
+            n = hook_controller.enable(profiling_handlers=handlers, metrics_handlers=None)
 
         assert n == 0
         assert hook_controller._enabled is False
@@ -177,7 +177,9 @@ class TestHookControllerGetCallbacks:
             on_start()
 
         get_handlers.assert_called_once()
-        mock_watcher.load_handlers.assert_called_once_with(handlers, hooks_enabled=False)
+        mock_watcher.load_handlers.assert_called_once_with(
+            profiling_handlers=handlers, metrics_handlers=None, hooks_enabled=False
+        )
 
     def test_on_stop_callback_calls_disable(self, hook_controller, mock_watcher):
         hook_controller._enabled = True

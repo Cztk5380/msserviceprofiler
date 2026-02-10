@@ -29,6 +29,7 @@ from typing import Dict, List, Optional, Tuple, Any, Callable
 from .utils import load_yaml_config
 from .logger import logger
 from .dynamic_hook import make_default_time_hook, DynamicHooker
+from .metric_hook import wrap_handler_with_metrics
 
 
 def _parse_symbol_path(symbol_path: str) -> Tuple[str, str, Optional[str]]:
@@ -80,6 +81,31 @@ def _resolve_handler_func(symbol_info: dict, method_name: str) -> Callable:
     return make_default_time_hook(domain=domain, name=name, attributes=attributes)
 
 
+def _metrics_noop_handler(original_func, *args, **kwargs):
+    """供 metrics 使用的透传 handler，无 handler_path 时仅由 wrap_handler_with_metrics 封装。"""
+    return original_func(*args, **kwargs)
+
+
+def _resolve_metrics_handler_func(symbol_info: dict, method_name: str) -> Callable:
+    """解析 metrics 配置的 handler：无 handler_path 时用 wrap_handler_with_metrics 封装透传函数；
+    有 handler_path 且为 "module:func" 时导入并直接返回该函数（不再包装）。
+    """
+    handler_path = symbol_info.get('handler')
+    if not handler_path:
+        return wrap_handler_with_metrics(_metrics_noop_handler, symbol_info)
+    if isinstance(handler_path, str) and ':' in handler_path:
+        try:
+            mod_str, func_name = handler_path.split(':', 1)
+            mod_obj = importlib.import_module(mod_str)
+            func = getattr(mod_obj, func_name, None)
+            if callable(func):
+                return func
+            logger.warning(f"Metrics handler '{handler_path}' is not callable, using wrap_handler_with_metrics")
+        except Exception as e:
+            logger.warning(f"Failed to import metrics handler '{handler_path}': {e}, using wrap_handler_with_metrics")
+    return wrap_handler_with_metrics(_metrics_noop_handler, symbol_info)
+
+
 class ConfigLoader:
     """配置加载器：读取 yml 文件，返回以 symbol 为粒度的 Handler 列表。
     
@@ -100,8 +126,8 @@ class ConfigLoader:
         """
         self._config_path = config_path
     
-    def load(self) -> Optional[Dict[str, List[DynamicHooker]]]:
-        """加载 yml 配置并解析为 Handler 列表。
+    def load_profiling(self) -> Optional[Dict[str, List[DynamicHooker]]]:
+        """加载 profiling yml 配置并解析为 Handler 列表。
         
         Returns:
             Dict[str, List[DynamicHooker]]: symbol_path -> Handler 列表。
@@ -142,5 +168,41 @@ class ConfigLoader:
                 result[symbol_path] = []
             result[symbol_path].append(handler_instance)
         
-        logger.debug(f"ConfigLoader loaded {len(result)} symbols from {self._config_path}")
+        logger.debug(f"ConfigLoader loaded {len(result)} profiling symbols from {self._config_path}")
+        return result
+
+    def load_metrics(self) -> Optional[Dict[str, List[DynamicHooker]]]:
+        """加载 metrics yml 并解析为 Handler 列表（每个 handler 经 wrap_handler_with_metrics 包装）。
+
+        Returns:
+            Dict[str, List[DynamicHooker]]: symbol_path -> Handler 列表，格式与 load() 一致。
+        """
+        raw_config = load_yaml_config(self._config_path)
+        if not raw_config:
+            return {}
+        if not isinstance(raw_config, list):
+            logger.warning("Metrics config should be a list of symbol configurations")
+            return {}
+        result: Dict[str, List[DynamicHooker]] = {}
+        for item in raw_config:
+            if not isinstance(item, dict) or 'symbol' not in item:
+                logger.warning("Skip invalid metrics config item: missing 'symbol'")
+                continue
+            symbol_path = item['symbol']
+            module_path, method_name, class_name = _parse_symbol_path(symbol_path)
+            if not module_path:
+                continue
+            hook_points = _build_hook_points(module_path, method_name, class_name)
+            handler_func = _resolve_metrics_handler_func(item, method_name)
+            handler_instance = DynamicHooker(
+                hook_list=hook_points,
+                hook_func=handler_func,
+                min_version=item.get('min_version'),
+                max_version=item.get('max_version'),
+                caller_filter=item.get('caller_filter'),
+            )
+            if symbol_path not in result:
+                result[symbol_path] = []
+            result[symbol_path].append(handler_instance)
+        logger.debug(f"ConfigLoader loaded {len(result)} metrics symbols from {self._config_path}")
         return result

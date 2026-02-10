@@ -143,14 +143,14 @@ class TestLoadConfig:
         with patch.object(SGLangPatcher, '_find_config_path', return_value='/mock/path.yaml'):
             with patch('ms_service_profiler.patcher.sglang.service_patcher.ConfigLoader') as MockConfigLoader:
                 mock_loader_instance = MagicMock()
-                mock_loader_instance.load.return_value = mock_handlers
+                mock_loader_instance.load_profiling.return_value = mock_handlers
                 MockConfigLoader.return_value = mock_loader_instance
                 with patch('ms_service_profiler.patcher.sglang.service_patcher.logger.info') as mock_info:
                     patcher = SGLangPatcher()
                     result = patcher._load_config()
                     assert result == mock_handlers
                     MockConfigLoader.assert_called_once_with('/mock/path.yaml')
-                    mock_loader_instance.load.assert_called_once()
+                    mock_loader_instance.load_profiling.assert_called_once()
                     mock_info.assert_called_once_with(
                         "Loading SGLang profiling symbols from: %s",
                         '/mock/path.yaml'
@@ -328,14 +328,14 @@ class TestHookLifecycle:
     
     @staticmethod
     def test_enable_hooks_given_controller_exists_when_called_then_delegate_to_controller():
-        """测试存在控制器时启用 hooks：先 _load_config 得到 handlers，再 enable(handlers)"""
+        """测试存在控制器时启用 hooks：先 _load_config 得到 profiling，再 enable(profiling_handlers=..., metrics_handlers=None)"""
         patcher = SGLangPatcher()
         mock_controller = Mock()
         patcher._controller = mock_controller
         mock_handlers = {"sym:func": [MagicMock()]}
         with patch.object(patcher, "_load_config", return_value=mock_handlers):
             patcher.enable_hooks()
-        mock_controller.enable.assert_called_once_with(mock_handlers)
+        mock_controller.enable.assert_called_once_with(profiling_handlers=mock_handlers, metrics_handlers=None)
     
     @staticmethod
     def test_disable_hooks_given_no_controller_when_called_then_log_warning():
@@ -443,7 +443,7 @@ class TestIntegration:
                                 
                                 # 3. 启用hooks
                                 patcher.enable_hooks()
-                                mock_controller.enable.assert_called_once_with(mock_handlers)
+                                mock_controller.enable.assert_called_once_with(profiling_handlers=mock_handlers, metrics_handlers=None)
                                 
                                 # 4. 禁用hooks
                                 patcher.disable_hooks()
@@ -467,7 +467,7 @@ class TestEdgeCases:
         with patch.object(SGLangPatcher, '_find_config_path', return_value='/mock/path.yaml'):
             with patch('ms_service_profiler.patcher.sglang.service_patcher.ConfigLoader') as MockConfigLoader:
                 mock_loader_instance = MagicMock()
-                mock_loader_instance.load.return_value = {}
+                mock_loader_instance.load_profiling.return_value = {}
                 MockConfigLoader.return_value = mock_loader_instance
                 patcher = SGLangPatcher()
                 result = patcher._load_config()

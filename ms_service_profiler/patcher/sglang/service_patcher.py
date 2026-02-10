@@ -75,7 +75,7 @@ class SGLangPatcher:
             return None
         logger.info("Loading SGLang profiling symbols from: %s", config_path)
         loader = ConfigLoader(config_path)
-        return loader.load()
+        return loader.load_profiling()
     
     def _import_handlers(self):
         """导入内置 handlers。
@@ -135,12 +135,12 @@ class SGLangPatcher:
         return self._controller.enabled
 
     def enable_hooks(self) -> None:
-        """启用所有 hooks（先加载配置得到 Handler 列表，再交给 controller.enable）。"""
+        """启用所有 hooks（先加载 profiling 配置，再交给 controller.enable）。"""
         if self._controller is None:
             logger.warning("Patcher not initialized, cannot enable hooks")
             return
-        handlers = self._load_config()
-        self._controller.enable(handlers)
+        profiling = self._load_config()
+        self._controller.enable(profiling_handlers=profiling, metrics_handlers=None)
 
     def disable_hooks(self) -> None:
         """禁用所有 hooks。"""

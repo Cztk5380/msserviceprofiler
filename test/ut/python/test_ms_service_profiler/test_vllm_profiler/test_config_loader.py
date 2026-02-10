@@ -26,6 +26,7 @@ from ms_service_profiler.patcher.core.config_loader import (
     _parse_symbol_path,
     _build_hook_points,
     _resolve_handler_func,
+    _resolve_metrics_handler_func,
     ConfigLoader,
     DynamicHooker
 )
@@ -145,7 +146,7 @@ class TestConfigLoader:
             with patch("ms_service_profiler.patcher.core.config_loader.DynamicHooker") as MockDH:
                 h1, h2 = MagicMock(), MagicMock()
                 MockDH.side_effect = [h1, h2]
-                result = self.loader.load()
+                result = self.loader.load_profiling()
         assert isinstance(result, dict)
         assert result["module.path:ClassName.method_name"] == [h1]
         assert result["another.module:function_name"] == [h2]
@@ -160,13 +161,13 @@ class TestConfigLoader:
             with patch("ms_service_profiler.patcher.core.config_loader.DynamicHooker") as MockDH:
                 h1, h2 = MagicMock(), MagicMock()
                 MockDH.side_effect = [h1, h2]
-                result = self.loader.load()
+                result = self.loader.load_profiling()
         assert result["module.path:ClassName.method_name"] == [h1, h2]
 
     @pytest.mark.parametrize("yaml_return", [[], None, {"key": "value"}])
     def test_load_empty_or_invalid_returns_empty_dict(self, yaml_return):
         with patch("ms_service_profiler.patcher.core.config_loader.load_yaml_config", return_value=yaml_return):
-            assert self.loader.load() == {}
+            assert self.loader.load_profiling() == {}
     @pytest.mark.parametrize("raw_config", [
         [{"domain": "TestDomain", "name": "test"}, {"symbol": "module.path:ClassName.method_name", "domain": "Valid"}],
         [{"symbol": "invalid_format_without_colon"}, {"symbol": "module.path:ClassName.method_name", "domain": "Valid"}],
@@ -175,7 +176,7 @@ class TestConfigLoader:
         with patch("ms_service_profiler.patcher.core.config_loader.load_yaml_config", return_value=raw_config):
             with patch("ms_service_profiler.patcher.core.config_loader.DynamicHooker") as MockDH:
                 MockDH.return_value = MagicMock()
-                result = self.loader.load()
+                result = self.loader.load_profiling()
         assert len(result) == 1
         assert "module.path:ClassName.method_name" in result
     def test_load_real_yaml_parses_correctly(self):
@@ -186,7 +187,7 @@ class TestConfigLoader:
         with patch("ms_service_profiler.patcher.core.config_loader.DynamicHooker") as MockDH:
             h1, h2 = MagicMock(), MagicMock()
             MockDH.side_effect = [h1, h2]
-            result = self.loader.load()
+            result = self.loader.load_profiling()
         assert len(result) == 2
         assert "sglang.srt.managers.scheduler:Scheduler.get_next_batch_to_run" in result
         assert "sglang.srt.managers.scheduler:Scheduler.run_batch" in result
@@ -196,6 +197,86 @@ class TestConfigLoader:
             mock_yaml.return_value = [{"symbol": "module.path:ClassName.method_name", "domain": "TestDomain"}]
             with patch("ms_service_profiler.patcher.core.config_loader.DynamicHooker"):
                 with patch("ms_service_profiler.patcher.core.config_loader.logger") as mock_logger:
-                    self.loader.load()
+                    self.loader.load_profiling()
                     mock_logger.debug.assert_called()
                     assert self.config_path in mock_logger.debug.call_args[0][0]
+
+
+class TestResolveMetricsHandlerFunc:
+    """测试 _resolve_metrics_handler_func 函数"""
+
+    def test_resolve_metrics_handler_func_with_handler_path_returns_imported_func(self):
+        """有 handler 且为 module:func 时直接导入并返回该函数（不包装）"""
+        with patch("ms_service_profiler.patcher.core.config_loader.importlib.import_module") as mock_import:
+            imported_func = MagicMock()
+            mock_mod = MagicMock()
+            mock_mod.my_func = imported_func
+            mock_import.return_value = mock_mod
+            symbol_info = {"handler": "some.module:my_func", "metrics": []}
+            result = _resolve_metrics_handler_func(symbol_info, "my_method")
+            mock_import.assert_called_once_with("some.module")
+            assert result is imported_func
+
+    def test_resolve_metrics_handler_func_no_handler_wraps_noop(self):
+        """无 handler 时用 wrap_handler_with_metrics 封装透传函数"""
+        with patch("ms_service_profiler.patcher.core.config_loader.wrap_handler_with_metrics") as mock_wrap:
+            wrapped = MagicMock()
+            mock_wrap.return_value = wrapped
+            result = _resolve_metrics_handler_func(
+                {"domain": "D", "name": "n"}, "method"
+            )
+            mock_wrap.assert_called_once()
+            assert mock_wrap.call_args[0][0].__name__ == "_metrics_noop_handler"
+            assert mock_wrap.call_args[0][1] == {"domain": "D", "name": "n"}
+            assert result == wrapped
+
+
+class TestConfigLoaderLoadMetrics:
+    """测试 ConfigLoader.load_metrics 方法"""
+
+    def setup_method(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.config_path = os.path.join(self.temp_dir, "test_metrics.yaml")
+        self.loader = ConfigLoader(self.config_path)
+
+    def teardown_method(self):
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
+
+    def test_load_metrics_valid_returns_handler_dict(self):
+        """合法 metrics 列表配置返回 symbol -> Handler 列表"""
+        raw = [
+            {"symbol": "module.path:ClassName.method_name", "domain": "TestDomain"},
+            {"symbol": "other.module:func", "metrics": [{"name": "m1", "type": "timer"}]},
+        ]
+        with patch("ms_service_profiler.patcher.core.config_loader.load_yaml_config", return_value=raw):
+            with patch("ms_service_profiler.patcher.core.config_loader.wrap_handler_with_metrics") as mock_wrap:
+                mock_wrap.side_effect = lambda h, _: h
+                with patch("ms_service_profiler.patcher.core.config_loader.DynamicHooker") as MockDH:
+                    h1, h2 = MagicMock(), MagicMock()
+                    MockDH.side_effect = [h1, h2]
+                    result = self.loader.load_metrics()
+        assert isinstance(result, dict)
+        assert "module.path:ClassName.method_name" in result
+        assert "other.module:func" in result
+        assert len(result["module.path:ClassName.method_name"]) == 1
+        assert len(result["other.module:func"]) == 1
+
+    @pytest.mark.parametrize("yaml_return", [[], None, {"key": "value"}])
+    def test_load_metrics_empty_or_invalid_returns_empty_dict(self, yaml_return):
+        """空或非列表配置返回空字典"""
+        with patch("ms_service_profiler.patcher.core.config_loader.load_yaml_config", return_value=yaml_return):
+            assert self.loader.load_metrics() == {}
+
+    def test_load_metrics_skips_invalid_items(self):
+        """缺少 symbol 或非法 symbol 的项被跳过"""
+        raw = [
+            {"domain": "D"},
+            {"symbol": "module.path:ClassName.method_name", "domain": "Valid"},
+        ]
+        with patch("ms_service_profiler.patcher.core.config_loader.load_yaml_config", return_value=raw):
+            with patch("ms_service_profiler.patcher.core.config_loader.DynamicHooker") as MockDH:
+                MockDH.return_value = MagicMock()
+                result = self.loader.load_metrics()
+        assert len(result) == 1
+        assert "module.path:ClassName.method_name" in result

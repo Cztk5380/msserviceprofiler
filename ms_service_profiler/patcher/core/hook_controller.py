@@ -58,22 +58,24 @@ class HookController:
         """
         self._watcher = watcher
         self._enabled = False
-    
+
     @property
     def enabled(self) -> bool:
         """hooks 是否已启用。"""
         return self._enabled
     
-    def enable(self, handlers: Optional[dict]) -> int:
+    def enable(
+        self,
+        profiling_handlers: Optional[dict] = None,
+        metrics_handlers: Optional[dict] = None,
+    ) -> int:
         """启用 hooks（支持重复调用以动态更新配置）。
         
-        每次调用使用传入的 Handler 字典，支持动态增删点位：
-        - 新增的点位：准备并应用 hooks
-        - 删除的点位：recover 对应的 hooks
+        每次调用使用传入的 profiling 与 metrics 两路 Handler 字典，支持动态增删点位。
         
         Args:
-            handlers: ConfigLoader.load() 的解析结果，即 symbol_path -> List[DynamicHooker]；
-                由调用方（如 enable_hooks）在外部加载后传入，本方法不依赖 ConfigLoader
+            profiling_handlers: ConfigLoader.load_profiling() 的解析结果
+            metrics_handlers: ConfigLoader.load_metrics() 的解析结果
             
         Returns:
             当前已启用的 hook 数量
@@ -83,12 +85,16 @@ class HookController:
                 logger.info("Reloading hook configuration...")
             else:
                 logger.info("Enabling profiler hooks...")
-            
-            if not handlers:
+
+            if not profiling_handlers and not metrics_handlers:
                 logger.warning("No configuration loaded")
                 return 0
 
-            self._watcher.load_handlers(handlers, hooks_enabled=self._enabled)
+            self._watcher.load_handlers(
+                profiling_handlers=profiling_handlers,
+                metrics_handlers=metrics_handlers,
+                hooks_enabled=self._enabled,
+            )
             
             # 2. 为已加载的模块准备 hooks
             self._watcher.check_and_apply_existing_modules()
@@ -149,17 +155,20 @@ class HookController:
         """返回可注册到 C++ 的回调函数对（start, stop）。
         
         Args:
-            get_handlers: 可调用对象，返回 Handler 字典（如 service 的 _load_config）；
-                on_start 被调用时会先执行 get_handlers() 取得结果再传给 enable()
-            
+            get_handlers: 可调用对象，返回 (profiling_handlers, metrics_handlers) 或单 dict 兼容；
+                on_start 被调用时会先执行 get_handlers() 再将两路结果传给 enable()
+        
         Returns:
             (on_start_callback, on_stop_callback)
         """
         def on_start() -> None:
             try:
                 logger.info("Received profiler start signal from C++")
-                handlers = get_handlers()
-                self.enable(handlers)
+                result = get_handlers()
+                if isinstance(result, tuple) and len(result) == 2:
+                    self.enable(profiling_handlers=result[0], metrics_handlers=result[1])
+                else:
+                    self.enable(profiling_handlers=result, metrics_handlers=None)
             except Exception as e:
                 logger.exception(f"Failed to handle profiler start: {e}")
 

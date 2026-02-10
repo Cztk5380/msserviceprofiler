@@ -1,0 +1,19 @@
+# ===== Meta =====
+- symbol: vllm.v1.engine.core:DPEngineCoreProc.add_request
+  min_version: "0.9.1"
+  handler: ms_service_profiler.patcher.vllm.handlers.v1.meta_handlers:init_data_parallel
+
+- symbol: vllm.v1.metrics.loggers:StatLoggerManager.record
+  min_version: "0.9.1"
+  handler: ms_service_profiler.patcher.vllm.handlers.v1.meta_handlers:record
+
+- symbol: vllm.v1.core.sched.scheduler:Scheduler.make_stats
+  min_version: "0.9.1"
+  handler: ms_service_profiler.patcher.vllm.handlers.v1.meta_handlers:make_stats
+
+# ===== Custom Metrics =====
+- symbol: vllm.entrypoints.openai.serving_chat:OpenAIServingChat.create_chat_completion
+  min_version: "0.9.1"
+  metrics:
+    - name: server:create_chat_completion:duration
+      type: timer

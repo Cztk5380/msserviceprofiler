@@ -19,7 +19,7 @@ import importlib.abc
 import importlib.machinery as _machinery
 import sys
 import threading
-from typing import Dict, List, Tuple, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 from .logger import logger
 
 if TYPE_CHECKING:
@@ -32,14 +32,16 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
     使用 ConfigLoader 加载的 Handler 列表，以 handler 为粒度监听模块导入并应用 hooks。
 
     Attributes:
-        _symbol_handlers (Dict): symbol_path -> List[DynamicHooker]
+        _symbol_handlers_profiling (Dict): symbol_path -> List[DynamicHooker]，profiling 配置
+        _symbol_handlers_metrics (Dict): symbol_path -> List[DynamicHooker]，metrics 配置
         _config_loaded (bool): 配置是否已加载
         _applied_hooks (Set): 已准备的 symbol 集合
     """
 
     def __init__(self):
         """初始化 SymbolWatchFinder。"""
-        self._symbol_handlers: Dict[str, List] = {}
+        self._symbol_handlers_profiling: Dict[str, List] = {}
+        self._symbol_handlers_metrics: Dict[str, List] = {}
         self._config_loaded = False
         self._applied_hooks = set()
         self._prepared_hookers: List = []
@@ -81,14 +83,36 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
                 except Exception as e:
                     logger.error(f"Failed to recover hooker: {e}")
 
-    def load_handlers(self, handlers: Dict[str, List['DynamicHooker']], hooks_enabled: bool = False):
-        """加载由 ConfigLoader 解析得到的 Handler 列表。
+    def _get_combined_symbol_paths(self):
+        """返回当前已加载的 profiling 与 metrics 的 symbol 路径并集。"""
+        return set(self._symbol_handlers_profiling.keys()) | set(self._symbol_handlers_metrics.keys())
+
+    def _get_handlers_for_symbol(self, symbol_path: str) -> List:
+        """返回某 symbol 的 handler 列表，供后续 for 循环依次执行 hook。
+
+        当 profiling 与 metrics 同时存在 handler 时，保证 _symbol_handlers_metrics 中的
+        handler 排在后面，这样最终被 hook 替换的是 metrics 的 handler。
+        """
+        p = self._symbol_handlers_profiling.get(symbol_path) or []
+        m = self._symbol_handlers_metrics.get(symbol_path) or []
+        return p + m
+
+    def load_handlers(
+        self,
+        profiling_handlers: Optional[Dict[str, List['DynamicHooker']]] = None,
+        metrics_handlers: Optional[Dict[str, List['DynamicHooker']]] = None,
+        hooks_enabled: bool = False,
+    ):
+        """加载 profiling 与 metrics 两路 Handler 列表，分别存储并分别参与后续处理。
 
         Args:
-            handlers: symbol_path -> List[DynamicHooker]，由 ConfigLoader.load() 返回
-            hooks_enabled: hooks 是否当前已启用，用于处理配置变更时的恢复逻辑
+            profiling_handlers: symbol_path -> List[DynamicHooker]，由 ConfigLoader.load_profiling() 返回
+            metrics_handlers: symbol_path -> List[DynamicHooker]，由 ConfigLoader.load_metrics() 返回
+            hooks_enabled: hooks 是否当前已启用，用于配置变更时的恢复逻辑
         """
-        new_symbol_paths = set(handlers.keys()) if handlers else set()
+        profiling_handlers = profiling_handlers or {}
+        metrics_handlers = metrics_handlers or {}
+        new_symbol_paths = set(profiling_handlers.keys()) | set(metrics_handlers.keys())
 
         if self._config_loaded:
             removed_symbols = self._applied_hooks - new_symbol_paths
@@ -111,9 +135,15 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
                         if symbol_path in self._symbol_to_hooker:
                             del self._symbol_to_hooker[symbol_path]
 
-        self._symbol_handlers = dict(handlers) if handlers else {}
+        self._symbol_handlers_profiling = dict(profiling_handlers)
+        self._symbol_handlers_metrics = dict(metrics_handlers)
         self._config_loaded = True
-        logger.debug(f"Loaded handlers for {len(self._symbol_handlers)} symbols")
+        logger.debug(
+            "Loaded handlers for %d symbols (profiling: %d, metrics: %d)",
+            len(new_symbol_paths),
+            len(self._symbol_handlers_profiling),
+            len(self._symbol_handlers_metrics),
+        )
 
     def find_spec(self, fullname, path, target=None):
         """查找模块规范，实现模块导入监听。"""
@@ -150,7 +180,7 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
         """检查是否是配置中的目标 symbol 模块。"""
         if not self._config_loaded:
             return False
-        for symbol_path in self._symbol_handlers:
+        for symbol_path in self._get_combined_symbol_paths():
             module_path = symbol_path.split(':')[0]
             if fullname == module_path or module_path.startswith(fullname + '.'):
                 return True
@@ -162,12 +192,14 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
         self._prepare_hooks_for_module(fullname)
 
     def _prepare_hooks_for_module(self, fullname: str):
-        """准备模块的 hooks。"""
+        """准备模块的 hooks（对 profiling 与 metrics 两路 handler 分别取列表后合并处理）。"""
         module_handlers = []
-        for symbol_path, handler_list in self._symbol_handlers.items():
+        for symbol_path in self._get_combined_symbol_paths():
             module_path = symbol_path.split(':')[0]
             if fullname == module_path:
-                module_handlers.append((symbol_path, handler_list))
+                handler_list = self._get_handlers_for_symbol(symbol_path)
+                if handler_list:
+                    module_handlers.append((symbol_path, handler_list))
             elif module_path.startswith(fullname + "."):
                 try:
                     importlib.import_module(module_path)
@@ -226,7 +258,7 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
     def check_and_apply_existing_modules(self) -> bool:
         """检查目标模块是否已经被导入，如果是则立即准备 hooks。"""
         logger.debug("Checking for already loaded modules...")
-        for symbol_path in self._symbol_handlers:
+        for symbol_path in self._get_combined_symbol_paths():
             module_path = symbol_path.split(":")[0]
             if module_path in sys.modules and symbol_path not in self._applied_hooks:
                 logger.debug(f"Module {module_path} already loaded, preparing handlers")
