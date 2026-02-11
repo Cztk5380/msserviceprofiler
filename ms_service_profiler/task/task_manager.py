@@ -146,9 +146,12 @@ class TaskManager:
         elif flag == 'error':
             self.error_tasks += 1
         completed_tasks = self.finished_tasks + self.error_tasks
-        progress = min(completed_tasks / self.total_tasks * 100, 100)
-        error_msg = f", {self.error_tasks} tasks failed" if self.error_tasks > 0 else ""
-        logger.info(f"Progress: {progress:.1f}% ({completed_tasks}/{self.total_tasks} tasks completed{error_msg})")
+        if self.total_tasks > 0:
+            progress = min(completed_tasks / self.total_tasks * 100, 100)
+            error_msg = f", {self.error_tasks} tasks failed" if self.error_tasks > 0 else ""
+            logger.info(f"Progress: {progress:.1f}% ({completed_tasks}/{self.total_tasks} tasks completed{error_msg})")
+        else:
+            logger.info(f"Progress: 100.0% (No tasks need to be processed)")
 
     def set_task_finished(self, finished_task_name, next_task_set):
         task_manager_info = self.init_task(finished_task_name)
@@ -354,6 +357,8 @@ def tasks_run(data_source_tasks, task_dag, input_path, args):
     task_manager = TaskManager(task_dag)
     
     has_tasks = False
+    unique_tasks = set()
+
     for data_source_task in data_source_tasks:
         single_data_list = data_source_task.task_cls.get_prof_paths(input_path)
         # 如果没有数据，直接返回
@@ -363,14 +368,14 @@ def tasks_run(data_source_tasks, task_dag, input_path, args):
         has_tasks = True
         # 创建进程池
         src_dag = filter_dag(task_dag, data_source_task.name)
-        
-        # 统计总任务数
+
         for task_name, _ in src_dag.get_ordered_task_names():
-            task_manager.total_tasks += 1
-        
+            unique_tasks.add(task_name)
+
         task_manager.create_pool(data_source_task, single_data_list, src_dag, args)
+
+    task_manager.total_tasks = len(unique_tasks)
 
     # 输出统计信息
     if has_tasks:
-        logger.info(f"Total tasks: {task_manager.total_tasks}")
         task_manager.start()
