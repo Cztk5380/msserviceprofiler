@@ -91,7 +91,7 @@ curl http://localhost:8000/v1/completions \
 cd /root/.ms_server_profiler/xxxx-xxxx
 
 # 解析数据
-msserviceprofiler analyze --input-path=./ --output-path output
+msserviceprofiler parse --input-path=./ --output-path output
 ```
 
 **5. 查看数据**

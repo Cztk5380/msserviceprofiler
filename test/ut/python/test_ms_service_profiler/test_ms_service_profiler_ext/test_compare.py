@@ -15,7 +15,7 @@ from ms_service_profiler.ms_service_profiler_ext.compare import (
     compute_stats,
     compute_comparison,
     main,
-    parse_args,
+    arg_parse,
     _find_ascend_pt_dirs,
     _extract_prof_number,
     extract_device_to_ascend_pt_map,
@@ -248,19 +248,17 @@ class TestCompareToolHighCoverage(unittest.TestCase):
         self.assertAlmostEqual(result4.iloc[0]['RDIFF-AVG(%)'], -100.0, places=2)
 
     # -----------------------------
-    # 5. parse_args
+    # 5. arg_parse
     # -----------------------------
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.argparse.ArgumentParser.parse_args')
-    def test_parse_args_default(self, mock_parse):
-        mock_parse.return_value = argparse.Namespace(
-            input_path='/in',
-            golden_path='/gold',
-            output_path='/out',
-            log_level='info'
-        )
-        args = parse_args()
+    @patch('ms_service_profiler.ms_service_profiler_ext.compare.check_input_dir_valid')
+    def test_arg_parse(self, mock_check):
+        mock_check.side_effect = lambda x: x  # 直接返回输入值
+        parser = argparse.ArgumentParser()
+        subparsers = parser.add_subparsers()
+        arg_parse(subparsers)
+        args = parser.parse_args(['compare', '/in', '/gold'])
         self.assertEqual(args.input_path, '/in')
-        self.assertEqual(args.log_level, 'info')
+        self.assertEqual(args.golden_path, '/gold')
 
     # -----------------------------
     # 6. main (integration)
@@ -268,46 +266,42 @@ class TestCompareToolHighCoverage(unittest.TestCase):
     @patch('ms_service_profiler.ms_service_profiler_ext.compare.save_dataframe_to_csv')
     @patch('ms_service_profiler.ms_service_profiler_ext.compare.read_sql_from_given_path')
     @patch('ms_service_profiler.ms_service_profiler_ext.compare.set_log_level')
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.parse_args')
-    def test_main_success(self, mock_parse_args, mock_set_log, mock_read, mock_save):
+    def test_main_success(self, mock_set_log, mock_read, mock_save):
         df = pd.DataFrame({'name': ['test'], 'during_time': [100]})
         mock_read.return_value = df
-        mock_parse_args.return_value = MagicMock(
+        args = argparse.Namespace(
             input_path='/in',
             golden_path='/gold',
             output_path='/out',
             log_level='info'
         )
-
-        main()
+        main(args)
         self.assertEqual(mock_read.call_count, 2)
         mock_save.assert_called_once()
 
     @patch('ms_service_profiler.ms_service_profiler_ext.compare.read_sql_from_given_path')
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.parse_args')
-    def test_main_empty_input(self, mock_parse_args, mock_read):
+    def test_main_empty_input(self, mock_read):
         mock_read.return_value = pd.DataFrame()
-        mock_parse_args.return_value = MagicMock(
+        args = argparse.Namespace(
             input_path='/in',
             golden_path='/gold',
             output_path='/out',
             log_level='info'
         )
-        main()
+        main(args)
         self.assertEqual(mock_read.call_count, 1)
 
     @patch('ms_service_profiler.ms_service_profiler_ext.compare.read_sql_from_given_path')
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.parse_args')
-    def test_main_empty_golden(self, mock_parse_args, mock_read):
+    def test_main_empty_golden(self, mock_read):
         input_df = pd.DataFrame({'name': ['a'], 'during_time': [1]})
         mock_read.side_effect = [input_df, pd.DataFrame()]
-        mock_parse_args.return_value = MagicMock(
+        args = argparse.Namespace(
             input_path='/in',
             golden_path='/gold',
             output_path='/out',
             log_level='info'
         )
-        main()
+        main(args)
         self.assertEqual(mock_read.call_count, 2)
 
     # -----------------------------
@@ -390,14 +384,13 @@ class TestCompareToolHighCoverage(unittest.TestCase):
     @patch('ms_service_profiler.ms_service_profiler_ext.compare.read_sql_from_given_path')
     @patch('ms_service_profiler.ms_service_profiler_ext.compare.save_dataframe_to_csv')
     @patch('ms_service_profiler.ms_service_profiler_ext.compare.set_log_level')
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.parse_args')
-    def test_main_operator_invalid_paths_skipped(self, mock_parse, mock_set_log, mock_save, mock_read, mock_subprocess):
-        args = MagicMock()
-        args.input_path = "/input"
-        args.golden_path = "/golden"
-        args.output_path = "/output"
-        args.log_level = "info"
-        mock_parse.return_value = args
+    def test_main_operator_invalid_paths_skipped(self, mock_set_log, mock_save, mock_read, mock_subprocess):
+        args = argparse.Namespace(
+            input_path="/input",
+            golden_path="/golden",
+            output_path="/output",
+            log_level="info"
+        )
 
         with patch('ms_service_profiler.ms_service_profiler_ext.compare.match_ascend_pt_paths_by_device') as mock_match:
             mock_match.return_value = ("", "")  # Invalid paths
@@ -405,7 +398,7 @@ class TestCompareToolHighCoverage(unittest.TestCase):
             df = pd.DataFrame({'name': ['op'], 'during_time': [10]})
             mock_read.return_value = df
 
-            main()
+            main(args)
 
             # subprocess.run should NOT be called because paths are empty
             mock_subprocess.assert_not_called()
@@ -461,17 +454,16 @@ class TestCompareToolHighCoverage(unittest.TestCase):
         self.assertTrue(result.empty)
 
     @patch('ms_service_profiler.ms_service_profiler_ext.compare.read_sql_from_given_path')
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.parse_args')
-    def test_main_input_empty(self, mock_parse, mock_read):
-        args = MagicMock()
-        args.input_path = "/input"
-        args.golden_path = "/golden"
-        args.output_path = "/out"
-        args.log_level = "info"
-        mock_parse.return_value = args
+    def test_main_input_empty(self, mock_read):
+        args = argparse.Namespace(
+            input_path="/input",
+            golden_path="/golden",
+            output_path="/out",
+            log_level="info"
+        )
         mock_read.return_value = pd.DataFrame()  # 空输入
 
-        main()
+        main(args)
 
     def test_extract_prof_number_success(self):
         """测试 PROF_数字_ 格式能正确提取数字"""
@@ -562,22 +554,19 @@ class TestCompareToolHighCoverage(unittest.TestCase):
 
     def test_main_calls_subprocess_when_paths_found(self):
         """测试 main() 在找到 ascend_pt 路径时调用 subprocess.run"""
-        with patch('ms_service_profiler.ms_service_profiler_ext.compare.parse_args') as mock_parse, \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare.set_log_level'), \
+        args = argparse.Namespace(
+            input_path="/input",
+            golden_path="/golden",
+            output_path="/output",
+            log_level="info"
+        )
+        with patch('ms_service_profiler.ms_service_profiler_ext.compare.set_log_level'), \
                 patch(
                     'ms_service_profiler.ms_service_profiler_ext.compare.match_ascend_pt_paths_by_device') as mock_match, \
                 patch('ms_service_profiler.ms_service_profiler_ext.compare.logger'), \
                 patch('ms_service_profiler.ms_service_profiler_ext.compare.subprocess.run') as mock_run, \
                 patch('ms_service_profiler.ms_service_profiler_ext.compare.read_sql_from_given_path') as mock_read, \
                 patch('ms_service_profiler.ms_service_profiler_ext.compare.save_dataframe_to_csv'):
-            # 模拟命令行参数
-            args = MagicMock()
-            args.input_path = "/input"
-            args.golden_path = "/golden"
-            args.output_path = "/output"
-            args.log_level = "info"
-            mock_parse.return_value = args
-
             # 关键：让 match 返回非空路径 → 触发 subprocess
             mock_match.return_value = ("/input/pt", "/golden/pt")
 
@@ -586,7 +575,7 @@ class TestCompareToolHighCoverage(unittest.TestCase):
 
             # 调用 main
             from ms_service_profiler.ms_service_profiler_ext.compare import main
-            main()
+            main(args)
 
             # 断言 subprocess.run 被调用
             mock_run.assert_called_once()

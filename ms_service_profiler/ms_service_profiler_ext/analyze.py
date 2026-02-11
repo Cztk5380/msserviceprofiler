@@ -59,6 +59,12 @@ def arg_parse(subparsers):
     parser.add_argument(
         '--format', nargs='+', default=['json', 'csv', 'db'], choices=['json', 'csv', 'db'], help='Format to save.'
     )
+    parser.add_argument(
+        '--span',
+        nargs='*',
+        default=None,
+        help='Select target span info'
+    )
     parser.set_defaults(func=main)
 
 

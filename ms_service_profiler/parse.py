@@ -108,12 +108,14 @@ def arg_parse(subparsers):
         "parse", formatter_class=argparse.ArgumentDefaultsHelpFormatter, help="MS Server Profiler"
     )
     _setup_parser_arguments(parser)
+    parser.set_defaults(func=main)
 
 
-def main():
-    parser = argparse.ArgumentParser(description='MS Server Profiler')
-    _setup_parser_arguments(parser)
-    args = parser.parse_args()
+def main(args=None):
+    if args is None:
+        parser = argparse.ArgumentParser(description='MS Server Profiler')
+        _setup_parser_arguments(parser)
+        args = parser.parse_args()
 
     # 初始化日志等级
     set_log_level(args.log_level)

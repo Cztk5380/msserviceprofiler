@@ -287,12 +287,14 @@ def compute_comparison(input_stats, golden_stats):
     return result
 
 
-def parse_args() -> argparse.Namespace:
+def arg_parse(subparsers):
     """
     解析命令行参数。
     支持 input_path、golden_path、output-path 和 log-level。
     """
-    parser = argparse.ArgumentParser(description="MS Server Profiler Compare Tool")
+    parser = subparsers.add_parser(
+        "compare", formatter_class=argparse.ArgumentDefaultsHelpFormatter, help="Compare performance profiles"
+    )
     parser.add_argument("input_path", type=check_input_dir_valid, help="Directory of input profile data")
     parser.add_argument("golden_path", type=check_input_dir_valid, help="Directory of golden profile data")
     parser.add_argument(
@@ -307,17 +309,16 @@ def parse_args() -> argparse.Namespace:
         default='info',
         help='Log level'
     )
-    return parser.parse_args()
+    parser.set_defaults(func=main)
 
 
-def main():
+def main(args):
     """
     主函数：执行完整的性能比对流程。
     包含两个主要部分：
       1. 调用外部工具 msprof-analyze 进行算子级比对；
       2. 自定义 Span 级别比对（基于 Trace_Service 数据）。
     """
-    args = parse_args()
     set_log_level(args.log_level)
 
     # === Step 1: 智能匹配 input 与 golden 的 ascend_pt 路径 ===
