@@ -148,8 +148,10 @@ def _record_iteration_metrics(iteration_stats, labels: Dict[str, str]):
 @patcher(("vllm.v1.metrics.loggers", "StatLoggerManager.record"), min_version="0.9.1")
 def record(original_func, this, scheduler_stats, iteration_stats, mm_cache_stats, engine_idx, *args, **kwargs):
 
-    labels = {"dp": scheduler_stats.kv_connector_stats.get("dp", -1), "engine": engine_idx}
-    logger.debug(f"Hook record labels: {labels}")
+    kv_stats = (scheduler_stats.kv_connector_stats
+                if (scheduler_stats is not None and scheduler_stats.kv_connector_stats)
+                else {})
+    labels = {"dp": kv_stats.get("dp", -1), "engine": engine_idx}
 
     # 删除临时数据
     if scheduler_stats is not None and scheduler_stats.kv_connector_stats is not None:
