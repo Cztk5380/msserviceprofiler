@@ -76,10 +76,25 @@ class ExporterTrace(TaskExporterBase):
 
         output = cls.args.output_path
 
+        torch_profiler_prof_list = []
+        torch_profiler_pid_domain_map = {}
+        torch_profiler_pid_list = set()
+        
+        if torch_profiler:
+            for index, prof_path in enumerate(torch_profiler):
+                torch_profiler_prof, pid_list = load_single_prof(prof_path, index)
+                torch_profiler_prof_list.extend(torch_profiler_prof.get("traceEvents"))
+                torch_profiler_pid_list.update(pid_list)
+                for event in torch_profiler_prof.get("traceEvents", []):
+                    if event.get("name") == "process_name":
+                        pid = event.get("pid")
+                        process_name = event.get("args", {}).get("name", "")
+                        if pid is not None and process_name:
+                            torch_profiler_pid_domain_map[pid] = process_name
+
         if data is not None:
             all_data_df = data.get('tx_data_df', pd.DataFrame(columns=["name", "domain"])).copy()
 
-            # 对domain进行预处理，以便相同domain的数据在同一个泳道中显示
             prepare_domain_for_process(all_data_df)
 
             if 'pid_label_map' in data:
@@ -103,9 +118,13 @@ class ExporterTrace(TaskExporterBase):
             if "ppid" in all_data_df and "pid" in all_data_df:
                 pid_ppid_map.extend(set(zip(all_data_df['pid'], all_data_df['ppid'])))
 
-            pid_ppid_map = [(str(pid), ppid, pid) for pid, ppid in pid_ppid_map]
+            for pid in torch_profiler_pid_list:
+                pid_ppid_map.append((pid, None))
 
-            trace_data = create_trace_events(all_data_df, pid_label_map, pid_ppid_map)
+            pid_ppid_map = [(str(pid), ppid, pid) for pid, ppid in pid_ppid_map]
+            logger.info(f"Total pid_ppid_map count: {len(pid_ppid_map)}, torch_profiler added: {len(torch_profiler_pid_list)}")
+
+            trace_data = create_trace_events(all_data_df, pid_label_map, pid_ppid_map, torch_profiler_pid_domain_map)
             merged_data = merge_json_data(trace_data, cann_data)
         else:
             merged_data = {"traceEvents": []}
@@ -129,16 +148,15 @@ class ExporterTrace(TaskExporterBase):
             mspti_data = {"traceEvents": tarce_events_list}
             merged_data = merge_json_data(merged_data, [mspti_data])
 
-        if torch_profiler:
-            torch_profiler_prof_list = []
-            for index, prof_path in enumerate(torch_profiler):
-                torch_profiler_prof, _ = load_single_prof(prof_path, index)
-                torch_profiler_prof_list.extend(torch_profiler_prof.get("traceEvents"))
-
         if 'db' in cls.args.format:
             logger.info('Start write trace data to db')
             create_sqlite_tables(TRACE_TABLE_DEFINITIONS)
-            save_trace_data_into_db(merged_data)
+            db_data = merged_data
+            if torch_profiler:
+                chrome_events = merged_data.get('traceEvents', [])
+                db_events = torch_profiler_prof_list + chrome_events
+                db_data = {'traceEvents': db_events}
+            save_trace_data_into_db(db_data)
             logger.info('Write trace data to db success')
         
         if 'json' in cls.args.format:
@@ -179,6 +197,37 @@ class ExporterTrace(TaskExporterBase):
 
         self.export(valid_data, valid_mspti, all_profilers)
         return None
+
+
+def get_track_name(domain):
+    if pd.notna(domain) and isinstance(domain, str):
+        if 'Engine' in domain or 'Request' in domain:
+            return "schedule"
+        elif 'Execute' in domain:
+            return "forward"
+    return None
+
+
+def get_pid_primary_domain(all_data_df):
+    """获取每个PID的主要domain类型，用于生成进程名称"""
+    if all_data_df is None or all_data_df.empty:
+        return {}
+
+    domain_col = all_data_df['domain']
+    pid_col = all_data_df['pid']
+
+    track_names = domain_col.apply(get_track_name)
+
+    valid_mask = track_names.notna() & pid_col.notna()
+    if not valid_mask.any():
+        return {}
+
+    valid_pids = pid_col[valid_mask].astype(int)
+    valid_tracks = track_names[valid_mask]
+
+    pid_tracks_df = pd.DataFrame({'pid': valid_pids, 'track': valid_tracks})
+    
+    return pid_tracks_df.drop_duplicates('pid').set_index('pid')['track'].to_dict()
 
 
 def prepare_domain_for_process(all_data_df):
@@ -334,7 +383,7 @@ def add_flow_event(flow_event_df):
     return flow_trace_events
 
 
-def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
+def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None, torch_profiler_pid_domain_map=None):
     metric_event = ['npu', 'Schedule.KVCache', 'KVCache', 'PullKVCache', 'Queue']
 
     # name 非空
@@ -374,6 +423,7 @@ def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
         # flow事件
         flow_event_df = valid_name_df[valid_name_df['rid'].notna()]
         flow_trace_events = add_flow_event(flow_event_df)
+
         trace_events.extend(flow_trace_events)
 
     trace_events = sort_trace_events_by_tid(trace_events)
@@ -385,44 +435,125 @@ def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None):
             coordinator_pid = event["pid"]
             break  # 找到第一个就退出
 
+    pid_domain_map = get_pid_primary_domain(all_data_df) if all_data_df is not None else None
+    
+    if torch_profiler_pid_domain_map:
+        if pid_domain_map is None:
+            pid_domain_map = {}
+        pid_domain_map.update(torch_profiler_pid_domain_map)
+
+    trace_events = [e for e in trace_events if e.get('name') != 'process_name']
+
     if pid_label_map is not None or pid_ppid_map is not None:
-        trace_events.extend(sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid))
+        trace_events.extend(sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid, pid_domain_map))
 
     trace_data = {"traceEvents": trace_events}
     return trace_data
 
 
-def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None):
-    pid_sorting_meta = []
-
+def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None, pid_domain_map=None):
+    if not pid_ppid_map:
+        return []
+    
     process_tree = {}
     for pid, ppid, _ in pid_ppid_map:
         process_tree[pid] = ppid
-
-    process_prefix = {}
-
+    
     def build_prcess_prefix(pid):
         if pid in process_prefix:
             return process_prefix[pid]
         ppid = process_tree.get(pid)
         if ppid is None:
             return ""
-
+        
         ppid_prefix = build_prcess_prefix(ppid)
         pid_prefix = f"{ppid_prefix}.{pid}"
         process_prefix[pid] = pid_prefix
         return pid_prefix
-
-    process_prefix_list = [(ori_pid, build_prcess_prefix(pid)) for pid, _, ori_pid in pid_ppid_map]
-
-    process_prefix_list.sort(key=lambda x: x[1])
-
+    
+    process_prefix = {}
+    
+    child_to_parent = {
+        pid: ppid
+        for pid, ppid, _ in pid_ppid_map
+        if ppid != pid
+    }
+    
     def sort_key(item):
         pid, prefix = item
-        return (0, "") if pid == coordinator_pid else (1, prefix)
-
+        if pid == coordinator_pid:
+            return (-1, -1, '')
+        
+        process_type = None
+        parent_type_rank = None
+        parent_dp_rank = None
+        
+        pid_str = str(pid)
+        pid_in_child = pid_str in child_to_parent
+        parent_pid = None
+        
+        if pid_domain_map and pid in pid_domain_map:
+            domain = pid_domain_map[pid]
+            if domain.lower() == "schedule":
+                process_type = 'schedule'
+            elif domain.lower() == "forward":
+                process_type = 'forward'
+        elif pid_in_child:
+            parent_pid_str = str(child_to_parent[pid_str])
+            parent_pid = int(parent_pid_str) if parent_pid_str.isdigit() else parent_pid_str
+            
+            if pid_domain_map and parent_pid in pid_domain_map:
+                parent_domain = pid_domain_map[parent_pid]
+                if parent_domain.lower() == "schedule":
+                    parent_type_rank = 0
+                    parent_dp_rank = None
+                elif parent_domain.lower() == "forward":
+                    parent_type_rank = 1
+                    if pid_label_map and parent_pid in pid_label_map:
+                        parent_dp_rank = pid_label_map[parent_pid].get('dp_rank')
+                        if parent_dp_rank is None:
+                            parent_dp_rank = pid_label_map[parent_pid].get('dp')
+        
+        type_priority = {'schedule': 0, 'forward': 1}
+        type_rank = type_priority.get(process_type, parent_type_rank if parent_type_rank is not None else 3)
+        
+        dp_rank = None
+        if process_type == 'forward':
+            if pid_label_map and pid in pid_label_map:
+                dp_rank = pid_label_map[pid].get('dp_rank')
+                if dp_rank is None:
+                    dp_rank = pid_label_map[pid].get('dp')
+        
+        if parent_type_rank is not None and parent_dp_rank is not None:
+            dp_rank = parent_dp_rank
+        
+        group_pid = 0
+        if process_type == 'schedule':
+            group_pid = pid
+        else:
+            current_pid = pid
+            while current_pid is not None:
+                ppid = process_tree.get(current_pid) or process_tree.get(str(current_pid))
+                if ppid is None:
+                    break
+                ppid_int = int(ppid) if isinstance(ppid, str) and ppid.isdigit() else ppid
+                if pid_domain_map and ppid_int in pid_domain_map:
+                    if pid_domain_map[ppid_int].lower() == "schedule":
+                        group_pid = ppid_int
+                        break
+                current_pid = ppid_int
+        
+        if dp_rank is not None:
+            return (group_pid, type_rank, int(dp_rank), prefix)
+        else:
+            return (group_pid, type_rank, 0, prefix)
+    
+    process_prefix_list = [(ori_pid, build_prcess_prefix(pid)) for pid, _, ori_pid in pid_ppid_map]
+    
     process_prefix_list.sort(key=sort_key)
-
+    
+    pid_sorting_meta = []
+    
     for index, item in enumerate(process_prefix_list):
         pid, _ = item
         pid_sorting_meta.append(dict(
@@ -431,6 +562,16 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None):
             pid=pid,
             args=dict(sort_index=index))
         )
+        
+        primary_domain = pid_domain_map.get(pid) if pid_domain_map else None
+        if primary_domain:
+            pid_sorting_meta.append(dict(
+                name="process_name",
+                ph="M",
+                pid=pid,
+                args=dict(name=primary_domain))
+            )
+        
         labels = []
         if pid_label_map is not None and "hostname" in pid_label_map.get(pid, []):
             labels.append(pid_label_map.get(pid).get("hostname"))
@@ -451,8 +592,8 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None):
 
 
 def sort_trace_events_by_tid(trace_events):
-    tid_sorting_order = ['Schedule.KVCache', 'KVCache', 'Communication',
-                         'Schedule', 'Execute', 'Engine', 'Api', 'Kernel']
+    tid_sorting_order = ['Execute', 'Schedule', 'Communication',
+                         'KVCache', 'Schedule.KVCache', 'Engine', 'Api', 'Kernel']
     main_pid = 0
     for event_info in trace_events:
         if event_info.get("tid") in tid_sorting_order:

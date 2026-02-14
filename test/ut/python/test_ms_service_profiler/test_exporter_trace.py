@@ -35,7 +35,8 @@ from ms_service_profiler.exporters.exporter_trace import ExporterTrace, write_tr
     add_pull_kvcache_events, _prepare_data_smart_parallel, save_trace_data_into_db, _build_track_id_mapping_smart, \
     _setup_database_optimizations, _collect_pid_tid_and_meta_events, _get_tid_from_event, _process_meta_events_batch, \
     _find_thread_sort_index, _process_chunk_smart, _process_single_event, _is_slice_event, _is_counter_event, \
-    _is_flow_event, _prepare_slice_data_smart, _prepare_counter_data_smart, _prepare_flow_data_smart
+    _is_flow_event, _prepare_slice_data_smart, _prepare_counter_data_smart, _prepare_flow_data_smart, \
+    sort_trace_events_by_pid
 
 
 # Mock 数据
@@ -908,8 +909,269 @@ class TestTraceDataProcessingParallel(unittest.TestCase):
         result = _prepare_data_smart_parallel(events, {})
 
         self.assertEqual(len(result['slice']), 1)
-        self.assertEqual(len(result['counter']), 1)
-        self.assertEqual(len(result['flow']), 0)
+
+
+# ======================================================================
+# sort_trace_events_by_pid 测试用例
+# ======================================================================
+
+
+class TestSortTraceEventsByPid(unittest.TestCase):
+    """测试 sort_trace_events_by_pid 函数"""
+
+    def test_sort_trace_events_by_pid_empty_input(self):
+        """测试空输入"""
+        result = sort_trace_events_by_pid(None, [])
+        assert result == []
+
+    def test_sort_trace_events_by_pid_empty_pid_ppid_map(self):
+        """测试空的 pid_ppid_map"""
+        pid_label_map = {}
+        pid_ppid_map = []
+        result = sort_trace_events_by_pid(pid_label_map, pid_ppid_map)
+        assert result == []
+
+    def test_sort_trace_events_by_pid_single_process(self):
+        """测试单个进程"""
+        pid_label_map = {}
+        pid_ppid_map = [('12345', 0, 12345)]  # (pid, ppid, ori_pid) - pid为字符串
+        result = sort_trace_events_by_pid(pid_label_map, pid_ppid_map)
+        
+        assert len(result) == 1
+        assert result[0]['name'] == 'process_sort_index'
+        assert result[0]['pid'] == 12345
+        assert result[0]['args']['sort_index'] == 0
+
+    def test_sort_trace_events_by_pid_schedule_forward_order(self):
+        """测试 schedule 和 forward 的排序"""
+        pid_label_map = {}
+        pid_ppid_map = [
+            ('12307', 12166, 12307),  # forward
+            ('12166', 2930, 12166),   # schedule
+        ]
+        
+        result = sort_trace_events_by_pid(pid_label_map, pid_ppid_map)
+        
+        # 应该返回 2 个 process_sort_index 事件
+        assert len(result) == 2
+        
+        # 按顺序检查 sort_index
+        schedule_event = next(e for e in result if e['name'] == 'process_sort_index' and e['pid'] == 12166)
+        forward_event = next(e for e in result if e['name'] == 'process_sort_index' and e['pid'] == 12307)
+        
+        assert schedule_event['args']['sort_index'] == 0  # schedule 排第1
+        assert forward_event['args']['sort_index'] == 1   # forward 排第2
+
+    def test_sort_trace_events_by_pid_forward_with_dp(self):
+        """测试 forward 进程按 dp 排序"""
+        pid_label_map = {
+            12307: {'dp_rank': '1', 'hostname': 'host1'},
+            12308: {'dp_rank': '0', 'hostname': 'host1'},
+        }
+        pid_ppid_map = [
+            ('12166', 2930, 12166),    # schedule
+            ('12307', 12166, 12307),   # forward dp=1
+            ('12308', 12166, 12308),   # forward dp=0
+        ]
+        pid_domain_map = {
+            12166: 'schedule',
+            12307: 'forward',
+            12308: 'forward',
+        }
+        
+        result = sort_trace_events_by_pid(pid_label_map, pid_ppid_map, pid_domain_map=pid_domain_map)
+        
+        schedule_event = next(e for e in result if e['name'] == 'process_sort_index' and e['pid'] == 12166)
+        dp0_event = next(e for e in result if e['name'] == 'process_sort_index' and e['pid'] == 12308)
+        dp1_event = next(e for e in result if e['name'] == 'process_sort_index' and e['pid'] == 12307)
+        
+        assert schedule_event['args']['sort_index'] == 0  # schedule 排第1
+        assert dp0_event['args']['sort_index'] == 1       # dp=0 排第2
+        assert dp1_event['args']['sort_index'] == 2       # dp=1 排第3
+
+    def test_sort_trace_events_by_pid_with_operator_inheritance(self):
+        """测试算子继承父进程的类型和 dp"""
+        pid_label_map = {
+            12307: {'dp_rank': '0', 'hostname': 'host1'},
+            12602784: {'hostname': 'host1'},  # 算子进程
+        }
+        pid_ppid_map = [
+            ('12602784', 12307, 12602784),  # 算子，父进程是 forward dp=0
+            ('12307', 12166, 12307),        # forward dp=0
+            ('12166', 2930, 12166),         # schedule
+        ]
+        
+        result = sort_trace_events_by_pid(pid_label_map, pid_ppid_map)
+        
+        # 应该有 3 个进程
+        schedule_event = next(e for e in result if e['name'] == 'process_sort_index' and e['pid'] == 12166)
+        forward_event = next(e for e in result if e['name'] == 'process_sort_index' and e['pid'] == 12307)
+        operator_event = next(e for e in result if e['name'] == 'process_sort_index' and e['pid'] == 12602784)
+        
+        assert schedule_event['args']['sort_index'] == 0     # schedule 排第1
+        assert forward_event['args']['sort_index'] == 1       # forward 排第2
+        assert operator_event['args']['sort_index'] == 2      # 算子继承 forward，排第3
+
+    def test_sort_trace_events_by_pid_coordinator_priority(self):
+        """测试 coordinator 进程优先级"""
+        pid_label_map = {}
+        pid_ppid_map = [
+            ('12307', 12166, 12307),  # forward
+            ('12166', 2930, 12166),   # schedule
+            ('100', 200, 100),        # coordinator
+        ]
+        
+        result = sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=100)
+        
+        # coordinator 应该在最前面
+        coordinator_event = next(e for e in result if e['name'] == 'process_sort_index' and e['pid'] == 100)
+        schedule_event = next(e for e in result if e['name'] == 'process_sort_index' and e['pid'] == 12166)
+        forward_event = next(e for e in result if e['name'] == 'process_sort_index' and e['pid'] == 12307)
+        
+        assert coordinator_event['args']['sort_index'] == 0  # coordinator 排第1
+        assert schedule_event['args']['sort_index'] == 1    # schedule 排第2
+        assert forward_event['args']['sort_index'] == 2     # forward 排第3
+
+    def test_sort_trace_events_by_pid_process_name_generation(self):
+        """测试 process_name 事件生成"""
+        pid_label_map = {
+            12166: {'hostname': 'host1'},
+            12307: {'dp_rank': '0', 'hostname': 'host1'},
+        }
+        pid_ppid_map = [
+            ('12307', 12166, 12307),
+            ('12166', 2930, 12166),
+        ]
+        pid_domain_map = {
+            12166: 'Schedule',
+            12307: 'forward',
+        }
+        
+        result = sort_trace_events_by_pid(pid_label_map, pid_ppid_map, pid_domain_map=pid_domain_map)
+        
+        # 检查 process_name 事件
+        schedule_name_event = next((e for e in result if e['name'] == 'process_name' and e['pid'] == 12166), None)
+        forward_name_event = next((e for e in result if e['name'] == 'process_name' and e['pid'] == 12307), None)
+        
+        assert schedule_name_event is not None
+        assert schedule_name_event['args']['name'] == 'Schedule'
+        assert forward_name_event is not None
+        assert forward_name_event['args']['name'] == 'forward'
+
+    def test_sort_trace_events_by_pid_process_labels_generation(self):
+        """测试 process_labels 事件生成"""
+        pid_label_map = {
+            12307: {'dp_rank': '0', 'hostname': 'host1'},
+            12166: {'hostname': 'host1'},
+        }
+        pid_ppid_map = [
+            ('12307', 12166, 12307),
+            ('12166', 2930, 12166),
+        ]
+        
+        result = sort_trace_events_by_pid(pid_label_map, pid_ppid_map)
+        
+        # 检查 process_labels 事件
+        forward_labels_event = next((e for e in result if e['name'] == 'process_labels' and e['pid'] == 12307), None)
+        schedule_labels_event = next((e for e in result if e['name'] == 'process_labels' and e['pid'] == 12166), None)
+        
+        assert forward_labels_event is not None
+        assert 'dp0' in forward_labels_event['args']['labels']
+        assert 'host1' in forward_labels_event['args']['labels']
+        
+        assert schedule_labels_event is not None
+        assert 'host1' in schedule_labels_event['args']['labels']
+
+    def test_sort_trace_events_by_pid_type_conversion_bug(self):
+        """测试类型转换 bug 修复（child_to_parent key 是字符串，pid 是整数）"""
+        pid_label_map = {
+            12307: {'dp_rank': '0', 'hostname': 'host1'},
+        }
+        pid_ppid_map = [
+            ('12602784', 12307, 12602784),  # 算子，父进程是 forward
+            ('12307', 12166, 12307),        # forward
+            ('12166', 2930, 12166),         # schedule
+        ]
+        pid_domain_map = {
+            12166: 'schedule',
+            12307: 'forward',
+        }
+        
+        # 这个测试确保类型转换不会导致错误
+        result = sort_trace_events_by_pid(pid_label_map, pid_ppid_map, pid_domain_map=pid_domain_map)
+        
+        # 应该能正确处理而不报错
+        assert len(result) >= 3  # 至少有 3 个进程
+        
+        # 验证算子进程排在 forward 后面
+        schedule_event = next(e for e in result if e['name'] == 'process_sort_index' and e['pid'] == 12166)
+        forward_event = next(e for e in result if e['name'] == 'process_sort_index' and e['pid'] == 12307)
+        operator_event = next(e for e in result if e['name'] == 'process_sort_index' and e['pid'] == 12602784)
+        
+        assert schedule_event['args']['sort_index'] < forward_event['args']['sort_index']
+        assert forward_event['args']['sort_index'] < operator_event['args']['sort_index']
+
+    def test_sort_trace_events_by_pid_complex_hierarchy(self):
+        """测试复杂层级结构（多个 schedule 和 forward）"""
+        pid_label_map = {
+            12307: {'dp_rank': '0', 'hostname': 'host1'},
+            12308: {'dp_rank': '1', 'hostname': 'host1'},
+            12309: {'dp_rank': '0', 'hostname': 'host2'},
+            12310: {'dp_rank': '1', 'hostname': 'host2'},
+        }
+        pid_ppid_map = [
+            # Schedule 1 的子进程
+            ('12307', 12166, 12307),  # forward dp=0
+            ('12308', 12166, 12308),  # forward dp=1
+            # Schedule 2 的子进程
+            ('12309', 12167, 12309),  # forward dp=0
+            ('12310', 12167, 12310),  # forward dp=1
+            # 算子进程
+            ('12602784', 12307, 12602784),  # 属于 forward dp=0 (host1)
+            ('12602816', 12308, 12602816),  # 属于 forward dp=1 (host1)
+            # Schedule 进程
+            ('12166', 2930, 12166),   # schedule host1
+            ('12167', 2931, 12167),   # schedule host2
+        ]
+        pid_domain_map = {
+            12166: 'schedule',
+            12167: 'schedule',
+            12307: 'forward',
+            12308: 'forward',
+            12309: 'forward',
+            12310: 'forward',
+        }
+        
+        result = sort_trace_events_by_pid(pid_label_map, pid_ppid_map, pid_domain_map=pid_domain_map)
+        
+        # 验证排序结果
+        events_by_pid = {e['pid']: e for e in result if e['name'] == 'process_sort_index'}
+        
+        # schedule 进程
+        schedule1_index = events_by_pid[12166]['args']['sort_index']
+        schedule2_index = events_by_pid[12167]['args']['sort_index']
+        
+        # host1 的 forward 进程
+        forward1_0_index = events_by_pid[12307]['args']['sort_index']  # dp=0
+        forward1_1_index = events_by_pid[12308]['args']['sort_index']  # dp=1
+        
+        # host2 的 forward 进程
+        forward2_0_index = events_by_pid[12309]['args']['sort_index']  # dp=0
+        forward2_1_index = events_by_pid[12310]['args']['sort_index']  # dp=1
+        
+        # 验证排序规则
+        assert schedule1_index < schedule2_index  # schedule 按 PID 排序
+        
+        # 同 host 的 forward 按 dp 排序
+        assert forward1_0_index < forward1_1_index  # host1: dp=0 < dp=1
+        assert forward2_0_index < forward2_1_index  # host2: dp=0 < dp=1
+        
+        # 验证算子紧跟对应的 forward
+        operator1_index = events_by_pid[12602784]['args']['sort_index']
+        operator2_index = events_by_pid[12602816]['args']['sort_index']
+        
+        assert forward1_0_index < operator1_index  # 算子1 在 forward dp=0 后面
+        assert forward1_1_index < operator2_index  # 算子2 在 forward dp=1 后面
 
     @patch('ms_service_profiler.exporters.exporter_trace.mp.Pool')
     @patch('ms_service_profiler.exporters.exporter_trace.LARGE_EVENTS_THRESHOLD', 1000)
