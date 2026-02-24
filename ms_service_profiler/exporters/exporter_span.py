@@ -24,10 +24,11 @@ from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.exporters.utils import write_result_to_csv, get_filter_span_df
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
+from ms_service_profiler.constant import US_PER_MS
 
 RENAME_COLUMNS = {
     "name": "span_name",
-    "during_time": "during_time(μs)"
+    "during_time": "during_time(ms)"
 }
 # 默认统计的Span - 兼容mindIE/vllm
 DEFAULT_SPAN = ['forward', 'BatchSchedule', 'batchFrameworkProcessing']
@@ -92,5 +93,5 @@ class ExporterSpan(ExporterBase):
 
         for span_name, group_df in span_df.groupby('name'):
             if 'during_time' in group_df:
-                group_df['during_time'] = group_df['during_time'].map(lambda x: f"{float(x):.2f}")
+                group_df['during_time'] = group_df['during_time'].div(US_PER_MS).map(lambda x: f"{x:.3f}")
             write_result_to_csv(group_df, output_path, span_name, RENAME_COLUMNS)
