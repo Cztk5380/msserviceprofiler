@@ -124,9 +124,14 @@ class VLLMProfiler:
             logger.warning(f"Failed to find profiling symbols from default path: {e}")
         return None
 
+    @staticmethod
+    def _get_default_metrics_config_path() -> str:
+        """返回默认 Meta 配置路径（始终存在）。"""
+        return os.path.join(os.path.dirname(__file__), "config", "service_metrics_symbols_default.yaml")
+
     @classmethod
     def _find_metrics_config_path(cls) -> Optional[str]:
-        """查找 metrics 配置文件路径：环境变量 METRIC_SYMBOLS_PATH（.yaml/.yml）或本地 config/service_metrics_symbols.yaml。"""
+        """查找用户 metrics 配置路径：环境变量 METRIC_SYMBOLS_PATH（.yaml/.yml）或本地 config/service_metrics_symbols.yaml。"""
         path = None
         env_path = os.environ.get("METRIC_SYMBOLS_PATH")
         if env_path and str(env_path).lower().endswith((".yaml", ".yml")) and os.path.isfile(env_path):
@@ -140,15 +145,28 @@ class VLLMProfiler:
         return path
 
     def _load_metrics_config(self) -> Optional[Dict[str, List]]:
-        """加载 metrics 配置并返回 Handler 字典，无路径或失败时返回 None。"""
-        metrics_path = self._find_metrics_config_path()
-        if not metrics_path:
-            return None
-        try:
-            return ConfigLoader(metrics_path).load_metrics()
-        except Exception as e:
-            logger.warning("Failed to load metrics config from %s: %s", metrics_path, e)
-            return None
+        """加载 metrics 配置：始终加载默认 Meta 配置，再合并用户配置（如有）。"""
+        merged: Dict[str, List] = {}
+        default_path = self._get_default_metrics_config_path()
+        if os.path.isfile(default_path):
+            try:
+                default_handlers = ConfigLoader(default_path).load_metrics()
+                if default_handlers:
+                    for sym, handlers in default_handlers.items():
+                        merged.setdefault(sym, []).extend(handlers)
+                    logger.info("Loaded default metrics config from: %s", default_path)
+            except Exception as e:
+                logger.warning("Failed to load default metrics config from %s: %s", default_path, e)
+        user_path = self._find_metrics_config_path()
+        if user_path:
+            try:
+                user_handlers = ConfigLoader(user_path).load_metrics()
+                if user_handlers:
+                    for sym, handlers in user_handlers.items():
+                        merged.setdefault(sym, []).extend(handlers)
+            except Exception as e:
+                logger.warning("Failed to load metrics config from %s: %s", user_path, e)
+        return merged if merged else None
 
     def _load_profiling_config(self) -> Optional[Dict[str, List]]:
         """加载 profiling 配置文件并返回 Handler 字典。"""

@@ -930,36 +930,65 @@ class TestLoadMetricsConfig:
 
     @staticmethod
     def test_load_metrics_config_no_path_returns_none(service_profiler):
-        """无 metrics 配置路径时返回 None"""
-        with patch.object(service_profiler, "_find_metrics_config_path", return_value=None):
-            result = service_profiler._load_metrics_config()
-            assert result is None
-
-    @staticmethod
-    def test_load_metrics_config_success_returns_handlers(service_profiler):
-        """有路径且加载成功时返回 ConfigLoader.load_metrics() 结果"""
-        with patch.object(service_profiler, "_find_metrics_config_path", return_value="/fake/metrics.yaml"):
-            with patch("ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader") as MockLoader:
-                mock_loader_instance = MagicMock()
-                mock_handlers = {"mod:sym": [MagicMock()]}
-                mock_loader_instance.load_metrics.return_value = mock_handlers
-                MockLoader.return_value = mock_loader_instance
-                result = service_profiler._load_metrics_config()
-                MockLoader.assert_called_once_with("/fake/metrics.yaml")
-                mock_loader_instance.load_metrics.assert_called_once()
-                assert result == mock_handlers
-
-    @staticmethod
-    def test_load_metrics_config_exception_returns_none_and_logs(service_profiler):
-        """加载异常时返回 None 并打 warning"""
-        with patch.object(service_profiler, "_find_metrics_config_path", return_value="/fake/metrics.yaml"):
-            with patch("ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader") as MockLoader:
-                MockLoader.side_effect = Exception("load failed")
-                with patch("ms_service_profiler.patcher.vllm.service_patcher.logger") as mock_logger:
+        """默认配置不存在且无用户配置路径时返回 None"""
+        with patch.object(service_profiler, "_get_default_metrics_config_path", return_value="/nonexistent/default.yaml"):
+            with patch("ms_service_profiler.patcher.vllm.service_patcher.os.path.isfile", return_value=False):
+                with patch.object(service_profiler, "_find_metrics_config_path", return_value=None):
                     result = service_profiler._load_metrics_config()
                     assert result is None
-                    mock_logger.warning.assert_called_once()
-                    assert "Failed to load metrics config" in str(mock_logger.warning.call_args)
+
+    @staticmethod
+    def test_load_metrics_config_success_returns_merged_handlers(service_profiler):
+        """默认配置与用户配置均加载成功时返回合并后的 handlers"""
+        default_handlers = {"default:sym": [MagicMock()]}
+        user_handlers = {"user:sym": [MagicMock()]}
+        with patch.object(service_profiler, "_get_default_metrics_config_path", return_value="/fake/default.yaml"):
+            with patch("ms_service_profiler.patcher.vllm.service_patcher.os.path.isfile", return_value=True):
+                with patch.object(service_profiler, "_find_metrics_config_path", return_value="/fake/metrics.yaml"):
+                    with patch("ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader") as MockLoader:
+                        mock_default = MagicMock()
+                        mock_default.load_metrics.return_value = default_handlers
+                        mock_user = MagicMock()
+                        mock_user.load_metrics.return_value = user_handlers
+                        MockLoader.side_effect = [mock_default, mock_user]
+                        result = service_profiler._load_metrics_config()
+                        assert result is not None
+                        assert "default:sym" in result
+                        assert "user:sym" in result
+                        assert result["default:sym"] == default_handlers["default:sym"]
+                        assert result["user:sym"] == user_handlers["user:sym"]
+
+    @staticmethod
+    def test_load_metrics_config_default_only_when_no_user_path(service_profiler):
+        """仅有默认配置时也返回 handlers"""
+        default_handlers = {"default:sym": [MagicMock()]}
+        with patch.object(service_profiler, "_get_default_metrics_config_path", return_value="/fake/default.yaml"):
+            with patch("ms_service_profiler.patcher.vllm.service_patcher.os.path.isfile", return_value=True):
+                with patch.object(service_profiler, "_find_metrics_config_path", return_value=None):
+                    with patch("ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader") as MockLoader:
+                        mock_loader = MagicMock()
+                        mock_loader.load_metrics.return_value = default_handlers
+                        MockLoader.return_value = mock_loader
+                        result = service_profiler._load_metrics_config()
+                        assert result == default_handlers
+
+    @staticmethod
+    def test_load_metrics_config_user_exception_still_returns_default(service_profiler):
+        """用户配置加载异常时，若默认配置成功则仍返回默认 handlers"""
+        default_handlers = {"default:sym": [MagicMock()]}
+        with patch.object(service_profiler, "_get_default_metrics_config_path", return_value="/fake/default.yaml"):
+            with patch("ms_service_profiler.patcher.vllm.service_patcher.os.path.isfile", return_value=True):
+                with patch.object(service_profiler, "_find_metrics_config_path", return_value="/fake/user.yaml"):
+                    with patch("ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader") as MockLoader:
+                        mock_default = MagicMock()
+                        mock_default.load_metrics.return_value = default_handlers
+                        mock_user = MagicMock()
+                        mock_user.load_metrics.side_effect = Exception("load failed")
+                        MockLoader.side_effect = [mock_default, mock_user]
+                        with patch("ms_service_profiler.patcher.vllm.service_patcher.logger") as mock_logger:
+                            result = service_profiler._load_metrics_config()
+                            assert result == default_handlers
+                            mock_logger.warning.assert_called_once()
 
 
 class TestIntegration:
