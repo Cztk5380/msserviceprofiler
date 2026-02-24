@@ -58,14 +58,14 @@ def prof_kvcache_info(scheduler, name="allocate"):
             swa_evictable_size,
         ) = scheduler._get_swa_token_info()
         Profiler(Level.INFO).domain("KVCache")\
-            .metric("deviceBlock", full_available_size)\
+            .metric("FreeBlocks", full_available_size)\
             .metric("fullEvictableSize", full_evictable_size)\
             .metric("swaAvailableSize", swa_available_size)\
             .metric("swaEvictableSize", swa_evictable_size)\
             .event(name)
     else:
         _, _, available_size, evictable_size = scheduler._get_token_info()
-        Profiler(Level.INFO).domain("KVCache").metric("deviceBlock", available_size)\
+        Profiler(Level.INFO).domain("KVCache").metric("FreeBlocks", available_size)\
             .metric("fullEvictableSize", evictable_size)\
             .event(name)
 

@@ -256,7 +256,7 @@ class TestKVCMetrics:
         scheduler_handlers.prof_kvcache_info(mock_scheduler, "test")
         
         prof_calls = scheduler_handlers.Profiler.instance_calls[-1]
-        assert any("deviceBlock" in str(call) for call in prof_calls)
+        assert any("FreeBlocks" in str(call) for call in prof_calls)
 
 def test_complete_import_structure():
     """测试导入结构完整性"""

@@ -131,6 +131,7 @@ def safe_merge_ttft_que(req_base_info: pd.DataFrame,
             ttft=lambda d: d['ttft'].fillna(0),
             que_wait_time=lambda d: d['que_wait_time'].fillna(0)
         )
+        .infer_objects()
     )
 
 

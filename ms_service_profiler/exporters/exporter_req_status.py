@@ -141,7 +141,8 @@ class ExporterReqStatus(ExporterBase):
         queue_df = df.loc[mask].copy()
 
         # 如果找不到符合条件的记录，返回空DataFrame
-        if queue_df.empty:
+        if queue_df.empty or not check_columns_valid(queue_df, \
+            [ColumnConst.START_DATETIME_COLUMN, ColumnConst.QUEUESIZE_COLUMN, ColumnConst.STATUS_COLUMN], cls.name):
             return pd.DataFrame()
 
         # 创建结果DataFrame
@@ -185,7 +186,7 @@ class ExporterReqStatus(ExporterBase):
                 df[col] = 0
 
         df = df[required_columns].rename(columns={'start_datetime': 'timestamp'})
-        df = df.ffill().fillna(0)  # 平滑填充nan值
+        df = df.ffill().fillna(0).infer_objects()  # 平滑填充nan值，避免 FutureWarning
         return df
 
     @classmethod
