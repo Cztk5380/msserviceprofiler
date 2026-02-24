@@ -27,7 +27,7 @@ from ms_service_profiler.utils.timer import timer
 
 RENAME_COLUMNS = {
     "name": "span_name",
-    "during_time": "during_time(ms)"
+    "during_time": "during_time(μs)"
 }
 # 默认统计的Span - 兼容mindIE/vllm
 DEFAULT_SPAN = ['forward', 'BatchSchedule', 'batchFrameworkProcessing']
@@ -66,6 +66,14 @@ class ExporterSpan(ExporterBase):
         """准备span数据"""
         span_df = get_filter_span_df(df, REQUIRED_COLUMNS, TIME_COLUMNS)
         span_names = cls._get_span_names()
+
+        if cls.args.span:
+            available_spans = span_df['name'].unique().tolist()
+            missing_spans = [span for span in cls.args.span if span not in available_spans]
+
+            if missing_spans:
+                logger.warning(f"Span '{', '.join(missing_spans)}' does not exist in data, please check span name.")
+
         return span_df[span_df['name'].isin(span_names)]
 
     @classmethod

@@ -22,8 +22,7 @@ import pandas as pd
 
 from ms_service_profiler.exporters.exporter_statistic import (
     ExporterStatistic,
-    calculate_stats,
-    print_statistics
+    calculate_stats
 )
 
 
@@ -60,7 +59,9 @@ class TestPrintStatistics:
         data_list = [
             {'name': 'test1', 'stats': {'min': 10, 'avg': 20, 'P50': 20, 'P90': 30, 'P99': 35, 'max': 40, 'total': 100}}
         ]
-        print_statistics(data_list, print_header_label='Test')
+        args = type('Args', (object,), {'output_path': '/tmp', 'format': ['csv'], 'span': None})
+        ExporterStatistic.initialize(args)
+        ExporterStatistic.print_statistics(data_list, print_header_label='Test')
         captured = capsys.readouterr()
         assert 'Test' in captured.out
 
@@ -197,45 +198,37 @@ class TestExporterStatistic:
         assert result[0]['stats']['avg'] == 200
 
     def test_calculate_bubble_times(self):
-        """测试计算bubble时间"""
+        """测试计算bubble时间 - 按(pid, rid)分组计算"""
         batch_df = pd.DataFrame({
             'pid': [0, 0, 0],
             'start_time': [1000, 3000, 5000],
             'end_time': [1500, 2500, 5500],
-            'rid': ['cmpl-123', 'cmpl-123', 'cmpl-456']  # 同一个rid有多个span
+            'rid': ['cmpl-123', 'cmpl-123', 'cmpl-456']
+        })
+        result = ExporterStatistic._calculate_bubble_times(batch_df)
+        assert 'all_times' in result
+        assert 'rid_times' in result
+        assert len(result['all_times']) == 1
+        assert result['all_times'][0] == 1500
+        assert result['rid_times']['cmpl-123'] == [1500]
+
+    def test_calculate_bubble_times_with_rid_mapping(self):
+        """测试计算bubble时间并关联到当前请求 - 按(pid, rid)分组计算"""
+        batch_df = pd.DataFrame({
+            'pid': [0, 0, 0, 0, 0],
+            'start_time': [1000, 3000, 6000, 8000, 10000],
+            'end_time': [1500, 2500, 6500, 8500, 10500],
+            'rid': ['cmpl-123', 'cmpl-123', 'cmpl-456', 'cmpl-456', 'cmpl-789']
         })
         result = ExporterStatistic._calculate_bubble_times(batch_df)
         assert 'all_times' in result
         assert 'rid_times' in result
         assert len(result['all_times']) == 2
         assert result['all_times'][0] == 1500
-        assert result['all_times'][1] == 2500
-
-    def test_calculate_bubble_times_with_rid_mapping(self):
-        """测试计算bubble时间并关联到当前请求"""
-        # 创建测试数据，包含多个请求的连续span
-        batch_df = pd.DataFrame({
-            'pid': [0, 0, 0, 0, 0],
-            'start_time': [1000, 3000, 6000, 8000, 10000],  # span开始时间
-            'end_time': [1500, 2500, 6500, 8500, 10500],    # span结束时间
-            'rid': ['cmpl-123', 'cmpl-123', 'cmpl-456', 'cmpl-456', 'cmpl-789']  # 每个rid有多个span
-        })
-        result = ExporterStatistic._calculate_bubble_times(batch_df)
-        assert 'all_times' in result
-        assert 'rid_times' in result
-        # 验证气泡时间计算
-        assert len(result['all_times']) == 4
-        assert result['all_times'][0] == 1500  # 3000 - 1500 (cmpl-123)
-        assert result['all_times'][1] == 3500  # 6000 - 2500 (cmpl-456)
-        assert result['all_times'][2] == 1500  # 8000 - 6500 (cmpl-456)
-        assert result['all_times'][3] == 1500  # 10000 - 8500 (cmpl-789)
-        # 验证气泡时间关联到当前请求
-        assert 'cmpl-123' in result['rid_times']
-        assert 'cmpl-456' in result['rid_times']
-        assert 'cmpl-789' in result['rid_times']
+        assert result['all_times'][1] == 1500
         assert result['rid_times']['cmpl-123'] == [1500]
-        assert result['rid_times']['cmpl-456'] == [3500, 1500]
-        assert result['rid_times']['cmpl-789'] == [1500]
+        assert result['rid_times']['cmpl-456'] == [1500]
+        assert 'cmpl-789' not in result['rid_times']
 
     def test_build_bubble_stats_data(self):
         """测试构建bubble统计数据"""

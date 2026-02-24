@@ -22,6 +22,7 @@ from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.exporters.utils import get_filter_span_df
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.timer import timer
+from ms_service_profiler.constant import US_PER_MS
 
 TOP_N_REQUESTS = 5
 HORIZONTAL_TABLE_WIDTH = 135
@@ -52,13 +53,12 @@ class ExporterStatistic(ExporterBase):
         if span_df.empty:
             logger.warning("There is no span data, statistic will not be generated. please check.")
             return
-
-        top_forward_bubble_stats = cls._calculate_top_forward_bubble_stats(span_df)
-
         try:
             cls._print_span_statistics(span_df)
-            cls._print_request_statistics(span_df, top_forward_bubble_stats)
-            cls._print_bubble_statistics(df, top_forward_bubble_stats)
+            top_forward_bubble_stats = cls._calculate_top_forward_bubble_stats(span_df)
+            if top_forward_bubble_stats:
+                cls._print_request_statistics(span_df, top_forward_bubble_stats)
+                cls._print_bubble_statistics(df, top_forward_bubble_stats)
         except Exception as e:
             logger.warning(f"export statistic failed, error: {e}", exc_info=True)
 
@@ -136,8 +136,7 @@ class ExporterStatistic(ExporterBase):
         if forward_df is None or forward_df.empty:
             return []
 
-        rid_stats = []
-
+        pid_rid_stats = []
         for (pid, rid), group in forward_df.groupby(['pid', 'rid']):
             group_sorted = group.sort_values('start_time').reset_index(drop=True)
             if len(group_sorted) >= 2:
@@ -146,11 +145,39 @@ class ExporterStatistic(ExporterBase):
                 forward_count = len(group_sorted)
                 total_time = last_forward_end - first_forward_end
                 avg_time = total_time / (forward_count - 1)
-                rid_stats.append({'rid': rid, 'pid': pid, 'avg_time': avg_time, 'total_time': total_time,
+                pid_rid_stats.append({'rid': rid, 'pid': pid, 'avg_time': avg_time, 'total_time': total_time,
                                   'count': forward_count - 1})
 
-        rid_stats_sorted = sorted(rid_stats, key=lambda x: x['avg_time'], reverse=True)
-        return rid_stats_sorted[:TOP_N_REQUESTS]
+        rid_merged_stats = {}
+        for stat in pid_rid_stats:
+            rid = stat['rid']
+            if rid not in rid_merged_stats:
+                rid_merged_stats[rid] = {
+                    'rid': rid,
+                    'total_avg_time': 0,
+                    'total_total_time': 0,
+                    'total_count': 0,
+                    'pid_stats': []
+                }
+            rid_merged_stats[rid]['total_avg_time'] += stat['avg_time'] * stat['count']
+            rid_merged_stats[rid]['total_total_time'] += stat['total_time']
+            rid_merged_stats[rid]['total_count'] += stat['count']
+            rid_merged_stats[rid]['pid_stats'].append(stat)
+
+        final_stats = []
+        for rid, data in rid_merged_stats.items():
+            if data['total_count'] > 0:
+                final_avg_time = data['total_avg_time'] / data['total_count']
+                final_stats.append({
+                    'rid': rid,
+                    'avg_time': final_avg_time,
+                    'total_time': data['total_total_time'],
+                    'count': data['total_count'],
+                    'pid_stats': data['pid_stats']
+                })
+
+        final_stats_sorted = sorted(final_stats, key=lambda x: x['avg_time'], reverse=True)
+        return final_stats_sorted[:TOP_N_REQUESTS]
 
     @classmethod
     def _calculate_bubble_times(cls, forward_df: pd.DataFrame) -> Dict[str, Any]:
@@ -161,7 +188,7 @@ class ExporterStatistic(ExporterBase):
         if forward_df is None or forward_df.empty:
             return {'all_times': all_bubble_times, 'rid_times': rid_bubble_times}
 
-        for pid, group in forward_df.groupby('pid'):
+        for (pid, rid), group in forward_df.groupby(['pid', 'rid']):
             group_sorted = group.sort_values('start_time').reset_index(drop=True)
             if len(group_sorted) >= 2:
                 for i in range(1, len(group_sorted)):
@@ -171,7 +198,6 @@ class ExporterStatistic(ExporterBase):
 
                     if bubble_time > 0:
                         all_bubble_times.append(bubble_time)
-                        rid = cur_span['rid']
                         if rid not in rid_bubble_times:
                             rid_bubble_times[rid] = []
                         rid_bubble_times[rid].append(bubble_time)
@@ -191,7 +217,7 @@ class ExporterStatistic(ExporterBase):
             return
 
         print("\n=== Span Statistics ===")
-        print_statistics(span_list, print_header_label='Category of span')
+        cls.print_statistics(span_list, print_header_label='Category of span')
 
     @classmethod
     def _print_request_statistics(cls, span_df: pd.DataFrame, top_forward_bubble_stats: List[Dict[str, Any]]) -> None:
@@ -221,7 +247,7 @@ class ExporterStatistic(ExporterBase):
 
         print("\n=== Request Statistics ===")
         for item in data_list:
-            print_statistics(item['data_list'], print_header_label=f'Span:{item["name"]}')
+            cls.print_statistics(item['data_list'], print_header_label=f'Span:{item["name"]}')
 
     @classmethod
     def _calculate_rid_stats(cls, rid_group_df: pd.DataFrame) -> pd.DataFrame:
@@ -306,7 +332,7 @@ class ExporterStatistic(ExporterBase):
         data_list = cls._build_bubble_stats_data(bubble_data, top_forward_bubble_stats)
 
         print(f"\n=== Bubble Statistics ===")
-        print_statistics(data_list)
+        cls.print_statistics(data_list)
 
     @classmethod
     def _build_bubble_stats_data(cls, bubble_data: Dict[str, Any], top_forward_bubble_stats: List[Dict[str, Any]]) -> \
@@ -328,6 +354,38 @@ class ExporterStatistic(ExporterBase):
         return data_list
 
 
+
+    @classmethod
+    def print_statistics(cls, data_source_list: List[Dict[str, Any]], print_header_label: Optional[str] = '') -> None:
+        """打印统计表格"""
+        border = '-' * HORIZONTAL_TABLE_WIDTH
+        unit = "μs" if cls.args.span is not None else "ms"
+
+        print(border)
+        print(
+            f"| {print_header_label:<{FIRST_COLUMN_WIDTH}} "
+            f"| {'min(' + unit + ')':>10} | {'avg(' + unit + ')':>10} | {'P50(' + unit + ')':>10} "
+            f"| {'P90(' + unit + ')':>10} | {'P99(' + unit + ')':>10} | {'max(' + unit + ')':>10} "
+            f"| {'total(' + unit + ')':>20} |"
+        )
+        print(border)
+
+        # --span模式，数据单位为微秒
+        need_convert = cls.args.span is not None
+        for data_source in data_source_list:
+            name = data_source.get('name', 'Unknown')
+            stats = data_source.get('stats', {})
+            divisor = US_PER_MS if need_convert else 1
+            print(
+
+                f"| {name:<{FIRST_COLUMN_WIDTH}} "
+                f"| {stats.get('min', 0) / divisor:>10.2f} | {stats.get('avg', 0) / divisor:>10.2f} | {stats.get('P50', 0) / divisor:>10.2f} "
+                f"| {stats.get('P90', 0) / divisor:>10.2f} | {stats.get('P99', 0) / divisor:>10.2f} | {stats.get('max', 0) / divisor:>10.2f} "
+                f"| {stats.get('total', 0) / divisor:>20.2f} |"
+            )
+        print(border)
+
+
 def calculate_stats(series: pd.Series) -> Dict[str, float]:
     """计算统计指标"""
     series = series.dropna()
@@ -347,25 +405,3 @@ def calculate_stats(series: pd.Series) -> Dict[str, float]:
     }
 
 
-def print_statistics(data_source_list: List[Dict[str, Any]], print_header_label: Optional[str] = '') -> None:
-    """打印统计表格"""
-    border = '-' * HORIZONTAL_TABLE_WIDTH
-    print(border)
-    print(
-        f"| {print_header_label:<{FIRST_COLUMN_WIDTH}} "
-        f"| {'min(ms)':>10} | {'avg(ms)':>10} | {'P50(ms)':>10} "
-        f"| {'P90(ms)':>10} | {'P99(ms)':>10} | {'max(ms)':>10} "
-        f"| {'total(ms)':>20} |"
-    )
-    print(border)
-
-    for data_source in data_source_list:
-        name = data_source.get('name', 'Unknown')
-        stats = data_source.get('stats', {})
-        print(
-            f"| {name:<{FIRST_COLUMN_WIDTH}} "
-            f"| {stats.get('min', 0):>10.2f} | {stats.get('avg', 0):>10.2f} | {stats.get('P50', 0):>10.2f} "
-            f"| {stats.get('P90', 0):>10.2f} | {stats.get('P99', 0):>10.2f} | {stats.get('max', 0):>10.2f} "
-            f"| {stats.get('total', 0):>20.2f} |"
-        )
-    print(border)
