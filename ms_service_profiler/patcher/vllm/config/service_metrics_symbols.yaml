@@ -1,3 +1,18 @@
+
+# ===== worker =====
+- symbol: vllm.v1.worker.gpu_model_runner:AsyncGPUModelRunnerOutput.get_output
+  handler: ms_service_profiler.patcher.vllm.handlers.v1.metric_handlers:runner_get_output_hooker
+
+- symbol: vllm.v1.core.sched.scheduler:Scheduler.schedule
+  handler: ms_service_profiler.patcher.vllm.handlers.v1.metric_handlers:scheduler_scheduler_hooker
+
+# ===== 时间拆解 =====
+- symbol: vllm.v1.utils:record_function_or_nullcontext
+  handler: ms_service_profiler.patcher.vllm.handlers.v1.metric_handlers:record_function_timer_hook
+
+- symbol: vllm_ascend.utils:ProfileExecuteDuration.capture_async
+  handler: ms_service_profiler.patcher.vllm.handlers.v1.metric_handlers:record_function_timer_hook_vllm_ascend
+
 # ===== Custom Metrics（用户自定义点位）=====
 - symbol: vllm.entrypoints.openai.serving_chat:OpenAIServingChat.create_chat_completion
   min_version: "0.9.1"
