@@ -17,7 +17,7 @@
 import os
 import sys
 from collections import deque, Counter
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import pytest
 
 from ms_service_profiler.patcher.vllm.handlers.v0 import batch_handlers
@@ -125,3 +125,147 @@ def test_swap_out_given_can_swap_out_false_then_no_logs():
     this = MagicMock(block_manager=bm)
     batch_handlers.swap_out(lambda *a, **k: None, this, seq_group)
     assert not any([c[0] == "metric_inc" for c in sum(Profiler.instance_calls, [])])
+
+
+def test_free_finished_seq_groups_calls_original_and_queue_profiler():
+    before = [DummySeqGroup("A"), DummySeqGroup("B")]
+    after = [DummySeqGroup("B")]
+    this = MagicMock()
+    this.running = list(before)
+    called = {}
+
+    def orig_func(*a, **k):
+        called["yes"] = True
+        this.running.clear()
+        this.running.extend(after)
+
+    batch_handlers.free_finished_seq_groups(orig_func, this)
+    assert called.get("yes") is True
+    all_calls = sum(Profiler.instance_calls, [])
+    assert any(c[0] == "metric_inc" for c in all_calls)
+    assert any(c[0] == "event" for c in all_calls)
+
+
+def test_schedule_priority_preemption_calls_original_and_queue_profiler():
+    this = MagicMock()
+    this.waiting = deque([DummySeqGroup("w1")])
+    this.running = deque([DummySeqGroup("r1")])
+    called = {}
+
+    def orig_func(*a, **k):
+        called["yes"] = True
+        return 0
+
+    result = batch_handlers.schedule_priority_preemption(orig_func, this, 100)
+    assert called["yes"] is True
+    assert result == 0
+    assert len(Profiler.instance_calls) >= 0
+
+
+def test_schedule_default_calls_original_and_queue_profiler():
+    this = MagicMock()
+    this.swapped = deque()
+    this.running = deque([DummySeqGroup("r1")])
+    this.waiting = deque()
+    orig_ret = MagicMock()
+
+    def orig_func(*a, **k):
+        return orig_ret
+
+    result = batch_handlers.schedule_default(orig_func, this)
+    assert result is orig_ret
+
+
+def test_schedule_chunked_prefill_calls_original_and_queue_profiler():
+    this = MagicMock()
+    this.running = deque([DummySeqGroup("r1")])
+    this.waiting = deque()
+    this.swapped = deque()
+    orig_ret = MagicMock()
+
+    def orig_func(*a, **k):
+        return orig_ret
+
+    result = batch_handlers.schedule_chunked_prefill(orig_func, this)
+    assert result is orig_ret
+
+
+def test_preempt_by_recompute_given_seqs_not_one_then_logs():
+    seq_group = MagicMock(request_id="preempt1")
+    seq_group.get_seqs = MagicMock(return_value=[MagicMock(), MagicMock()])
+    this = MagicMock()
+    called = {}
+
+    def orig_func(*a, **k):
+        called["yes"] = True
+
+    with patch.dict("sys.modules", {"vllm.sequence": MagicMock(SequenceStatus=MagicMock(RUNNING=1))}):
+        batch_handlers.preempt_by_recompute(orig_func, this, seq_group)
+    assert called["yes"] is True
+    all_calls = sum(Profiler.instance_calls, [])
+    assert any(c[0] == "metric_inc" for c in all_calls)
+
+
+def test_preempt_by_recompute_given_seqs_eq_one_then_no_metric_inc():
+    seq_group = MagicMock(request_id="preempt2")
+    seq_group.get_seqs = MagicMock(return_value=[MagicMock()])
+    this = MagicMock()
+    Profiler.reset()
+
+    def orig_func(*a, **k):
+        pass
+
+    with patch.dict("sys.modules", {"vllm.sequence": MagicMock(SequenceStatus=MagicMock(RUNNING=1))}):
+        batch_handlers.preempt_by_recompute(orig_func, this, seq_group)
+    all_calls = sum(Profiler.instance_calls, [])
+    metric_inc_calls = [c for c in all_calls if isinstance(c, tuple) and c[0] == "metric_inc"]
+    assert not metric_inc_calls
+
+
+def test_queue_profiler_given_only_removals_then_dequeue_only():
+    Profiler.reset()
+    before = [DummySeqGroup("A"), DummySeqGroup("B")]
+    after = [DummySeqGroup("B")]
+    batch_handlers.queue_profiler(before, after, "test")
+    all_calls = sum(Profiler.instance_calls, [])
+    assert any(c[0] == "event" and c[1] == "Dequeue" for c in all_calls)
+
+
+def test_queue_profiler_given_only_adds_then_enqueue_only():
+    Profiler.reset()
+    before = [DummySeqGroup("A")]
+    after = [DummySeqGroup("A"), DummySeqGroup("B")]
+    batch_handlers.queue_profiler(before, after, "test")
+    all_calls = sum(Profiler.instance_calls, [])
+    assert any(c[0] == "event" and c[1] == "Enqueue" for c in all_calls)
+
+
+def test_queue_profiler_given_no_change_then_no_events():
+    Profiler.reset()
+    sg = DummySeqGroup("A")
+    before = [sg]
+    after = [sg]
+    batch_handlers.queue_profiler(before, after, "test")
+    all_calls = sum(Profiler.instance_calls, [])
+    assert not any(c[0] == "event" for c in all_calls)
+
+
+def test_schedule_given_empty_running_then_attr_decode():
+    this = MagicMock()
+    this.running = []
+    seq_list = []
+    sched_out = MagicMock()
+    allow_async = False
+
+    def orig_func(*a, **k):
+        return seq_list, sched_out, allow_async
+
+    fake_sgm = type("SequenceGroupMetadata", (), {})
+    mock_vllm_seq = MagicMock()
+    mock_vllm_seq.SequenceGroupMetadata = fake_sgm
+    with patch.dict("sys.modules", {"vllm.sequence": mock_vllm_seq}):
+        result = batch_handlers.schedule(orig_func, this)
+    assert result[0] is seq_list
+    assert result[1] is sched_out
+    all_calls = sum(Profiler.instance_calls, [])
+    assert any(c == ("attr", "batch_type", "Decode") for c in all_calls)

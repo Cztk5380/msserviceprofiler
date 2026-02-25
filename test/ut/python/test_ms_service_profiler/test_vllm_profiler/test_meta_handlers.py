@@ -135,3 +135,221 @@ class TestRecord:
                 )
                 # 删空后源码会将 kv_connector_stats 置为 None
                 assert scheduler_stats.kv_connector_stats is None or "dp" not in scheduler_stats.kv_connector_stats
+
+
+class TestEnsureDpRankMetaCollected:
+    """测试 ensure_dp_rank_meta_collected 与 init_data_parallel_worker"""
+
+    def test_ensure_dp_rank_meta_collected_skips_when_already_collected(self):
+        """若已采集过则不再写入 Meta"""
+        worker = MagicMock()
+        worker.dp_rank = 1
+        with patch.object(meta_handlers, "_get_state") as mock_state:
+            state = MagicMock()
+            state.has_collected = True
+            mock_state.return_value = state
+            with patch.object(meta_handlers, "Profiler") as MockProfiler:
+                meta_handlers.ensure_dp_rank_meta_collected(worker)
+                MockProfiler.return_value.add_meta_info.assert_not_called()
+
+    def test_ensure_dp_rank_meta_collected_writes_when_not_collected_using_dp_rank(self):
+        """未采集时从 worker.dp_rank 取并写入 Meta"""
+        worker = MagicMock()
+        worker.dp_rank = 2
+        with patch.object(meta_handlers, "_get_state") as mock_state:
+            state = MagicMock()
+            state.has_collected = False
+            mock_state.return_value = state
+            with patch.object(meta_handlers, "get_hook_metrics") as mock_metrics:
+                with patch.object(meta_handlers, "Profiler") as MockProfiler:
+                    meta_handlers.ensure_dp_rank_meta_collected(worker)
+                    MockProfiler.return_value.add_meta_info.assert_called_once_with("dpRankId", 2)
+                    assert state.has_collected is True
+                    assert state.dp_rank_id == 2
+                    mock_metrics.return_value.meta_state = state
+
+    def test_ensure_dp_rank_meta_collected_falls_back_to_parallel_config(self):
+        """无 dp_rank 时从 parallel_config.data_parallel_rank 取"""
+        worker = MagicMock()
+        worker.dp_rank = None
+        worker.parallel_config = MagicMock()
+        worker.parallel_config.data_parallel_rank = 3
+        with patch.object(meta_handlers, "_get_state") as mock_state:
+            state = MagicMock()
+            state.has_collected = False
+            mock_state.return_value = state
+            with patch.object(meta_handlers, "get_hook_metrics"):
+                with patch.object(meta_handlers, "Profiler") as MockProfiler:
+                    meta_handlers.ensure_dp_rank_meta_collected(worker)
+                    MockProfiler.return_value.add_meta_info.assert_called_once_with("dpRankId", 3)
+                    assert state.dp_rank_id == 3
+
+    def test_ensure_dp_rank_meta_collected_uses_minus_one_when_no_source(self):
+        """无 dp_rank 且无 parallel_config 时使用 -1"""
+        worker = MagicMock()
+        worker.dp_rank = None
+        worker.parallel_config = None
+        with patch.object(meta_handlers, "_get_state") as mock_state:
+            state = MagicMock()
+            state.has_collected = False
+            mock_state.return_value = state
+            with patch.object(meta_handlers, "get_hook_metrics"):
+                with patch.object(meta_handlers, "Profiler") as MockProfiler:
+                    meta_handlers.ensure_dp_rank_meta_collected(worker)
+                    MockProfiler.return_value.add_meta_info.assert_called_once_with("dpRankId", -1)
+                    assert state.dp_rank_id == -1
+
+    def test_init_data_parallel_worker_calls_ensure_and_original(self):
+        """init_data_parallel_worker 先调用 ensure_dp_rank_meta_collected 再调用原函数"""
+        original_func = MagicMock(return_value="result")
+        this = MagicMock()
+        this.dp_rank = 0
+        with patch.object(meta_handlers, "ensure_dp_rank_meta_collected") as mock_ensure:
+            result = meta_handlers.init_data_parallel_worker(original_func, this, "a", k=1)
+            mock_ensure.assert_called_once_with(this)
+            original_func.assert_called_once_with(this, "a", k=1)
+            assert result == "result"
+
+
+class TestInitDataParallel:
+    """测试 init_data_parallel hook（Engine 侧）"""
+
+    def test_init_data_parallel_already_collected_does_not_add_meta(self):
+        """若已采集过 dpRankId 则不调用 add_meta_info"""
+        original_func = MagicMock(return_value="ok")
+        this = MagicMock()
+        this.dp_rank = 0
+        vllm_config = MagicMock()
+        with patch.object(meta_handlers, "_get_state") as mock_state:
+            state = MagicMock()
+            state.has_collected = True
+            mock_state.return_value = state
+            with patch.object(meta_handlers, "get_hook_metrics"):
+                with patch.object(meta_handlers, "Profiler") as MockProfiler:
+                    result = meta_handlers.init_data_parallel(original_func, this, vllm_config)
+                    MockProfiler.return_value.add_meta_info.assert_not_called()
+        assert result == "ok"
+
+    def test_init_data_parallel_first_time_adds_meta_and_sets_state(self):
+        """首次采集时调用 add_meta_info 并更新 state"""
+        original_func = MagicMock(return_value="ok")
+        this = MagicMock()
+        this.dp_rank = 2
+        vllm_config = MagicMock()
+        with patch.object(meta_handlers, "_get_state") as mock_state:
+            state = MagicMock()
+            state.has_collected = False
+            mock_state.return_value = state
+            with patch.object(meta_handlers, "get_hook_metrics") as mock_metrics:
+                with patch.object(meta_handlers, "Profiler") as MockProfiler:
+                    result = meta_handlers.init_data_parallel(original_func, this, vllm_config)
+                    MockProfiler.return_value.add_meta_info.assert_called_once_with("dpRankId", 2)
+                    assert state.has_collected is True
+                    assert state.dp_rank_id == 2
+                    mock_metrics.return_value.meta_state = state
+        assert result == "ok"
+
+
+class TestRecordIterationMetrics:
+    """测试 _record_iteration_metrics 分支覆盖"""
+
+    def test_record_iteration_metrics_none_stats_no_call(self):
+        with patch.object(meta_handlers, "MetricManager") as MockMM:
+            meta_handlers._record_iteration_metrics(None, {"dp": "0"})
+            MockMM.record_metric.assert_not_called()
+
+    def test_record_iteration_metrics_total_tokens(self):
+        iteration_stats = MagicMock()
+        iteration_stats.num_prompt_tokens = 10
+        iteration_stats.num_generation_tokens = 5
+        iteration_stats.inter_token_latencies_iter = None
+        iteration_stats.time_to_first_tokens_iter = None
+        iteration_stats.finished_requests = None
+        with patch.object(meta_handlers, "MetricManager") as MockMM:
+            meta_handlers._record_iteration_metrics(iteration_stats, {"dp": "0"})
+            names = [c[0][0] for c in MockMM.record_metric.call_args_list]
+            assert meta_handlers.MetricConstants.TOTAL_TOKENS in names
+            assert meta_handlers.MetricConstants.INPUT_METRICS in names
+            assert meta_handlers.MetricConstants.OUTPUT_METRICS in names
+
+    def test_record_iteration_metrics_second_token_latency(self):
+        iteration_stats = MagicMock()
+        iteration_stats.num_prompt_tokens = None
+        iteration_stats.num_generation_tokens = None
+        iteration_stats.inter_token_latencies_iter = [0.01, 0.02]
+        iteration_stats.time_to_first_tokens_iter = None
+        iteration_stats.finished_requests = None
+        with patch.object(meta_handlers, "MetricManager") as MockMM:
+            meta_handlers._record_iteration_metrics(iteration_stats, {"dp": "0"})
+            names = [c[0][0] for c in MockMM.record_metric.call_args_list]
+            assert meta_handlers.MetricConstants.SECOND_TOKEN_LATENCY in names
+
+    def test_record_iteration_metrics_ttft_and_tpot(self):
+        iteration_stats = MagicMock()
+        iteration_stats.num_prompt_tokens = None
+        iteration_stats.num_generation_tokens = None
+        iteration_stats.inter_token_latencies_iter = None
+        iteration_stats.time_to_first_tokens_iter = [0.1, 0.2]
+        finished_req = MagicMock()
+        finished_req.mean_time_per_output_token = 0.05
+        iteration_stats.finished_requests = [finished_req]
+        with patch.object(meta_handlers, "MetricManager") as MockMM:
+            meta_handlers._record_iteration_metrics(iteration_stats, {"dp": "0"})
+            names = [c[0][0] for c in MockMM.record_metric.call_args_list]
+            assert meta_handlers.MetricConstants.FINE_GRAINED_TTFT in names
+            assert meta_handlers.MetricConstants.FINE_GRAINED_TPOT in names
+
+
+class TestRecordEdgeCases:
+    """测试 record 边界分支"""
+
+    def test_record_scheduler_stats_none_kv_stats_empty(self):
+        """scheduler_stats 为 None 时 labels 使用 dp=-1"""
+        original_func = MagicMock(return_value="ok")
+        with patch.object(meta_handlers, "_record_scheduler_metrics") as mock_sched:
+            with patch.object(meta_handlers, "_record_iteration_metrics") as mock_iter:
+                result = meta_handlers.record(
+                    original_func, MagicMock(),
+                    None, None, None, 0,
+                )
+                assert result == "ok"
+                mock_sched.assert_called_once_with(None, {"dp": -1, "engine": 0})
+
+    def test_record_kv_connector_stats_none_then_labels_dp_minus_one(self):
+        """scheduler_stats 非 None 但 kv_connector_stats 为 None"""
+        original_func = MagicMock(return_value="ok")
+        scheduler_stats = MagicMock()
+        scheduler_stats.kv_connector_stats = None
+        with patch.object(meta_handlers, "_record_scheduler_metrics") as mock_sched:
+            with patch.object(meta_handlers, "_record_iteration_metrics"):
+                result = meta_handlers.record(
+                    original_func, MagicMock(),
+                    scheduler_stats, None, None, 1,
+                )
+                mock_sched.assert_called_once_with(scheduler_stats, {"dp": -1, "engine": 1})
+
+    def test_record_kv_connector_stats_only_dp_becomes_none_after_pop(self):
+        """kv_connector_stats 仅含 dp 时 pop 后变为空字典，源码会置为 None"""
+        original_func = MagicMock(return_value="ok")
+        scheduler_stats = MagicMock()
+        scheduler_stats.kv_connector_stats = {"dp": 0}
+        with patch.object(meta_handlers, "_record_scheduler_metrics"):
+            with patch.object(meta_handlers, "_record_iteration_metrics"):
+                meta_handlers.record(
+                    original_func, MagicMock(),
+                    scheduler_stats, None, None, 0,
+                )
+                assert scheduler_stats.kv_connector_stats is None
+
+    def test_record_kv_connector_stats_has_other_key_after_pop_dp_remains_dict(self):
+        """kv_connector_stats 含其他 key 时 pop dp 后仍为 dict"""
+        original_func = MagicMock(return_value="ok")
+        scheduler_stats = MagicMock()
+        scheduler_stats.kv_connector_stats = {"dp": 0, "other": "x"}
+        with patch.object(meta_handlers, "_record_scheduler_metrics"):
+            with patch.object(meta_handlers, "_record_iteration_metrics"):
+                meta_handlers.record(
+                    original_func, MagicMock(),
+                    scheduler_stats, None, None, 0,
+                )
+                assert scheduler_stats.kv_connector_stats == {"other": "x"}

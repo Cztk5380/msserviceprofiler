@@ -44,7 +44,7 @@ def init_data_parallel(original_func, this, vllm_config, *args, **kwargs):
 
     # 若此进程还没采集过dpRankId,则添加meta数据
     if not state.has_collected:
-        logger.info(f"Meta hook get dp_rank: {this.dp_rank}")
+        logger.debug("Meta hook get dp_rank: %s", this.dp_rank)
         Profiler(Level.INFO).add_meta_info("dpRankId", this.dp_rank)
         state.has_collected = True  # 更新状态类中的属性
 
@@ -53,6 +53,35 @@ def init_data_parallel(original_func, this, vllm_config, *args, **kwargs):
         metrics_client.meta_state = state
 
     return ret
+
+
+def ensure_dp_rank_meta_collected(worker_instance) -> None:
+    """
+    若当前进程尚未采集过 dpRankId，则从 Worker/ModelRunner 实例上取 dp_rank 并写入 Meta。
+    用于多 DP 多 TP 场景下，让仅运行 Worker 的进程也能上报 dp_rank，使 batch.csv 的 dp_rank 列可被正确填充。
+    与 init_data_parallel（Engine 侧）共用 MetaCollectionState，每个进程只写入一次。
+    """
+    state = _get_state()
+    if state.has_collected:
+        return
+    dp_rank = getattr(worker_instance, "dp_rank", None)
+    if dp_rank is None:
+        pc = getattr(worker_instance, "parallel_config", None)
+        dp_rank = getattr(pc, "data_parallel_rank", -1) if pc is not None else -1
+    if dp_rank is None:
+        dp_rank = -1
+    logger.debug("Meta hook (worker) get dp_rank: %s", dp_rank)
+    Profiler(Level.INFO).add_meta_info("dpRankId", dp_rank)
+    state.has_collected = True
+    state.dp_rank_id = dp_rank
+    metrics_client = get_hook_metrics()
+    metrics_client.meta_state = state
+
+
+def init_data_parallel_worker(original_func, this, *args, **kwargs):
+    """Worker 进程侧采集 dp_rank：首次进入 execute_model 时从 ModelRunner 取 data_parallel_rank 并写入 Meta。"""
+    ensure_dp_rank_meta_collected(this)
+    return original_func(this, *args, **kwargs)
 
 
 @patcher(("vllm.v1.core.sched.scheduler", "Scheduler.make_stats"), min_version="0.9.1")
@@ -156,9 +185,9 @@ def record(original_func, this, scheduler_stats, iteration_stats, mm_cache_stats
     # 删除临时数据
     if scheduler_stats is not None and scheduler_stats.kv_connector_stats is not None:
         scheduler_stats.kv_connector_stats.pop("dp", None)
-    # 如果字典变空且原本是None，恢复为None
-    if scheduler_stats.kv_connector_stats == {}:
-        scheduler_stats.kv_connector_stats = None
+        # 如果字典变空则恢复为 None
+        if scheduler_stats.kv_connector_stats == {}:
+            scheduler_stats.kv_connector_stats = None
 
     ret = original_func(this, scheduler_stats, iteration_stats, mm_cache_stats, engine_idx, *args, **kwargs)
 

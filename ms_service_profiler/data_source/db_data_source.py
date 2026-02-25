@@ -27,6 +27,24 @@ from ms_service_profiler.utils.error import LoadDataError
 from ms_service_profiler.utils.log import logger
 
 
+def _extract_spec_decode_accepted_from_msg(msg_val):
+    """从 msg 字符串（JSON）中解析 spec_decode_accepted_by_req，用于兼容 native 将 span 属性放在 msg 中的情况。"""
+    if msg_val is None or (isinstance(msg_val, float) and pd.isna(msg_val)):
+        return None
+    if not isinstance(msg_val, str) or not msg_val.strip().startswith('{'):
+        return None
+    try:
+        obj = json.loads(msg_val)
+        if not isinstance(obj, dict):
+            return None
+        val = obj.get('spec_decode_accepted_by_req')
+        if val is None:
+            return None
+        return json.dumps(val) if isinstance(val, dict) else val
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
 @Task.register("data_source:db")
 class DBDataSource(BaseDataSource):
 
@@ -159,6 +177,21 @@ class DBDataSource(BaseDataSource):
                 logger.warning(f"Warning: Failed to parse JSON: {message_str}. Error: {e}")
                 return {}
 
+        # 将 message 中需保留为单列的 dict 转为 JSON 字符串，避免 json_normalize 将其展平为多列
+        ATTR_KEYS_AS_JSON = ("spec_decode_accepted_by_req",)
+
+        def preserve_dict_attr_as_json(msg):
+            if not isinstance(msg, dict):
+                return msg
+            out = dict(msg)
+            for key in ATTR_KEYS_AS_JSON:
+                if key in out and isinstance(out[key], dict):
+                    try:
+                        out[key] = json.dumps(out[key])
+                    except (TypeError, ValueError):
+                        pass
+            return out
+
         if 'message' not in df.columns:
             all_data_df = df
         else:
@@ -175,9 +208,18 @@ class DBDataSource(BaseDataSource):
                     )
                     .apply(safe_json_loads)
                 )
+            processed_message = processed_message.apply(preserve_dict_attr_as_json)
             msg_df = pd.json_normalize(processed_message)
             all_data_df = df.join(msg_df)
             all_data_df['message'] = processed_message
+
+            # 若 message 展平后没有 spec_decode_accepted_by_req 列，则从 msg 字段的 JSON 中解析该属性并回填，以兼容 native 将 span 属性放在 msg 中的情况。
+            if 'msg' in all_data_df.columns:
+                extracted = all_data_df['msg'].apply(_extract_spec_decode_accepted_from_msg)
+                if extracted.notna().any():
+                    if 'spec_decode_accepted_by_req' not in all_data_df.columns:
+                        all_data_df['spec_decode_accepted_by_req'] = None
+                    all_data_df.loc[extracted.notna(), 'spec_decode_accepted_by_req'] = extracted.loc[extracted.notna()]
 
         # 在最前面添加hostname列，并将其重命名为hostuid
         all_data_df.insert(0, 'hostuid', df.get('hostname', 'None'))
