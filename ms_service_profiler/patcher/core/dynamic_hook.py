@@ -19,6 +19,8 @@ import inspect
 from dataclasses import dataclass
 from typing import Tuple, List, Optional, Callable, Dict, Any
 from .logger import logger
+from contextlib import contextmanager
+from typing import ContextManager
 
 # Expose Profiler/Level at module scope so tests can patch them
 try:
@@ -62,7 +64,7 @@ class DynamicHooker(VLLMHookerBase):
     """
     
     def __init__(self, hook_list: List[Tuple[str, str]], hook_func: Callable,
-                 min_version: Optional[str], max_version: Optional[str], caller_filter: Optional[str]):
+                 min_version: Optional[str], max_version: Optional[str], caller_filter: Optional[str], need_locals: bool = False):
         """初始化 DynamicHooker。
         
         Args:
@@ -77,7 +79,33 @@ class DynamicHooker(VLLMHookerBase):
         self.applied_hook_func_name = getattr(hook_func, "__name__", str(hook_func))
         self.hook_list = list(hook_list)
         self.caller_filter = caller_filter
-        self.hook_func = hook_func
+        self.need_locals = need_locals
+        
+        # hook_func 改为支持多个，一个hook点位支持多个hook函数
+        hook_funcs = hook_func if isinstance(hook_func, list) else [hook_func]
+        def create_context_manager(ori_func):
+            if inspect.isgeneratorfunction(ori_func):
+                return contextmanager(ori_func)
+            elif inspect.isasyncgenfunction(ori_func):
+                logger.error("The handler does not support async generator functions.")
+                return None
+            elif isinstance(ori_func, type) and issubclass(ori_func, ContextManager):
+                return ori_func
+            else:
+                return None
+            
+        wrap_hook_funcs = []   # 原始的hook 函数，内部会自动调用ori_func
+        context_hook_funcs = []   # 新的hook 函数，内部使用yield 控制，或者本身就是ContextManager，由框架自动调用原函数~
+        
+        for x in hook_funcs:
+            context_func = create_context_manager(x)
+            if context_func:
+                context_hook_funcs.append(context_func)
+            else:
+                wrap_hook_funcs.append(x)
+        
+        self.wrap_hook_func = wrap_hook_funcs[0] if wrap_hook_funcs else VLLMHookerBase.default_hook_func
+        self.context_hook_funcs = context_hook_funcs
 
     def init(self):
         """初始化 hook 点并应用 hooks。
@@ -87,14 +115,15 @@ class DynamicHooker(VLLMHookerBase):
         points = [import_object_from_string(import_path, func_path) for import_path, func_path in self.hook_list]
         self.do_hook(
             hook_points=points,
-            profiler_func_maker=lambda ori_func: lambda *args, **kwargs: self.hook_func(ori_func, *args, **kwargs),
+            profiler_func_maker=lambda ori_func: lambda *args, **kwargs: self.wrap_hook_func(ori_func, *args, **kwargs),
             pname=self.caller_filter,
         )
 
 
 def register_dynamic_hook(hook_list: List[Tuple[str, str]], hook_func: Callable,
                           min_version: Optional[str] = None, max_version: Optional[str] = None,
-                          caller_filter: Optional[str] = None):
+                          caller_filter: Optional[str] = None,
+                          need_locals: bool = False):
     """注册一个基于配置文件的动态 Hooker。
     
     Args:
@@ -113,6 +142,7 @@ def register_dynamic_hook(hook_list: List[Tuple[str, str]], hook_func: Callable,
         min_version=min_version,
         max_version=max_version,
         caller_filter=caller_filter,
+        need_locals=need_locals,
     )
     hooker.register()
     return hooker

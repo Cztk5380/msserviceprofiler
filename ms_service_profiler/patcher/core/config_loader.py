@@ -30,6 +30,7 @@ from .utils import load_yaml_config
 from .logger import logger
 from .dynamic_hook import make_default_time_hook, DynamicHooker
 from .metric_hook import wrap_handler_with_metrics
+import json
 
 
 def _parse_symbol_path(symbol_path: str) -> Tuple[str, str, Optional[str]]:
@@ -162,6 +163,7 @@ class ConfigLoader:
                 min_version=item.get('min_version'),
                 max_version=item.get('max_version'),
                 caller_filter=item.get('caller_filter'),
+                need_locals="locals" in json.dumps(item) or "handler" in json.dumps(item),
             )
             
             if symbol_path not in result:
@@ -200,6 +202,7 @@ class ConfigLoader:
                 min_version=item.get('min_version'),
                 max_version=item.get('max_version'),
                 caller_filter=item.get('caller_filter'),
+                need_locals="locals" in json.dumps(item) or "handler" in json.dumps(item),
             )
             if symbol_path not in result:
                 result[symbol_path] = []

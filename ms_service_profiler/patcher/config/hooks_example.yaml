@@ -2,7 +2,7 @@
 #
 # 一、文件命名与加载
 # - 建议命名：hooks_v{MAJOR_MINOR_PATCH}_{V0|V1}.yaml（如 hooks_v0_9_1_V1.yaml）
-# - 也可用环境变量 VLLM_PROFILER_CONFIG 指定完整路径，优先级更高
+# - 也可用环境变量 PROFILING_SYMBOLS_PATH 指定完整路径，优先级更高
 #
 # 二、字段与策略
 # - symbol: Python 导入路径 + 属性链（如 "module.path:Class.method" 或 "module.path:function"）
@@ -20,7 +20,7 @@
 # 三、示例
 # 示例 A：自定义 handler（单一 symbol）
 - symbol: vllm.v1.core.kv_cache_manager:KVCacheManager.free
-  handler: ms_service_profiler.patcher.config.custom_handler_example.kvcache_manager_free_example_handler
+  handler: ms_service_profiler.patcher.config.custom_handler_example:kvcache_manager_free_example_handler
   domain: Example
   name: example_custom
 

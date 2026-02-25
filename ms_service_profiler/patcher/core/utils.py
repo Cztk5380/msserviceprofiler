@@ -18,7 +18,13 @@ import os
 import threading
 from typing import Optional, Dict, Any, List
 from .logger import logger
+from dataclasses import dataclass
+from dataclasses import field
 
+@dataclass
+class FunctionContext:
+    local_values: dict = field(default_factory=dict)
+    return_value: Any = None
 
 def check_profiling_enabled() -> bool:
     """检查是否启用了性能分析。

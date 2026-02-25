@@ -106,7 +106,7 @@ class TestDynamicHooker:
         assert hooker.applied_hook_func_name == mock_hook_func.__name__
         assert hooker.hook_list == sample_hook_list
         assert hooker.caller_filter == "test_filter"
-        assert hooker.hook_func == mock_hook_func
+        assert hooker.wrap_hook_func == mock_hook_func
 
     @staticmethod
     def test_dynamic_hooker_initialization_minimal(sample_hook_list, mock_hook_func):
@@ -172,7 +172,8 @@ class TestRegisterDynamicHook:
                 hook_func=mock_hook_func,
                 min_version="1.0",
                 max_version="2.0",
-                caller_filter="test_filter"
+                caller_filter="test_filter",
+                need_locals=False,
             )
             
             # 验证 DynamicHooker 初始化
@@ -181,7 +182,8 @@ class TestRegisterDynamicHook:
                 hook_func=mock_hook_func,
                 min_version="1.0",
                 max_version="2.0",
-                caller_filter="test_filter"
+                caller_filter="test_filter",
+                need_locals=False,
             )
             
             # 验证注册调用
@@ -205,7 +207,8 @@ class TestRegisterDynamicHook:
                 hook_func=mock_hook_func,
                 min_version=None,
                 max_version=None,
-                caller_filter=None
+                caller_filter=None,
+                need_locals=False,
             )
 
 

@@ -18,12 +18,15 @@ import traceback
 import importlib
 import inspect
 import functools
+import threading
 from contextlib import closing
 from abc import ABC, abstractmethod
 from typing import Union, Tuple, List, Optional, Callable, Any
 from packaging.version import Version
 from .logger import logger
 from .registry import add_to_hook_registry
+from .inject import inject_function
+from .utils import FunctionContext
 
 MAX_HOOK_FAILURES = 5
 
@@ -390,7 +393,7 @@ class VLLMHookerBase(ABC):
         caller_filter (Optional[str]): 调用者过滤条件
         hook_func (Optional[Callable]): hook 处理函数
     """
-    
+    default_hook_func = lambda ori_func, *args, **kwargs: ori_func(*args, **kwargs)
     vllm_version = (None, None)  # (min_version, max_version)
     applied_hook_func_name = ""
     
@@ -401,7 +404,9 @@ class VLLMHookerBase(ABC):
         self.hook_list: List[Tuple[str, str]] = []
         self.caller_filter: Optional[str] = None
         # 对应的 hook 处理函数，用于配置化时复用
-        self.hook_func: Optional[Callable] = None
+        self.wrap_hook_func: Optional[Callable] = None
+        self.context_hook_funcs: List[Callable] = []
+        self.need_locals = False
         
     @abstractmethod
     def init(self):
@@ -410,7 +415,73 @@ class VLLMHookerBase(ABC):
         该方法由子类实现，用于初始化具体的 hook 点。
         """
         pass
+    @staticmethod
+    def hook_func_not_need_locals(trackable_ori_func, ori_func, context_hook_funcs, wrap_hook_func):
+        thread_local = threading.local()
+        thread_local.context = FunctionContext()
+        failed_hook_func = [0 for x in context_hook_funcs]
+        
+        def get_context():
+            if not hasattr(thread_local, "context"):
+                thread_local.context = FunctionContext()
+            return thread_local.context
+        
+        def before_ori_func():
+            try:
+                ctx = get_context()
+                thread_local.hook_context_funcs = []
+                for func in context_hook_funcs:
+                    thread_local.hook_context_funcs.append(func(ctx))
 
+                running_index = None
+                for running_index, func in enumerate(thread_local.hook_context_funcs):
+                    if failed_hook_func[running_index] >= MAX_HOOK_FAILURES:
+                        continue
+                    func.__enter__()
+            except Exception as e:
+                logger.error(f"function enter failed: {e}")
+                if running_index is not None:
+                    failed_hook_func[running_index] += 1
+        def after_ori_func(ret):
+            try:
+                ctx = get_context()
+                ctx.return_value = ret
+                running_index = None
+                for reversed_running_index, func in enumerate(reversed(thread_local.hook_context_funcs)):
+                    running_index = len(thread_local.hook_context_funcs) - 1 - reversed_running_index
+                    if failed_hook_func[running_index] >= MAX_HOOK_FAILURES:
+                        continue
+                    func.__exit__(None, None, None)
+            except Exception as e:
+                logger.error(f"function exit failed: {e}")
+                if running_index is not None:
+                    failed_hook_func[running_index] += 1
+        def wrapper(*args, **kwargs):
+            before_ori_func()
+            ret = ori_func(*args, **kwargs)
+            after_ori_func(ret)
+            return ret
+        async def wrapper_async(*args, **kwargs):
+            before_ori_func()
+            ret = await ori_func(*args, **kwargs)
+            after_ori_func(ret)
+            return ret
+        def wrapper_with_wrap_hook(*args, **kwargs):
+            before_ori_func()
+            ret = wrap_hook_func(trackable_ori_func, *args, **kwargs)
+            after_ori_func(ret)
+            return ret
+        async def wrapper_with_wrap_hook_async(*args, **kwargs):
+            before_ori_func()
+            ret = await wrap_hook_func(trackable_ori_func, *args, **kwargs)
+            after_ori_func(ret)
+            return ret
+        
+        if wrap_hook_func == VLLMHookerBase.default_hook_func:
+            return wrapper_async if inspect.iscoroutinefunction(ori_func) else wrapper
+        else:
+            return wrapper_with_wrap_hook_async if inspect.iscoroutinefunction(ori_func) else wrapper_with_wrap_hook
+        
     def replace_func(
             self, 
             trackable_ori_func: TrackableOriginalFunc, 
@@ -468,10 +539,24 @@ class VLLMHookerBase(ABC):
         for ori_func in hook_points:
             if ori_func is None:
                 continue
+            
+            # 如果需要获取 locals 的值，直接修改原函数
+            if self.context_hook_funcs and self.need_locals:
+                ori_func = inject_function(ori_func, self.context_hook_funcs)
+            
             # 创建可追踪的原函数包装器，用于避免重复执行
             trackable_ori_func = TrackableOriginalFunc(ori_func)
-            # 将可追踪的原函数传递给 profiler_func_maker
-            profiler_func = profiler_func_maker(trackable_ori_func)
+            
+            if self.context_hook_funcs and not self.need_locals:
+                # 如果不需要locals，并且有 context_hook_funcs, 创建一个函数，将 context_hook_funcs 和 wrap_hook_func 结合起来，尽量减小封装层
+                profiler_func = self.hook_func_not_need_locals(trackable_ori_func, ori_func, self.context_hook_funcs, self.wrap_hook_func)
+            elif self.wrap_hook_func == VLLMHookerBase.default_hook_func:
+                # 如果都没有原始的 wrap_hook_func, 就直接使用原函数，拜托一层一层的封装
+                profiler_func = ori_func
+            else:
+                # 如果有原始的 wrap_hook_func, 就使用修改前的方式
+                profiler_func = profiler_func_maker(trackable_ori_func)
+            
             cur_hook = HookHelper(ori_func, None)
 
             def _recover_current(cur_hook_ref=cur_hook):
