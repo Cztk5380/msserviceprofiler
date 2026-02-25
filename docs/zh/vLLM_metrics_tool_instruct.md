@@ -3,9 +3,9 @@
 
 ## 简介
 
-vLLM 服务化 Prometheus 数据监测工具用于增强 vLLM-ascend 推理服务框架的原生监控能力。在 vLLM-ascend 原生 metrics 基础上，本工具新增以下监测能力：
+vLLM 服务化 Prometheus 数据监测工具用于增强 vLLM-ascend 推理服务框架的原生监测能力。在 vLLM-ascend 原生 metrics 基础上，本工具新增以下监测能力：
 
-- **KVCache 监控**：各 DP 域的 block 总数、空闲数、已分配数
+- **KVCache 监测**：各 DP 域的 block 总数、空闲数、已分配数
 - **Token 与吞吐**：各 DP 域的 请求输入/输出 token 数量、总 token 数
 - **自定义指标**：支持对任意函数执行时长添加 timer 类型指标
 
@@ -207,7 +207,7 @@ vllm_profiling_server:create_chat_completion:duration_count{dp="-1"} 9.0
 | free_kvcache_blocks | Gauge | 当前 DP 域 KVCache 空闲 block 数 |
 | allocated_kvcache_blocks | Gauge | 当前 DP 域 KVCache 已分配 block 数 |
 
->![](public_sys-resources/icon-tip.gif) **提示：** KVCache 使用率可近似计算为 `(1 - free_kvcache_blocks / total_kvcache_blocks) * 100%`，用于监控显存占用与负载均衡。
+>![](public_sys-resources/icon-tip.gif) **提示：** KVCache 使用率可近似计算为 `(1 - free_kvcache_blocks / total_kvcache_blocks) * 100%`，用于监测显存占用与负载均衡。
 
 ## 相关文档
 

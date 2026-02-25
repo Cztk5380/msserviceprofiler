@@ -552,7 +552,7 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 图中红色虚线表示模型在该时刻发生了专家负载均衡表的变化，对应的横坐标表示系统的本地时间。因为不同设备上的本地时间存在误差，模型运行时各个卡的任务流也会存在不同步的现象，展示的时间是取均值的结果，建议用户在采集前确保所有设备的本地时间保持同步。
 
 ### **span\_info目录**
-Span 是分布式追踪（Tracing）中的最小性能监控单元，对应推理服务中一个基础流程。 span_info 目录存储不同类型 Span 的性能数据，默认包含前向推理数据 forward.csv、批处理调度数据 BatchSchedule.csv。 支持自定义配置多种 span 类型，导出数据包含执行耗时、机器、进程标识等字段。以BatchSchedule.csv为例。
+Span 是分布式追踪（Tracing）中的最小性能监测单元，对应推理服务中一个基础流程。 span_info 目录存储不同类型 Span 的性能数据，默认包含前向推理数据 forward.csv、批处理调度数据 BatchSchedule.csv。 支持自定义配置多种 span 类型，导出数据包含执行耗时、机器、进程标识等字段。以BatchSchedule.csv为例。
 
 **表 13**  BatchSchedule.csv
 |字段| 说明                                                |

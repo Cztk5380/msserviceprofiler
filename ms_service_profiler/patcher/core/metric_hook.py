@@ -65,11 +65,11 @@ class MetricConfig:
 
 class HookMetrics:
     """
-    Hook函数的Prometheus监控器
+    Hook函数的Prometheus监测器
     """
     
     def __init__(self):
-        """初始化Hook监控器"""
+        """初始化Hook监测器"""
         self.metrics = {}  # 存储指标对象，key为指标名称
         self.label_definitions = {}  # 存储标签定义，key为 metric_name
         

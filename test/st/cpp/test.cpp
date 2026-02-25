@@ -202,7 +202,7 @@ void TestSpeed(uint64_t allTime, uint64_t preTokenTime, uint64_t preTokenData, s
 {
     /**
      * allTime 所有时间，单位毫秒
-     * preTokenTime 一次执行耗时，单位毫秒，用来监控每次执行耗时是否正常
+     * preTokenTime 一次执行耗时，单位毫秒，用来监测每次执行耗时是否正常
      * preTokenData 一次发送的数据数目
      * sendFunc 发送数据的函数，自己定义
      * 比如：发送10s， 每一毫秒发送 140 条数据，每条数据 为 50bit data
