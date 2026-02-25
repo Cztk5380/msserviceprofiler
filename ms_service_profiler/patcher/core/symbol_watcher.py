@@ -59,6 +59,16 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
         with self._lock:
             return list(self._applied_hookers)
 
+    def get_current_profiling_handlers(self) -> Dict[str, List]:
+        """返回当前已加载的 profiling handler 字典的副本，供 update_metrics_handlers 使用。"""
+        with self._lock:
+            return dict(self._symbol_handlers_profiling)
+
+    def get_current_metrics_handlers(self) -> Dict[str, List]:
+        """返回当前已加载的 metrics handler 字典的副本，供 enable(metrics_handlers=None) 时保留已有 metric。"""
+        with self._lock:
+            return dict(self._symbol_handlers_metrics)
+
     def _get_hookers_for_symbol(self, symbol_path: str) -> List:
         """获取 symbol 对应的 hooker 列表。"""
         val = self._symbol_to_hooker.get(symbol_path)

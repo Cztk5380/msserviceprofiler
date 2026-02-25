@@ -142,6 +142,7 @@ void Config::ParseConfig(const Json& configJson)
     ParseTorchProfStepNum(configJson);
     ParseProfilerStepNum(configJson);
     ParseEnable(configJson);  // enable 值最后变化，可以【稍微】保护一下上面的值在开启后都已经赋值成功了。
+    ParseMetricEnable(configJson);
 }
 
 bool Config::ParseTorchProfStack(const Json& config, bool justParse)
@@ -366,6 +367,26 @@ bool Config::ParseEnable(const Json& config, bool justParse)
     PROF_LOGI("profile enable_: %s", enable_ ? "true" : "false");  // LCOV_EXCL_LINE
     
     return enable;
+}
+
+bool Config::ParseMetricEnable(const Json& config, bool justParse)
+{
+    bool metric_enable = false;  // Default to false when key absent
+    if (config.contains("metric_enable")) {
+        if (config["metric_enable"].is_number_integer()) {
+            metric_enable = config["metric_enable"] == 1;
+        } else if (config["metric_enable"].is_boolean()) {
+            metric_enable = config["metric_enable"];
+        } else {
+            PROF_LOGW("metric_enable value is not an integer or boolean, will set false.");  // LCOV_EXCL_LINE
+        }
+    }
+    if (justParse) {
+        return metric_enable;
+    }
+    metric_enable_ = metric_enable;
+    PROF_LOGI("profile metric_enable_: %s", metric_enable_ ? "true" : "false");  // LCOV_EXCL_LINE
+    return metric_enable;
 }
 
 void Config::ParseTimeLimit(const Json& config)

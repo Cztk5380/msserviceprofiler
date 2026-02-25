@@ -415,8 +415,9 @@ class TestLoadConfig:
                 profiling, metrics = result
                 assert isinstance(profiling, dict)
                 assert len(profiling) > 0
+                # _load_config 仅加载 profiling，metrics 由 C++ 回调单独控制，不调用 load_metrics
                 mock_loader_instance.load_profiling.assert_called()
-                mock_loader_instance.load_metrics.assert_called()
+                assert metrics is None
 
     @staticmethod
     def test_load_config_from_env_var_not_exists(service_profiler, tmp_path):

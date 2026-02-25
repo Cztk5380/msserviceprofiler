@@ -68,6 +68,8 @@ class TestHookControllerEnable:
         hook_controller._enabled = True
         handlers = {"mod:func": [MagicMock()]}
         mock_watcher.apply_all_hooks.return_value = [MagicMock()]
+        # 已启用且传入 metrics_handlers=None 时，源码会用 get_current_metrics_handlers() 填充
+        mock_watcher.get_current_metrics_handlers.return_value = None
 
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
             n = hook_controller.enable(profiling_handlers=handlers, metrics_handlers=None)

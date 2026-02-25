@@ -330,6 +330,16 @@ MS_SERVICE_PROFILER_API void RegisterProfilerStopCallback(void (*callback)())
     msServiceProfiler::ServiceProfilerManager::GetInstance().RegisterStopCallback(callback);
 }
 
+MS_SERVICE_PROFILER_API void RegisterProfilerStartMetricCallback(void (*callback)())
+{
+    msServiceProfiler::ServiceProfilerManager::GetInstance().RegisterStartMetricCallback(callback);
+}
+
+MS_SERVICE_PROFILER_API void RegisterProfilerStopMetricCallback(void (*callback)())
+{
+    msServiceProfiler::ServiceProfilerManager::GetInstance().RegisterStopMetricCallback(callback);
+}
+
 bool IsEnable(uint32_t level)
 {
     // 对外接口，用户线程，用户线程只读取，工作线程会变更，为了速度，不做保护，判断错了也无所谓
@@ -583,6 +593,8 @@ void ServiceProfilerManager::DynamicControl()
 
     auto configJson = config_->ReadConfigFile();
     bool enableFromConfig = config_->ParseEnable(configJson, true);
+    bool prevMetricEnable = config_->GetMetricEnable();
+
     if (enableFromConfig && !config_->GetEnable()) {
         PROF_LOGI("Profiler Enabled...");  // LCOV_EXCL_LINE
         config_->ParseConfig(configJson);
@@ -592,6 +604,27 @@ void ServiceProfilerManager::DynamicControl()
         PROF_LOGI("Profiler Disabled...");  // LCOV_EXCL_LINE
         StopProfiler();
         PROF_LOGI("Profiler Disabled Successfully!");  // LCOV_EXCL_LINE
+    }
+
+    // metric_enable 与 enable 独立：仅 metric_enable 变化时也触发回调，支持“只开 metric”场景
+    bool metricEnableFromConfig = config_->ParseMetricEnable(configJson, true);
+    if (prevMetricEnable != metricEnableFromConfig) {
+        config_->ParseMetricEnable(configJson, false);
+        if (metricEnableFromConfig && startMetricCallback_ != nullptr) {
+            PROF_LOGI("Metric collection enabled, calling start metric callback");  // LCOV_EXCL_LINE
+            try {
+                startMetricCallback_();
+            } catch (...) {
+                PROF_LOGE("Python start metric callback threw an exception");  // LCOV_EXCL_LINE
+            }
+        } else if (!metricEnableFromConfig && stopMetricCallback_ != nullptr) {
+            PROF_LOGI("Metric collection disabled, calling stop metric callback");  // LCOV_EXCL_LINE
+            try {
+                stopMetricCallback_();
+            } catch (...) {
+                PROF_LOGE("Python stop metric callback threw an exception");  // LCOV_EXCL_LINE
+            }
+        }
     }
 }
 
@@ -993,6 +1026,18 @@ void ServiceProfilerManager::RegisterStopCallback(void (*callback)())
     // 注册 mstx 停止回调
     stopCallback_ = callback;
     PROF_LOGD("Profiler stop callback registered");  // LCOV_EXCL_LINE
+}
+
+void ServiceProfilerManager::RegisterStartMetricCallback(void (*callback)())
+{
+    startMetricCallback_ = callback;
+    PROF_LOGD("Profiler start metric callback registered");  // LCOV_EXCL_LINE
+}
+
+void ServiceProfilerManager::RegisterStopMetricCallback(void (*callback)())
+{
+    stopMetricCallback_ = callback;
+    PROF_LOGD("Profiler stop metric callback registered");  // LCOV_EXCL_LINE
 }
 
 void ServiceProfilerManager::StopProfiler()

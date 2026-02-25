@@ -58,7 +58,7 @@ cp ./build/py3-none-linux_aarch64/cpp/libms_service_profiler.so /usr/local/Ascen
 按以下顺序操作即可完成指标监测的完整流程：
 
 1. **设置环境变量并启动服务**（含 Prometheus 多进程模式）
-2. **开启采集**（修改配置文件 enable 字段）
+2. **开启采集**（修改配置文件中的 `metric_enable` 字段，可与 `enable` 独立配置）
 3. **发送推理请求**
 4. **查看指标**（访问 metrics 端口或接入 Grafana）
 
@@ -85,16 +85,20 @@ export PROMETHEUS_MULTIPROC_DIR=/path/to/your/prometheus/dir
 vllm serve Qwen/Qwen2.5-0.5B-Instruct &
 ```
 
-- `ms_service_profiler_config.json` 为采集配置文件，若不存在会自动生成默认配置，详见[数据采集](./msserviceprofiler_serving_tuning_instruct.md#数据采集)。
+- `ms_service_profiler_config.json` 为采集配置文件（与性能剖析共用），其中 **`metric_enable`** 控制本工具的 Prometheus 指标采集，**`enable`** 控制性能剖析；若文件不存在会自动生成默认配置，详见[数据采集](./msserviceprofiler_serving_tuning_instruct.md#数据采集)。
 - `service_metrics_symbols.yaml` 为埋点配置，自定义点位请参考[点位配置使用指南](#点位配置使用指南)。
 
 ### 步骤 2：开启采集
 
-将 `ms_service_profiler_config.json` 中的 `enable` 字段由 `0` 修改为 `1`：
+本工具的 **Metric 指标采集** 由配置文件 `ms_service_profiler_config.json` 中的 **`metric_enable`** 控制，与性能采集开关 **`enable`** 相互独立，可单独或同时开启。
+
+**开启指标采集**：将 `ms_service_profiler_config.json` 中的 `metric_enable` 设为 `1`（缺省或无该字段时视为 `0` 关闭）。若 JSON 中尚无 `metric_enable` 字段，请手动添加后再修改为 `1`：
 
 ```bash
-sed -i 's/"enable":\s*0/"enable": 1/' ./ms_service_profiler_config.json
+sed -i 's/"metric_enable":\s*0/"metric_enable": 1/' ./ms_service_profiler_config.json
 ```
+
+修改后无需重启服务即可生效；开启或关闭时日志会打印相应提示（如 "Metric collection enabled" / "Metric collection disabled"）。
 
 ### 步骤 3：发送请求
 

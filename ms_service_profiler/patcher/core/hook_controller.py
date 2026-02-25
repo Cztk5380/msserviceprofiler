@@ -29,7 +29,7 @@ Hook 控制器：统一管理 hook 的启用/禁用状态和流程。
 
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 from .logger import logger
 from .symbol_watcher import SymbolWatchFinder
@@ -81,6 +81,8 @@ class HookController:
             当前已启用的 hook 数量
         """
         try:
+            if metrics_handlers is None and self._enabled:
+                metrics_handlers = self._watcher.get_current_metrics_handlers() or None
             if self._enabled:
                 logger.info("Reloading hook configuration...")
             else:
@@ -112,7 +114,44 @@ class HookController:
         except Exception as e:
             logger.exception("Failed to enable hooks: %s", str(e))
             return 0
-    
+
+    def update_metrics_handlers(self, metrics_handlers: Optional[Dict]) -> int:
+        """仅更新 watcher 的 metric 部分（单独传 metric 的 handler 字典）。
+        当已 enable 时：从 watcher 取当前 profiling，再 load_handlers(profiling=当前, metrics=传入)，然后重新 prepare/apply。
+        当未 enable 时（仅开 metric）：按“仅 metric”模式 load/apply，并置 _enabled=True，保证有打屏与生效。
+        当 metrics_handlers 为 None 时，会移除 metric hooks（watcher 内对 removed symbols 会调用 recover）。
+        """
+        try:
+            is_metric_only = not self._enabled
+            if self._enabled:
+                current_profiling = self._watcher.get_current_profiling_handlers()
+                self._watcher.load_handlers(
+                    profiling_handlers=current_profiling,
+                    metrics_handlers=metrics_handlers or {},
+                    hooks_enabled=self._enabled,
+                )
+            else:
+                if not metrics_handlers:
+                    logger.debug("Hooks not enabled and no metrics to apply, skipping update_metrics_handlers")
+                    return 0
+                logger.info("Enabling metric hooks (metric-only mode)...")
+                self._watcher.load_handlers(
+                    profiling_handlers={},
+                    metrics_handlers=metrics_handlers,
+                    hooks_enabled=False,
+                )
+            self._watcher.check_and_apply_existing_modules()
+            all_hookers = self._watcher.apply_all_hooks()
+            self._enabled = True
+            if is_metric_only:
+                logger.info("Successfully enabled %d hooks (metric-only)", len(all_hookers))
+            else:
+                logger.info("Updated metrics handlers, %d hooks applied", len(all_hookers))
+            return len(all_hookers)
+        except Exception as e:
+            logger.exception("Failed to update metrics handlers: %s", str(e))
+            return 0
+
     def disable(self) -> int:
         """禁用所有 hooks（将函数恢复为原函数）。
         

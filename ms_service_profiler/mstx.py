@@ -87,16 +87,21 @@ class LibServiceProfiler:
         # C++ 回调注册函数
         self._func_register_start_callback = None
         self._func_register_stop_callback = None
-
+        self._func_register_start_metric_callback = None
+        self._func_register_stop_metric_callback = None
+        
         # Python 侧回调列表（支持多个 Profiler 注册）
         self._start_callbacks: List[Callable[[], None]] = []
         self._stop_callbacks: List[Callable[[], None]] = []
-
+        self._start_metric_callbacks: List[Callable[[], None]] = []
+        self._stop_metric_callbacks: List[Callable[[], None]] = []
+        
         # C 回调引用（防止被垃圾回收）
         self._c_callback_refs = []
 
         # 是否已注册到 C++
         self._cpp_callbacks_registered = False
+        self._cpp_metric_callbacks_registered = False
 
     def init(self) -> None:
         """初始化 C++ 库。"""
@@ -210,6 +215,14 @@ class LibServiceProfiler:
             self._func_register_stop_callback = self.lib.RegisterProfilerStopCallback
             self._func_register_stop_callback.argtypes = (ctypes.CFUNCTYPE(None),)
 
+        if hasattr(self.lib, "RegisterProfilerStartMetricCallback"):
+            self._func_register_start_metric_callback = self.lib.RegisterProfilerStartMetricCallback
+            self._func_register_start_metric_callback.argtypes = (ctypes.CFUNCTYPE(None),)
+
+        if hasattr(self.lib, "RegisterProfilerStopMetricCallback"):
+            self._func_register_stop_metric_callback = self.lib.RegisterProfilerStopMetricCallback
+            self._func_register_stop_metric_callback.argtypes = (ctypes.CFUNCTYPE(None),)
+
     # -------------------------------------------------------------------------
     # C++ 回调处理（内部方法）
     # -------------------------------------------------------------------------
@@ -229,6 +242,22 @@ class LibServiceProfiler:
                 callback()
             except Exception:
                 pass  # 单个回调失败不影响其他
+
+    def _on_cpp_start_metric(self) -> None:
+        """C++ startMetricCallback 时调用。"""
+        for callback in self._start_metric_callbacks:
+            try:
+                callback()
+            except Exception:
+                pass
+
+    def _on_cpp_stop_metric(self) -> None:
+        """C++ stopMetricCallback 时调用。"""
+        for callback in self._stop_metric_callbacks:
+            try:
+                callback()
+            except Exception:
+                pass
 
     def _ensure_cpp_callbacks_registered(self) -> bool:
         """确保 mstx 的回调已注册到 C++（只注册一次）。
@@ -260,6 +289,24 @@ class LibServiceProfiler:
         self._func_register_stop_callback(c_stop)
 
         self._cpp_callbacks_registered = True
+        return True
+
+    def _ensure_cpp_metric_callbacks_registered(self) -> bool:
+        """确保 metric 回调已注册到 C++（只注册一次）。"""
+        if self._cpp_metric_callbacks_registered:
+            return True
+        self.init()
+        if self.lib is None:
+            return False
+        if self._func_register_start_metric_callback is None or self._func_register_stop_metric_callback is None:
+            return False
+        c_start_metric = ctypes.CFUNCTYPE(None)(self._on_cpp_start_metric)
+        c_stop_metric = ctypes.CFUNCTYPE(None)(self._on_cpp_stop_metric)
+        self._c_callback_refs.append(c_start_metric)
+        self._c_callback_refs.append(c_stop_metric)
+        self._func_register_start_metric_callback(c_start_metric)
+        self._func_register_stop_metric_callback(c_stop_metric)
+        self._cpp_metric_callbacks_registered = True
         return True
 
     # -------------------------------------------------------------------------
@@ -313,6 +360,32 @@ class LibServiceProfiler:
                 ProfilerCallbackResult.LEGACY,
                 "C++ library does not support dynamic callbacks"
             )
+
+    def register_profiler_start_metric_callback(self, callback: Callable[[], None]) -> ProfilerCallbackResult:
+        """注册 metric 采集启动回调（metric_enable 0→1 时由 C++ DynamicControl 调用）。"""
+        self._start_metric_callbacks.append(callback)
+        if self._ensure_cpp_metric_callbacks_registered():
+            return ProfilerCallbackResult(
+                ProfilerCallbackResult.DYNAMIC,
+                "Metric start callback registered successfully"
+            )
+        return ProfilerCallbackResult(
+            ProfilerCallbackResult.LEGACY,
+            "C++ library does not support metric callbacks"
+        )
+
+    def register_profiler_stop_metric_callback(self, callback: Callable[[], None]) -> ProfilerCallbackResult:
+        """注册 metric 采集停止回调（metric_enable 1→0 时由 C++ DynamicControl 调用）。"""
+        self._stop_metric_callbacks.append(callback)
+        if self._ensure_cpp_metric_callbacks_registered():
+            return ProfilerCallbackResult(
+                ProfilerCallbackResult.DYNAMIC,
+                "Metric stop callback registered successfully"
+            )
+        return ProfilerCallbackResult(
+            ProfilerCallbackResult.LEGACY,
+            "C++ library does not support metric callbacks"
+        )
 
     def supports_dynamic_callbacks(self) -> bool:
         """检查是否支持动态回调。

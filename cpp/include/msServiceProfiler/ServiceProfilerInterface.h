@@ -202,6 +202,16 @@ MS_SERVICE_PROFILER_API void RegisterProfilerStartCallback(void (*callback)());
  * @note mstx 注册后，会在 StopProfiler 时调用此回调，mstx 再分发给各 Profiler（vLLM、SGLang 等）
  */
 MS_SERVICE_PROFILER_API void RegisterProfilerStopCallback(void (*callback)());
+
+/**
+ * @brief 注册 metric 采集启动回调（metric_enable 0→1 时由 DynamicControl 调用）
+ */
+MS_SERVICE_PROFILER_API void RegisterProfilerStartMetricCallback(void (*callback)());
+
+/**
+ * @brief 注册 metric 采集停止回调（metric_enable 1→0 时由 DynamicControl 调用）
+ */
+MS_SERVICE_PROFILER_API void RegisterProfilerStopMetricCallback(void (*callback)());
 }
 
 #ifndef ENABLE_SERVICE_PROF_UNIT_TEST

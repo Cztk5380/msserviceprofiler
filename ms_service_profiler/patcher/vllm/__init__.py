@@ -41,6 +41,10 @@ def register_service_profiler():
     # 3. 注册回调到 mstx
     start_result = mstx_profiler.register_profiler_start_callback(on_start)
     stop_result = mstx_profiler.register_profiler_stop_callback(on_stop)
+
+    on_start_metric, on_stop_metric = _vllm_profiler.get_metric_callbacks()
+    mstx_profiler.register_profiler_start_metric_callback(on_start_metric)
+    mstx_profiler.register_profiler_stop_metric_callback(on_stop_metric)
     
     # 4. 根据结果处理
     if start_result.is_dynamic and stop_result.is_dynamic:

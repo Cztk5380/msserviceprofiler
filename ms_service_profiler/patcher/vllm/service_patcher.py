@@ -202,10 +202,17 @@ class VLLMProfiler:
         logger.warning("No config file found")
         return None
 
+    def _load_metric_handlers_only(self) -> Optional[Dict[str, List]]:
+        """仅加载 metric 的 yaml 配置，返回 metric 的 handler 字典（不加载 profiling）。
+        仅由 C++ 的 startMetricCallback 触发时调用，不再在此处读 JSON；开关由 C++ 侧控制。
+        """
+        return self._load_metrics_config()
+
     def _load_config(self) -> Tuple[Optional[Dict[str, List]], Optional[Dict[str, List]]]:
-        """加载 profiling 与 metrics 配置，分别返回两路 Handler 字典，供 watcher 分别处理。"""
+        """加载 profiling 配置并返回；metrics 由 C++ 通过 on_start_metric 回调单独控制，此处不读 JSON。
+        """
         profiling = self._load_profiling_config()
-        metrics = self._load_metrics_config()
+        metrics = None
         return (profiling, metrics)
     
     # -------------------------------------------------------------------------
@@ -308,6 +315,33 @@ class VLLMProfiler:
                 logger.warning("Profiler not initialized, callback ignored")
             return noop, noop
         return self._controller.get_callbacks(self._load_config)
+
+    def get_metric_callbacks(self) -> Tuple[Callable[[], None], Callable[[], None]]:
+        """返回可注册到 C++ 的 metric 回调函数对（on_start_metric, on_stop_metric）。
+        startMetricCallback 时仅加载 metric yaml 并 update_metrics_handlers；
+        stopMetricCallback 时 update_metrics_handlers(None) 停止 metric 采集。
+        """
+        if self._controller is None:
+            def noop():
+                logger.warning("Profiler not initialized, metric callback ignored")
+            return noop, noop
+
+        def on_start_metric() -> None:
+            try:
+                logger.info("Received metric start signal from C++")
+                metrics_handlers = self._load_metric_handlers_only()
+                self._controller.update_metrics_handlers(metrics_handlers)
+            except Exception as e:
+                logger.exception("Failed to handle metric start: %s", e)
+
+        def on_stop_metric() -> None:
+            try:
+                logger.info("Received metric stop signal from C++")
+                self._controller.update_metrics_handlers(None)
+            except Exception as e:
+                logger.exception("Failed to handle metric stop: %s", e)
+
+        return on_start_metric, on_stop_metric
 
     @property
     def vllm_version(self) -> str:

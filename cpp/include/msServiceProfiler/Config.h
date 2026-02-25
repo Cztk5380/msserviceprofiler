@@ -30,6 +30,7 @@ public:
     Config();
     void ReadAndSaveConfig();
     MS_SERVICE_INLINE_FLAG bool GetEnable() const { return enable_; }
+    MS_SERVICE_INLINE_FLAG bool GetMetricEnable() const { return metric_enable_; }
     MS_SERVICE_INLINE_FLAG bool GetTorchProfStack() const { return torch_prof_stack_; }
     MS_SERVICE_INLINE_FLAG bool GetTorchProfModules() const { return torch_prof_modules_; }
     MS_SERVICE_INLINE_FLAG int GetTorchProfStepNum() const { return torch_prof_step_num_; }
@@ -73,6 +74,7 @@ public:
     MS_SERVICE_INLINE_FLAG bool GetTorchProfilerEnable() const { return torchProfilerEnable_; }
 
     bool ParseEnable(const Json& config, bool justParse = false);
+    bool ParseMetricEnable(const Json& config, bool justParse = false);
     bool ParseTorchProfStack(const Json& config, bool justParse = false);
     bool ParseTorchProfModules(const Json& config, bool justParse = false);
     void ParseTorchProfStepNum(const Json& config);
@@ -105,6 +107,7 @@ private:
 
     bool isServiceProfConfigPathSet = false;
     bool enable_ = false;
+    bool metric_enable_ = false;  // default off when key absent
     bool torch_prof_stack_ = false;
     bool torch_prof_modules_ = false;
     int torch_prof_step_num_ = 0;  // 默认值为0

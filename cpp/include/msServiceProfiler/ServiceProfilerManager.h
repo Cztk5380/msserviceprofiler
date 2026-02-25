@@ -119,6 +119,10 @@ namespace msServiceProfiler {
 
         void RegisterStopCallback(void (*callback)());
 
+        void RegisterStartMetricCallback(void (*callback)());
+
+        void RegisterStopMetricCallback(void (*callback)());
+
     private:
         ServiceProfilerManager();
 
@@ -181,6 +185,8 @@ namespace msServiceProfiler {
         // Python 回调函数指针
         void (*startCallback_)(void) = nullptr;
         void (*stopCallback_)(void) = nullptr;
+        void (*startMetricCallback_)(void) = nullptr;
+        void (*stopMetricCallback_)(void) = nullptr;
     };
 }  // namespace msServiceProfiler
 
