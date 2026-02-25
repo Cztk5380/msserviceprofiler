@@ -37,10 +37,26 @@ class HookState(SharedHookState):
         self.execute_model_first_run = True
         self.begin_forward_first_run = True
         self.request_id_list = []
+        # MTP/投机推理：仅 Decode 且启用 MTP 时由 mtp_handlers 写入，execute_model 消费
+        self.mtp_num_accepted_by_req = {}  # Dict[str, int]
+        self.mtp_num_draft_by_req = {}     # Dict[str, int]
+
+    def clear_mtp(self):
+        """消费后清空 MTP 状态，避免污染下一步"""
+        self.mtp_num_accepted_by_req = {}
+        self.mtp_num_draft_by_req = {}
 
 
 # 线程本地存储获取器（每文件独立线程状态）
 _get_state = create_state_getter(HookState)
+
+
+def _normalize_req_id(req):
+    if isinstance(req, dict):
+        rid = req.get("rid")
+        if rid is not None:
+            return rid
+    return req
 
 
 @patcher(
@@ -90,8 +106,10 @@ def execute_model(original_func, this, scheduler_output, *args, **kwargs):
         state.forward_profiler = Profiler(Level.INFO).domain("Execute").res(request_id_list)
 
     ret = original_func(this, scheduler_output, *args, **kwargs)
+
     if request_id_list:
         prof.span_end()
+
     return ret
 
 
@@ -111,12 +129,40 @@ def execute_model_runner(original_func, this, scheduler_output, *args, **kwargs)
         prof.res(request_id_list)
         prof.span_start("modelRunnerExec")
         state.forward_profiler = Profiler(Level.INFO).domain("Execute").res(request_id_list)
-        state.request_id_list = request_id_list
+        state.request_id_list = [_normalize_req_id(r) for r in request_id_list]
 
     ret = original_func(this, scheduler_output, *args, **kwargs)
     if request_id_list:
+        accepted_by_req = getattr(state, "mtp_num_accepted_by_req", None)
+        if not accepted_by_req:
+            accepted_by_req = _accepted_by_req_from_runner_output(ret)
+        if accepted_by_req:
+            prof.attr("spec_decode_accepted_by_req", accepted_by_req)
+        if hasattr(state, "clear_mtp"):
+            state.clear_mtp()
         prof.span_end()
     return ret
+
+
+def _accepted_by_req_from_runner_output(ret):
+    """从 execute_model_runner 返回值中解析每请求的 accepted 数，与 Draft 指标同源；sampled_token_ids 为已解析的有效 token 列表，一般长度为 accepted + 1（含最后一个 recovered/bonus token），故按 max(len(tokens)-1, 0) 计算。"""
+    if ret is None:
+        return None
+    if hasattr(ret, "sampled_token_ids") and hasattr(ret, "req_ids"):
+        ids = getattr(ret, "req_ids", None)
+        tokens = getattr(ret, "sampled_token_ids", None)
+        if ids and tokens:
+            return {
+                str(rid): max(len(tokens[i]) - 1, 0) if i < len(tokens) else 0
+                for i, rid in enumerate(ids)
+            }
+    if hasattr(ret, "get_output"):
+        try:
+            out = ret.get_output()
+            return _accepted_by_req_from_runner_output(out)
+        except Exception:
+            pass
+    return None
 
 
 @patcher(("vllm.forward_context", "set_forward_context"), min_version="0.9.1")

@@ -23,9 +23,215 @@ from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
+from unittest.mock import patch, MagicMock
+
+from ms_service_profiler.exporters.exporter_batch import (
+    ExporterBatchData,
+    filter_batch_df,
+    _process_spec_decoding_rows,
+    KV_CACHE_COLUMNS,
+)
 
 
-from ms_service_profiler.exporters.exporter_batch import ExporterBatchData
+class TestKVCacheColumns:
+    """测试 KV_CACHE_COLUMNS 常量"""
+
+    def test_kv_cache_columns_defined(self):
+        assert "total_blocks" in KV_CACHE_COLUMNS
+        assert "used_blocks" in KV_CACHE_COLUMNS
+        assert "kvcache_usage_rate" in KV_CACHE_COLUMNS
+        assert len(KV_CACHE_COLUMNS) == 6
+
+
+class TestFilterBatchDf:
+    """测试 filter_batch_df"""
+
+    def test_none_or_empty_batch_df_returns_as_is(self):
+        assert filter_batch_df("BatchSchedule", None) is None
+        assert filter_batch_df("BatchSchedule", pd.DataFrame()).empty
+
+    def test_filter_preserves_name_subset_and_drops_time_cols(self):
+        batch_df = pd.DataFrame({
+            "name": ["BatchSchedule", "modelExec"],
+            "res_list": ["[]", "[]"],
+            "start_datetime": ["2025-01-01 00:00:00", "2025-01-01 00:00:01"],
+            "end_datetime": ["2025-01-01 00:00:01", "2025-01-01 00:00:02"],
+            "during_time": [1000.0, 1000.0],
+            "batch_type": ["Decode", "Decode"],
+            "prof_id": [0, 0],
+            "batch_size": [1, 1],
+            "start_time": [100.0, 200.0],
+            "end_time": [200.0, 300.0],
+            "pid": [1, 1],
+        })
+        with patch("ms_service_profiler.exporters.exporter_batch.add_precomputed_kv_cache_fields", side_effect=lambda df, _: df):
+            with patch("ms_service_profiler.exporters.exporter_batch.add_columns_for_batch_size_and_tokens", side_effect=lambda df: df):
+                with patch("ms_service_profiler.exporters.exporter_batch.add_dp_rank_column", side_effect=lambda df, _: df):
+                    out = filter_batch_df("BatchSchedule", batch_df, None)
+        assert out is not None and not out.empty
+        assert "start_time(ms)" not in out.columns and "end_time(ms)" not in out.columns
+        assert "start_datetime" in out.columns and "end_datetime" in out.columns
+
+    def test_spec_decode_accepted_by_req_dropped_in_output(self):
+        batch_df = pd.DataFrame({
+            "name": ["specDecoding"],
+            "res_list": [[{"rid": "r1", "num_spec_output_tokens": 2}]],
+            "start_datetime": ["2025-01-01 00:00:00"],
+            "end_datetime": ["2025-01-01 00:00:01"],
+            "during_time": [1000.0],
+            "prof_id": [0],
+            "pid": [1],
+            "start_time": [100.0],
+            "end_time": [200.0],
+            "spec_decode_accepted_by_req": ['{"r1": 1}'],
+        })
+        with patch("ms_service_profiler.exporters.exporter_batch.add_precomputed_kv_cache_fields", side_effect=lambda df, _: df):
+            with patch("ms_service_profiler.exporters.exporter_batch.add_columns_for_batch_size_and_tokens", side_effect=lambda df: df):
+                with patch("ms_service_profiler.exporters.exporter_batch.add_dp_rank_column", side_effect=lambda df, _: df):
+                    out = filter_batch_df("BatchSchedule", batch_df, None)
+        assert "spec_decode_accepted_by_req" not in out.columns
+
+    def test_kvcache_columns_fillna_zero(self):
+        batch_df = pd.DataFrame({
+            "name": ["BatchSchedule"],
+            "res_list": ["[]"],
+            "start_datetime": ["2025-01-01 00:00:00"],
+            "end_datetime": ["2025-01-01 00:00:01"],
+            "during_time": [1000.0],
+            "prof_id": [0],
+            "batch_size": [1],
+            "start_time": [100.0],
+            "end_time": [200.0],
+            "pid": [1],
+            "used_blocks": [10],
+        })
+        with patch("ms_service_profiler.exporters.exporter_batch.add_precomputed_kv_cache_fields", side_effect=lambda df, _: df):
+            with patch("ms_service_profiler.exporters.exporter_batch.add_columns_for_batch_size_and_tokens", side_effect=lambda df: df):
+                with patch("ms_service_profiler.exporters.exporter_batch.add_dp_rank_column", side_effect=lambda df, _: df):
+                    out = filter_batch_df("BatchSchedule", batch_df, None)
+        assert "used_blocks" in out.columns
+        assert out["used_blocks"].iloc[0] == 10
+
+
+class TestProcessSpecDecodingRows:
+    """测试 _process_spec_decoding_rows"""
+
+    def test_none_or_empty_df_returns_as_is(self):
+        assert _process_spec_decoding_rows(None) is None
+        assert _process_spec_decoding_rows(pd.DataFrame()).empty
+
+    def test_no_spec_decoding_row_returns_unchanged(self):
+        df = pd.DataFrame({"name": ["modelExec"], "res_list": ["[]"]})
+        out = _process_spec_decoding_rows(df)
+        assert out is df
+
+    def test_spec_decoding_rows_kvcache_filled_zero(self):
+        df = pd.DataFrame({
+            "name": ["specDecoding"],
+            "res_list": [[{"rid": "r1", "num_spec_output_tokens": 2, "num_spec_accepted_tokens": 0}]],
+            "total_blocks": [100],
+            "used_blocks": [50],
+        })
+        out = _process_spec_decoding_rows(df)
+        assert out.loc[out["name"] == "specDecoding", "total_blocks"].iloc[0] == 0
+        assert out.loc[out["name"] == "specDecoding", "used_blocks"].iloc[0] == 0
+
+    def test_spec_accepted_ratio_computed_from_res_list(self):
+        df = pd.DataFrame({
+            "name": ["specDecoding"],
+            "res_list": [[
+                {"rid": "r1", "num_spec_output_tokens": 4, "num_spec_accepted_tokens": 2},
+                {"rid": "r2", "num_spec_output_tokens": 4, "num_spec_accepted_tokens": 2},
+            ]],
+        })
+        out = _process_spec_decoding_rows(df)
+        assert out["spec_accepted_ratio"].iloc[0] == 0.5
+
+    def test_spec_decode_accepted_by_req_fills_res_list(self):
+        df = pd.DataFrame({
+            "name": ["specDecoding", "modelRunnerExec"],
+            "res_list": [[{"rid": "r1"}, {"rid": "r2"}], None],
+            "pid": [1, 1],
+            "start_time": [100.0, 250.0],
+            "end_time": [200.0, 300.0],
+            "spec_decode_accepted_by_req": [None, None],
+        })
+        df.at[1, "spec_decode_accepted_by_req"] = {"r1": 2, "r2": 1}
+        out = _process_spec_decoding_rows(df)
+        spec_row = out[out["name"] == "specDecoding"].iloc[0]
+        res_list = spec_row["res_list"]
+        r1 = next(r for r in res_list if r.get("rid") == "r1")
+        r2 = next(r for r in res_list if r.get("rid") == "r2")
+        assert r1["num_spec_accepted_tokens"] == 2
+        assert r2["num_spec_accepted_tokens"] == 1
+
+
+class TestBuildSpecDecodeDf:
+    """测试 _build_spec_decode_df"""
+
+    def test_none_or_empty_batch_df_returns_none(self):
+        assert ExporterBatchData._build_spec_decode_df(None) is None
+        assert ExporterBatchData._build_spec_decode_df(pd.DataFrame()) is None
+
+    def test_no_spec_decoding_row_returns_none(self):
+        batch_df = pd.DataFrame({"name": ["modelExec"], "res_list": ["[]"]})
+        assert ExporterBatchData._build_spec_decode_df(batch_df) is None
+
+    def test_res_list_string_json_parsed_and_expanded(self):
+        batch_df = pd.DataFrame({
+            "name": ["specDecoding"],
+            "res_list": ['[{"rid": "r1", "iter": 0, "num_spec_output_tokens": 3, "num_spec_accepted_tokens": 2}]'],
+            "start_datetime": ["2025-01-01 00:00:00"],
+            "end_datetime": ["2025-01-01 00:00:01"],
+            "during_time": [1000.0],
+            "prof_id": [0],
+        })
+        out = ExporterBatchData._build_spec_decode_df(batch_df)
+        assert out is not None and len(out) == 1
+        assert out["rid"].iloc[0] == "r1"
+        assert out["spec_tokens"].iloc[0] == 3
+        assert out["accepted_tokens"].iloc[0] == 2
+        assert out["spec_accepted_ratio"].iloc[0] == round(2 / 3, 4)
+        assert "start_datetime" in out.columns and "end_datetime" in out.columns
+        assert "start_time(ms)" not in out.columns and "end_time(ms)" not in out.columns
+
+    def test_res_list_list_expanded(self):
+        batch_df = pd.DataFrame({
+            "name": ["specDecoding"],
+            "res_list": [[{"rid": "r1", "iter": 0, "num_spec_output_tokens": 2, "num_spec_accepted_tokens": 1}]],
+            "start_datetime": ["2025-01-01 00:00:00"],
+            "end_datetime": ["2025-01-01 00:00:01"],
+            "during_time": [500.0],
+            "prof_id": [1],
+        })
+        out = ExporterBatchData._build_spec_decode_df(batch_df)
+        assert len(out) == 1
+        assert out["spec_tokens"].iloc[0] == 2 and out["accepted_tokens"].iloc[0] == 1
+
+    def test_spec_tokens_zero_ratio_none(self):
+        batch_df = pd.DataFrame({
+            "name": ["specDecoding"],
+            "res_list": [[{"rid": "r1", "num_spec_output_tokens": 0, "num_spec_accepted_tokens": 0}]],
+            "start_datetime": [None],
+            "end_datetime": [None],
+            "during_time": [0],
+            "prof_id": [0],
+        })
+        out = ExporterBatchData._build_spec_decode_df(batch_df)
+        assert out["spec_accepted_ratio"].iloc[0] is None
+
+    def test_empty_res_list_returns_empty_dataframe_with_columns(self):
+        batch_df = pd.DataFrame({
+            "name": ["specDecoding"],
+            "res_list": [[]],
+            "start_datetime": [None],
+            "end_datetime": [None],
+            "during_time": [0],
+            "prof_id": [0],
+        })
+        out = ExporterBatchData._build_spec_decode_df(batch_df)
+        assert out is not None and len(out) == 0
+        assert "rid" in out.columns and "spec_tokens" in out.columns
 
 
 class TestExporterBatchData:

@@ -131,7 +131,8 @@ def write_result_to_db(table_config: TableConfig, df, view_configs=None):
 
 
 def write_result_to_csv(df, output, csv_name, rename_col):
-    df = df.rename(columns=rename_col)
+    if rename_col is not None:
+        df = df.rename(columns=rename_col)
     save_dataframe_to_csv(df, output, f"{csv_name}.csv")
 
 

@@ -14,6 +14,7 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 import ast
+import json
 from collections import defaultdict
 from collections import namedtuple
 
@@ -30,6 +31,12 @@ from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.error import key_except
 
 
+KV_CACHE_COLUMNS = [
+    'total_blocks', 'used_blocks', 'free_blocks',
+    'blocks_allocated', 'blocks_freed', 'kvcache_usage_rate',
+]
+
+
 def filter_batch_df(batch_name, batch_df, tx_data_df=None):
     if batch_df is None or batch_df.empty:
         return batch_df
@@ -38,15 +45,15 @@ def filter_batch_df(batch_name, batch_df, tx_data_df=None):
         batch_df = batch_df.copy()
         batch_df['batch_size'] = batch_df['batch_size'].astype(float)
 
-    filtered_df = batch_df[batch_df['name'].isin(['modelExec', 'Execute', batch_name])].copy()
+    filtered_df = batch_df[batch_df['name'].isin(['modelExec', 'modelRunnerExec', 'Execute', batch_name, 'specDecoding'])].copy()
 
-    # 新增：添加 start_time 和 end_time 字段
+    # 为后续按时间匹配 KVCache 与 specDecoding，从 batch_df 补全 filtered_df 的 start_time/end_time；导出时不包含这两列，仅保留 start_datetime/end_datetime。
     if 'start_time' in batch_df.columns and 'start_time' not in filtered_df.columns:
         filtered_df['start_time'] = batch_df.loc[filtered_df.index, 'start_time']
     if 'end_time' in batch_df.columns and 'end_time' not in filtered_df.columns:
         filtered_df['end_time'] = batch_df.loc[filtered_df.index, 'end_time']
 
-    # 新增：为 BatchSchedule 行匹配上层计算好的 KVCache 字段
+    # 按 prof_id 与时间将 KVCacheStatus 中的块数/使用率匹配到 BatchSchedule 行。
     filtered_df = add_precomputed_kv_cache_fields(filtered_df, tx_data_df)
 
     base_columns = [
@@ -55,10 +62,8 @@ def filter_batch_df(batch_name, batch_df, tx_data_df=None):
         'start_time', 'end_time'
     ]
 
-    # 动态添加 KVCache 字段（仅当有非空值时）
-    kv_cache_columns = ['total_blocks', 'used_blocks', 'free_blocks',
-                        'blocks_allocated', 'blocks_freed', 'kvcache_usage_rate']
-    for col in kv_cache_columns:
+    # 仅当存在非零或非空的 KVCache 数据时，才在导出列中包含这些 KVCache 列。
+    for col in KV_CACHE_COLUMNS:
         if col in filtered_df.columns:
             non_zero_mask = filtered_df[col] != 0
             non_na_mask = filtered_df[col].notna()
@@ -68,6 +73,8 @@ def filter_batch_df(batch_name, batch_df, tx_data_df=None):
     batch_columns = [col for col in base_columns if col in filtered_df.columns]
     join_columns = batch_columns + ['pid']
     existing_columns = [col for col in join_columns if col in filtered_df.columns]
+    if 'spec_decode_accepted_by_req' in filtered_df.columns:
+        existing_columns.append('spec_decode_accepted_by_req')
     filtered_df = filtered_df[existing_columns]
 
     if 'during_time' in filtered_df.columns:
@@ -75,20 +82,30 @@ def filter_batch_df(batch_name, batch_df, tx_data_df=None):
 
     filtered_df = add_columns_for_batch_size_and_tokens(filtered_df)
     filtered_df = add_dp_rank_column(filtered_df, tx_data_df)
+    filtered_df = _process_spec_decoding_rows(filtered_df)
 
     if 'pid' in filtered_df.columns:
         filtered_df = filtered_df.drop(columns=['pid'])
+
+    # 该列仅用于把每请求的 accepted 数写回 specDecoding 行的 res_list；导出前移除，不写入 batch.csv。
+    if 'spec_decode_accepted_by_req' in filtered_df.columns:
+        filtered_df = filtered_df.drop(columns=['spec_decode_accepted_by_req'])
 
     if 'start_time' in filtered_df.columns:
         filtered_df = filtered_df.rename(columns={'start_time': 'start_time(ms)'})
     if 'end_time' in filtered_df.columns:
         filtered_df = filtered_df.rename(columns={'end_time': 'end_time(ms)'})
 
-    all_cols = filtered_df.columns.tolist()
+    # 将 total_blocks、used_blocks 等 KVCache 相关列中的空值统一填 0，便于下游统计与展示。
+    for col in KV_CACHE_COLUMNS:
+        if col in filtered_df.columns:
+            filtered_df[col] = filtered_df[col].fillna(0)
+
+    # 导出时不包含 start_time(ms)/end_time(ms)，仅保留 start_datetime/end_datetime
     time_cols = ['start_time(ms)', 'end_time(ms)']
-    non_time_cols = [col for col in all_cols if col not in time_cols]
-    final_order = non_time_cols + [col for col in time_cols if col in all_cols]
-    filtered_df = filtered_df[final_order]
+    cols_to_drop = [c for c in time_cols if c in filtered_df.columns]
+    if cols_to_drop:
+        filtered_df = filtered_df.drop(columns=cols_to_drop)
 
     return filtered_df
 
@@ -117,8 +134,7 @@ def add_precomputed_kv_cache_fields(batch_df, tx_data_df):
         return batch_df
 
     # 初始化新列并获取批处理调度数据
-    new_columns = ['total_blocks', 'used_blocks', 'free_blocks',
-                   'blocks_allocated', 'blocks_freed', 'kvcache_usage_rate']
+    new_columns = KV_CACHE_COLUMNS
 
     # 获取并验证 BatchSchedule 数据
     batch_schedule_mask, batch_count = _get_batch_schedule_info(batch_df)
@@ -134,12 +150,9 @@ def add_precomputed_kv_cache_fields(batch_df, tx_data_df):
     batch_schedules_grouped = batch_df[batch_schedule_mask].groupby('prof_id')
     filtered_tx_data_grouped = filtered_tx_data.groupby('prof_id')
 
-    total_matched, total_unmatched = _process_prof_id_groups(
+    _process_prof_id_groups(
         batch_df, batch_schedules_grouped, filtered_tx_data_grouped, filtered_tx_data, new_columns
     )
-
-    # 检查最终结果
-    _log_final_results(batch_df, new_columns, total_matched, total_unmatched)
 
     for col in new_columns:
         if col in batch_df.columns and batch_df[col].isna().all():
@@ -164,14 +177,12 @@ def _get_batch_schedule_info(batch_df):
         return None, None
 
     batch_count = batch_schedule_mask.sum()
-    logger.debug(f"Found {batch_count} BatchSchedule records to process")
     return batch_schedule_mask, batch_count
 
 
 def _get_kv_cache_data(tx_data_df, new_columns):
     """获取并验证 KVCacheStatus 数据"""
     available_kv_cols = [col for col in new_columns if col in tx_data_df.columns]
-    logger.debug(f"Available KVCache columns in tx_data_df: {available_kv_cols}")
 
     if not available_kv_cols:
         logger.warning("No precomputed KVCache fields found in tx_data_df")
@@ -197,13 +208,9 @@ def _process_prof_id_groups(batch_df, batch_schedules_grouped, filtered_tx_data_
 
     for prof_id, prof_batch_schedules in batch_schedules_grouped:
         if prof_id not in filtered_tx_data_grouped.groups:
-            logger.debug(f"Prof_id {prof_id}: No KVCacheStatus records found")
             continue
 
         prof_kv_cache_data = filtered_tx_data_grouped.get_group(prof_id).sort_values('start_time')
-        logger.debug(
-            f"Prof_id {prof_id}: Found {len(prof_batch_schedules)} BatchSchedule "
-            f"records and {len(prof_kv_cache_data)} KVCacheStatus records")
 
         # 向量化匹配
         batch_times = prof_batch_schedules['start_time'].values
@@ -229,16 +236,10 @@ def _process_single_prof_id(batch_df, prof_batch_schedules, batch_times, kv_time
     for i, batch_idx in enumerate(prof_batch_schedules.index):
         closest_idx = find_closest_kv_cache_idx(batch_times[i], kv_times, kv_cache_indices)
         if closest_idx is None:
-            logger.debug(
-                f"No matching KVCacheStatus data found for prof_id {prof_batch_schedules.name}, batch_idx {batch_idx}")
             unmatched += 1
             continue
 
         closest_row = filtered_tx_data.loc[closest_idx]
-        match_type = "after" if closest_row['start_time'] >= batch_times[i] else "before"
-        logger.debug(
-            f"Matched BatchSchedule (idx={batch_idx}, time={batch_times[i]}) "
-            f"with KVCacheStatus data (time={closest_row['start_time']}, match_type={match_type})")
 
         # 复制字段值
         _update_batch_row_with_kv_cache_data(batch_df, batch_idx, closest_row, new_columns)
@@ -251,31 +252,7 @@ def _update_batch_row_with_kv_cache_data(batch_df, batch_idx, closest_row, new_c
     """更新 batch_df 中的行，添加 KVCache 数据"""
     for col in new_columns:
         if col in closest_row:
-            original_value = closest_row[col]
-            batch_df.at[batch_idx, col] = original_value
-            logger.debug(f"  Setting {col} = {original_value} (type: {type(original_value)})")
-            if original_value == 0 or pd.isna(original_value):
-                logger.debug(f"  Warning: {col} is 0 or NaN, checking if field name is different")
-
-
-def _log_final_results(batch_df, new_columns, total_matched, total_unmatched):
-    """记录最终结果"""
-    result_values = batch_df[new_columns].dropna(how='all')
-    logger.debug(
-        f"Successfully matched {total_matched} records, "
-        f"{total_unmatched} unmatched, {len(result_values)} with KVCache fields")
-
-    if not result_values.empty:
-        for col in new_columns:
-            non_null_count = result_values[col].notna().sum()
-            if non_null_count > 0:
-                non_zero_count = (result_values[col] != 0).sum()
-                sample_values = result_values[col].dropna().head(3).tolist()
-                logger.debug(
-                    f"  {col}: {non_null_count} non-null values, "
-                    f"{non_zero_count} non-zero values, samples: {sample_values}")
-    else:
-        logger.warning("No KVCache fields were successfully added")
+            batch_df.at[batch_idx, col] = closest_row[col]
 
 
 def find_closest_kv_cache_idx(batch_time, kv_times, kv_cache_indices):
@@ -371,9 +348,123 @@ def add_columns_for_batch_size_and_tokens(batch_df):
     return batch_df
 
 
+def _process_spec_decoding_rows(filtered_df):
+    """
+    对 name=specDecoding 的行：步骤时间沿用 span 的 start/end/during；KVCache 列在此行填 0；
+    prefill_batch_size、decode_batch_size 从同一步 modelExec 按 prof_id 与 end_time 复制；
+    num_spec_accepted_tokens 由 modelRunnerExec 的 spec_decode_accepted_by_req 按步补全；
+    spec_accepted_ratio 等由 attr 或 res_list 计算。
+    """
+    if filtered_df is None or filtered_df.empty:
+        return filtered_df
+    spec_mask = filtered_df['name'] == 'specDecoding'
+    if not spec_mask.any():
+        return filtered_df
+
+    # KVCache 列在 specDecoding 行填 0（与导出前 fillna(0) 一致）
+    for col in KV_CACHE_COLUMNS:
+        if col in filtered_df.columns:
+            filtered_df.loc[spec_mask, col] = 0
+
+    # 从同一步 modelExec 复制 prefill_batch_size、decode_batch_size（按 prof_id + end_time 最近且不晚于当前）
+    if 'prof_id' in filtered_df.columns and 'end_time' in filtered_df.columns:
+        for idx in filtered_df.index[spec_mask]:
+            prof_id = filtered_df.at[idx, 'prof_id']
+            curr_time = filtered_df.at[idx, 'end_time']
+            same_prof = (filtered_df['prof_id'] == prof_id) & (filtered_df['name'] == 'modelExec')
+            candidates = filtered_df.loc[same_prof]
+            if candidates.empty:
+                continue
+            before = candidates[candidates['end_time'] <= curr_time] if pd.notna(curr_time) else candidates
+            if before.empty:
+                before = candidates
+            ref_idx = before['end_time'].idxmax() if 'end_time' in before.columns else before.index[0]
+            for c in ['prefill_batch_size', 'decode_batch_size']:
+                if c in filtered_df.columns:
+                    filtered_df.at[idx, c] = filtered_df.at[ref_idx, c]
+
+    # 对每条 specDecoding 行，按 pid 与结束时间找到其后执行的 modelRunnerExec 行，用其 spec_decode_accepted_by_req 将每请求的 accepted 数写回本行 res_list 中对应 rid 的 num_spec_accepted_tokens。
+    if 'pid' in filtered_df.columns and 'end_time' in filtered_df.columns and 'start_time' in filtered_df.columns:
+        exec_names = ['modelRunnerExec']
+        attr_col = 'spec_decode_accepted_by_req'
+        for idx in filtered_df.index[spec_mask]:
+            res_list = filtered_df.at[idx, 'res_list']
+            if not res_list or not isinstance(res_list, list):
+                continue
+            pid = filtered_df.at[idx, 'pid']
+            spec_end = filtered_df.at[idx, 'end_time']
+            if pd.isna(spec_end):
+                continue
+            same_pid = filtered_df['pid'] == pid
+            is_exec = filtered_df['name'].isin(exec_names)
+            after_spec = filtered_df['start_time'] >= spec_end
+            candidates = filtered_df.loc[same_pid & is_exec & after_spec]
+            if candidates.empty:
+                continue
+            ref_idx = candidates['start_time'].idxmin()
+            if attr_col not in filtered_df.columns:
+                continue
+            raw = filtered_df.at[ref_idx, attr_col]
+            if raw is None or (isinstance(raw, float) and pd.isna(raw)):
+                continue
+            if isinstance(raw, str):
+                try:
+                    accepted_by_req = json.loads(raw)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+            elif isinstance(raw, dict):
+                accepted_by_req = raw
+            else:
+                continue
+            for r in res_list:
+                if isinstance(r, dict) and 'rid' in r:
+                    r['num_spec_accepted_tokens'] = accepted_by_req.get(str(r.get('rid')), 0)
+
+    # spec_accepted_ratio、spec_accepted_ratio_per_pos：优先用 attr 列，否则从 res_list 计算
+    if 'spec_accepted_ratio' not in filtered_df.columns:
+        filtered_df['spec_accepted_ratio'] = None
+    if 'spec_accepted_ratio_per_pos' not in filtered_df.columns:
+        filtered_df['spec_accepted_ratio_per_pos'] = None
+
+    for idx in filtered_df.index[spec_mask]:
+        res_list = filtered_df.at[idx, 'res_list']
+        if not res_list or not isinstance(res_list, list):
+            continue
+        total_spec = 0
+        total_acc = 0
+        spec_per_req = {}
+        acc_per_req = {}
+        for r in res_list:
+            if not isinstance(r, dict):
+                continue
+            rid = r.get('rid')
+            spec_t = int(r.get('num_spec_output_tokens') or r.get('num_scheduled_tokens') or 0)
+            acc_t = int(r.get('num_spec_accepted_tokens') or 0)
+            total_spec += spec_t
+            total_acc += acc_t
+            if rid is not None:
+                spec_per_req[rid] = spec_t
+                acc_per_req[rid] = acc_t
+        if total_spec > 0:
+            filtered_df.at[idx, 'spec_accepted_ratio'] = round(total_acc / total_spec, 4)
+        max_pos = max(spec_per_req.values()) if spec_per_req else 0
+        ratio_pos = {}
+        for p in range(max_pos):
+            denom = sum(1 for s in spec_per_req.values() if s >= p + 1)
+            if denom == 0:
+                break
+            num = sum(1 for a in acc_per_req.values() if a >= p + 1)
+            ratio_pos[str(p)] = round(num / denom, 4)
+        if ratio_pos:
+            filtered_df.at[idx, 'spec_accepted_ratio_per_pos'] = ratio_pos
+
+    return filtered_df
+
+
 def add_dp_rank_column(batch_df, tx_data_df):
     """
-    根据 tx_data_df 中 domain/name 都为 Meta 且 dpRankId 有值的数据，为 batch_df 添加 dp_rank 列
+    根据 tx_data_df 中 domain/name 为 Meta 且 dpRankId 有值的数据，为 batch_df 添加 dp_rank 列。
+    先按 domain/name 均为 Meta 匹配（大小写不敏感）；若无结果则按「含 dpRankId 且 domain 或 name 含 meta」放宽匹配，以兼容不同解析/表结构。
     """
 
     dp_rank_column = 'dp_rank'
@@ -389,23 +480,40 @@ def add_dp_rank_column(batch_df, tx_data_df):
         batch_df[dp_rank_column] = pd.NA
         return batch_df
 
-    required_columns = {'pid', 'dpRankId', 'domain', 'name'}
-    if not required_columns.issubset(tx_data_df.columns):
+    if 'pid' not in tx_data_df.columns or 'dpRankId' not in tx_data_df.columns:
         batch_df[dp_rank_column] = pd.NA
         return batch_df
 
-    dp_rank_df = tx_data_df[
-        (tx_data_df['domain'] == 'Meta') &
-        (tx_data_df['name'] == 'Meta') &
-        (tx_data_df['dpRankId'].notna())
-    ][['pid', 'dpRankId']].drop_duplicates()
+    # 严格匹配：domain/name 均为 Meta（大小写不敏感）
+    domain_col = tx_data_df.get('domain')
+    name_col = tx_data_df.get('name')
+    has_domain_name = domain_col is not None and name_col is not None
+    if has_domain_name:
+        domain_meta = domain_col.astype(str).str.strip().str.lower() == 'meta'
+        name_meta = name_col.astype(str).str.strip().str.lower() == 'meta'
+        strict_mask = domain_meta & name_meta & tx_data_df['dpRankId'].notna()
+        dp_rank_df = tx_data_df.loc[strict_mask, ['pid', 'dpRankId']].drop_duplicates()
+    else:
+        dp_rank_df = pd.DataFrame(columns=['pid', 'dpRankId'])
+
+    # 放宽匹配：若无严格匹配结果，则取任意含 dpRankId 且 (domain 或 name 含 meta) 的行
+    if dp_rank_df.empty and has_domain_name:
+        domain_like_meta = domain_col.astype(str).str.strip().str.lower().str.contains('meta', na=False)
+        name_like_meta = name_col.astype(str).str.strip().str.lower().str.contains('meta', na=False)
+        fallback_mask = (domain_like_meta | name_like_meta) & tx_data_df['dpRankId'].notna() & tx_data_df['pid'].notna()
+        if fallback_mask.any():
+            dp_rank_df = tx_data_df.loc[fallback_mask, ['pid', 'dpRankId']].drop_duplicates()
+    # 若仍无结果，再尝试仅按 dpRankId + pid 取（兼容 Meta 行未带 domain/name 或列名不一致）
+    if dp_rank_df.empty:
+        any_mask = tx_data_df['dpRankId'].notna() & tx_data_df['pid'].notna()
+        if any_mask.any():
+            dp_rank_df = tx_data_df.loc[any_mask, ['pid', 'dpRankId']].drop_duplicates(subset=['pid'], keep='first')
 
     if dp_rank_df.empty:
         batch_df[dp_rank_column] = pd.NA
         return batch_df
 
     dp_rank_df = dp_rank_df.rename(columns={'dpRankId': dp_rank_column})
-
     batch_df = batch_df.merge(dp_rank_df, how='left', on='pid')
 
     if dp_rank_column not in batch_df.columns:
@@ -704,6 +812,57 @@ class ExporterBatchData(ExporterBase):
         return blocks[min(iter_num, len(blocks) - 1)]
 
     @classmethod
+    def _build_spec_decode_df(cls, batch_df):
+        """将 batch_df 中 name=specDecoding 的行按 res_list 展开为 spec_decode.csv，每请求每步一行；res_list 支持 list 或 JSON 字符串；时间字段仅使用 start_datetime、end_datetime 与 during_time(ms)。"""
+        if batch_df is None or batch_df.empty:
+            return None
+        spec_rows = batch_df[batch_df['name'] == 'specDecoding']
+        if spec_rows.empty:
+            return None
+        rows = []
+        for _, row in spec_rows.iterrows():
+            res_list = row.get('res_list')
+            if res_list is not None and isinstance(res_list, str):
+                try:
+                    res_list = json.loads(res_list)
+                except (json.JSONDecodeError, TypeError):
+                    try:
+                        res_list = ast.literal_eval(res_list)
+                    except (ValueError, SyntaxError):
+                        res_list = None
+            if not res_list or not isinstance(res_list, list):
+                continue
+            start_dt = row.get('start_datetime')
+            end_dt = row.get('end_datetime')
+            during_ms = row.get('during_time(ms)', row.get('during_time'))
+            prof_id = row.get('prof_id')
+            for r in res_list:
+                if not isinstance(r, dict):
+                    continue
+                rid = r.get('rid')
+                spec_tokens = int(r.get('num_spec_output_tokens') or r.get('num_scheduled_tokens') or 0)
+                accepted_tokens = int(r.get('num_spec_accepted_tokens') or 0)
+                acc_ratio = round(accepted_tokens / spec_tokens, 4) if spec_tokens else None
+                rows.append({
+                    'rid': rid,
+                    'iter': r.get('iter'),
+                    'prof_id': prof_id,
+                    'start_datetime': start_dt,
+                    'end_datetime': end_dt,
+                    'during_time(ms)': during_ms,
+                    'spec_tokens': spec_tokens,
+                    'accepted_tokens': accepted_tokens,
+                    'spec_accepted_ratio': acc_ratio,
+                    'draft_model_time_ms': during_ms,
+                })
+        if not rows:
+            return pd.DataFrame(columns=[
+                'rid', 'iter', 'prof_id', 'start_datetime', 'end_datetime',
+                'during_time(ms)', 'spec_tokens', 'accepted_tokens', 'spec_accepted_ratio', 'draft_model_time_ms'
+            ])
+        return pd.DataFrame(rows)
+
+    @classmethod
     @timer(logger.debug)
     @key_except('domain', 'name', ignore=True, msg="ignoring current exporter by default.")
     def export(cls, data) -> None:
@@ -724,7 +883,7 @@ class ExporterBatchData(ExporterBase):
                 batch_name = 'batchFrameworkProcessing'
             else:
                 batch_name = 'Schedule'
-            batch_df = df[df['name'].isin([batch_name, 'modelExec', 'Execute'])].copy()
+            batch_df = df[df['name'].isin([batch_name, 'modelExec', 'modelRunnerExec', 'Execute', 'specDecoding'])].copy()
             if batch_df.empty:
                 logger.warning("No batch data found. batch.csv will not be generated. Please check ")
                 return
@@ -742,7 +901,17 @@ class ExporterBatchData(ExporterBase):
                 write_result_to_db(TableConfig(table_name="batch_req"), batch_req_df)
 
             if 'csv' in cls.args.format:
+                batch_df = batch_df.replace({np.nan: None})
+                if hasattr(pd, 'NA'):
+                    batch_df = batch_df.replace({pd.NA: None})
                 write_result_to_csv(batch_df, output, 'batch', BATCH_RENAME_COLS)
+                # 存在投机推理时导出 spec_decode.csv（每 request 每步一行）；有 specDecoding 行则必写文件
+                spec_decode_df = cls._build_spec_decode_df(batch_df)
+                if spec_decode_df is not None:
+                    spec_decode_df = spec_decode_df.replace({np.nan: None})
+                    if hasattr(pd, 'NA'):
+                        spec_decode_df = spec_decode_df.replace({pd.NA: None})
+                    write_result_to_csv(spec_decode_df, output, 'spec_decode', None)
 
 
 BATCH_RENAME_COLS = {

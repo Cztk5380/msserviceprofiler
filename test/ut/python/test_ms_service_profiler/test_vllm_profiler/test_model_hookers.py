@@ -257,3 +257,165 @@ def test_hook_state_initialization():
     assert state.begin_forward_first_run is True
     assert not state.request_id_to_prompt_token_len
     assert not state.request_id_to_iter
+    assert state.request_id_list == []
+    assert state.mtp_num_accepted_by_req == {}
+    assert state.mtp_num_draft_by_req == {}
+
+
+def test_hook_state_clear_mtp():
+    state = model_handlers.HookState()
+    state.mtp_num_accepted_by_req = {"r1": 2}
+    state.mtp_num_draft_by_req = {"r1": 3}
+    state.clear_mtp()
+    assert state.mtp_num_accepted_by_req == {}
+    assert state.mtp_num_draft_by_req == {}
+
+
+def test_normalize_req_id_dict_with_rid():
+    assert model_handlers._normalize_req_id({"rid": "req_1"}) == "req_1"
+    assert model_handlers._normalize_req_id({"rid": 123}) == 123
+
+
+def test_normalize_req_id_dict_without_rid_or_rid_none():
+    assert model_handlers._normalize_req_id({}) == {}
+    assert model_handlers._normalize_req_id({"rid": None}) == {"rid": None}
+
+
+def test_normalize_req_id_non_dict_returns_as_is():
+    assert model_handlers._normalize_req_id("req_2") == "req_2"
+    assert model_handlers._normalize_req_id(456) == 456
+
+
+def test_execute_model_runner_given_no_request_id_list_when_called_then_no_profiling():
+    state = model_handlers.HookState()
+    state.request_id_to_prompt_token_len = {}
+    state.request_id_to_iter = {}
+    scheduler_output = SchedulerOutput(
+        scheduled_new_reqs=[],
+        scheduled_cached_reqs=[],
+        num_scheduled_tokens={},
+        finished_req_ids=[],
+        total_num_scheduled_tokens=0,
+    )
+    mock_original = MagicMock(return_value="ret")
+    with patch.object(model_handlers, "_get_state", return_value=state):
+        result = model_handlers.execute_model_runner(mock_original, MagicMock(), scheduler_output)
+    assert result == "ret"
+    assert len(Profiler.instance_calls) == 0
+
+
+def test_execute_model_runner_given_request_id_list_when_has_mtp_accepted_then_attr_and_clear_mtp():
+    state = model_handlers.HookState()
+    state.request_id_to_prompt_token_len = {"req_1": 5}
+    state.request_id_to_iter = {}
+    state.mtp_num_accepted_by_req = {"req_1": 2}
+    scheduler_output = SchedulerOutput(
+        scheduled_new_reqs=[create_request("req_1", token_count=5)],
+        scheduled_cached_reqs=[],
+        num_scheduled_tokens={"req_1": 5},
+        finished_req_ids=[],
+        total_num_scheduled_tokens=5,
+    )
+    mock_original = MagicMock(return_value=None)
+    with patch.object(model_handlers, "_get_state", return_value=state):
+        result = model_handlers.execute_model_runner(mock_original, MagicMock(), scheduler_output)
+    assert result is None
+    assert state.request_id_list
+    all_calls = sum(Profiler.instance_calls, [])
+    assert any(isinstance(c, tuple) and len(c) >= 3 and c[0] == "attr" and c[1] == "spec_decode_accepted_by_req"
+               for c in all_calls)
+    assert state.mtp_num_accepted_by_req == {}
+    assert state.mtp_num_draft_by_req == {}
+
+
+def test_execute_model_runner_given_no_mtp_accepted_uses_runner_output():
+    state = model_handlers.HookState()
+    state.request_id_to_prompt_token_len = {"r1": 5}
+    state.request_id_to_iter = {}
+    scheduler_output = SchedulerOutput(
+        scheduled_new_reqs=[create_request("r1", token_count=5)],
+        scheduled_cached_reqs=[],
+        num_scheduled_tokens={"r1": 5},
+        finished_req_ids=[],
+        total_num_scheduled_tokens=5,
+    )
+    runner_ret = MagicMock()
+    runner_ret.req_ids = ["r1"]
+    runner_ret.sampled_token_ids = [[1, 2, 3]]
+    mock_original = MagicMock(return_value=runner_ret)
+    with patch.object(model_handlers, "_get_state", return_value=state):
+        model_handlers.execute_model_runner(mock_original, MagicMock(), scheduler_output)
+    all_calls = sum(Profiler.instance_calls, [])
+    assert any(isinstance(c, tuple) and len(c) >= 3 and c[0] == "attr" and c[1] == "spec_decode_accepted_by_req"
+               for c in all_calls)
+
+
+def test_accepted_by_req_from_runner_output_none():
+    assert model_handlers._accepted_by_req_from_runner_output(None) is None
+
+
+def test_accepted_by_req_from_runner_output_with_sampled_token_ids_and_req_ids():
+    ret = MagicMock()
+    ret.req_ids = ["a", "b"]
+    ret.sampled_token_ids = [[1, 2, 3], [1, 2]]
+    out = model_handlers._accepted_by_req_from_runner_output(ret)
+    assert out == {"a": 2, "b": 1}
+
+
+def test_accepted_by_req_from_runner_output_ids_longer_than_tokens_caps():
+    ret = MagicMock()
+    ret.req_ids = ["a", "b", "c"]
+    ret.sampled_token_ids = [[1, 2]]
+    out = model_handlers._accepted_by_req_from_runner_output(ret)
+    assert out == {"a": 1, "b": 0, "c": 0}
+
+
+def test_accepted_by_req_from_runner_output_empty_tokens_zero():
+    ret = MagicMock()
+    ret.req_ids = ["a"]
+    ret.sampled_token_ids = [[]]
+    out = model_handlers._accepted_by_req_from_runner_output(ret)
+    assert out == {"a": 0}
+
+
+def test_accepted_by_req_from_runner_output_get_output_path():
+    inner = MagicMock()
+    inner.req_ids = ["x"]
+    inner.sampled_token_ids = [[1, 2]]
+    outer = type("Outer", (), {"get_output": MagicMock(return_value=inner)})()
+
+    out = model_handlers._accepted_by_req_from_runner_output(outer)
+    assert out == {"x": 1}
+
+
+def test_accepted_by_req_from_runner_output_get_output_exception_returns_none():
+    class OuterWithGetOutput:
+        def get_output(self):
+            raise RuntimeError()
+
+    assert model_handlers._accepted_by_req_from_runner_output(OuterWithGetOutput()) is None
+
+
+def test_capture_async_given_forward_tag_when_used_then_prof_res_request_id_list():
+    state = model_handlers.HookState()
+    state.request_id_list = ["r1", "r2"]
+    mock_original = MagicMock()
+    mock_original.return_value.__enter__ = MagicMock(return_value=None)
+    mock_original.return_value.__exit__ = MagicMock(return_value=None)
+    with patch.object(model_handlers, "_get_state", return_value=state):
+        with model_handlers.capture_async(mock_original, MagicMock(), "forward"):
+            pass
+    all_calls = sum(Profiler.instance_calls, [])
+    assert any(isinstance(c, tuple) and c[0] == "res" and c[1] == ["r1", "r2"] for c in all_calls)
+
+
+def test_capture_async_given_non_forward_tag_when_used_then_span_only():
+    mock_original = MagicMock()
+    mock_original.return_value.__enter__ = MagicMock(return_value=None)
+    mock_original.return_value.__exit__ = MagicMock(return_value=None)
+    with patch.object(model_handlers, "_get_state", return_value=MagicMock(request_id_list=[])):
+        with model_handlers.capture_async(mock_original, MagicMock(), "backward"):
+            pass
+    assert len(Profiler.instance_calls) >= 1
+    calls = Profiler.instance_calls[0]
+    assert ("span_start", "backward") in calls
