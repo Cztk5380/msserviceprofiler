@@ -168,7 +168,19 @@ void WriteSliceEvent(
 
 std::atomic<u_int64_t> g_markIndex(0);
 
+std::atomic<int> prof_current_step_num{0};
+
 using DATA_PTR = struct ProfSetDevParaDevice *;
+
+MS_SERVICE_PROFILER_API void SetProfilerCurrentStep(int current_step_num)
+{
+    prof_current_step_num.store(current_step_num, std::memory_order_relaxed);
+}
+
+MS_SERVICE_PROFILER_API int GetProfilerCurrentStep()
+{
+    return prof_current_step_num.load(std::memory_order_relaxed);
+}
 
 struct ProfSetDevParaDevice {
     uint32_t chipId;
@@ -628,6 +640,7 @@ void ServiceProfilerManager::ThreadFunction()
         deviceID = nowDeviceID;
 
         ProfTimerCtrl();
+        ProfStepCtrl();
 
         RecordMemoryUsage(npuMemoryUsage);
 
@@ -637,6 +650,42 @@ void ServiceProfilerManager::ThreadFunction()
     }
     PROF_LOGD("profiler thread stop loop");  // LCOV_EXCL_LINE
     StopProfiler();
+}
+
+void ServiceProfilerManager::ProfStepCtrl()
+{
+    int stepLimit = config_->GetProfilerStepNum();
+
+    if (profilerStoppedByLimit_) {
+        return;
+    }
+
+    if (!started_ || stepLimit < 0) {
+        return;
+    }
+
+    int currentStep = GetProfilerCurrentStep();
+
+    if (stepLimit >= 0) {
+        if (stopTargetStep_ < 0) {
+            stopTargetStep_ = currentStep + stepLimit;
+        }
+        if (currentStep >= stopTargetStep_) {
+            PROF_LOGI("Profiler Step Limit Reached! Current=%d, Target=%d. Stopping...",  // LCOV_EXCL_LINE
+                      currentStep, stopTargetStep_); // LCOV_EXCL_LINE
+
+            StopProfiler();
+            PROF_LOGI("Profiler Disabled Successfully!"); // LCOV_EXCL_LINE
+            config_->SetFileEnable(0);
+
+            profilerStoppedByLimit_ = true;
+            stopTargetStep_ = -1;
+        }
+    } else {
+        if (stopTargetStep_ != -1) {
+            stopTargetStep_ = -1;
+        }
+    }
 }
 
 void ServiceProfilerManager::ProfTimerCtrl()
@@ -764,6 +813,7 @@ void ServiceProfilerManager::StartProfiler(bool isInit)
         return;
     }
 
+    profilerStoppedByLimit_ = false;
     initiate = std::chrono::high_resolution_clock::now();  // 记录开始时间
 
     auto profPath = config_->GetProfPath();

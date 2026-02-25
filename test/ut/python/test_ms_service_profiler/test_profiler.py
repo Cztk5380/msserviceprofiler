@@ -377,5 +377,170 @@ class TestInitializeProfiler(unittest.TestCase):
             if 'torch_npu' in sys.modules:
                 del sys.modules['torch_npu']
 
+
+class TestProfStepFunction(unittest.TestCase):
+    """针对 prof_step 函数的专项测试"""
+
+    def setUp(self):
+        """每个测试前重置全局状态"""
+        # 导入被测模块
+        from ms_service_profiler import profiler as pm
+
+        # 重置全局变量到初始状态
+        pm.torch_prof = None
+        pm.torch_prof_total_steps = 0
+        pm.torch_prof_current_step = 0
+        pm.prof_current_step = 0
+
+        self.pm = pm
+
+    @patch('ms_service_profiler.profiler.service_profiler')
+    @patch('ms_service_profiler.profiler.logger')
+    def test_prof_step_stop_check_early_return(self, mock_logger, mock_service):
+        """场景 1: stop_check=True，直接返回，不执行后续逻辑"""
+        # 预设一些值，验证它们是否被改变
+        self.pm.prof_current_step = 10
+
+        self.pm.prof_step(stop_check=True)
+
+        # 验证 prof_current_step 没有增加 (因为第一行就 return 了)
+        self.assertEqual(self.pm.prof_current_step, 10)
+
+        # 验证 service_profiler 的方法未被调用
+        mock_service.is_torch_profiler_enable.assert_not_called()
+        mock_service.set_profiler_current_step.assert_not_called()
+
+    @patch('ms_service_profiler.profiler.service_profiler')
+    @patch('ms_service_profiler.profiler.logger')
+    def test_prof_step_switch_disabled_stop_existing(self, mock_logger, mock_service):
+        """场景 2: 开关关闭，且存在 torch_prof，执行停止逻辑"""
+        # 构造已存在的 torch_prof
+        mock_torch_prof = MagicMock()
+        self.pm.torch_prof = mock_torch_prof
+        self.pm.prof_current_step = 5
+
+        # Mock 开关返回 False
+        mock_service.is_torch_profiler_enable.return_value = False
+
+        self.pm.prof_step(stop_check=False)
+
+        # 验证全局步数已增加 (代码逻辑：先 +1 再检查开关)
+        self.assertEqual(self.pm.prof_current_step, 6)
+        mock_service.set_profiler_current_step.assert_called_once_with(6)
+
+        # 验证停止逻辑
+        mock_torch_prof.stop.assert_called_once()
+        self.assertIsNone(self.pm.torch_prof)
+        mock_logger.info.assert_any_call("Torch Profiler has stopped")
+
+    @patch('ms_service_profiler.profiler.initialize_profiler')
+    @patch('ms_service_profiler.profiler.Profiler')
+    @patch('ms_service_profiler.profiler.service_profiler')
+    @patch('ms_service_profiler.profiler.logger')
+    def test_prof_step_initialize_and_run_limited(self, mock_logger, mock_service, mock_profiler_cls, mock_init):
+        """场景 3: torch_prof 为空 -> 初始化 -> 限制模式下运行一步 (未超限)"""
+        # 初始状态
+        self.pm.torch_prof = None
+        self.pm.torch_prof_total_steps = 5
+        self.pm.torch_prof_current_step = 2
+        self.pm.prof_current_step = 10
+
+        # Mock 开关返回 True
+        mock_service.is_torch_profiler_enable.return_value = True
+
+        # Mock 初始化行为：设置全局 torch_prof
+        mock_torch_instance = MagicMock()
+
+        def side_effect_init():
+            self.pm.torch_prof = mock_torch_instance
+
+        mock_init.side_effect = side_effect_init
+
+        # Mock Profiler 上下文管理器
+        mock_prof_ctx = MagicMock()
+        mock_profiler_cls.return_value.__enter__.return_value = mock_prof_ctx
+        mock_profiler_cls.return_value.__exit__.return_value = None
+
+        self.pm.prof_step(stop_check=False)
+
+        # 验证全局步数
+        self.assertEqual(self.pm.prof_current_step, 11)
+        mock_service.set_profiler_current_step.assert_called_once_with(11)
+
+        # 验证初始化被调用
+        mock_init.assert_called_once()
+
+        # 验证限制计数器增加 (2 -> 3)
+        self.assertEqual(self.pm.torch_prof_current_step, 3)
+
+        # 验证日志打印 (3/5)
+        mock_logger.info.assert_any_call("Torch Profiler is running step 3/5")
+
+        # 验证 torch_prof.step() 被调用
+        mock_torch_instance.step.assert_called_once()
+        mock_profiler_cls.assert_called_once_with(self.pm.Level.L0)
+
+    @patch('ms_service_profiler.profiler.initialize_profiler')
+    @patch('ms_service_profiler.profiler.Profiler')
+    @patch('ms_service_profiler.profiler.service_profiler')
+    @patch('ms_service_profiler.profiler.logger')
+    def test_prof_step_limited_exceed_no_log(self, mock_logger, mock_service, mock_profiler_cls, mock_init):
+        """场景 4: 限制模式下，步数已超过限制，不打印运行日志，但仍执行 step"""
+        mock_torch_instance = MagicMock()
+        self.pm.torch_prof = mock_torch_instance
+        self.pm.torch_prof_total_steps = 5
+        self.pm.torch_prof_current_step = 5  # 下一步变成 6，超过 5
+
+        mock_service.is_torch_profiler_enable.return_value = True
+
+        mock_prof_ctx = MagicMock()
+        mock_profiler_cls.return_value.__enter__.return_value = mock_prof_ctx
+
+        self.pm.prof_step(stop_check=False)
+
+        # 验证计数器增加
+        self.assertEqual(self.pm.torch_prof_current_step, 6)
+
+        # 验证 "running step..." 日志没有被打印 (因为 6 <= 5 为假)
+        # 检查所有 info 调用，确保不包含特定的 step 日志
+        for call_arg in mock_logger.info.call_args_list:
+            msg = str(call_arg)
+            self.assertNotIn("Torch Profiler is running step 6/5", msg)
+
+        # 验证 step 依然被执行 (根据当前代码逻辑)
+        mock_torch_instance.step.assert_called_once()
+
+    @patch('ms_service_profiler.profiler.initialize_profiler')
+    @patch('ms_service_profiler.profiler.Profiler')
+    @patch('ms_service_profiler.profiler.service_profiler')
+    @patch('ms_service_profiler.profiler.logger')
+    def test_prof_step_switch_disabled_after_init(self, mock_logger, mock_service, mock_profiler_cls, mock_init):
+        """场景 6: 初始化后，但在执行 step 前发现开关关闭 (模拟动态关闭)"""
+        # 这个场景主要测试代码中 'if not service_profiler.is_torch_profiler_enable' 在 init 之后的逻辑
+        # 但根据你的代码结构，开关检查在 init 之前。
+        # 这里测试的是：如果 init 成功，但 torch_prof 最终仍为 None (初始化失败) 的情况
+
+        self.pm.torch_prof = None
+        self.pm.torch_prof_total_steps = 5
+        mock_service.is_torch_profiler_enable.return_value = True
+
+        # 模拟 initialize_profiler 执行了但 torch_prof 仍然是 None (失败)
+        def side_effect_init_fail():
+            pass  # 不设置 self.pm.torch_prof
+
+        mock_init.side_effect = side_effect_init_fail
+
+        self.pm.prof_step(stop_check=False)
+
+        # 验证全局步数增加了
+        self.assertEqual(self.pm.prof_current_step, 1)
+        mock_service.set_profiler_current_step.assert_called_once()
+
+        # 验证初始化被调用
+        mock_init.assert_called_once()
+
+        # 因为 torch_prof 仍为 None，后续的 if torch_prof: 块不应执行
+        mock_profiler_cls.assert_not_called()
+
 if __name__ == '__main__':
     unittest.main()

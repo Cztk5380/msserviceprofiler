@@ -146,11 +146,14 @@ namespace msServiceProfiler {
 
         void ProfTimerCtrl();
 
+        void ProfStepCtrl();
+
     private:
         bool isMaster_ = true;  // 构造时初始化一次，在工作线程启动前，不涉及多个线程修改
         bool started_ = false;  // 整体启动状态，构造时可能会初始化一次，在工作线程启动前；其他修改都在工作进程中，不涉及多个线程修改
         bool aclProfStarted_ = false;  // aclprof 启动状态。生命周期同上
         bool msptiStarted_ = false;  // mspti 启动状态。生命周期同上
+        bool profilerStoppedByLimit_ = false;
         void *configHandle_ = nullptr;  // aclprof 保存一个配置的指针，在销毁的时候需要。生命周期同上
         msptiSubscriberHandle msptiHandle_; // mspti 保存一个的指针，在销毁的时候需要。生命周期同上
 
@@ -159,6 +162,7 @@ namespace msServiceProfiler {
         std::atomic<bool> threadRunFlag_{true}; // 多线程使用，原子的，多线程安全，不是原子也没啥关系，只有用户线程会改，工作线程只会读取
         std::atomic<bool> notifyStarted{false}; // 多线程使用，原子的，多线程安全，当它和 started 不一样的时候，工作线程会调用开启或关闭prof动作
         std::atomic<uint32_t> deviceID_ {INVALID_DEVICE_ID}; // 当前进程的 device id
+        int stopTargetStep_ = -1;
 
         std::thread thread_; // 我就是线程
 

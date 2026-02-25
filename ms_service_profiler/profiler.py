@@ -23,6 +23,7 @@ from ms_service_profiler.utils.log import logger
 torch_prof = None
 torch_prof_total_steps = 0
 torch_prof_current_step = 0
+prof_current_step = 0
 
 
 class MarkType(int, Enum):
@@ -152,7 +153,7 @@ def initialize_profiler():
     import torch_npu
 
     task_level_map = {"L0": torch_npu.profiler.ProfilerLevel.Level0, "L1": torch_npu.profiler.ProfilerLevel.Level1,
-        "L2": torch_npu.profiler.ProfilerLevel.Level2}
+                      "L2": torch_npu.profiler.ProfilerLevel.Level2}
 
     aicore_metrics_map = {
         0: torch_npu.profiler.AiCMetrics.ArithmeticUtilization,
@@ -190,6 +191,7 @@ def initialize_profiler():
         "experimental_config": experimental_config,
     }
 
+    prof_current_step = 0
     torch_prof_total_steps = service_profiler.get_torch_prof_step_num()
     if torch_prof_total_steps > 0:
         profiler_kwargs["schedule"] = torch_npu.profiler.schedule(
@@ -203,7 +205,13 @@ def initialize_profiler():
 
 
 def prof_step(stop_check=False):
-    global torch_prof, torch_prof_total_steps, torch_prof_current_step
+    global torch_prof, torch_prof_total_steps, torch_prof_current_step, prof_current_step
+
+    if stop_check:
+        return
+
+    prof_current_step += 1
+    service_profiler.set_profiler_current_step(prof_current_step)
 
     if not service_profiler.is_torch_profiler_enable(Level.L0):
         if torch_prof:
@@ -212,18 +220,16 @@ def prof_step(stop_check=False):
             logger.info(f"Torch Profiler has stopped")
         return
 
-    if stop_check:
-        return
-
     if not torch_prof:
         initialize_profiler()
-    elif torch_prof and torch_prof_total_steps > 0:
-        torch_prof_current_step += 1
 
-        if torch_prof_current_step <= torch_prof_total_steps:
-            logger.info(f"Torch Profiler is running step {torch_prof_current_step}/{torch_prof_total_steps}")
+    if torch_prof:
+        if torch_prof_total_steps > 0:
+            torch_prof_current_step += 1
+            if torch_prof_current_step <= torch_prof_total_steps:
+                logger.info(f"Torch Profiler is running step {torch_prof_current_step}/{torch_prof_total_steps}")
 
-        prof = Profiler(Level.L0)
-        prof.span_start("torch_profiler")
-        torch_prof.step()
-        prof.span_end()
+            prof = Profiler(Level.L0)
+            prof.span_start("torch_profiler")
+            torch_prof.step()
+            prof.span_end()

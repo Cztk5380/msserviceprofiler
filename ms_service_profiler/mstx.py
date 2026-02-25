@@ -35,19 +35,19 @@ from ms_service_profiler.utils.file_open_check import get_valid_lib_path
 
 class ProfilerCallbackResult:
     """回调注册结果。"""
-    
+
     # 注册模式
     DYNAMIC = "dynamic"      # 动态模式：C++ 回调注册成功
     LEGACY = "legacy"        # Legacy 模式：C++ 不支持，需要立即启用 hooks
-    
+
     def __init__(self, mode: str, message: str = ""):
         self.mode = mode
         self.message = message
-    
+
     @property
     def is_dynamic(self) -> bool:
         return self.mode == self.DYNAMIC
-    
+
     @property
     def is_legacy(self) -> bool:
         return self.mode == self.LEGACY
@@ -55,13 +55,13 @@ class ProfilerCallbackResult:
 
 class LibServiceProfiler:
     """C++ Service Profiler 库的 Python 封装。"""
-    
+
     lib_service_profiler = None
 
     def __init__(self) -> None:
         self.is_initialized = False
         self.lib = None
-        
+
         # 基础函数
         self.func_start_span_with_name = None
         self.func_end_span = None
@@ -74,7 +74,7 @@ class LibServiceProfiler:
         self.func_is_enable = None
         self.func_is_valid_dommain = None
         self.func_add_meta_info = None
-        
+
         # Profiler 配置函数
         self.func_get_prof_path = None
         self.func_get_acl_task_time_level = None
@@ -83,18 +83,18 @@ class LibServiceProfiler:
         self.func_get_torch_prof_stack = None
         self.func_get_torch_prof_modules = None
         self.func_get_torch_profiler_enable = None
-        
+
         # C++ 回调注册函数
         self._func_register_start_callback = None
         self._func_register_stop_callback = None
-        
+
         # Python 侧回调列表（支持多个 Profiler 注册）
         self._start_callbacks: List[Callable[[], None]] = []
         self._stop_callbacks: List[Callable[[], None]] = []
-        
+
         # C 回调引用（防止被垃圾回收）
         self._c_callback_refs = []
-        
+
         # 是否已注册到 C++
         self._cpp_callbacks_registered = False
 
@@ -130,28 +130,28 @@ class LibServiceProfiler:
 
         self.func_end_span = self.lib.EndSpan
         self.func_end_span.argtypes = (ctypes.c_ulonglong,)
-        
+
         self.func_mark_span_attr = self.lib.MarkSpanAttr
         self.func_mark_span_attr.argtypes = (ctypes.c_char_p, ctypes.c_ulonglong)
-        
+
         self.func_mark_event = self.lib.MarkEvent
         self.func_mark_event.argtypes = (ctypes.c_char_p,)
-        
+
         try:
             self.func_mark_event_ex = self.lib.MarkEventEx
             self.func_mark_event_ex.argtypes = (ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p)
         except AttributeError:
             self.func_mark_event_ex = None
-            
+
         try:
             self.func_span_end_ex = self.lib.SpanEndEx
             self.func_span_end_ex.argtypes = (ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_ulonglong)
         except AttributeError:
             self.func_span_end_ex = None
-            
+
         self.func_start_service_profiler = self.lib.StartServerProfiler
         self.func_stop_service_profiler = self.lib.StopServerProfiler
-        
+
         self.func_is_enable = self.lib.IsEnable
         self.func_is_enable.argtypes = (ctypes.c_ulong,)
         self.func_is_enable.restype = ctypes.c_bool
@@ -195,12 +195,17 @@ class LibServiceProfiler:
             self.func_get_torch_profiler_enable = self.lib.GetTorchProfilerEnable
             self.func_get_torch_profiler_enable.restype = ctypes.c_bool
 
+        if hasattr(self.lib, "SetProfilerCurrentStep"):
+            self.func_set_profiler_current_step = self.lib.SetProfilerCurrentStep
+            self.func_set_profiler_current_step.argtypes = (ctypes.c_int,)
+            self.func_set_profiler_current_step.restype = None
+
     def _init_callback_funcs(self):
         """初始化 C++ 回调注册函数。"""
         if hasattr(self.lib, "RegisterProfilerStartCallback"):
             self._func_register_start_callback = self.lib.RegisterProfilerStartCallback
             self._func_register_start_callback.argtypes = (ctypes.CFUNCTYPE(None),)
-        
+
         if hasattr(self.lib, "RegisterProfilerStopCallback"):
             self._func_register_stop_callback = self.lib.RegisterProfilerStopCallback
             self._func_register_stop_callback.argtypes = (ctypes.CFUNCTYPE(None),)
@@ -227,33 +232,33 @@ class LibServiceProfiler:
 
     def _ensure_cpp_callbacks_registered(self) -> bool:
         """确保 mstx 的回调已注册到 C++（只注册一次）。
-        
+
         Returns:
             bool: 是否支持动态回调
         """
         if self._cpp_callbacks_registered:
             return True
-        
+
         self.init()
-        
+
         if self.lib is None:
             return False
-        
+
         if self._func_register_start_callback is None or self._func_register_stop_callback is None:
             return False
-        
+
         # 创建 C 回调
         c_start = ctypes.CFUNCTYPE(None)(self._on_cpp_start)
         c_stop = ctypes.CFUNCTYPE(None)(self._on_cpp_stop)
-        
+
         # 保存引用防止垃圾回收
         self._c_callback_refs.append(c_start)
         self._c_callback_refs.append(c_stop)
-        
+
         # 注册到 C++
         self._func_register_start_callback(c_start)
         self._func_register_stop_callback(c_stop)
-        
+
         self._cpp_callbacks_registered = True
         return True
 
@@ -263,16 +268,16 @@ class LibServiceProfiler:
 
     def register_profiler_start_callback(self, callback: Callable[[], None]) -> ProfilerCallbackResult:
         """注册 Profiler 启动回调。
-        
+
         Args:
             callback: Profiler 启动时的回调函数
-            
+
         Returns:
             ProfilerCallbackResult: 注册结果
         """
         # 添加到回调列表
         self._start_callbacks.append(callback)
-        
+
         # 确保 mstx 回调已注册到 C++
         if self._ensure_cpp_callbacks_registered():
             return ProfilerCallbackResult(
@@ -287,16 +292,16 @@ class LibServiceProfiler:
 
     def register_profiler_stop_callback(self, callback: Callable[[], None]) -> ProfilerCallbackResult:
         """注册 Profiler 停止回调。
-        
+
         Args:
             callback: Profiler 停止时的回调函数
-            
+
         Returns:
             ProfilerCallbackResult: 注册结果
         """
         # 添加到回调列表
         self._stop_callbacks.append(callback)
-        
+
         # 确保 mstx 回调已注册到 C++
         if self._ensure_cpp_callbacks_registered():
             return ProfilerCallbackResult(
@@ -311,13 +316,13 @@ class LibServiceProfiler:
 
     def supports_dynamic_callbacks(self) -> bool:
         """检查是否支持动态回调。
-        
+
         Returns:
             bool: 是否支持
         """
         self.init()
-        return (self.lib is not None and 
-                self._func_register_start_callback is not None and 
+        return (self.lib is not None and
+                self._func_register_start_callback is not None and
                 self._func_register_stop_callback is not None)
 
     # -------------------------------------------------------------------------
@@ -405,12 +410,12 @@ class LibServiceProfiler:
         if self.func_is_valid_dommain is None:
             return True
         return self.func_is_valid_dommain(bytes(domain_name, encoding="utf-8"))
-    
+
     def add_meta_info(self, key, value):
         self.init()
         if self.func_add_meta_info is not None:
             self.func_add_meta_info(bytes(key, encoding="utf-8"), bytes(value, encoding="utf-8"))
-    
+
     def get_prof_path(self):
         self.init()
         if self.func_get_prof_path is None:
@@ -419,7 +424,7 @@ class LibServiceProfiler:
         if result:
             return result.decode("utf-8")
         return ""
-    
+
     def is_torch_profiler_enable(self, profiler_level):
         self.init()
         if self.func_get_torch_profiler_enable is None or self.func_is_enable is None:
@@ -458,6 +463,16 @@ class LibServiceProfiler:
         if self.func_get_torch_prof_modules is None:
             return False
         return self.func_get_torch_prof_modules()
+
+    def set_profiler_current_step(self, step: int) -> None:
+        """设置当前 Profiler 步数，用于触发 step-based 自动停止。
+
+        Args:
+            step (int): 当前训练/推理步数
+        """
+        self.init()
+        if self.func_set_profiler_current_step is not None:
+            self.func_set_profiler_current_step(ctypes.c_int(step))
 
 
 # 全局单例

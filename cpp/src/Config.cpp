@@ -140,6 +140,7 @@ void Config::ParseConfig(const Json& configJson)
     ParseTorchProfStack(configJson);
     ParseTorchProfModules(configJson);
     ParseTorchProfStepNum(configJson);
+    ParseProfilerStepNum(configJson);
     ParseEnable(configJson);  // enable 值最后变化，可以【稍微】保护一下上面的值在开启后都已经赋值成功了。
 }
 
@@ -201,6 +202,25 @@ void Config::ParseTorchProfStepNum(const Json& config)
     PROF_LOGD("torch_prof_step_num_: %d", torch_prof_step_num_);  // LCOV_EXCL_LINE
 }
 
+void Config::ParseProfilerStepNum(const Json& config)
+{
+    int profiler_step_num = -1;  // 默认值为0
+    if (config.contains("profiler_step_num")) {
+        if (config["profiler_step_num"].is_number_integer()) {
+            profiler_step_num = config["profiler_step_num"];
+            if (profiler_step_num < 1) {
+                PROF_LOGD("Profiler will collect all steps data.");
+                profiler_step_num = 0;
+            }
+        } else {
+            PROF_LOGW("profiler_step_num is not an integer, "  // LCOV_EXCL_LINE
+                      "using default value 0 (collect all steps)");  // LCOV_EXCL_LINE
+            profiler_step_num = 0;
+        }
+    }
+    profiler_step_num_ = profiler_step_num;
+    PROF_LOGD("profiler_step_num_: %d", profiler_step_num_);  // LCOV_EXCL_LINE
+}
 
 void Config::ParseAicoreMetrics(const Json& config)
 {

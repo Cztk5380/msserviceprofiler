@@ -141,6 +141,12 @@ MS_SERVICE_PROFILER_API int GetTorchProfStepNum();
 MS_SERVICE_PROFILER_API bool GetTorchProfilerEnable();
 
 /**
+ * @brief 设置当前 Profiler 的 step 编号
+ * @param current_step_num [in] 当前 step 编号
+ */
+MS_SERVICE_PROFILER_API void SetProfilerCurrentStep(int current_step_num);
+
+/**
  * @brief 查询是否启用了域名过滤功能
  * @return true : 域名过滤已启用（仅允许指定域名），false: 域名过滤未启用（允许所有域名）
  */
@@ -377,6 +383,13 @@ public:
         }
     }
 
+    MS_SERVICE_PROFILER_HIDDEN MS_SERVICE_INLINE_FLAG void CallSetProfilerCurrentStep(int step) const
+    {
+        if (ptrSetProfilerCurrentStep_) {
+            ptrSetProfilerCurrentStep_(step);
+        }
+    }
+
 #ifndef ENABLE_SERVICE_PROF_UNIT_TEST
     template <typename Func, const char *funcName>
     auto get_function() -> Func *
@@ -443,6 +456,7 @@ private:
         ptrAddMetaInfo_ = AddMetaInfo;
         ptrSpanEndEx_ = SpanEndEx;
         ptrMarkEventEx_ = MarkEventEx;
+        ptrSetProfilerCurrentStep_ = SetProfilerCurrentStep;
     }
 #endif
 
@@ -488,6 +502,7 @@ private:
             ptrAddMetaInfo_ = (decltype(AddMetaInfo) *)dlsym(handle, "AddMetaInfo");
             ptrSpanEndEx_ = (decltype(SpanEndEx) *)dlsym(handle, "SpanEndEx");
             ptrMarkEventEx_ = (decltype(MarkEventEx) *)dlsym(handle, "MarkEventEx");
+            ptrSetProfilerCurrentStep_ = (decltype(SetProfilerCurrentStep) *)dlsym(handle, "SetProfilerCurrentStep");
         }
 #endif
     }
@@ -506,6 +521,7 @@ private:
     decltype(AddMetaInfo) *ptrAddMetaInfo_ = nullptr;
     decltype(SpanEndEx) *ptrSpanEndEx_ = nullptr;
     decltype(MarkEventEx) *ptrMarkEventEx_ = nullptr;
+    decltype(SetProfilerCurrentStep) *ptrSetProfilerCurrentStep_ = nullptr;
     void *handle = nullptr;
 };
 }  // namespace msServiceProfilerCompatible

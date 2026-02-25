@@ -76,6 +76,8 @@ public:
     bool ParseTorchProfStack(const Json& config, bool justParse = false);
     bool ParseTorchProfModules(const Json& config, bool justParse = false);
     void ParseTorchProfStepNum(const Json& config);
+    void ParseProfilerStepNum(const Json& config);
+    MS_SERVICE_INLINE_FLAG uint32_t GetProfilerStepNum() const { return profiler_step_num_; }
 
 private:
     void ReadConfigPath();
@@ -106,6 +108,7 @@ private:
     bool torch_prof_stack_ = false;
     bool torch_prof_modules_ = false;
     int torch_prof_step_num_ = 0;  // 默认值为0
+    int profiler_step_num_ = -1;
     uint32_t level_ = Level::INFO;
     uint32_t timeLimit_ = 0;
     bool enableAclTaskTime_ = false;
