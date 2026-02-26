@@ -5,6 +5,10 @@ package_arch=${2}
 install_for_all_flag=${3}
 pylocal=y
 MSSERVICE_RUN_NAME="mindstudio-msserviceprofiler"
+SHARE_INFO_DIR="share/info"
+UNINSTALL_SCRIPT="uninstall.sh"
+MSSERVICEPROFILER="msserviceprofiler"
+CANN_UNINSTALL_SCRIPT="cann_uninstall.sh"
 
 function print_log() {
     if [ ! -f "$log_file" ]; then
@@ -43,44 +47,76 @@ function install_whl_package() {
 }
 
 function implement_install() {
-	# install whl
-  install_whl_package $pylocal ms_service_profiler-*.whl ${install_path%/}/python/site-packages
-  if [ $? -ne 0 ]; then
-      print_log "ERROR" "Install msserviceprofiler whl failed."
-      return 1
+    create_directory ${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER} ${right}
+    copy_file ${UNINSTALL_SCRIPT} ${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${UNINSTALL_SCRIPT}
+	  # install whl
+    install_whl_package $pylocal ms_service_profiler-*.whl ${install_path%/}/python/site-packages
+    if [ $? -ne 0 ]; then
+        print_log "ERROR" "Install msserviceprofiler whl failed."
+        return 1
+    fi
+}
+
+function copy_file() {
+  local filename=${1}
+  local target_file=$(readlink -f ${2})
+
+  if [ ! -f "$filename" ] && [ ! -d "$filename" ]; then
+    return
   fi
+
+  if [ -f "$target_file" ] || [ -d "$target_file" ]; then
+    local parent_dir=$(dirname ${target_file})
+    local parent_right=$(stat -c '%a' ${parent_dir})
+
+    chmod u+w ${parent_dir}
+    chmod -R u+w ${target_file}
+    rm -r ${target_file}
+
+    cp -r ${filename} ${target_file}
+    chmod -R ${parent_right} ${target_file}
+    chmod ${parent_right} ${parent_dir}
+  else
+    cp -r ${filename} ${target_file}
+    chmod -R ${right} ${target_file}
+  fi
+  print_log "INFO" "$filename is replaced."
+}
+
+function create_directory() {
+    local _dir=${1}
+    local _right=${2}
+  	if [ ! -d "${_dir}" ]; then
+  	    mkdir -p ${_dir}
+  	    chmod ${_right} ${_dir}
+  	fi
 }
 
 function delete_msserviceprofiler() {
     rm -rf ${install_path%/}/python/site-packages/ms_service_profiler*
 }
 
-function copy_file() {
-	local filename=${1}
-	local target_file=$(readlink -f ${2})
-
-	if [ ! -f "$filename" ] && [ ! -d "$filename" ]; then
-		return
-	fi
-
-	if [ -f "$target_file" ] || [ -d "$target_file" ]; then
-		local parent_dir=$(dirname ${target_file})
-		local parent_right=$(stat -c '%a' ${parent_dir})
-
-		chmod u+w ${parent_dir}
-		chmod -R u+w ${target_file}
-		rm -r ${target_file}
-
-		cp -r ${filename} ${target_file}
-		chmod -R ${parent_right} ${target_file}
-		chmod ${parent_right} ${parent_dir}
-
-		print_log "INFO" "$filename is replaced."
-		return
-	fi
-	print_log "WARNING" "target $filename is non-existent."
+function register_uninstall() {
+ 	   if [ ! -f "${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${UNINSTALL_SCRIPT}" ]; then
+ 	       print_log "ERROR" "No such file: ${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${UNINSTALL_SCRIPT}"
+ 	   fi
+ 	   if [ ! -x "${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${UNINSTALL_SCRIPT}" ]; then
+ 	       print_log "ERROR" "The file ${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${UNINSTALL_SCRIPT} is not executable."
+ 	       return 1
+ 	   fi
+ 	   if [ ! -f "${install_path}/${CANN_UNINSTALL_SCRIPT}" ]; then
+ 	       print_log "ERROR" "Failed to register uninstall script, no such file: ${install_path}/${CANN_UNINSTALL_SCRIPT}"
+ 	       return 1
+ 	   fi
+ 	   local script_right=$(stat -c '%a' "${install_path}/${CANN_UNINSTALL_SCRIPT}")
+ 	   chmod u+w "${install_path}/${CANN_UNINSTALL_SCRIPT}"
+ 	   sed -i "/^exit /i uninstall_package \"share\/info\/msserviceprofiler\"" "${install_path}/${CANN_UNINSTALL_SCRIPT}"
+ 	   chmod ${script_right} "${install_path}/${CANN_UNINSTALL_SCRIPT}"
 }
 
 arch_name="${package_arch}-linux"
 delete_msserviceprofiler
 implement_install
+if [ $? -eq 0 ]; then
+ 	  register_uninstall
+fi
