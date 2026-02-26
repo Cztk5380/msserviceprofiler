@@ -21,6 +21,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from prometheus_client import Histogram, Counter, Gauge, REGISTRY, CollectorRegistry, Summary
 from prometheus_client import multiprocess
+from ms_service_profiler.utils.expr_eval import ExprEval
 
 from .logger import logger
 
@@ -234,13 +235,9 @@ class HookMetrics:
             "name": label_name,
             "expr": expr
         })
-    
-    def get_labels_for_metric(self, metric_name: str, context: Dict[str, Any]) -> Dict[str, str]:
-        """获取指标的标签值"""
-        from .dynamic_hook import _safe_eval_expr, FuncCallContext
-        
-        labels = {}
 
+    def get_labels_for_metric_ex(self, metric_name: str, context: Dict[str, Any]) -> Dict[str, str]:
+        labels = {}
         # 使用带前缀的metric名称
         full_metric_name = self._add_prefix(self._sanitize_metric_name(metric_name))
         
@@ -249,20 +246,14 @@ class HookMetrics:
             for label_def in self.label_definitions[full_metric_name]:
                 label_name = label_def["name"]
                 expr = label_def["expr"]
-                
-                if expr:
-                    # 创建函数调用上下文
-                    call_ctx = FuncCallContext(
-                        func_obj=context.get("func_obj"),
-                        this_obj=context.get("this"),
-                        args=context.get("args", ()),
-                        kwargs=context.get("kwargs", {}),
-                        ret_val=context.get("return"),
-                    )
-                    # 安全评估表达式
-                    label_value = _safe_eval_expr(expr, call_ctx)
-                    if label_value is not None:
-                        labels[label_name] = str(label_value)
+                if not expr:
+                    continue
+                try:
+                    label_value = ExprEval(expr)(context)
+                    labels[label_name] = str(label_value)
+                except Exception as e:
+                    logger.warning(f"Failed to evaluate label expression '{expr}' for metric '{metric_name}': {e}")
+                    continue
         
         return labels
 
@@ -419,67 +410,31 @@ class MetricsWrapper:
 
     def wrap(self) -> Callable:
         """创建包装后的 handler 函数。"""
-
-        def wrapped_handler(original_func, *args, **kwargs):
+        def wrapped_handler(ctx):
+            
             start_time = time.time()
-            real_func = getattr(original_func, "original_func", original_func)
-            if inspect.iscoroutinefunction(real_func):
-                return self._wrap_async_handler(original_func, args, kwargs, start_time, real_func)
-            return self._wrap_sync_handler(original_func, args, kwargs, start_time, real_func)
-
+            yield
+            duration = time.time() - start_time
+            self._record_metrics_in_handler_ex(ctx.local_values, ctx.return_value, duration)
+            
         return wrapped_handler
-
-    async def _wrap_async_handler(self, original_func, args, kwargs, start_time, real_func):
-        try:
-            ret = await self.handler_func_obj(original_func, *args, **kwargs)
-            duration = time.time() - start_time
-            self._record_metrics_in_handler(real_func, args, kwargs, ret, duration)
-            return ret
-        except Exception:
-            raise
-
-    def _wrap_sync_handler(self, original_func, args, kwargs, start_time, real_func):
-        try:
-            ret = self.handler_func_obj(original_func, *args, **kwargs)
-            duration = time.time() - start_time
-            self._record_metrics_in_handler(real_func, args, kwargs, ret, duration)
-            return ret
-        except Exception:
-            raise
-
-    def _record_metrics_in_handler(
-        self, func_obj: Any, args: tuple, kwargs: dict, ret_val: Any, duration: float
+    
+    def _record_metrics_in_handler_ex(
+        self, local_values: dict, return_value: Any, duration: float
     ):
-        from .dynamic_hook import FuncCallContext, _safe_eval_expr
-
-        context = {
-            "func_obj": func_obj,
-            "this": args[0] if args else None,
-            "args": args,
-            "kwargs": kwargs,
-            "return": ret_val,
-            "duration": duration,
-        }
+        expr_values = {**local_values, "ret": return_value}
+        
         for metric_name, metric_config in self.registered_metrics.items():
-            labels = self.metrics_client.get_labels_for_metric(metric_name, context)
+            labels = self.metrics_client.get_labels_for_metric_ex(metric_name, expr_values)
             if metric_config.type == MetricType.TIMER:
                 self.metrics_client.record_metric(metric_name, duration, labels)
-            else:
-                if metric_config.expr:
-                    call_ctx = FuncCallContext(
-                        func_obj=func_obj,
-                        this_obj=context.get("this"),
-                        args=args,
-                        kwargs=kwargs,
-                        ret_val=ret_val,
-                    )
-                    value = _safe_eval_expr(metric_config.expr, call_ctx)
-                    if value is not None:
-                        try:
-                            numeric_value = float(value)
-                            self.metrics_client.record_metric(metric_name, numeric_value, labels)
-                        except (ValueError, TypeError) as e:
-                            logger.debug("Failed to convert metric value to float: %s, error: %s", value, e)
+            elif metric_config.expr:
+                try:
+                    value = ExprEval(metric_config.expr)(expr_values)
+                    numeric_value = float(value)
+                    self.metrics_client.record_metric(metric_name, numeric_value, labels)
+                except Exception as e:
+                    logger.warning("Failed to convert metric value to float: %s, error: %s", metric_config.expr, e)
 
 
 def wrap_handler_with_metrics(handler_func_obj: Callable, symbol_info: dict) -> Callable:

@@ -297,20 +297,20 @@ class TestHookMetrics:
         client = HookMetrics()
         client.add_label_definition("m1", "l1", "args[0]")
         with patch("ms_service_profiler.patcher.core.dynamic_hook._safe_eval_expr", return_value="val1"):
-            labels = client.get_labels_for_metric("m1", {"args": ("val1",), "func_obj": None, "this": None, "kwargs": {}, "return": None})
+            labels = client.get_labels_for_metric_ex("m1", {"args": ("val1",), "func_obj": None, "this": None, "kwargs": {}, "return": None})
             assert labels == {"l1": "val1"}
 
     def test_get_labels_for_metric_empty_expr_skipped(self):
         client = HookMetrics()
         client.add_label_definition("m1", "l1", "")
-        labels = client.get_labels_for_metric("m1", {})
+        labels = client.get_labels_for_metric_ex("m1", {})
         assert labels == {}
 
     def test_get_labels_for_metric_eval_returns_none_skipped(self):
         client = HookMetrics()
         client.add_label_definition("m1", "l1", "args[0]")
         with patch("ms_service_profiler.patcher.core.dynamic_hook._safe_eval_expr", return_value=None):
-            labels = client.get_labels_for_metric("m1", {"args": ()})
+            labels = client.get_labels_for_metric_ex("m1", {"args": ()})
             assert labels == {}
 
     def test_get_registry(self):
@@ -506,19 +506,6 @@ class TestWrapHandlerWithMetrics:
         wrapped = wrap_handler_with_metrics(dummy_handler, {"metrics": []})
         assert callable(wrapped)
 
-    def test_wrap_handler_with_metrics_invokes_original(self):
-        inner = MagicMock(return_value=42)
-        symbol_info = {"metrics": []}
-        with patch("ms_service_profiler.patcher.core.metric_hook.get_hook_metrics") as mock_get:
-            mock_client = MagicMock()
-            mock_client.metrics = {}
-            mock_get.return_value = mock_client
-            wrapped = wrap_handler_with_metrics(inner, symbol_info)
-            orig = MagicMock()
-            result = wrapped(orig, 1, 2, key="v")
-            inner.assert_called_once()
-            assert result == 42
-
     def test_wrap_handler_with_timer_metrics_records_duration(self):
         """带 timer 指标的 handler 会记录耗时"""
         def inner(orig, *args, **kwargs):
@@ -530,13 +517,15 @@ class TestWrapHandlerWithMetrics:
         with patch("ms_service_profiler.patcher.core.metric_hook.get_hook_metrics") as mock_get:
             mock_client = MagicMock()
             mock_client.metrics = {"test_duration": MagicMock()}
-            mock_client.get_labels_for_metric.return_value = {}
+            mock_client.get_labels_for_metric_ex.return_value = {}
             mock_client.register_metric.return_value = MagicMock()
             mock_get.return_value = mock_client
             wrapped = wrap_handler_with_metrics(inner, symbol_info)
-            orig = MagicMock(return_value=99)
-            result = wrapped(orig, 1, 2)
-            assert result == 99
+            
+            ctx = MagicMock(return_value=99, local_values={})
+            for  _ in wrapped(ctx):
+                pass
+                
             mock_client.record_metric.assert_called_once()
             assert mock_client.record_metric.call_args[0][0] == "test:duration"
 
@@ -551,14 +540,15 @@ class TestWrapHandlerWithMetrics:
         with patch("ms_service_profiler.patcher.core.metric_hook.get_hook_metrics") as mock_get:
             mock_client = MagicMock()
             mock_client.metrics = {"ret_count": MagicMock()}
-            mock_client.get_labels_for_metric.return_value = {}
+            mock_client.get_labels_for_metric_ex.return_value = {}
             mock_client.register_metric.return_value = MagicMock()
             mock_get.return_value = mock_client
             with patch("ms_service_profiler.patcher.core.dynamic_hook._safe_eval_expr", return_value=10):
                 wrapped = wrap_handler_with_metrics(inner, symbol_info)
-                orig = MagicMock(return_value=10)
-                result = wrapped(orig)
-                assert result == 10
+                ctx = MagicMock(return_value=10, local_values={})
+                for  _ in wrapped(ctx):
+                    pass
+                    
                 mock_client.record_metric.assert_called_once_with("ret_count", 10.0, {})
 
     def test_wrap_handler_expr_eval_none_skips_record(self):
@@ -570,7 +560,7 @@ class TestWrapHandlerWithMetrics:
         with patch("ms_service_profiler.patcher.core.metric_hook.get_hook_metrics") as mock_get:
             mock_client = MagicMock()
             mock_client.metrics = {"m1": MagicMock()}
-            mock_client.get_labels_for_metric.return_value = {}
+            mock_client.get_labels_for_metric_ex.return_value = {}
             mock_client.register_metric.return_value = MagicMock()
             mock_get.return_value = mock_client
             with patch("ms_service_profiler.patcher.core.dynamic_hook._safe_eval_expr", return_value=None):
@@ -587,31 +577,34 @@ class TestWrapHandlerWithMetrics:
         with patch("ms_service_profiler.patcher.core.metric_hook.get_hook_metrics") as mock_get:
             mock_client = MagicMock()
             mock_client.metrics = {"m1": MagicMock()}
-            mock_client.get_labels_for_metric.return_value = {}
+            mock_client.get_labels_for_metric_ex.return_value = {}
             mock_client.register_metric.return_value = MagicMock()
             mock_get.return_value = mock_client
             with patch("ms_service_profiler.patcher.core.dynamic_hook._safe_eval_expr", return_value="not_a_number"):
                 with patch("ms_service_profiler.patcher.core.metric_hook.logger") as mock_logger:
                     wrapped = wrap_handler_with_metrics(inner, symbol_info)
-                    wrapped(MagicMock(return_value=1))
-                    mock_logger.debug.assert_called()
+                    ctx = MagicMock(return_value="234#", local_values={})
+                    for  _ in wrapped(ctx):
+                        pass
+                    mock_logger.warning.assert_called()
 
     def test_wrap_handler_async_invokes_and_records(self):
         """异步 handler 正确执行并记录"""
+        ctx = MagicMock()
         async def inner(orig, *args, **kwargs):
             return await orig(*args, **kwargs)
 
-        async def orig(*a, **k):
-            return 123
 
         symbol_info = {"metrics": [{"name": "t1", "type": "timer"}]}
         with patch("ms_service_profiler.patcher.core.metric_hook.get_hook_metrics") as mock_get:
             mock_client = MagicMock()
             mock_client.metrics = {"t1": MagicMock()}
-            mock_client.get_labels_for_metric.return_value = {}
+            mock_client.get_labels_for_metric_ex.return_value = {}
             mock_client.register_metric.return_value = MagicMock()
             mock_get.return_value = mock_client
             wrapped = wrap_handler_with_metrics(inner, symbol_info)
-            result = asyncio.run(wrapped(orig, 1, 2))
-            assert result == 123
+            index = 0
+            for  _ in wrapped(ctx):
+                index += 1
+            assert index == 1
             mock_client.record_metric.assert_called_once()

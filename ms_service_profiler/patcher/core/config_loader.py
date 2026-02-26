@@ -163,7 +163,7 @@ class ConfigLoader:
                 min_version=item.get('min_version'),
                 max_version=item.get('max_version'),
                 caller_filter=item.get('caller_filter'),
-                need_locals="locals" in json.dumps(item) or "handler" in json.dumps(item),
+                need_locals="expr" in json.dumps(item) or "handler" in json.dumps(item),
             )
             
             if symbol_path not in result:
@@ -202,7 +202,7 @@ class ConfigLoader:
                 min_version=item.get('min_version'),
                 max_version=item.get('max_version'),
                 caller_filter=item.get('caller_filter'),
-                need_locals="locals" in json.dumps(item) or "handler" in json.dumps(item),
+                need_locals="expr" in json.dumps(item) or "handler" in json.dumps(item),
             )
             if symbol_path not in result:
                 result[symbol_path] = []

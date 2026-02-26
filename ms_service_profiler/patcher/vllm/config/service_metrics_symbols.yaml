@@ -19,3 +19,11 @@
   metrics:
     - name: server:create_chat_completion:duration
       type: timer
+
+- symbol: vllm.v1.engine.output_processor:OutputProcessor.process_outputs
+  metrics:
+    - name: output_processor_duration
+      type: timer
+      label:
+        - name: engine_core_outputs_len
+          expr: len(engine_core_outputs)

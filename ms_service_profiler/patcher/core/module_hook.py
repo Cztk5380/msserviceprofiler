@@ -442,6 +442,7 @@ class VLLMHookerBase(ABC):
                 logger.error(f"function enter failed: {e}")
                 if running_index is not None:
                     failed_hook_func[running_index] += 1
+
         def after_ori_func(ret):
             try:
                 ctx = get_context()
@@ -456,21 +457,25 @@ class VLLMHookerBase(ABC):
                 logger.error(f"function exit failed: {e}")
                 if running_index is not None:
                     failed_hook_func[running_index] += 1
+        
         def wrapper(*args, **kwargs):
             before_ori_func()
             ret = ori_func(*args, **kwargs)
             after_ori_func(ret)
             return ret
+        
         async def wrapper_async(*args, **kwargs):
             before_ori_func()
             ret = await ori_func(*args, **kwargs)
             after_ori_func(ret)
             return ret
+        
         def wrapper_with_wrap_hook(*args, **kwargs):
             before_ori_func()
             ret = wrap_hook_func(trackable_ori_func, *args, **kwargs)
             after_ori_func(ret)
             return ret
+        
         async def wrapper_with_wrap_hook_async(*args, **kwargs):
             before_ori_func()
             ret = await wrap_hook_func(trackable_ori_func, *args, **kwargs)
