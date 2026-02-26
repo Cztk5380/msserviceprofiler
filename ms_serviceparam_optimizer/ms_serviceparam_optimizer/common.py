@@ -154,6 +154,7 @@ def get_npu_total_memory(device_id: int = 0) -> Tuple[int, int]:
         raise ValueError("Not Found npu-smi command path. ")
     _id_map_cmd = ["npu-smi", "info", "-m"]
     cmd = ["npu-smi", "info", "-t", "usages"]
+    flag = False
     try:
         _map_out = subprocess.check_output(_id_map_cmd).decode("utf-8")
         _npu_id = _chip_id = 0
@@ -161,14 +162,19 @@ def get_npu_total_memory(device_id: int = 0) -> Tuple[int, int]:
             if not _line.strip():
                 continue
             _result = _line.split()
-            _npu_id, _chip_id, _chip_logic_id, *_chip_other = _result
+            _npu_id, _chip_id, _chip_logic_id, _chip_name, *_chip_other = _result
             if _chip_logic_id.strip() == str(device_id):
+                if _chip_name.strip() == "Ascend950PR":
+                    flag = True
                 break
         if not _npu_id.isdigit():
             raise ValueError(f"_npu_id {_npu_id} is not a digit.")
         if not _chip_id.isdigit():
             raise ValueError(f"_chip_id {_chip_id} is not a digit.")
-        cmd.extend(["-i", _npu_id, "-c", _chip_id])
+        if flag:
+            cmd.extend(["-i", _chip_id])
+        else:
+            cmd.extend(["-i", _npu_id, "-c", _chip_id])
         output = subprocess.check_output(cmd).decode("utf-8")
         memory_key_word = _KEY_WORD + " Capacity(MB)"	
         usage_rate_key_word = _KEY_WORD + " Usage Rate(%)"
