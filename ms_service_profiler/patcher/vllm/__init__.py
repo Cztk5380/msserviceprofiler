@@ -54,7 +54,9 @@ def register_service_profiler():
     else:
         logger.info("C++ library does not support dynamic callbacks, enabling hooks immediately (legacy mode)")
         _vllm_profiler.enable_hooks()
-        
-    register_torch_profiler()
+    try:
+        register_torch_profiler()
+    except Exception as e:
+        logger.warning(f"Unexpected error in patch_model_runner_with_torch_profiler_register: {e}")
 
 

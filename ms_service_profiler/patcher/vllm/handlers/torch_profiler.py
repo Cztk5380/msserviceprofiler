@@ -41,21 +41,33 @@ def register_torch_profiler():
 
 
 def patch_model_runner_with_torch_profiler_enable():
-    from vllm_ascend.worker.worker import NPUWorker
-
+    try:
+        from vllm_ascend.worker.worker import NPUWorker
+    except ImportError:
+        try:
+            from vllm_ascend.worker.worker_v1 import NPUWorker
+        except ImportError:
+            logger.warning("NPUWorker not available, skip register_torch_profiler")
+            return
+    
     def new_profile(self, is_start):
         if is_start:
             prof_build()
             prof_start()
         else:
             prof_stop()
+    
     NPUWorker.profile = new_profile
 
 
 def patch_model_runner_with_torch_profiler_register():
-    import vllm.v1.engine.core
-    from vllm.v1.engine.core import EngineCore
-
+    try:
+        import vllm.v1.engine.core
+        from vllm.v1.engine.core import EngineCore
+    except ImportError:
+        logger.warning("EngineCore not available, skip register_torch_profiler")
+        return
+    
     original_init = EngineCore._initialize_kv_caches
 
     def new_init(self, *args, **kwargs):
