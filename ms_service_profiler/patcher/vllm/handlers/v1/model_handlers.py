@@ -30,6 +30,7 @@ except ImportError:
     def synchronize(_):
         pass
 
+prof_current_step = 0
 
 # 线程安全的全局状态
 class HookState(SharedHookState):
@@ -123,11 +124,9 @@ def execute_model(original_func, this, scheduler_output, *args, **kwargs):
 )
 def execute_model_runner(original_func, this, scheduler_output, *args, **kwargs):
     """处理执行模型运行钩子"""
+    global prof_current_step
     state = _get_state()
     request_id_list, _, _ = classify_requests(state, scheduler_output)
-    step_num = service_profiler.get_torch_prof_step_num() 
-    if step_num and step_num > 0:
-        prof_step()
     if request_id_list:
         prof = Profiler(Level.INFO).domain("Execute")
         prof.res(request_id_list)
@@ -136,6 +135,13 @@ def execute_model_runner(original_func, this, scheduler_output, *args, **kwargs)
         state.request_id_list = [_normalize_req_id(r) for r in request_id_list]
 
     ret = original_func(this, scheduler_output, *args, **kwargs)
+    step_num = service_profiler.get_torch_prof_step_num()
+    if step_num and step_num > 0:
+        prof_step()
+    else:
+        prof_current_step += 1
+        service_profiler.set_profiler_current_step(prof_current_step)
+
     if request_id_list:
         accepted_by_req = getattr(state, "mtp_num_accepted_by_req", None)
         if not accepted_by_req:

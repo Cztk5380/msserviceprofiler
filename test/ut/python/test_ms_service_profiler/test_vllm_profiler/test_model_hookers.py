@@ -55,6 +55,20 @@ def create_request(request_id, token_count=10, computed_tokens=0):
     return Request(req_id=request_id, prompt_token_ids=[0] * token_count, num_computed_tokens=computed_tokens)
 
 
+@pytest.fixture(autouse=True)
+def mock_service_profiler_for_ut():
+    """
+    在所有测试运行前，Mock 掉 service_profiler 的相关方法。
+    重点：必须指定 get_torch_prof_step_num 的返回值，防止 TypeError。
+    """
+    target_path = "ms_service_profiler.patcher.vllm.handlers.v1.model_handlers.service_profiler"
+
+    with patch(target_path) as mock_sp:
+        mock_sp.get_torch_prof_step_num.return_value = 0
+
+        yield mock_sp
+
+
 def test_get_state_given_first_call_when_no_existing_state_then_create_new_state():
     # 重新绑定获取器，确保是“第一次”获取
     model_handlers._get_state = create_state_getter(model_handlers.HookState)
