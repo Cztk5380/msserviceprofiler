@@ -56,6 +56,9 @@ msServiceProfiler服务化调优工具的快速入门，包括必要的操作步
 ### [vLLM服务化性能采集工具](docs/zh/vLLM_service_oriented_performance_collection_tool.md)
 vLLM服务化性能采集工具采集vLLM-Ascend的服务化框架性能数据以及算子性能数据。
 
+### [vLLM 服务化 Prometheus 数据监测工具使用指南](docs/zh/vLLM_metrics_tool_instruct.md)
+vLLM 服务化 Prometheus 数据监测工具用于增强 vLLM-ascend 推理服务框架的原生监测能力。
+
 ### [SGLang服务化性能采集工具](docs/zh/SGLang_service_oriented_performance_collection_tool.md)
 SGLang 服务化性能采集工具用于监测和采集 SGLang 推理服务框架内部执行流程性能数据。
 
