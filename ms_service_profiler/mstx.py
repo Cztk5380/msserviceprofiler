@@ -503,6 +503,12 @@ class LibServiceProfiler:
         if self.func_get_torch_profiler_enable is None or self.func_is_enable is None:
             return False
         return self.func_get_torch_profiler_enable() and self.func_is_enable(profiler_level)
+    
+    def is_torch_profiler_register(self):
+        self.init()
+        if self.func_get_torch_profiler_enable is None:
+            return False
+        return self.func_get_torch_profiler_enable()
 
     def get_acl_task_time_level(self):
         self.init()

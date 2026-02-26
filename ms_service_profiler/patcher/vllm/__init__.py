@@ -21,6 +21,7 @@ vLLM 服务分析器入口模块。
 from ..core.logger import set_log_level, logger
 from .service_patcher import VLLMProfiler
 from ...mstx import service_profiler as mstx_profiler
+from ms_service_profiler.patcher.vllm.handlers.torch_profiler import register_torch_profiler
 
 set_log_level("info")
 
@@ -53,3 +54,7 @@ def register_service_profiler():
     else:
         logger.info("C++ library does not support dynamic callbacks, enabling hooks immediately (legacy mode)")
         _vllm_profiler.enable_hooks()
+        
+    register_torch_profiler()
+
+

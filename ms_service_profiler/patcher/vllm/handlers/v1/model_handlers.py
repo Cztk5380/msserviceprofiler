@@ -16,6 +16,8 @@
 from contextlib import contextmanager
 from ms_service_profiler import Profiler, Level
 from ms_service_profiler.patcher.core.module_hook import patcher
+from ms_service_profiler.profiler import prof_step
+from ms_service_profiler.mstx import service_profiler
 from .utils import classify_requests, SharedHookState, create_state_getter
 try:
     import torch_npu
@@ -123,7 +125,9 @@ def execute_model_runner(original_func, this, scheduler_output, *args, **kwargs)
     """处理执行模型运行钩子"""
     state = _get_state()
     request_id_list, _, _ = classify_requests(state, scheduler_output)
-
+    step_num = service_profiler.get_torch_prof_step_num() 
+    if step_num and step_num > 0:
+        prof_step()
     if request_id_list:
         prof = Profiler(Level.INFO).domain("Execute")
         prof.res(request_id_list)

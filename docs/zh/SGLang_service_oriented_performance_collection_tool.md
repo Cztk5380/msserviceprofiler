@@ -131,9 +131,6 @@ python -m ms_service_profiler.parse --input-path=$PWD
 ### 采集配置使用指南
 采集配置可以参考[数据采集](./msserviceprofiler_serving_tuning_instruct.md#数据采集)中的配置文件创建的说明以及注意事项的澄清。
 
->![](public_sys-resources/icon-note.gif) **须知：**
-> - 目前 SGLang Service Profiler 暂不支持 `torch_prof_stack`、`torch_prof_modules`、`torch_prof_step_num` 三项配置的使能。
-
 ### 点位配置使用指南
 本工具支持自定义需要采集的函数/方法，支持灵活配置与自定义属性采集。
 
