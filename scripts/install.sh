@@ -4,6 +4,7 @@ install_path=${1}
 package_arch=${2}
 install_for_all_flag=${3}
 pylocal=y
+right=550
 MSSERVICE_RUN_NAME="mindstudio-msserviceprofiler"
 SHARE_INFO_DIR="share/info"
 UNINSTALL_SCRIPT="uninstall.sh"

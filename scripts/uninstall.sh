@@ -30,6 +30,6 @@ function delete_register_uninstall() {
  	  chmod ${script_right} "${install_path}/${CANN_UNINSTALL_SCRIPT}"
 }
 
-rm -rf ${install_path%/}/ascend-toolkit/latest/python/site-packages/ms_service_profiler*
+rm -rf ${install_path%/}/python/site-packages/ms_service_profiler*
 rm -rf ${install_path%/}/share/info/msserviceprofiler
 delete_register_uninstall
