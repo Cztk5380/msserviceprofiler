@@ -187,6 +187,8 @@ namespace msServiceProfiler {
         void (*stopCallback_)(void) = nullptr;
         void (*startMetricCallback_)(void) = nullptr;
         void (*stopMetricCallback_)(void) = nullptr;
+        // 是否已对当前“metric 开启”状态发起过 start 回调
+        bool metricStartCallbackInvoked_ = false;
     };
 }  // namespace msServiceProfiler
 

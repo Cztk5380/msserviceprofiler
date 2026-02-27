@@ -606,21 +606,28 @@ void ServiceProfilerManager::DynamicControl()
         PROF_LOGI("Profiler Disabled Successfully!");  // LCOV_EXCL_LINE
     }
 
-    // metric_enable 与 enable 独立：仅 metric_enable 变化时也触发回调，支持“只开 metric”场景
+    // metric_enable 与 enable 独立：变化时触发回调；且若配置已为 1 但从未发起过 start（如启动时即 metric_enable=1），也触发一次
     bool metricEnableFromConfig = config_->ParseMetricEnable(configJson, true);
-    if (prevMetricEnable != metricEnableFromConfig) {
+    bool needStart = metricEnableFromConfig && (prevMetricEnable != metricEnableFromConfig || !metricStartCallbackInvoked_);
+    bool needStop = !metricEnableFromConfig && (prevMetricEnable != metricEnableFromConfig || metricStartCallbackInvoked_);
+    if (needStart) {
         config_->ParseMetricEnable(configJson, false);
-        if (metricEnableFromConfig && startMetricCallback_ != nullptr) {
+        if (startMetricCallback_ != nullptr) {
             PROF_LOGI("Metric collection enabled, calling start metric callback");  // LCOV_EXCL_LINE
             try {
                 startMetricCallback_();
+                metricStartCallbackInvoked_ = true;
             } catch (...) {
                 PROF_LOGE("Python start metric callback threw an exception");  // LCOV_EXCL_LINE
             }
-        } else if (!metricEnableFromConfig && stopMetricCallback_ != nullptr) {
+        }
+    } else if (needStop) {
+        config_->ParseMetricEnable(configJson, false);
+        if (stopMetricCallback_ != nullptr) {
             PROF_LOGI("Metric collection disabled, calling stop metric callback");  // LCOV_EXCL_LINE
             try {
                 stopMetricCallback_();
+                metricStartCallbackInvoked_ = false;
             } catch (...) {
                 PROF_LOGE("Python stop metric callback threw an exception");  // LCOV_EXCL_LINE
             }
