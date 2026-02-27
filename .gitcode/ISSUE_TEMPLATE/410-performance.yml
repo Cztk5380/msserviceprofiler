@@ -1,0 +1,68 @@
+name: 🔧 Profiling & Performance Support
+description: 调试调优支撑诉求
+title: "[Profiling/Performance]: "
+labels: ["profiling", "performance", "support"]
+
+body:
+- type: markdown
+  attributes:
+    value: >
+      **提交提案之前，请先检索仓库内是否已有相同的提案，如已有请在同一提案中进行讨论。**
+- type: dropdown
+  attributes:
+    label: 问题类型
+    description: 请选择您要提交的问题类型
+    options:
+      - label: 性能优化建议
+      - label: 性能劣化反馈
+      - label: 性能调优咨询
+      - label: 其他
+    validations:
+      required: true
+- type: dropdown
+  attributes:
+    label: 选择框架
+    description: 请选择您使用的推理框架
+    options:
+      - label: MindIE
+      - label: vllm
+      - label: SGlang
+    validations:
+      required: true
+- type: dropdown
+  attributes:
+    label: 部署策略
+    description: 请选择您的部署策略
+    options:
+      - label: PD混部
+      - label: 单级PD分离
+      - label: 多机PD分离
+      - label: 大EP
+    validations:
+      required: false
+- type: textarea
+  attributes:
+    label: 问题场景
+    description: >
+      如下拉框中未描述机器类型、框架和部署策略，请在这里进行填写；如已经描述，为方便支撑效率，这里请额外补充版本信息：CANN版本、驱动固件版本、Python版本、框架版本
+    validations:
+      required: true
+- type: textarea
+  attributes:
+    label: 问题描述
+    description: >
+      如工具使用过程中报错，请给出文字描述操作步骤 + 报错截图（如有），例：MindIE框架大EP场景下使用服务化工具采集没有算子相关信息，报错如下：xxxxxx
+      如果是调优类诉求，请给出现状和目标，如：xxx框架不同版本间，某个具体性能case的TTFT劣化3s，需要协助分析
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: profiling数据上传
+    description: >
+      为方便问题定位和性能支撑，请在保证个人信息安全的前提下上传profiling采集落盘数据，我们会积极响应，优先为您处理
+  validations:
+    required: false
+- type: markdown
+  attributes:
+    value: >
+      欢迎加入社区，感谢您对社区的贡献 🎉!
