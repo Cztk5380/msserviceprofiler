@@ -312,8 +312,8 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 
 |字段|说明|
 |--|--|
-|name|用于区分组batch和执行batch。name为batchFrameworkProcessing表示组batch；name为modelExec表示执行batch；name为specDecoding表示投机推理（草稿模型）执行步骤，与同一步的modelExec一一对应。|
-|res_list|batch组合情况。specDecoding 行的 res_list 中 num_scheduled_tokens/num_computed_tokens 为每请求的 draft token 数，并含 num_spec_output_tokens、num_spec_accepted_tokens。|
+|name|用于区分组batch和执行batch。组batch包含name为batchFrameworkProcessing的数据行；执行batch包含name为modelExec以及specDecoding（投机推理）的数据行。|
+|res_list|batch组合情况。|
 |start_datetime|组batch或执行batch的开始时间。|
 |end_datetime|组batch或执行batch的结束时间。|
 |during_time(ms)|执行时间，单位ms。|
@@ -332,14 +332,17 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 |decode_scheduled_tokens|记录调度过程中decode占用的token数。|
 |total_scheduled_tokens|记录调度过程中的总token数。|
 |dp_rank|标识batch的DP信息。对于相同的DP域，该字段值相同。若无DP域，则该字段值为` <NA> `。|
-|start_time(ms)|组batch或执行batch的开始时间时间戳。specDecoding 行为草稿模型实际执行的起止时间。|
+|start_time(ms)|组batch或执行batch的开始时间时间戳。|
 |end_time(ms)|组batch或执行batch的结束时间时间戳。|
 |accepted_ratio|当前 batch 的投机推理接受率，即 sum(accepted_tokens)/sum(spec_tokens)。仅 specDecoding 行有值。|
 |accepted_ratio_per_pos|当前 batch 每个 draft 位置的接受率，字典形式如 {"0": 0.95, "1": 0.88}。仅 specDecoding 行有值。|
 
+>![](public_sys-resources/icon-note.gif) **说明：** 
+>投机推理场景下的解析数据目前只支持vLLM框架，可以查看[vLLM 服务化性能采集工具使用指南](./vLLM_service_oriented_performance_collection_tool.md)进行数据采集。
+
 ### **spec_decode.csv**
 
-开启投机推理时生成，记录每条 request 在每个时间步的投机推理数据。
+在投机推理场景下时自动生成，记录每条 request 在每个时间步的投机推理数据。
 
 **表 3-2**  spec_decode.csv
 
@@ -355,6 +358,9 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 |accepted_tokens|本步该 request 被接受的 token 数。|
 |accepted_ratio|本 request 本步的接受率。|
 |draft_model_time_ms|本步草稿模型总耗时（同一步内所有 request 相同）。|
+
+>![](public_sys-resources/icon-note.gif) **说明：** 
+>投机推理场景下的解析数据目前只支持vLLM框架，可以查看[vLLM 服务化性能采集工具使用指南](./vLLM_service_oriented_performance_collection_tool.md)进行数据采集。
 
 ### **kvcache.csv**
 
