@@ -87,6 +87,7 @@ vllm serve Qwen/Qwen2.5-0.5B-Instruct &
 
 - `ms_service_profiler_config.json` 为采集配置文件（与性能剖析共用），其中 **`metric_enable`** 控制本工具的 Prometheus 指标采集，**`enable`** 控制性能剖析；若文件不存在会自动生成默认配置，详见[数据采集](./msserviceprofiler_serving_tuning_instruct.md#数据采集)。
 - `service_metrics_symbols.yaml` 为埋点配置，自定义点位请参考[点位配置使用指南](#点位配置使用指南)。
+-  8000为vLLM服务化推理启动的默认端口，本文档说明以默认8000端口为例。如需修改服务化启动端口，可在启动 vLLM 服务时通过--port命令行参数指定。更多详细说明可参考[vllm serve命令行参数说明](https://docs.vllm.com.cn/en/latest/cli/serve/#arguments)。
 
 ### 步骤 2：开启采集
 
