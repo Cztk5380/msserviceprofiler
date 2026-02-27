@@ -162,9 +162,15 @@ def get_npu_total_memory(device_id: int = 0) -> Tuple[int, int]:
             if not _line.strip():
                 continue
             _result = _line.split()
-            _npu_id, _chip_id, _chip_logic_id, _chip_name, *_chip_other = _result
-            if _chip_logic_id.strip() == str(device_id):
+            try:
+                _npu_id, _chip_id, _chip_logic_id, _chip_phy_id, _chip_name, *_chip_other = _result
+            except ValueError:
+                # A2没有phy_id
+                flag = True
+                break
+            if _chip_phy_id.strip() == str(device_id):
                 if _chip_name.strip() == "Ascend950PR":
+                    # 标识A5
                     flag = True
                 break
         if not _npu_id.isdigit():
@@ -172,7 +178,8 @@ def get_npu_total_memory(device_id: int = 0) -> Tuple[int, int]:
         if not _chip_id.isdigit():
             raise ValueError(f"_chip_id {_chip_id} is not a digit.")
         if flag:
-            cmd.extend(["-i", _chip_id])
+            #A2和A5只需通过-i即可查询具体的内存信息
+            cmd.extend(["-i", str(device_id)])
         else:
             cmd.extend(["-i", _npu_id, "-c", _chip_id])
         output = subprocess.check_output(cmd).decode("utf-8")

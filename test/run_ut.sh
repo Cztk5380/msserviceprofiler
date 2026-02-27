@@ -62,7 +62,7 @@ function check_coverage() {
     local module_name=$1
     echo "[check_coverage]模块: $module_name"
 
-    local total_line=$(python3 -m coverage report --precision=2 | grep "TOTAL" | awk '{print $6}' | sed 's/%//')
+    local total_line=$(python3 -m coverage report --precision=2 | grep "TOTAL" | awk '{line_total=$2; line_miss=$3; line_cov=(line_total-line_miss)*100/line_total; printf "%.0f", line_cov}')
     local total_branch=$(python3 -m coverage report --precision=2 | grep "TOTAL" | awk '{branch_total=$4; branch_miss=$5; branch_cov=(branch_total-branch_miss)*100/branch_total; printf "%.0f", branch_cov}')
 
     if [ -z "$total_line" ]; then

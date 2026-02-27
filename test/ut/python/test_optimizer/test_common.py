@@ -29,7 +29,7 @@ def test_get_npu_total_memory_success(monkeypatch):
     def _npu_info_usages(*args):
         key_word = "H" + "B" + "M"
         if args and args[0][2] == "-m":
-            return "0 0 0 Ascend910".encode()
+            return "0 0 0 0 Ascend910".encode()
         return f"""
     NPU ID                         : 0
     Chip Count                     : 1
@@ -62,7 +62,7 @@ def test_get_npu_total_memory_success(monkeypatch):
     def _npu_info_usages(*args):
         key_word = "H" + "B" + "M"
         if args and args[0][2] == "-m":
-            return "0 0 0 Ascend950PR".encode()
+            return "0 0 0 0 Ascend950PR".encode()
         return f"""
     NPU ID                         : 0
     Chip Count                     : 1

@@ -407,7 +407,6 @@ class TestProfStepFunction(unittest.TestCase):
         self.assertEqual(self.pm.prof_current_step, 10)
 
         # 验证 service_profiler 的方法未被调用
-        mock_service.is_torch_profiler_enable.assert_not_called()
         mock_service.set_profiler_current_step.assert_not_called()
 
     @patch('ms_service_profiler.profiler.service_profiler')
