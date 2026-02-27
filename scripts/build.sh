@@ -21,6 +21,7 @@ MSSERVICE_RUN_NAME="mindstudio-service-profiler"
 MAIN_SCRIPT=main.sh
 INSTALL_SCRIPT=install.sh
 UN_INSTALL_SCRIPT=uninstall.sh
+VERSION_INFO=version.info
 
 PKG_LIMIT_SIZE=524288000 # 500M
 
@@ -48,6 +49,7 @@ function create_temp_dir() {
     copy_script ${MAIN_SCRIPT} ${temp_dir}
     copy_script ${INSTALL_SCRIPT} ${temp_dir}
     copy_script ${UN_INSTALL_SCRIPT} ${temp_dir}
+    copy_script ${VERSION_INFO} ${temp_dir}
 }
 
 function copy_script() {
@@ -126,6 +128,7 @@ function check_file_exist() {
     check_package ${temp_dir}/${MAIN_SCRIPT} ${PKG_LIMIT_SIZE}
     check_package ${temp_dir}/${INSTALL_SCRIPT} ${PKG_LIMIT_SIZE}
     check_package ${temp_dir}/${UN_INSTALL_SCRIPT} ${PKG_LIMIT_SIZE}
+    check_package ${temp_dir}/${VERSION_INFO} ${PKG_LIMIT_SIZE}
 }
 
 function check_package() {

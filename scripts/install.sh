@@ -4,10 +4,11 @@ install_path=${1}
 package_arch=${2}
 install_for_all_flag=${3}
 pylocal=y
-right=550
+right=750
 MSSERVICE_RUN_NAME="mindstudio-msserviceprofiler"
 SHARE_INFO_DIR="share/info"
 UNINSTALL_SCRIPT="uninstall.sh"
+VERSION_INFO="version.info"
 MSSERVICEPROFILER="msserviceprofiler"
 CANN_UNINSTALL_SCRIPT="cann_uninstall.sh"
 
@@ -50,6 +51,7 @@ function install_whl_package() {
 function implement_install() {
     create_directory ${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER} ${right}
     copy_file ${UNINSTALL_SCRIPT} ${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${UNINSTALL_SCRIPT}
+    copy_file ${VERSION_INFO} ${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${VERSION_INFO}
 	  # install whl
     install_whl_package $pylocal ms_service_profiler-*.whl ${install_path%/}/python/site-packages
     if [ $? -ne 0 ]; then
