@@ -207,17 +207,18 @@ def initialize_profiler():
 def prof_step(stop_check=False):
     global torch_prof, torch_prof_total_steps, torch_prof_current_step, prof_current_step
 
-    if stop_check:
-        return
-
-    prof_current_step += 1
-    service_profiler.set_profiler_current_step(prof_current_step)
+    if not stop_check:
+        prof_current_step += 1
+        service_profiler.set_profiler_current_step(prof_current_step)
 
     if not service_profiler.is_torch_profiler_enable(Level.L0):
         if torch_prof:
             torch_prof.stop()
             torch_prof = None
             logger.info(f"Torch Profiler has stopped")
+        return
+
+    if stop_check:
         return
 
     if not torch_prof:
