@@ -95,6 +95,7 @@ class ExporterTrace(TaskExporterBase):
         if data is not None:
             all_data_df = data.get('tx_data_df', pd.DataFrame(columns=["name", "domain"])).copy()
 
+            pid_domain_map = get_pid_primary_domain(all_data_df) if not all_data_df.empty else None
             prepare_domain_for_process(all_data_df)
 
             if 'pid_label_map' in data:
@@ -113,18 +114,39 @@ class ExporterTrace(TaskExporterBase):
                     cann_prof_data, msprof_data_pids = load_single_prof(prof_path, index)
                     cann_data.append(cann_prof_data)
                 for msprof_data_pid in msprof_data_pids:
-                    pid_ppid_map.append((msprof_data_pid, msprof_data_ppid))
+                    pid_ppid_map.append((msprof_data_pid, msprof_data_ppid, 'msprof'))
 
             if "ppid" in all_data_df and "pid" in all_data_df:
-                pid_ppid_map.extend(set(zip(all_data_df['pid'], all_data_df['ppid'])))
+                for pid, ppid in set(zip(all_data_df['pid'], all_data_df['ppid'])):
+                    pid_ppid_map.append((pid, ppid, 'service'))
 
+            service_pid_str_map = {}
+            for item in pid_ppid_map:
+                if item[2] == 'service':
+                    service_pid_str_map[int(item[0])] = item[0]
+            
+            python_pids = {}
             for pid in torch_profiler_pid_list:
-                pid_ppid_map.append((pid, None))
+                process_name = torch_profiler_pid_domain_map.get(pid, '')
+                if process_name == 'Python':
+                    service_pid_str = service_pid_str_map.get(int(pid))
+                    if service_pid_str:
+                        pid_ppid_map.append((pid, service_pid_str, 'torch'))
+                        python_pids[int(pid)] = pid
+                    else:
+                        pid_ppid_map.append((pid, None, 'torch'))
+            
+            for pid in torch_profiler_pid_list:
+                process_name = torch_profiler_pid_domain_map.get(pid, '')
+                if process_name != 'Python':
+                    for python_int_pid, python_pid in python_pids.items():
+                        pid_ppid_map.append((pid, python_pid, 'torch'))
+                        break
 
-            pid_ppid_map = [(str(pid), ppid, pid) for pid, ppid in pid_ppid_map]
+            pid_ppid_map = [(str(pid), ppid, pid, source) for pid, ppid, source in pid_ppid_map]
             logger.info(f"Total pid_ppid_map count: {len(pid_ppid_map)}, torch_profiler added: {len(torch_profiler_pid_list)}")
 
-            trace_data = create_trace_events(all_data_df, pid_label_map, pid_ppid_map, torch_profiler_pid_domain_map)
+            trace_data = create_trace_events(all_data_df, pid_label_map, pid_ppid_map, torch_profiler_pid_domain_map, pid_domain_map)
             merged_data = merge_json_data(trace_data, cann_data)
         else:
             merged_data = {"traceEvents": []}
@@ -383,7 +405,7 @@ def add_flow_event(flow_event_df):
     return flow_trace_events
 
 
-def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None, torch_profiler_pid_domain_map=None):
+def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None, torch_profiler_pid_domain_map=None, pid_domain_map=None):
     metric_event = ['npu', 'Schedule.KVCache', 'KVCache', 'PullKVCache', 'Queue']
 
     # name 非空
@@ -435,28 +457,30 @@ def create_trace_events(all_data_df, pid_label_map=None, pid_ppid_map=None, torc
             coordinator_pid = event["pid"]
             break  # 找到第一个就退出
 
-    pid_domain_map = get_pid_primary_domain(all_data_df) if all_data_df is not None else None
+    pid_domain_map = get_pid_primary_domain(all_data_df) if all_data_df is not None and pid_domain_map is None else pid_domain_map
     
     if torch_profiler_pid_domain_map:
         if pid_domain_map is None:
             pid_domain_map = {}
-        pid_domain_map.update(torch_profiler_pid_domain_map)
+        for pid, domain in torch_profiler_pid_domain_map.items():
+            if pid not in pid_domain_map:
+                pid_domain_map[pid] = domain
 
     trace_events = [e for e in trace_events if e.get('name') != 'process_name']
 
     if pid_label_map is not None or pid_ppid_map is not None:
-        trace_events.extend(sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid, pid_domain_map))
+        trace_events.extend(sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid, pid_domain_map, torch_profiler_pid_domain_map))
 
     trace_data = {"traceEvents": trace_events}
     return trace_data
 
 
-def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None, pid_domain_map=None):
+def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None, pid_domain_map=None, torch_profiler_pid_domain_map=None):
     if not pid_ppid_map:
         return []
     
     process_tree = {}
-    for pid, ppid, _ in pid_ppid_map:
+    for pid, ppid, _, _ in pid_ppid_map:
         process_tree[pid] = ppid
     
     def build_prcess_prefix(pid):
@@ -475,14 +499,39 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None, 
     
     child_to_parent = {
         pid: ppid
-        for pid, ppid, _ in pid_ppid_map
+        for pid, ppid, _, _ in pid_ppid_map
         if ppid != pid
     }
     
+    service_pid_to_group_pid = {}
+    for str_pid, ppid, ori_pid, source in pid_ppid_map:
+        if source == 'service' and pid_domain_map:
+            pid_int = int(ori_pid) if not isinstance(ori_pid, int) else ori_pid
+            group_pid = 0
+            current_pid = ori_pid
+            while current_pid is not None:
+                str_current = str(current_pid)
+                parent = process_tree.get(str_current)
+                if parent is None:
+                    break
+                parent_int = int(parent) if isinstance(parent, str) and parent.isdigit() else parent
+                if pid_domain_map and parent_int in pid_domain_map:
+                    if pid_domain_map[parent_int].lower() == "schedule":
+                        group_pid = parent_int
+                        break
+                current_pid = parent_int
+            if group_pid == 0 and pid_domain_map and pid_int in pid_domain_map:
+                if pid_domain_map[pid_int].lower() == "schedule":
+                    group_pid = pid_int
+            if group_pid != 0:
+                service_pid_to_group_pid[pid_int] = group_pid
+    
     def sort_key(item):
-        pid, prefix = item
+        pid, prefix, source = item
         if pid == coordinator_pid:
-            return (-1, -1, '')
+            return (-1, -1, -1, '')
+        
+        source_rank = 0 if source == 'service' else 1
         
         process_type = None
         parent_type_rank = None
@@ -543,19 +592,36 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None, 
                         break
                 current_pid = ppid_int
         
+        if group_pid == 0 and source in ('torch', 'msprof'):
+            pid_int = int(pid) if not isinstance(pid, int) else pid
+            for service_pid, service_group_pid in service_pid_to_group_pid.items():
+                if service_pid == pid_int:
+                    group_pid = service_group_pid
+                    break
+        
+        if group_pid == 0 and source in ('torch', 'msprof'):
+            group_pid = float('inf')
+        
+        parent_pid_for_sort = 0
+        if source in ('torch', 'msprof'):
+            ppid = process_tree.get(str(pid))
+            if ppid:
+                parent_pid_for_sort = int(ppid) if isinstance(ppid, str) and ppid.isdigit() else ppid
+        elif process_type == 'forward':
+            parent_pid_for_sort = int(pid) if not isinstance(pid, int) else pid 
         if dp_rank is not None:
-            return (group_pid, type_rank, int(dp_rank), prefix)
+            return (group_pid, parent_pid_for_sort, source_rank, type_rank, int(dp_rank), prefix)
         else:
-            return (group_pid, type_rank, 0, prefix)
+            return (group_pid, parent_pid_for_sort, source_rank, type_rank, 0, prefix)
     
-    process_prefix_list = [(ori_pid, build_prcess_prefix(pid)) for pid, _, ori_pid in pid_ppid_map]
+    process_prefix_list = [(ori_pid, build_prcess_prefix(pid), source) for pid, _, ori_pid, source in pid_ppid_map]
     
     process_prefix_list.sort(key=sort_key)
     
     pid_sorting_meta = []
     
     for index, item in enumerate(process_prefix_list):
-        pid, _ = item
+        pid, _, source = item
         pid_sorting_meta.append(dict(
             name="process_sort_index",
             ph="M",
@@ -563,14 +629,29 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None, 
             args=dict(sort_index=index))
         )
         
-        primary_domain = pid_domain_map.get(pid) if pid_domain_map else None
-        if primary_domain:
-            pid_sorting_meta.append(dict(
-                name="process_name",
-                ph="M",
-                pid=pid,
-                args=dict(name=primary_domain))
-            )
+        primary_domain = None
+        if pid_domain_map:
+            if pid in pid_domain_map:
+                primary_domain = pid_domain_map[pid]
+            else:
+                pid_int = int(pid) if not isinstance(pid, str) else None
+                if pid_int and pid_int in pid_domain_map:
+                    primary_domain = pid_domain_map[pid_int]
+        
+        display_name = primary_domain if primary_domain else str(pid)
+        
+        if source in ('torch', 'msprof') and torch_profiler_pid_domain_map:
+            for key in torch_profiler_pid_domain_map:
+                if key == pid and type(key) == type(pid):
+                    display_name = torch_profiler_pid_domain_map[key]
+                    break
+        
+        pid_sorting_meta.append(dict(
+            name="process_name",
+            ph="M",
+            pid=pid,
+            args=dict(name=display_name))
+        )
         
         labels = []
         if pid_label_map is not None and "hostname" in pid_label_map.get(pid, []):
@@ -587,7 +668,7 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None, 
                 pid=pid,
                 args=dict(labels=','.join(labels)))
             )
-
+    
     return pid_sorting_meta
 
 
@@ -612,7 +693,6 @@ def sort_trace_events_by_tid(trace_events):
         else:
             return len(tid_sorting_order)
 
-    # 排序 trace_events
     sorted_trace_events = sorted(trace_events, key=get_tid_sorting_key)
 
     sorted_trace_events.extend(tid_sorting_meta)
