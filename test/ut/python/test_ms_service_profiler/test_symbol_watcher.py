@@ -59,7 +59,7 @@ class TestRecoverHookersForSymbols:
         with patch("ms_service_profiler.patcher.core.symbol_watcher.logger"):
             watcher.recover_hookers_for_symbols({"mod:func"})
 
-        hook_helper.recover.assert_called_once()
+        hooker.recover.assert_called_once()
 
     def test_recover_symbol_in_mapping_not_applied(self, watcher):
         hooker = MagicMock()
@@ -148,7 +148,7 @@ class TestLoadHandlersRemovedSymbols:
         with patch("ms_service_profiler.patcher.core.symbol_watcher.logger"):
             watcher.load_handlers(profiling_handlers=new_handlers, metrics_handlers=None, hooks_enabled=True)
 
-        hook_helper.recover.assert_called_once()
+        hooker.recover.assert_called_once()
         assert "old.mod:func" not in watcher._symbol_to_hooker
         assert hooker not in watcher._applied_hookers
 

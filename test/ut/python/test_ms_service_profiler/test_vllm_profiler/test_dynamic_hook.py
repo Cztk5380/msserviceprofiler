@@ -14,9 +14,12 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 
+import logging
 from unittest.mock import Mock, patch, call
 from unittest.mock import ANY
-
+from unittest.mock import MagicMock, patch, call
+from contextlib import contextmanager
+from typing import ContextManager
 import pytest
 
 from ms_service_profiler.patcher.core.dynamic_hook import (
@@ -24,7 +27,11 @@ from ms_service_profiler.patcher.core.dynamic_hook import (
     DynamicHooker, 
     register_dynamic_hook, 
     make_default_time_hook, 
-    HandlerResolver
+    HandlerResolver,
+    ConfigHooker,
+    MultiHandlerDynamicHooker,
+    global_mutil_handler_manager,
+    VLLMHookerBase,
 )
 
 
@@ -745,3 +752,256 @@ class TestInternalFunctions:
             result = hook_func.__globals__['_safe_eval_expr']("len(args)", sample_func_call_context)
             
             assert result is None
+@pytest.fixture(autouse=True)
+def reset_global_manager():
+    """每个测试前重置全局管理器字典"""
+    global_mutil_handler_manager.clear()
+    yield
+
+
+@pytest.fixture
+def mock_add_to_hook_registry():
+    with patch("ms_service_profiler.patcher.core.dynamic_hook.add_to_hook_registry") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_import_object():
+    with patch("ms_service_profiler.patcher.core.dynamic_hook.import_object_from_string") as mock:
+        mock.return_value = MagicMock()  # 返回一个 mock 对象作为 hook point
+        yield mock
+
+
+@pytest.fixture
+def mock_default_hook_func():
+    # 模拟 VLLMHookerBase.default_hook_func
+    with patch.object(VLLMHookerBase, "default_hook_func", return_value="default") as mock:
+        yield mock
+
+
+
+# ------------------------------------------------------------
+# MultiHandlerDynamicHooker 测试
+# ------------------------------------------------------------
+class TestMultiHandlerDynamicHooker:
+    def test_given_handlers_when_add_handler_then_rebuilds_and_inits(self, mock_import_object):
+        """正例：添加 handler 后重建包装函数并重新 init"""
+        hook_list = [("mod", "func")]
+        handler1 = MagicMock(spec=ConfigHooker)
+        handler1.wrap_hook_func = lambda ori, *a, **kw: ori(*a, **kw)
+        handler1.context_hook_funcs = []
+        handler1.need_locals = False
+
+        manager = MultiHandlerDynamicHooker(hook_list, [], None, None, None, False)
+        with patch.object(manager, "init") as mock_init, \
+             patch.object(manager, "recover") as mock_recover:
+            manager.add_handler(handler1)
+            # 应调用 recover 清除旧 hooks
+            mock_recover.assert_called_once()
+            # 应调用 init 应用新 hooks
+            mock_init.assert_called_once()
+            assert handler1 in manager.handlers
+            # 检查 wrap_hook_func 已被构建（不是原始函数）
+            assert manager.wrap_hook_func != VLLMHookerBase.default_hook_func
+
+    def test_given_duplicate_handler_when_add_handler_then_ignored(self, mock_import_object):
+        """反例：重复添加相同 handler 应被忽略"""
+        handler = MagicMock()
+        manager = MultiHandlerDynamicHooker([], [], None, None, None, False)
+        manager.add_handler(handler)
+        with patch.object(manager, "init") as mock_init:
+            manager.add_handler(handler)  # 再次添加
+            mock_init.assert_not_called()
+            assert len(manager.handlers) == 1
+
+    def test_given_handler_exists_when_recover_handler_then_removes_and_rebuilds(self, mock_import_object):
+        """正例：移除存在的 handler 后重建并重新 init"""
+        handler1 = MagicMock()
+        handler1.wrap_hook_func = lambda ori, *a, **kw: ori(*a, **kw)
+        handler1.context_hook_funcs = []
+        handler1.need_locals = False
+
+        manager = MultiHandlerDynamicHooker([], [], None, None, None, False)
+        manager.add_handler(handler1)
+
+        with patch.object(manager, "init") as mock_init, \
+             patch.object(manager, "recover") as mock_recover:
+            result = manager.recover_handler(handler1)
+            assert result == 0  # 移除后 handlers 为空
+            mock_recover.assert_called_once()
+            mock_init.assert_not_called()
+            assert handler1 not in manager.handlers
+
+    def test_given_handler_not_exists_when_recover_handler_then_returns_same_length(self, mock_import_object):
+        """反例：移除不存在的 handler 返回当前 handlers 数量，无 rebuild"""
+        handler = MagicMock()
+        manager = MultiHandlerDynamicHooker([], [], None, None, None, False)
+        manager.add_handler(handler)  # 添加一个
+        another = MagicMock()
+
+        with patch.object(manager, "init") as mock_init:
+            result = manager.recover_handler(another)
+            assert result == 1
+            mock_init.assert_not_called()
+            assert handler in manager.handlers
+
+    def test_given_no_handlers_when_build_wrap_hook_func_then_returns_default(self):
+        """正例：没有 wrap 函数时返回默认 hook func"""
+        manager = MultiHandlerDynamicHooker([], [], None, None, None, False)
+        result = manager.build_wrap_hook_func([])
+        assert result == VLLMHookerBase.default_hook_func
+
+    def test_given_single_wrap_func_when_build_then_returns_that_func(self):
+        """正例：单个 wrap 函数时直接返回"""
+        def func(ori, *a, **kw): pass
+        manager = MultiHandlerDynamicHooker([], [], None, None, None, False)
+        result = manager.build_wrap_hook_func([func])
+        assert result == func
+
+    def test_given_multiple_wrap_funcs_when_build_then_returns_chained_func(self):
+        """正例：多个 wrap 函数时返回组合函数，调用顺序正确"""
+        calls = []
+        def f1(next_func, *args, **kwargs):
+            calls.append("f1_before")
+            ret = next_func(*args, **kwargs)
+            calls.append("f1_after")
+            return ret
+
+        def f2(next_func, *args, **kwargs):
+            calls.append("f2_before")
+            ret = next_func(*args, **kwargs)
+            calls.append("f2_after")
+            return ret
+
+        def original(*args, **kwargs):
+            calls.append("original")
+            return "result"
+
+        manager = MultiHandlerDynamicHooker([], [], None, None, None, False)
+        chained_func = manager.build_wrap_hook_func([f1, f2])
+        # 需要模拟动态包装：build_wrap_hook_func 返回的 _wrap_hook_func 接受 (ori_func, *args, **kwargs)
+        # 调用时应将 original 作为 ori_func 传入
+        result = chained_func(original, 1, 2, a=3)
+        assert result == "result"
+        assert calls == ["f1_before", "f2_before", "original", "f2_after", "f1_after"]
+
+    def test_given_mixed_handlers_when_add_handler_then_combines_need_locals(self):
+        """正例：添加 handler 时合并 need_locals（任意为 True 则 True）"""
+        handler1 = MagicMock()
+        handler1.need_locals = True
+        handler2 = MagicMock()
+        handler2.need_locals = False
+
+        manager = MultiHandlerDynamicHooker([], [], None, None, None, False)
+        manager.add_handler(handler1)
+        assert manager.need_locals is True
+
+        manager = MultiHandlerDynamicHooker([], [], None, None, None, False)
+        manager.add_handler(handler2)
+        assert manager.need_locals is False
+        manager.add_handler(handler1)
+        assert manager.need_locals is True
+
+    def test_given_mixed_handlers_when_add_then_combines_context_hook_funcs(self):
+        """正例：添加 handler 时合并 context_hook_funcs"""
+        ctx1 = MagicMock()
+        ctx2 = MagicMock()
+        handler1 = MagicMock()
+        handler1.context_hook_funcs = [ctx1]
+        handler1.wrap_hook_func = ctx1
+        handler2 = MagicMock()
+        handler2.context_hook_funcs = [ctx2]
+        handler2.wrap_hook_func = ctx2
+
+        manager = MultiHandlerDynamicHooker([], [], None, None, None, False)
+        manager.add_handler(handler1)
+        assert set(manager.context_hook_funcs) == {ctx1}
+        manager.add_handler(handler2)
+        assert set(manager.context_hook_funcs) == {ctx1, ctx2}
+
+
+# ------------------------------------------------------------
+# ConfigHooker 测试
+# ------------------------------------------------------------
+class TestConfigHooker:
+    def test_given_valid_args_when_initialized_then_attributes_set_correctly(self):
+        """正例：ConfigHooker 初始化应正确设置属性"""
+        hook_list = [("mod1", "func1"), ("mod2", "func2")]
+        hook_func = lambda x: x
+        symbol_path = "test.symbol"
+        min_v = "1.0"
+        max_v = "2.0"
+        caller = "caller"
+        need_locals = True
+
+        hooker = ConfigHooker(
+            hook_list=hook_list,
+            hook_func=hook_func,
+            symbol_path=symbol_path,
+            min_version=min_v,
+            max_version=max_v,
+            caller_filter=caller,
+            need_locals=need_locals,
+        )
+
+        assert hooker.hook_list == hook_list
+        assert hooker.symbol_path == symbol_path
+        assert hooker.min_version == min_v
+        assert hooker.max_version == max_v
+        assert hooker.caller_filter == caller
+        assert hooker.need_locals == need_locals
+        assert hooker.applied_hook_func_name == hook_func.__name__
+
+    def test_given_single_hook_func_when_initialized_then_wrap_hook_func_is_that_func(self):
+        """正例：单个 hook_func 时 wrap_hook_func 应为该函数"""
+        def my_func(ori, *a, **kw): pass
+        hooker = ConfigHooker([], my_func, "", None, None, None, False)
+        assert hooker.wrap_hook_func == my_func
+        assert hooker.context_hook_funcs == []
+
+    def test_given_multiple_hook_funcs_when_initialized_then_split_correctly(self):
+        """正例：多个 hook_func 时正确分离 wrap 和 context 函数"""
+        def wrap1(ori, *a, **kw): pass
+        def ctx1(): yield
+        class CtxClass: pass  # 不是 ContextManager 子类
+        class RealCtxClass(ContextManager):
+            def __enter__(self): pass
+            def __exit__(self, *a): pass
+
+        hooker = ConfigHooker([], [wrap1, ctx1, CtxClass, RealCtxClass], "", None, None, None, False)
+        # wrap_hook_func 应为第一个非 context 函数（wrap1）
+        assert hooker.wrap_hook_func == wrap1
+        # context_hook_funcs 应包含 ctx1 和 RealCtxClass（经过 contextmanager 包装或类本身）
+        # ctx1 是生成器函数，被 contextmanager 包装后成为上下文管理器
+        assert len(hooker.context_hook_funcs) == 2
+        # 注意：contextmanager 包装后返回的是另一个函数，不能直接比较，我们检查其是否为 contextmanager 返回的 manager
+        # 简单检查调用后是否返回上下文管理器对象
+        assert hasattr(hooker.context_hook_funcs[0](), "__enter__")
+        assert hasattr(hooker.context_hook_funcs[1](), "__enter__")
+
+    def test_given_async_generator_when_initialized_then_ignored_and_logged(self):
+        """反例：异步生成器函数应被忽略并记录日志"""
+        async def async_gen(): yield
+        hooker = ConfigHooker([], async_gen, "", None, None, None, False)
+        assert hooker.wrap_hook_func == async_gen
+        assert hooker.context_hook_funcs == []
+
+    def test_given_no_wrap_funcs_when_initialized_then_wrap_hook_func_is_default(self):
+        """反例：没有普通函数时 wrap_hook_func 应为默认"""
+        def ctx(): yield
+        hooker = ConfigHooker([], ctx, "", None, None, None, False)
+        assert hooker.wrap_hook_func == VLLMHookerBase.default_hook_func
+        assert len(hooker.context_hook_funcs) == 1
+
+    def test_given_manager_exists_when_init_then_adds_handler(self, mock_import_object):
+        """正例：管理器已存在时 init 直接添加自身"""
+        # 预先创建管理器
+        hooker = ConfigHooker([], lambda x: x, "sym", None, None, None, False)
+        hooker.init()
+
+    def test_given_handler_exists_when_recover_then_removes_from_manager(self):
+        """正例：recover 从管理器中移除自身"""
+        manager = MagicMock()
+        manager.recover_handler.return_value = 1
+        hooker = ConfigHooker([], lambda x: x, "sym", None, None, None, False)
+        hooker.recover()

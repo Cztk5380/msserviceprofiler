@@ -66,6 +66,7 @@ class TestHookControllerEnable:
 
     def test_enable_reload_when_already_enabled(self, hook_controller, mock_watcher):
         hook_controller._enabled = True
+        hook_controller._watcher._symbol_handlers_profiling = None
         handlers = {"mod:func": [MagicMock()]}
         mock_watcher.apply_all_hooks.return_value = [MagicMock()]
         # 已启用且传入 metrics_handlers=None 时，源码会用 get_current_metrics_handlers() 填充

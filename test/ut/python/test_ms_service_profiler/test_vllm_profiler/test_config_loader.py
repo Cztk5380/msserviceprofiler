@@ -28,7 +28,8 @@ from ms_service_profiler.patcher.core.config_loader import (
     _resolve_handler_func,
     _resolve_metrics_handler_func,
     ConfigLoader,
-    DynamicHooker
+    DynamicHooker,
+    ConfigHooker
 )
 
 
@@ -143,7 +144,7 @@ class TestConfigLoader:
             {"symbol": "another.module:function_name", "handler": "custom.handlers:my_handler"},
         ]
         with patch("ms_service_profiler.patcher.core.config_loader.load_yaml_config", return_value=raw):
-            with patch("ms_service_profiler.patcher.core.config_loader.DynamicHooker") as MockDH:
+            with patch("ms_service_profiler.patcher.core.config_loader.ConfigHooker") as MockDH:
                 h1, h2 = MagicMock(), MagicMock()
                 MockDH.side_effect = [h1, h2]
                 result = self.loader.load_profiling()
@@ -158,7 +159,7 @@ class TestConfigLoader:
                 {"symbol": "module.path:ClassName.method_name", "domain": "FirstHandler"},
                 {"symbol": "module.path:ClassName.method_name", "domain": "SecondHandler"},
             ]
-            with patch("ms_service_profiler.patcher.core.config_loader.DynamicHooker") as MockDH:
+            with patch("ms_service_profiler.patcher.core.config_loader.ConfigHooker") as MockDH:
                 h1, h2 = MagicMock(), MagicMock()
                 MockDH.side_effect = [h1, h2]
                 result = self.loader.load_profiling()

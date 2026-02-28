@@ -28,7 +28,7 @@ from typing import Dict, List, Optional, Tuple, Any, Callable
 
 from .utils import load_yaml_config
 from .logger import logger
-from .dynamic_hook import make_default_time_hook, DynamicHooker
+from .dynamic_hook import make_default_time_hook, DynamicHooker, ConfigHooker
 from .metric_hook import wrap_handler_with_metrics
 import json
 
@@ -127,7 +127,7 @@ class ConfigLoader:
         """
         self._config_path = config_path
     
-    def load_profiling(self) -> Optional[Dict[str, List[DynamicHooker]]]:
+    def load_profiling(self) -> Optional[Dict[str, List[ConfigHooker]]]:
         """加载 profiling yml 配置并解析为 Handler 列表。
         
         Returns:
@@ -142,7 +142,7 @@ class ConfigLoader:
             logger.warning("Config should be a list of symbol configurations")
             return {}
         
-        result: Dict[str, List[DynamicHooker]] = {}
+        result: Dict[str, List[ConfigHooker]] = {}
         
         for item in raw_config:
             if not isinstance(item, dict) or 'symbol' not in item:
@@ -157,8 +157,9 @@ class ConfigLoader:
             hook_points = _build_hook_points(module_path, method_name, class_name)
             handler_func = _resolve_handler_func(item, method_name)
             
-            handler_instance = DynamicHooker(
+            handler_instance = ConfigHooker(
                 hook_list=hook_points,
+                symbol_path=symbol_path,
                 hook_func=handler_func,
                 min_version=item.get('min_version'),
                 max_version=item.get('max_version'),
@@ -173,7 +174,7 @@ class ConfigLoader:
         logger.debug(f"ConfigLoader loaded {len(result)} profiling symbols from {self._config_path}")
         return result
 
-    def load_metrics(self) -> Optional[Dict[str, List[DynamicHooker]]]:
+    def load_metrics(self) -> Optional[Dict[str, List[ConfigHooker]]]:
         """加载 metrics yml 并解析为 Handler 列表（每个 handler 经 wrap_handler_with_metrics 包装）。
 
         Returns:
@@ -185,7 +186,7 @@ class ConfigLoader:
         if not isinstance(raw_config, list):
             logger.warning("Metrics config should be a list of symbol configurations")
             return {}
-        result: Dict[str, List[DynamicHooker]] = {}
+        result: Dict[str, List[ConfigHooker]] = {}
         for item in raw_config:
             if not isinstance(item, dict) or 'symbol' not in item:
                 logger.warning("Skip invalid metrics config item: missing 'symbol'")
@@ -196,8 +197,9 @@ class ConfigLoader:
                 continue
             hook_points = _build_hook_points(module_path, method_name, class_name)
             handler_func = _resolve_metrics_handler_func(item, method_name)
-            handler_instance = DynamicHooker(
+            handler_instance = ConfigHooker(
                 hook_list=hook_points,
+                symbol_path=symbol_path,
                 hook_func=handler_func,
                 min_version=item.get('min_version'),
                 max_version=item.get('max_version'),

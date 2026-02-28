@@ -86,12 +86,7 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
                         hookers_to_recover.append(hooker)
 
             for hooker in hookers_to_recover:
-                try:
-                    for hook_helper in hooker.hooks:
-                        hook_helper.recover()
-                    logger.debug("Recovered hooker for removed symbol")
-                except Exception as e:
-                    logger.error(f"Failed to recover hooker: {e}")
+                hooker.recover()
 
     def _get_combined_symbol_paths(self):
         """返回当前已加载的 profiling 与 metrics 的 symbol 路径并集。"""
@@ -129,6 +124,7 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
             if removed_symbols:
                 logger.debug(f"Removing {len(removed_symbols)} symbols from handler config")
                 self._applied_hooks -= removed_symbols
+                # todo 不要的 hook 删掉， 多个hanlder 对应一个 symbol
                 with self._lock:
                     for symbol_path in removed_symbols:
                         for hooker in self._get_hookers_for_symbol(symbol_path):
@@ -136,11 +132,7 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
                                 self._prepared_hookers.remove(hooker)
                             if hooker in self._applied_hookers:
                                 if hooks_enabled:
-                                    try:
-                                        for h in hooker.hooks:
-                                            h.recover()
-                                    except Exception as e:
-                                        logger.error(f"Failed to recover hooker: {e}")
+                                    hooker.recover()
                                 self._applied_hookers.remove(hooker)
                         if symbol_path in self._symbol_to_hooker:
                             del self._symbol_to_hooker[symbol_path]
@@ -224,9 +216,6 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
         """为特定模块准备 Handler。"""
         try:
             for symbol_path, handler_list in module_handlers:
-                if symbol_path in self._applied_hooks:
-                    logger.debug(f"Handlers for {symbol_path} already prepared, skipping")
-                    continue
                 hookers_for_symbol = []
                 for handler in handler_list:
                     handler.register()
@@ -270,7 +259,7 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
         logger.debug("Checking for already loaded modules...")
         for symbol_path in self._get_combined_symbol_paths():
             module_path = symbol_path.split(":")[0]
-            if module_path in sys.modules and symbol_path not in self._applied_hooks:
+            if module_path in sys.modules:
                 logger.debug(f"Module {module_path} already loaded, preparing handlers")
                 self._on_symbol_module_loaded(module_path)
         return True

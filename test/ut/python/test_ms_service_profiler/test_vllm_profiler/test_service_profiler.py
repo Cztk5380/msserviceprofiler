@@ -590,7 +590,7 @@ class TestImportHookers:
         service_profiler._vllm_use_v1 = vllm_version
         
         with patch.dict('sys.modules'):
-            with patch(f'ms_service_profiler.patcher.{expected_module}') as mock_module:
+            with patch(f'ms_service_profiler.patcher.{expected_module}', create=True) as mock_module:
                 with patch('ms_service_profiler.patcher.vllm.service_patcher.logger.debug') as mock_debug:
                     service_profiler._import_handlers()
                     
@@ -658,7 +658,7 @@ class TestCheckAndApplyExistingModules:
         with patch.dict('sys.modules', {'test.module': Mock()}):
             with patch.object(service_profiler._controller._watcher, '_on_symbol_module_loaded') as mock_callback:
                 service_profiler._controller._watcher.check_and_apply_existing_modules()
-                mock_callback.assert_not_called()
+                mock_callback.assert_called_once()
 
     @staticmethod
     def test_check_and_apply_module_not_loaded(service_profiler, mock_handlers_data):
@@ -1179,7 +1179,7 @@ class TestServiceProfilerIntegration:
             'PROFILING_SYMBOLS_PATH': str(config_file)
         }):
             # 模拟导入过程
-            with patch('ms_service_profiler.patcher.vllm.handlers.v0') as mock_v0:
+            with patch('ms_service_profiler.patcher.vllm.handlers.v0', create=True) as mock_v0:
                 # 保存原始 meta_path
                 original_meta_path = sys.meta_path.copy()
                 try:

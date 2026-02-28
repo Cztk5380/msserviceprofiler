@@ -98,6 +98,9 @@ class LibServiceProfiler:
         
         # C 回调引用（防止被垃圾回收）
         self._c_callback_refs = []
+        
+        # Torch Profiler 相关接口
+        self.func_set_profiler_current_step = None
 
         # 是否已注册到 C++
         self._cpp_callbacks_registered = False

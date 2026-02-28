@@ -253,6 +253,7 @@ class TrackableOriginalFunc:
         self.executed = False
         self.cached_result = None
         self.cached_exception = None
+        self.__name__ = getattr(original_func, "__name__", "TrackableOriginalFunc")
     
     def __call__(self, *args, **kwargs):
         """调用原函数并缓存结果。
@@ -575,6 +576,14 @@ class VLLMHookerBase(ABC):
             cur_hook.replace()
             self.hooks.append(cur_hook)
             logger.debug(f"replacing {ori_func} with {self.applied_hook_func_name}")
+
+    def recover(self):
+        try:
+            for hook_helper in self.hooks:
+                hook_helper.recover()
+            logger.debug("Recovered hooker for removed symbol")
+        except Exception as e:
+            logger.error(f"Failed to recover hooker: {e}")
 
     def support_version(self, version):
         """检查当前版本是否支持。

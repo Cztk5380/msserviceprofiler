@@ -131,9 +131,6 @@ class HookController:
                     hooks_enabled=self._enabled,
                 )
             else:
-                if not metrics_handlers:
-                    logger.debug("Hooks not enabled and no metrics to apply, skipping update_metrics_handlers")
-                    return 0
                 logger.info("Enabling metric hooks (metric-only mode)...")
                 self._watcher.load_handlers(
                     profiling_handlers={},

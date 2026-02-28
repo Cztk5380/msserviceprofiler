@@ -18,9 +18,12 @@ import importlib
 import inspect
 from dataclasses import dataclass
 from typing import Tuple, List, Optional, Callable, Dict, Any
+
+from ms_service_profiler.patcher.core.registry import add_to_hook_registry
 from .logger import logger
 from contextlib import contextmanager
 from typing import ContextManager
+from functools import partial
 
 # Expose Profiler/Level at module scope so tests can patch them
 try:
@@ -49,6 +52,91 @@ class FuncCallContext:
     ret_val: Any
 
 
+
+global_mutil_handler_manager: Dict[str, "MultiHandlerDynamicHooker"] = dict()
+
+class ConfigHooker:
+    """用于在运行时基于配置注册的 Hooker。
+    
+    该类继承自 VLLMHookerBase，提供基于配置文件的动态 hook 功能。
+    支持版本范围限制和调用者过滤。
+    
+    Attributes:
+        vllm_version (Tuple[Optional[str], Optional[str]]): 支持的 vLLM 版本范围
+        hook_list (List[Tuple[str, str]]): hook 点列表
+        caller_filter (Optional[str]): 调用者过滤条件
+        hook_func (Callable): hook 处理函数
+    """
+    
+    def __init__(self, hook_list: List[Tuple[str, str]], hook_func: Callable, symbol_path: str,
+                 min_version: Optional[str], max_version: Optional[str], caller_filter: Optional[str], need_locals: bool = False):
+        """初始化 DynamicHooker。
+        
+        Args:
+            hook_list: hook 点列表，格式为 [(import_path, func_path), ...]
+            hook_func: hook 处理函数
+            min_version: 支持的最小版本
+            max_version: 支持的最大版本
+            caller_filter: 调用者过滤条件
+        """
+        super().__init__()
+        self.min_version = min_version
+        self.max_version = max_version
+        self.applied_hook_func_name = getattr(hook_func, "__name__", str(hook_func))
+        self.hook_list = list(hook_list)
+        self.symbol_path = symbol_path
+        self.caller_filter = caller_filter
+        self.need_locals = need_locals
+        
+        # hook_func 改为支持多个，一个hook点位支持多个hook函数
+        hook_funcs = hook_func if isinstance(hook_func, list) else [hook_func]
+        def create_context_manager(ori_func):
+            if inspect.isgeneratorfunction(ori_func):
+                return contextmanager(ori_func)
+            elif inspect.isasyncgenfunction(ori_func):
+                logger.debug("The handler does not support async generator functions.")
+                return None
+            elif isinstance(ori_func, type) and issubclass(ori_func, ContextManager):
+                return ori_func
+            else:
+                return None
+            
+        wrap_hook_funcs = []   # 原始的hook 函数，内部会自动调用ori_func
+        context_hook_funcs = []   # 新的hook 函数，内部使用yield 控制，或者本身就是ContextManager，由框架自动调用原函数~
+        
+        for x in hook_funcs:
+            context_func = create_context_manager(x)
+            if context_func:
+                context_hook_funcs.append(context_func)
+            else:
+                wrap_hook_funcs.append(x)
+        
+        self.wrap_hook_func = wrap_hook_funcs[0] if wrap_hook_funcs else VLLMHookerBase.default_hook_func
+        self.context_hook_funcs = context_hook_funcs
+        
+    def init(self):
+        global global_mutil_handler_manager
+        mulit_handler_manager = global_mutil_handler_manager.get(self.symbol_path)
+        if mulit_handler_manager is None:
+            mulit_handler_manager = MultiHandlerDynamicHooker(self.hook_list, [], self.min_version, self.max_version, None, self.need_locals)
+            global_mutil_handler_manager[self.symbol_path] = mulit_handler_manager
+        
+        mulit_handler_manager.add_handler(self)
+
+    def recover(self):
+        global global_mutil_handler_manager
+        mulit_handler_manager = global_mutil_handler_manager.get(self.symbol_path)
+        if mulit_handler_manager is None:
+            return
+        
+        if mulit_handler_manager.recover_handler(self) == 0:
+            del global_mutil_handler_manager[self.symbol_path]
+    
+    def register(self):
+        """注册hooker到全局注册表。"""
+        add_to_hook_registry(self)
+
+   
 class DynamicHooker(VLLMHookerBase):
     """用于在运行时基于配置注册的 Hooker。
     
@@ -87,7 +175,7 @@ class DynamicHooker(VLLMHookerBase):
             if inspect.isgeneratorfunction(ori_func):
                 return contextmanager(ori_func)
             elif inspect.isasyncgenfunction(ori_func):
-                logger.error("The handler does not support async generator functions.")
+                logger.debug("The handler does not support async generator functions.")
                 return None
             elif isinstance(ori_func, type) and issubclass(ori_func, ContextManager):
                 return ori_func
@@ -119,6 +207,72 @@ class DynamicHooker(VLLMHookerBase):
             pname=self.caller_filter,
         )
 
+
+class MultiHandlerDynamicHooker(DynamicHooker):
+    
+    def __init__(self, hook_list: List[Tuple[str, str]], hook_func: Callable,
+                 min_version: Optional[str], max_version: Optional[str], caller_filter: Optional[str], need_locals: bool = False):
+        super().__init__(hook_list, hook_func, min_version, max_version, caller_filter, need_locals)
+        self.handlers = set()
+        
+    def build_wrap_hook_func(self, handler_wrap_hook_funcs):
+        handler_wrap_hook_funcs = [x for x in handler_wrap_hook_funcs if x is not None and x != VLLMHookerBase.default_hook_func]
+        if handler_wrap_hook_funcs == []:
+            return VLLMHookerBase.default_hook_func
+        elif len(handler_wrap_hook_funcs) == 1:
+            return handler_wrap_hook_funcs[0]
+        else:
+            pass
+        class DynamicWrapHookFunc:
+            def __init__(self):
+                self.ori_func = None
+            
+            def __call__(self, *args, **kwargs):
+                if self.ori_func is None:
+                    logger.error("Original function not set for DynamicWrapHookFunc")
+                    return None
+                return self.ori_func(*args, **kwargs)  # 默认调用原函数，保证原函数的执行
+            
+            def set_ori_func(self, ori_func):
+                self.ori_func = ori_func
+        
+        dynamic_ori_func = DynamicWrapHookFunc()
+        wrap_hook_func = dynamic_ori_func
+        for func in reversed(handler_wrap_hook_funcs):
+            wrap_hook_func = partial(func, wrap_hook_func)
+
+        def _wrap_hook_func(ori_func, *args, **kwargs):
+            dynamic_ori_func.set_ori_func(ori_func)
+            return wrap_hook_func(*args, **kwargs)  # 先调用外层的hook函数，内部会自动调用ori_func
+        
+        return _wrap_hook_func
+    
+    def add_handler(self, handler:ConfigHooker):
+        if handler in self.handlers:
+            return
+        
+        self.recover()
+        self.handlers.add(handler)
+        self.wrap_hook_func = self.build_wrap_hook_func(x.wrap_hook_func for x in self.handlers)
+        self.context_hook_funcs = sum((x.context_hook_funcs for  x in self.handlers), [])
+        self.need_locals = any((x.need_locals for  x in self.handlers))
+        self.init()
+    
+    def recover_handler(self, handler:ConfigHooker):
+        if handler not in self.handlers:
+            return len(self.handlers)
+        
+        self.recover()
+        self.handlers.remove(handler)
+        if len(self.handlers) == 0:
+            return 0
+        
+        self.wrap_hook_func = self.build_wrap_hook_func(x.wrap_hook_func for x in self.handlers)
+        self.context_hook_funcs = sum((x.context_hook_funcs for  x in self.handlers), [])
+        self.need_locals = any((x.need_locals for  x in self.handlers))
+        self.init()
+        
+        return len(self.handlers)
 
 def register_dynamic_hook(hook_list: List[Tuple[str, str]], hook_func: Callable,
                           min_version: Optional[str] = None, max_version: Optional[str] = None,
