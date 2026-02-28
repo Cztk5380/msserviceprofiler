@@ -13,33 +13,33 @@ body:
     label: 问题类型
     description: 请选择您要提交的问题类型
     options:
-      - label: 性能优化建议
-      - label: 性能劣化反馈
-      - label: 性能调优咨询
-      - label: 其他
-    validations:
-      required: true
+      - 性能优化建议
+      - 性能劣化反馈
+      - 性能调优咨询
+      - 其他
+  validations:
+    required: true
 - type: dropdown
   attributes:
     label: 选择框架
     description: 请选择您使用的推理框架
     options:
-      - label: MindIE
-      - label: vllm
-      - label: SGlang
-    validations:
-      required: true
+      - MindIE
+      - vllm
+      - SGlang
+  validations:
+    required: true
 - type: dropdown
   attributes:
     label: 部署策略
     description: 请选择您的部署策略
     options:
-      - label: PD混部
-      - label: 单级PD分离
-      - label: 多机PD分离
-      - label: 大EP
-    validations:
-      required: false
+      - PD混部
+      - 单级PD分离
+      - 多机PD分离
+      - 大EP
+  validations:
+    required: false
 - type: textarea
   attributes:
     label: 问题场景
