@@ -5,10 +5,9 @@
 服务化性能数据比对工具（msServiceProfiler Compare Tool）：用于对比分析大模型推理服务化场景中不同版本或不同框架的性能数据差异，支持生成可视化报告和结构化数据输出。
 
 **基本概念**
-- 服务总体维度：包含服务级吞吐量、时延等核心指标
-- 请求维度：单个请求的完整处理周期指标
-- 批处理维度：批处理任务的分段性能指标
-
+- 服务总体维度：包含服务级吞吐量、时延等核心指标。
+- 请求维度：单个请求的完整处理周期指标。
+- 批处理维度：批处理任务的分段性能指标。
 ## 产品支持情况
 > **说明：** <br>
 >昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
@@ -27,56 +26,41 @@
 
 ## 使用前准备
 
-完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。
+- 完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。  
+- 如需算子比对功能，则先完成[msprof-analyze工具](https://gitcode.com/Ascend/msprof-analyze)的安装。
+
+**数据准备**
+
+- 完成服务化性能数据采集，获得两份待比对的性能数据，具体采集方式请参见[服务化调优工具](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/zh/msserviceprofiler_serving_tuning_instruct.md)。  
+- 算子比对场景要求使用[服务化调优工具](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/zh/msserviceprofiler_serving_tuning_instruct.md]采集性能数据时，配置acl_task_time参数值为3，确保采集的性能数据文件目录中包含以_ascend_pt为后缀的算子数据文件)。
 
 **约束**
 - 仅支持CANN 8.1.RC1及以上版本。
 - 需配合MindIE 2.0.RC1及以上使用。
-- 输入数据必须通过msserviceprofiler工具解析生成。
-
-## 快速入门
-
-**前提条件**
-1. 已完成服务化性能数据采集
-2. 准备待比对的input_path和golden_path数据目录
-3. 如果需要算子比对结果，需要输入2个目录下有算子的_ascend_pt结尾的文件
-
-**操作步骤**
-1. 执行比对命令：
-   ```bash
-   msserviceprofiler compare /path/to/input_data /path/to/golden_data
-   ```
-2. 可选参数配置示例：
-   ```bash
-   msserviceprofiler compare input_path golden_path \
-     --output-path ./custom_result \
-     --log-level debug
-   ```
+- 输入数据必须通过msServiceProfiler工具解析生成。
 
 ## 功能介绍
 
-### 功能说明
+**功能说明**
 
-提供服务化场景的性能数据差异分析，支持生成：
-- Excel格式的结构化比对报告
-- 算子比对功能当前仅支持输入目录中包含以“_ascend_pt”为后缀的算子数据文件，请确保输入路径下存在符合此命名规范的目录。
+提供服务化场景的性能数据差异比对，支持生成Excel格式的结构化比对报告。
 
-### 命令格式
+**命令格式**
 
 ```
-msserviceprofiler compare [options] input_path golden_path --output-path [output-path]
+msserviceprofiler compare <input_path> <golden_path> [--output-path <output_path>] [--log-level <log_level>]
 ```
 
-### 参数说明
+**参数说明**
 
-| 参数            | 可选/必选 | 说明                                                         |
-|-----------------|-----------|-------------------------------------------------------------|
-| input_path      | 必选      | 待分析数据目录（需包含msserviceprofiler解析后的数据）       |
-| golden_path     | 必选      | 基准数据目录                                                |
-| --output-path   | 可选      | 结果输出目录（默认：./compare_result）                      |
-| --log-level     | 可选      | 设置日志级别，取值为：<br>debug：调试级别。该级别的日志记录了调试信息，便于开发人员或维护人员定位问题。<br>info：正常级别。记录工具正常运行的信息。默认值。<br>warning：警告级别。记录工具和预期的状态不一致，但不影响整个进程运行的信息。<br>error：一般错误级别。<br>fatal：严重错误级别。<br>critical：致命错误级别。       |
+| 参数            | 可选/必选 | 说明                                                                                                                                                                                                                                        |
+|-----------------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| input_path      | 必选      | 待分析数据目录（需包含msServiceProfiler解析后的数据）。                                                                                                                                                                                                      |
+| golden_path     | 必选      | 基准数据目录。                                                                                                                                                                                                                                   |
+| --output-path   | 可选      | 结果输出目录（默认：./compare_result）。                                                                                                                                                                                                              |
+| --log-level     | 可选      | 设置日志级别，取值为：<br>&#8226; debug：调试级别。该级别的日志记录了调试信息，便于开发人员或维护人员定位问题。<br>&#8226; info：正常级别。记录工具正常运行的信息。默认值。<br>&#8226; warning：警告级别。记录工具和预期的状态不一致，但不影响整个进程运行的信息。<br>&#8226; error：一般错误级别。<br>&#8226; fatal：严重错误级别。<br>&#8226; critical：致命错误级别。 |
 
-### 使用示例
+**使用示例**
 
 ```bash
 # 执行默认比对
@@ -84,9 +68,11 @@ msserviceprofiler compare ./profiling_data/v1 ./profiling_data/v2
 
 ```
 
-### 输出结果文件说明
+## 输出结果文件说明
 
-#### 输出目录说明
+**输出目录说明**
+
+span_comparation_result.csv文件展示所有数据pair的绝对误差和相对误差。包含多个span名称，展示不同span时间差异。
 
 输出目录结构如下：
 
@@ -96,10 +82,23 @@ msserviceprofiler compare ./profiling_data/v1 ./profiling_data/v2
     
 ```
 
+**字段说明**  
 
-| 结果文件                        | 说明                                              |
-|-----------------------------|-------------------------------------------------|
-| span_comparation_result.csv | 展示所有数据 pair 的绝对误差和相对误差。包含有多个span名字，展示不同span时间差异 |
+**表1** span_comparation_result.csv
 
+|字段| 说明                                                 |
+|--|----------------------------------------------------|
+|Golden-AVG| 标杆数据的平均值。                                          |
+|Golden-P50| 标杆数据的50分位值。                                        |
+|Golden-P90| 标杆数据的90分位值。                                        |
+|Input-AVG| 比对数据的平均值。                                          |
+|Input-P50| 比对数据的50分位值。                                        |
+|Input-P90| 比对数据的90分位值。                                        |
+|DIFF-AVG| 比对数据和标杆数据平均值之间的差异。DIFF = Input - Golden            |
+|DIFF-P50| 比对数据和标杆数据50分位值之间的差异。                               |
+|DIFF-P90| 比对数据和标杆数据90分位值之间的差异。                               |
+|RDIFF-AVG(%)| 比对数据和标杆数据平均值之间的差异。RDIFF = (Input - Golden) / Golden |
+|RDIFF-P50(%)| 比对数据和标杆数据平均值之间的差异。                                 |
+|RDIFF-P90(%)| 比对数据和标杆数据平均值之间的差异。                                 |
 
 

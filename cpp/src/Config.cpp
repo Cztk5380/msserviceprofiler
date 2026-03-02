@@ -205,7 +205,7 @@ void Config::ParseTorchProfStepNum(const Json& config)
 
 void Config::ParseProfilerStepNum(const Json& config)
 {
-    int profiler_step_num = -1;  // 默认值为0
+    int profiler_step_num = -1;  // 默认值为-1
     if (config.contains("profiler_step_num")) {
         if (config["profiler_step_num"].is_number_integer()) {
             profiler_step_num = config["profiler_step_num"];
