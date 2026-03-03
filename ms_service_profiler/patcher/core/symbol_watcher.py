@@ -19,8 +19,9 @@ import importlib.abc
 import importlib.machinery as _machinery
 import sys
 import threading
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING, Set
 from .logger import logger
+from itertools import chain
 
 if TYPE_CHECKING:
     from .dynamic_hook import DynamicHooker
@@ -44,7 +45,7 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
         self._symbol_handlers_metrics: Dict[str, List] = {}
         self._config_loaded = False
         self._applied_hooks = set()
-        self._prepared_hookers: List = []
+        self._prepared_hookers: Set = set()
         self._applied_hookers: List = []
         self._symbol_to_hooker: Dict[str, List] = {}
         self._auto_apply_enabled = False
@@ -118,11 +119,17 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
         profiling_handlers = profiling_handlers or {}
         metrics_handlers = metrics_handlers or {}
         new_symbol_paths = set(profiling_handlers.keys()) | set(metrics_handlers.keys())
+        new_config_handlers = set(chain.from_iterable(profiling_handlers.values())) | set(
+            chain.from_iterable(metrics_handlers.values())
+        )
+        ori_config_handlers = set(chain.from_iterable(self._symbol_handlers_profiling.values())) | set(
+            chain.from_iterable(self._symbol_handlers_metrics.values())
+        )
 
         if self._config_loaded:
             removed_symbols = self._applied_hooks - new_symbol_paths
             if removed_symbols:
-                logger.debug(f"Removing {len(removed_symbols)} symbols from handler config")
+                logger.info(f"Removing {len(removed_symbols)} symbols from handler config")
                 self._applied_hooks -= removed_symbols
                 # todo 不要的 hook 删掉， 多个hanlder 对应一个 symbol
                 with self._lock:
@@ -136,6 +143,16 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
                                 self._applied_hookers.remove(hooker)
                         if symbol_path in self._symbol_to_hooker:
                             del self._symbol_to_hooker[symbol_path]
+            removed_handlers = ori_config_handlers - new_config_handlers
+            if removed_handlers:
+                logger.info(f"Removing {len(removed_handlers)} handlers from config")
+                with self._lock:
+                    for hooker in removed_handlers:
+                        hooker.recover()
+                        if hooker in self._prepared_hookers:
+                            self._prepared_hookers.remove(hooker)
+                        if hooker in self._applied_hookers:
+                            self._applied_hookers.remove(hooker)
 
         self._symbol_handlers_profiling = dict(profiling_handlers)
         self._symbol_handlers_metrics = dict(metrics_handlers)
@@ -219,7 +236,7 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
                 hookers_for_symbol = []
                 for handler in handler_list:
                     handler.register()
-                    self._prepared_hookers.append(handler)
+                    self._prepared_hookers.add(handler)
                     hookers_for_symbol.append(handler)
                     if self._auto_apply_enabled:
                         try:

@@ -144,7 +144,7 @@ class VLLMProfiler:
             logger.info("Using metrics config path: %s", path)
         return path
 
-    def _load_metrics_config(self) -> Optional[Dict[str, List]]:
+    def _load_metrics_config(self, just_default: bool = False) -> Optional[Dict[str, List]]:
         """加载 metrics 配置：始终加载默认 Meta 配置，再合并用户配置（如有）。"""
         merged: Dict[str, List] = {}
         default_path = self._get_default_metrics_config_path()
@@ -157,6 +157,8 @@ class VLLMProfiler:
                     logger.info("Loaded default metrics config from: %s", default_path)
             except Exception as e:
                 logger.warning("Failed to load default metrics config from %s: %s", default_path, e)
+        if just_default:
+            return merged if merged else None
         user_path = self._find_metrics_config_path()
         if user_path:
             try:
@@ -202,11 +204,11 @@ class VLLMProfiler:
         logger.warning("No config file found")
         return None
 
-    def _load_metric_handlers_only(self) -> Optional[Dict[str, List]]:
+    def _load_metric_handlers_only(self, just_default: bool = False) -> Optional[Dict[str, List]]:
         """仅加载 metric 的 yaml 配置，返回 metric 的 handler 字典（不加载 profiling）。
         仅由 C++ 的 startMetricCallback 触发时调用，不再在此处读 JSON；开关由 C++ 侧控制。
         """
-        return self._load_metrics_config()
+        return self._load_metrics_config(just_default=just_default)
 
     def _load_config(self) -> Tuple[Optional[Dict[str, List]], Optional[Dict[str, List]]]:
         """加载 profiling 配置并返回；metrics 由 C++ 通过 on_start_metric 回调单独控制，此处不读 JSON。
@@ -337,7 +339,8 @@ class VLLMProfiler:
         def on_stop_metric() -> None:
             try:
                 logger.info("Received metric stop signal from C++")
-                self._controller.update_metrics_handlers(None)
+                metrics_handlers = self._load_metric_handlers_only(just_default=True)
+                self._controller.update_metrics_handlers(metrics_handlers)
             except Exception as e:
                 logger.exception("Failed to handle metric stop: %s", e)
 

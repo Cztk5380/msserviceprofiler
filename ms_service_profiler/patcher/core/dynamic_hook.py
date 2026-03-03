@@ -135,8 +135,16 @@ class ConfigHooker:
     def register(self):
         """注册hooker到全局注册表。"""
         add_to_hook_registry(self)
+        
+    def __eq__(self, value):
+        if not isinstance(value, ConfigHooker):
+            return False
+        return self.symbol_path == value.symbol_path and self.applied_hook_func_name == value.applied_hook_func_name
 
+    def __hash__(self):
+        return hash((self.symbol_path, self.applied_hook_func_name))
    
+
 class DynamicHooker(VLLMHookerBase):
     """用于在运行时基于配置注册的 Hooker。
     

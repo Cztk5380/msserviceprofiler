@@ -134,7 +134,7 @@ class HookController:
                 logger.info("Enabling metric hooks (metric-only mode)...")
                 self._watcher.load_handlers(
                     profiling_handlers={},
-                    metrics_handlers=metrics_handlers,
+                    metrics_handlers=metrics_handlers or {},
                     hooks_enabled=False,
                 )
             self._watcher.check_and_apply_existing_modules()
