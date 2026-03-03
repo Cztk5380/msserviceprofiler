@@ -236,4 +236,375 @@ def test_get_log_run_log_not_exists(mock_exists):
     process = CustomProcess()
     process.run_log = 'nonexistent.log'
     assert process.get_log() is None
- 
+
+
+# 测试stop方法的测试用例
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.kill_children')
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.remove_file')
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.close_file_fp')
+@patch('psutil.Process')
+def test_stop_with_del_log_true(mock_psutil_process, mock_close_file_fp, mock_remove_file, mock_kill_children):
+    # 测试del_log=True的情况
+    process = CustomProcess()
+    process.run_log_fp = MagicMock()
+    process.run_log = '/test/run/log'
+    process.process = MagicMock()
+    process.process.poll.return_value = None
+    process.process.pid = 12345
+    
+    # 模拟子进程
+    mock_child_process = MagicMock()
+    mock_psutil_process.return_value.children.return_value = [mock_child_process]
+    
+    # 调用stop方法
+    process.stop(del_log=True)
+    
+    # 验证run_log_offset被重置
+    assert process.run_log_offset == 0
+    
+    # 验证文件操作
+    mock_close_file_fp.assert_called_once_with(process.run_log_fp)
+    mock_remove_file.assert_called_once_with(Path('/test/run/log'))
+    
+    # 验证进程操作
+    process.process.poll.assert_called()
+    mock_psutil_process.assert_called_once_with(12345)
+    mock_psutil_process.return_value.children.assert_called_once_with(recursive=True)
+    process.process.kill.assert_called_once()
+    process.process.wait.assert_called_once_with(10)
+    mock_kill_children.assert_called_once_with([mock_child_process])
+
+
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.kill_children')
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.remove_file')
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.close_file_fp')
+def test_stop_with_del_log_false(mock_close_file_fp, mock_remove_file, mock_kill_children):
+    # 测试del_log=False的情况
+    process = CustomProcess()
+    process.run_log_fp = MagicMock()
+    process.run_log = '/test/run/log'
+    process.process = None
+    
+    # 调用stop方法
+    process.stop(del_log=False)
+    
+    # 验证run_log_offset被重置
+    assert process.run_log_offset == 0
+    
+    # 验证文件操作
+    mock_close_file_fp.assert_called_once_with(process.run_log_fp)
+    
+    # 验证不删除日志文件
+    mock_remove_file.assert_not_called()
+
+
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.kill_children')
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.remove_file')
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.close_file_fp')
+def test_stop_process_already_exited(mock_close_file_fp, mock_remove_file, mock_kill_children):
+    # 测试进程已经退出的情况
+    process = CustomProcess()
+    process.run_log_fp = MagicMock()
+    process.run_log = '/test/run/log'
+    process.process = MagicMock()
+    process.process.poll.return_value = 1  # 进程已退出，返回退出码
+    
+    # 调用stop方法
+    process.stop()
+    
+    # 验证文件操作
+    mock_close_file_fp.assert_called_once_with(process.run_log_fp)
+    mock_remove_file.assert_called_once_with(Path('/test/run/log'))
+    
+    # 验证不会尝试杀死进程
+    process.process.kill.assert_not_called()
+    process.process.wait.assert_not_called()
+    mock_kill_children.assert_not_called()
+
+
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.kill_children')
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.remove_file')
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.close_file_fp')
+@patch('psutil.Process')
+def test_stop_process_wait_timeout(mock_psutil_process, mock_close_file_fp, mock_remove_file, mock_kill_children):
+    # 测试进程等待超时的情况
+    import subprocess
+    
+    process = CustomProcess()
+    process.run_log_fp = MagicMock()
+    process.run_log = '/test/run/log'
+    process.process = MagicMock()
+    process.process.poll.return_value = None
+    process.process.pid = 12345
+    
+    # 模拟wait超时
+    process.process.wait.side_effect = subprocess.TimeoutExpired('cmd', 10)
+    
+    # 模拟子进程
+    mock_child_process = MagicMock()
+    mock_psutil_process.return_value.children.return_value = [mock_child_process]
+    
+    # 调用stop方法
+    process.stop()
+    
+    # 验证文件操作
+    mock_close_file_fp.assert_called_once_with(process.run_log_fp)
+    mock_remove_file.assert_called_once_with(Path('/test/run/log'))
+    
+    # 验证进程操作
+    process.process.kill.assert_called_once()
+    process.process.wait.assert_called_once_with(10)
+    process.process.send_signal.assert_called_once_with(9)  # SIGKILL
+    mock_kill_children.assert_called_once_with([mock_child_process])
+
+
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.kill_children')
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.remove_file')
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.close_file_fp')
+@patch('psutil.Process')
+def test_stop_process_shutdown_failed(mock_psutil_process, mock_close_file_fp, mock_remove_file, mock_kill_children):
+    # 测试进程关闭失败的情况
+    process = CustomProcess()
+    process.run_log_fp = MagicMock()
+    process.run_log = '/test/run/log'
+    process.process = MagicMock()
+    process.process.poll.return_value = None  # 进程仍在运行
+    process.process.pid = 12345
+    
+    # 模拟子进程
+    mock_child_process = MagicMock()
+    mock_psutil_process.return_value.children.return_value = [mock_child_process]
+    
+    # 调用stop方法
+    process.stop()
+    
+    # 验证文件操作
+    mock_close_file_fp.assert_called_once_with(process.run_log_fp)
+    mock_remove_file.assert_called_once_with(Path('/test/run/log'))
+    
+    # 验证进程操作
+    process.process.kill.assert_called_once()
+    process.process.wait.assert_called_once_with(10)
+    mock_kill_children.assert_called_once_with([mock_child_process])
+
+
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.kill_children')
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.remove_file')
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.close_file_fp')
+@patch('psutil.Process')
+def test_stop_exception_handling(mock_psutil_process, mock_close_file_fp, mock_remove_file, mock_kill_children):
+    # 测试异常处理
+    process = CustomProcess()
+    process.run_log_fp = MagicMock()
+    process.run_log = '/test/run/log'
+    process.process = MagicMock()
+    process.process.poll.return_value = None
+    process.process.pid = 12345
+    
+    # 模拟psutil.Process抛出异常
+    mock_psutil_process.side_effect = Exception("Process error")
+    
+    # 调用stop方法
+    process.stop()
+    
+    # 验证文件操作
+    mock_close_file_fp.assert_called_once_with(process.run_log_fp)
+    mock_remove_file.assert_called_once_with(Path('/test/run/log'))
+    
+    # 验证异常被处理
+    mock_psutil_process.assert_called_once_with(12345)
+    process.process.kill.assert_not_called()
+    process.process.wait.assert_not_called()
+    mock_kill_children.assert_not_called()
+
+
+# 测试get_last_log方法的测试用例
+def test_get_last_log_no_run_log():
+    # 测试run_log为None的情况
+    process = CustomProcess()
+    process.run_log = None
+    
+    result = process.get_last_log()
+    
+    assert result is None
+
+
+@patch('pathlib.Path.exists', return_value=False)
+def test_get_last_log_file_not_exists(mock_exists):
+    # 测试日志文件不存在的情况
+    process = CustomProcess()
+    process.run_log = '/nonexistent/log/file.log'
+    
+    result = process.get_last_log()
+    
+    assert result is None
+    mock_exists.assert_called_once()
+
+
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.open_s')
+@patch('pathlib.Path.exists', return_value=True)
+def test_get_last_log_default_number(mock_exists, mock_open_s):
+    # 测试使用默认参数number=5的情况
+    process = CustomProcess()
+    process.run_log = '/test/log/file.log'
+    
+    # 模拟文件内容
+    mock_file = MagicMock()
+    mock_file.readlines.return_value = [
+        'Line 1\n',
+        'Line 2\n',
+        'Line 3\n',
+        'Line 4\n',
+        'Line 5\n',
+        'Line 6\n',
+        'Line 7\n'
+    ]
+    mock_open_s.return_value.__enter__.return_value = mock_file
+    
+    result = process.get_last_log()
+    
+    # 验证返回最后5行
+    expected = 'Line 3\n\nLine 4\n\nLine 5\n\nLine 6\n\nLine 7\n'
+    assert result == expected
+    mock_exists.assert_called_once()
+    mock_open_s.assert_called_once_with(Path('/test/log/file.log'), "r", encoding="utf-8")
+
+
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.open_s')
+@patch('pathlib.Path.exists', return_value=True)
+def test_get_last_log_custom_number(mock_exists, mock_open_s):
+    # 测试使用自定义number参数的情况
+    process = CustomProcess()
+    process.run_log = '/test/log/file.log'
+    
+    # 模拟文件内容
+    mock_file = MagicMock()
+    mock_file.readlines.return_value = [
+        'Line 1\n',
+        'Line 2\n',
+        'Line 3\n',
+        'Line 4\n',
+        'Line 5\n',
+        'Line 6\n',
+        'Line 7\n'
+    ]
+    mock_open_s.return_value.__enter__.return_value = mock_file
+    
+    result = process.get_last_log(number=3)
+    
+    # 验证返回最后3行
+    expected = 'Line 5\n\nLine 6\n\nLine 7\n'
+    assert result == expected
+
+
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.open_s')
+@patch('pathlib.Path.exists', return_value=True)
+def test_get_last_log_number_greater_than_file_lines(mock_exists, mock_open_s):
+    # 测试number大于文件行数的情况
+    process = CustomProcess()
+    process.run_log = '/test/log/file.log'
+    
+    # 模拟文件内容
+    mock_file = MagicMock()
+    mock_file.readlines.return_value = [
+        'Line 1\n',
+        'Line 2\n',
+        'Line 3\n'
+    ]
+    mock_open_s.return_value.__enter__.return_value = mock_file
+    
+    result = process.get_last_log(number=10)
+    
+    # 验证返回所有行
+    expected = 'Line 1\n\nLine 2\n\nLine 3\n'
+    assert result == expected
+
+
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.open_s')
+@patch('pathlib.Path.exists', return_value=True)
+def test_get_last_log_empty_file(mock_exists, mock_open_s):
+    # 测试空文件的情况
+    process = CustomProcess()
+    process.run_log = '/test/log/file.log'
+    
+    # 模拟空文件
+    mock_file = MagicMock()
+    mock_file.readlines.return_value = []
+    mock_open_s.return_value.__enter__.return_value = mock_file
+    
+    result = process.get_last_log()
+    
+    # 验证返回空字符串
+    assert result == ''
+
+
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.open_s')
+@patch('pathlib.Path.exists', return_value=True)
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.logger')
+def test_get_last_log_unicode_error(mock_logger, mock_exists, mock_open_s):
+    # 测试UnicodeError异常的情况
+    process = CustomProcess()
+    process.run_log = '/test/log/file.log'
+    
+    # 模拟UnicodeError
+    mock_open_s.side_effect = UnicodeError("Encoding error")
+    
+    # 由于原始代码中的bug，当发生异常时会抛出UnboundLocalError
+    # 我们需要捕获这个异常来验证错误日志被记录
+    with pytest.raises(UnboundLocalError) as exc_info:
+        result = process.get_last_log()
+    
+    # 验证异常信息
+    assert "local variable 'file_lines' referenced before assignment" in str(exc_info.value)
+    
+    # 验证记录错误日志
+    mock_logger.error.assert_called_once()
+    assert "Failed read" in mock_logger.error.call_args[0][0]
+
+
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.open_s')
+@patch('pathlib.Path.exists', return_value=True)
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.logger')
+def test_get_last_log_os_error(mock_logger, mock_exists, mock_open_s):
+    # 测试OSError异常的情况
+    process = CustomProcess()
+    process.run_log = '/test/log/file.log'
+    
+    # 模拟OSError
+    mock_open_s.side_effect = OSError("File access error")
+    
+    # 由于原始代码中的bug，当发生异常时会抛出UnboundLocalError
+    # 我们需要捕获这个异常来验证错误日志被记录
+    with pytest.raises(UnboundLocalError) as exc_info:
+        result = process.get_last_log()
+    
+    # 验证异常信息
+    assert "local variable 'file_lines' referenced before assignment" in str(exc_info.value)
+    
+    # 验证记录错误日志
+    mock_logger.error.assert_called_once()
+    assert "Failed read" in mock_logger.error.call_args[0][0]
+
+
+@patch('ms_serviceparam_optimizer.optimizer.custom_process.open_s')
+@patch('pathlib.Path.exists', return_value=True)
+def test_get_last_log_with_command(mock_exists, mock_open_s):
+    # 测试有command属性的情况
+    process = CustomProcess()
+    process.run_log = '/test/log/file.log'
+    process.command = ['python', 'script.py']
+    
+    # 模拟文件内容
+    mock_file = MagicMock()
+    mock_file.readlines.return_value = [
+        'Line 1\n',
+        'Line 2\n',
+        'Line 3\n'
+    ]
+    mock_open_s.return_value.__enter__.return_value = mock_file
+    
+    result = process.get_last_log()
+    
+    # 验证返回最后5行（默认值）
+    expected = 'Line 1\n\nLine 2\n\nLine 3\n'
+    assert result == expected

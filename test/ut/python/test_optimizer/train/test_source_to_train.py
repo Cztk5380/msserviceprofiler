@@ -13,7 +13,7 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
-
+import argparse
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -311,6 +311,200 @@ class TestSourceToTrainVllm(unittest.TestCase):
         for pid_dir in output_csv.iterdir():
             if pid_dir.is_dir():
                 self.assertTrue((pid_dir / "feature.csv").exists())
+
+
+class TestArgParseAndMain(unittest.TestCase):
+    """测试arg_parse和main函数的功能"""
+
+    def setUp(self):
+        # 创建临时测试环境
+        self.test_dir = Path("test_source_to_train_main")
+        self.test_dir.mkdir(exist_ok=True)
+
+    def tearDown(self):
+        # 清理临时目录
+        shutil.rmtree(self.test_dir)
+
+    @patch('ms_serviceparam_optimizer.train.source_to_train.main')
+    def test_arg_parse(self, mock_main):
+        """测试arg_parse函数"""
+        from ms_serviceparam_optimizer.train.source_to_train import arg_parse
+        
+        # 创建模拟的subparsers对象
+        mock_subparsers = MagicMock()
+        mock_parser = MagicMock()
+        mock_subparsers.add_parser.return_value = mock_parser
+        
+        # 调用arg_parse函数
+        arg_parse(mock_subparsers)
+        
+        # 验证add_parser被调用
+        mock_subparsers.add_parser.assert_called_once_with(
+            "train", formatter_class=argparse.ArgumentDefaultsHelpFormatter, help="train for auto optimize"
+        )
+        
+        # 验证add_argument被调用
+        self.assertEqual(mock_parser.add_argument.call_count, 3)
+        
+        # 验证set_defaults被调用
+        mock_parser.set_defaults.assert_called_once_with(func=mock_main)
+
+    @patch('ms_serviceparam_optimizer.train.source_to_train.req_decodetimes')
+    @patch('ms_serviceparam_optimizer.train.pretrain.pretrain')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.source_to_model')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.is_root')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.logger')
+    def test_main_with_root_user(self, mock_logger, mock_is_root, mock_source_to_model, 
+                                mock_pretrain, mock_req_decodetimes):
+        """测试main函数在root用户下的行为"""
+        from ms_serviceparam_optimizer.train.source_to_train import main
+        
+        # 模拟root用户
+        mock_is_root.return_value = True
+        
+        # 创建模拟的args对象
+        mock_args = MagicMock()
+        mock_args.input = self.test_dir
+        mock_args.output = self.test_dir / "output"
+        mock_args.type = "mindie"
+        
+        # 调用main函数
+        main(mock_args)
+        
+        # 验证警告日志被记录
+        mock_logger.warning.assert_called_once()
+        self.assertIn("Security Warning", mock_logger.warning.call_args[0][0])
+        
+        # 验证其他函数被调用
+        mock_source_to_model.assert_called_once_with(self.test_dir, "mindie")
+        mock_pretrain.assert_called_once()
+        mock_req_decodetimes.assert_called_once()
+
+    @patch('ms_serviceparam_optimizer.train.source_to_train.req_decodetimes')
+    @patch('ms_serviceparam_optimizer.train.pretrain.pretrain')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.source_to_model')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.is_root')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.logger')
+    def test_main_with_non_root_user(self, mock_logger, mock_is_root, mock_source_to_model, 
+                                   mock_pretrain, mock_req_decodetimes):
+        """测试main函数在非root用户下的行为"""
+        from ms_serviceparam_optimizer.train.source_to_train import main
+        
+        # 模拟非root用户
+        mock_is_root.return_value = False
+        
+        # 创建模拟的args对象
+        mock_args = MagicMock()
+        mock_args.input = self.test_dir
+        mock_args.output = self.test_dir / "output"
+        mock_args.type = "mindie"
+        
+        # 调用main函数
+        main(mock_args)
+        
+        # 验证警告日志未被记录
+        mock_logger.warning.assert_not_called()
+        
+        # 验证其他函数被调用
+        mock_source_to_model.assert_called_once_with(self.test_dir, "mindie")
+        mock_pretrain.assert_called_once()
+        mock_req_decodetimes.assert_called_once()
+
+    @patch('ms_serviceparam_optimizer.train.source_to_train.req_decodetimes')
+    @patch('ms_serviceparam_optimizer.train.pretrain.pretrain')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.source_to_model')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.is_root')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.logger')
+    def test_main_with_vllm_type(self, mock_logger, mock_is_root, mock_source_to_model, 
+                                mock_pretrain, mock_req_decodetimes):
+        """测试main函数使用vllm类型"""
+        from ms_serviceparam_optimizer.train.source_to_train import main
+        
+        # 模拟非root用户
+        mock_is_root.return_value = False
+        
+        # 创建模拟的args对象
+        mock_args = MagicMock()
+        mock_args.input = self.test_dir
+        mock_args.output = self.test_dir / "output"
+        mock_args.type = "vllm"
+        
+        # 调用main函数
+        main(mock_args)
+        
+        # 验证其他函数被调用
+        mock_source_to_model.assert_called_once_with(self.test_dir, "vllm")
+        mock_pretrain.assert_called_once()
+        mock_req_decodetimes.assert_called_once()
+
+    @patch('ms_serviceparam_optimizer.train.source_to_train.req_decodetimes')
+    @patch('ms_serviceparam_optimizer.train.pretrain.pretrain')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.source_to_model')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.is_root')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.logger')
+    def test_main_with_io_error(self, mock_logger, mock_is_root, mock_source_to_model, 
+                              mock_pretrain, mock_req_decodetimes):
+        """测试main函数处理IOError的情况"""
+        from ms_serviceparam_optimizer.train.source_to_train import main
+        
+        # 模拟非root用户
+        mock_is_root.return_value = False
+        
+        # 模拟source_to_model抛出IOError
+        mock_source_to_model.side_effect = IOError("File not found")
+        
+        # 创建模拟的args对象
+        mock_args = MagicMock()
+        mock_args.input = self.test_dir
+        mock_args.output = self.test_dir / "output"
+        mock_args.type = "mindie"
+        
+        # 调用main函数并验证异常被抛出
+        with self.assertRaises(IOError):
+            main(mock_args)
+        
+        # 验证错误日志被记录
+        mock_logger.error.assert_called_once()
+        self.assertIn("无法读取输入文件", mock_logger.error.call_args[0][0])
+        
+        # 验证pretrain和req_decodetimes未被调用
+        mock_pretrain.assert_not_called()
+        mock_req_decodetimes.assert_not_called()
+
+    @patch('ms_serviceparam_optimizer.train.source_to_train.req_decodetimes')
+    @patch('ms_serviceparam_optimizer.train.pretrain.pretrain')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.source_to_model')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.is_root')
+    @patch('ms_serviceparam_optimizer.train.source_to_train.logger')
+    def test_main_with_pretrain_error(self, mock_logger, mock_is_root, mock_source_to_model, 
+                                   mock_pretrain, mock_req_decodetimes):
+        """测试main函数处理pretrain异常的情况"""
+        from ms_serviceparam_optimizer.train.source_to_train import main
+        
+        # 模拟非root用户
+        mock_is_root.return_value = False
+        
+        # 模拟pretrain抛出异常
+        mock_pretrain.side_effect = Exception("Pretrain failed")
+        
+        # 创建模拟的args对象
+        mock_args = MagicMock()
+        mock_args.input = self.test_dir
+        mock_args.output = self.test_dir / "output"
+        mock_args.type = "mindie"
+        
+        # 调用main函数
+        main(mock_args)
+        
+        # 验证错误日志被记录
+        mock_logger.error.assert_called_once()
+        self.assertIn("pretrain failed", mock_logger.error.call_args[0][0])
+        
+        # 验证source_to_model被调用
+        mock_source_to_model.assert_called_once_with(self.test_dir, "mindie")
+        
+        # 验证req_decodetimes未被调用（因为pretrain失败）
+        mock_req_decodetimes.assert_not_called()
 
 
 if __name__ == "__main__":

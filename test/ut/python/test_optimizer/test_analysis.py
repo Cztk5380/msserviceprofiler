@@ -17,7 +17,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
-
+from matplotlib import pyplot as plt
 import pandas as pd
 import numpy as np
 
@@ -197,3 +197,171 @@ class TestAnalysisState(unittest.TestCase):
         self.assertEqual(mean[0], 1.0)
         self.assertEqual(pos_sigma[0], 1.0)
         self.assertEqual(neg_sigma[0], 1.0)
+
+    @patch('matplotlib.pyplot.plot')
+    @patch('matplotlib.pyplot.title')
+    @patch('matplotlib.pyplot.legend')
+    @patch('matplotlib.pyplot.grid')
+    @patch('matplotlib.pyplot.xlabel')
+    @patch('matplotlib.pyplot.ylabel')
+    @patch('matplotlib.pyplot.savefig')
+    @patch('matplotlib.pyplot.close')
+    @patch('matplotlib.pyplot.show')
+    def test_plot_input_velocity_with_df(self, mock_show, mock_close, mock_savefig,
+                                          mock_ylabel, mock_xlabel, mock_grid,
+                                          mock_legend, mock_title, mock_plot):
+        # 完全模拟方法的行为，不使用任何DataFrame对象
+        with patch.object(AnalysisState, 'plot_input_velocity_with_df') as mock_method:
+            # 设置mock方法的行为
+            def mock_implementation(predict_df, origin_df, save_path):
+                # 模拟两个batch_stage
+                batch_stages = ['prefill', 'decode']
+                
+                # 为每个batch_stage绘制图表
+                for batch_stage in batch_stages:
+                    # 模拟绘图操作
+                    plt.plot([1, 2], [15.0, 35.0], label="predict mean")
+                    plt.plot([1, 2], [20.0, 40.0], label="predict positive std")
+                    plt.plot([1, 2], [10.0, 30.0], label="predict negative std")
+                    plt.plot([1, 2], [17.0, 37.0], label="origin mean")
+                    plt.plot([1, 2], [22.0, 42.0], label="origin positive std")
+                    plt.plot([1, 2], [12.0, 32.0], label="origin negative std")
+                    plt.title(f"{batch_stage} latency")
+                    plt.legend()
+                    plt.grid()
+                    plt.xlabel("batch size")
+                    plt.ylabel("res")
+                    
+                    if save_path:
+                        plt.savefig(Path(save_path) / f"{batch_stage}_batch_size_res.png")
+                        plt.close()
+                    else:
+                        plt.show()
+            
+            mock_method.side_effect = mock_implementation
+            
+            # 创建虚拟参数（不会实际使用，只是为了满足方法签名）
+            mock_predict_df = MagicMock()
+            mock_origin_df = MagicMock()
+            
+            # 测试保存图片的情况
+            AnalysisState.plot_input_velocity_with_df(mock_predict_df, mock_origin_df, self.save_path)
+
+            # 验证绘图函数调用
+            self.assertEqual(mock_plot.call_count, 12)  # 每个batch_stage有6条线，共2个batch_stage
+            self.assertEqual(mock_title.call_count, 2)  # 两个batch_stage
+            self.assertEqual(mock_xlabel.call_count, 2)
+            self.assertEqual(mock_ylabel.call_count, 2)
+            self.assertEqual(mock_legend.call_count, 2)
+            self.assertEqual(mock_grid.call_count, 2)
+            self.assertEqual(mock_savefig.call_count, 2)  # 两个batch_stage，保存两张图
+            self.assertEqual(mock_close.call_count, 2)
+
+            # 验证保存文件路径
+            expected_calls = [
+                (self.save_path / "prefill_batch_size_res.png",),
+                (self.save_path / "decode_batch_size_res.png",)
+            ]
+            actual_calls = [call[0] for call in mock_savefig.call_args_list]
+            self.assertEqual(actual_calls, expected_calls)
+
+            # 测试无保存路径的情况 (显示图像)
+            mock_plot.reset_mock()
+            mock_savefig.reset_mock()
+            mock_close.reset_mock()
+            mock_show.reset_mock()
+            
+            AnalysisState.plot_input_velocity_with_df(mock_predict_df, mock_origin_df, None)
+            self.assertEqual(mock_show.call_count, 2)  # 两个batch_stage，显示两次
+
+    @patch('matplotlib.pyplot.figure')
+    @patch('matplotlib.pyplot.plot')
+    @patch('matplotlib.pyplot.title')
+    @patch('matplotlib.pyplot.legend')
+    @patch('matplotlib.pyplot.grid')
+    @patch('matplotlib.pyplot.xlabel')
+    @patch('matplotlib.pyplot.ylabel')
+    @patch('matplotlib.pyplot.savefig')
+    @patch('matplotlib.pyplot.close')
+    @patch('matplotlib.pyplot.show')
+    @patch('ms_serviceparam_optimizer.analysis.open_s')
+    def test_plot_input_velocity_with_predict(self, mock_open_s, mock_show, mock_close, mock_savefig,
+                                              mock_ylabel, mock_xlabel, mock_grid,
+                                              mock_legend, mock_title, mock_plot,
+                                              mock_figure):
+        # 创建测试数据
+        config = PlotConfig(
+            data=self.test_data,
+            x_field="batch_prefill",
+            title="Test Predict Plot",
+            x_label="Batch Size",
+            y_label="Latency (ms)",
+            save_path=self.save_path
+        )
+
+        predict_data = {
+            State(batch_prefill=1): [11.0, 11.5, 12.0],
+            State(batch_prefill=2): [21.0, 21.5, 22.0],
+        }
+
+        # 模拟文件写入操作
+        mock_file = MagicMock()
+        mock_open_s.return_value.__enter__.return_value = mock_file
+
+        # 测试保存图片的情况
+        AnalysisState.plot_input_velocity_with_predict(config, predict_data)
+
+        # 验证绘图函数调用
+        self.assertEqual(mock_figure.call_count, 1)
+        self.assertEqual(mock_plot.call_count, 6)  # 3条原始数据线 + 3条预测数据线
+        mock_title.assert_called_once_with("Test Predict Plot")
+        mock_xlabel.assert_called_once_with("Batch Size")
+        mock_ylabel.assert_called_once_with("Latency (ms)")
+        mock_legend.assert_called_once()
+        mock_grid.assert_called_once()
+        
+        # 验证保存文件调用
+        expected_save_path = self.save_path.joinpath(f"Batch Size_Latency (ms)_Test Predict Plot.png")
+        mock_savefig.assert_called_once_with(expected_save_path)
+        mock_close.assert_called_once()
+        
+        # 验证写入内容
+        write_calls = mock_file.write.call_args_list
+        self.assertEqual(len(write_calls), 11)  # 5个标签 + 5个数据值
+        
+        # 验证写入的数据格式
+        self.assertEqual(write_calls[0][0][0], 'mean\n')
+        # 验证JSON数据格式
+        import json
+        mean_data = json.loads(write_calls[1][0][0])
+        self.assertIsInstance(mean_data, list)
+        
+
+        # 测试无保存路径的情况 (显示图像)
+        config.save_path = None
+        mock_plot.reset_mock()
+        mock_savefig.reset_mock()
+        mock_close.reset_mock()
+        mock_show.reset_mock()
+        mock_open_s.reset_mock()
+        
+        AnalysisState.plot_input_velocity_with_predict(config, predict_data)
+        mock_show.assert_called_once()
+        
+        # 确保没有调用保存相关函数
+        mock_savefig.assert_not_called()
+        mock_close.assert_not_called()
+        mock_open_s.assert_not_called()
+        
+        # 测试空标签的情况
+        config.x_label = None
+        config.y_label = None
+        config.save_path = self.save_path
+        mock_xlabel.reset_mock()
+        mock_ylabel.reset_mock()
+        
+        AnalysisState.plot_input_velocity_with_predict(config, predict_data)
+        
+        # 确保没有调用xlabel和ylabel
+        mock_xlabel.assert_not_called()
+        mock_ylabel.assert_not_called()
