@@ -30,9 +30,9 @@ vLLM Service Profiler 适用于在 vLLM-ascend 推理服务过程中进行性能
 ### 使用前准备
 #### 环境准备
 
-1. 完成msServiceProfiler工具安装，具体请参见《[msServiceProfiler工具安装指南](msserviceprofiler_install_guide.md)》。
-2. 在昇腾环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《CANN 软件安装指南》。
-3. 完成 vLLM 和 vLLM-ascend 的安装和配置并确认 vLLM-ascend 可以正常运行，具体请参见 [vLLM-Ascend installation](https://vllm-ascend.readthedocs.io/en/latest/installation.html)。
+1. 在昇腾环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《CANN 软件安装指南》。
+2. 完成 vLLM 和 vLLM-ascend 的安装和配置并确认 vLLM-ascend 可以正常运行，具体请参见 [vLLM-Ascend installation](https://vllm-ascend.readthedocs.io/en/latest/installation.html)。
+3. 升级 msServiceProfiler 工具，请参见《[msServiceProfiler工具安装指南 - 升级](./msserviceprofiler_install_guide.md#升级)》章节，基于源码构建 run 包并完成升级。
 
 
 #### 约束

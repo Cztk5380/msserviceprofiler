@@ -40,21 +40,54 @@ Successfully installed ... ms_service_profiler-x.x.x
 > cache 目录位于 `msserviceprofiler/build` 下，参考执行命令：`rm -r msserviceprofiler/build`
 
 ## 升级
+
+基于源码构建 run 包并执行升级，将自动覆盖 CANN Toolkit 安装目录下的 `ms_service_profiler`、`libms_service_profiler.so`、`include/msServiceProfiler` 等目标文件。
+
+**前置条件**：已通过安装CANN Toolkit开发套件包完成工具安装。
+
+### 构建 run 包
+
 ```shell
+# 1. 拉取源码
 git clone https://gitcode.com/Ascend/msserviceprofiler.git
 cd msserviceprofiler
-pip install . --upgrade
+
+# 2. 下载三方文件
+bash scripts/download_thirdparty.sh
+
+# 3. 构建 run 包（输出至 output/ 目录）
+bash scripts/build.sh
 ```
-升级成功将有下述回显信息。
+
+### 执行升级
+
 ```shell
-Successfully built ms_service_profiler
-Installing collected packages: ms_service_profiler
-  Attempting uninstall: ms_service_profiler
-    Found existing installation: ms_service_profiler x.x.x
-    Uninstalling ms_service_profiler-x.x.x:
-      Successfully uninstalled ms_service_profiler-x.x.x
-Successfully installed ms_service_profiler-x.x.x
+cd output
+
+# 方式一：使用 ASCEND_TOOLKIT_HOME 环境变量
+./mindstudio-service-profiler_*.run --upgrade
+
+# 方式二：手动指定升级路径
+./mindstudio-service-profiler_*.run --upgrade --install-path=/usr/local/Ascend/ascend-toolkit
 ```
+
+升级执行时将有下述回显信息，列出将被覆盖的文件并等待用户确认：
+
+```shell
+Verifying archive integrity...  100%   SHA256 checksums are OK. All good.
+Uncompressing mindstudio-service-profiler  100%  
+[mindstudio-msserviceprofiler] [2026-03-04 03:35:37] [INFO]: Upgrade target path: /usr/local/Ascend/cann-x.x.x
+[mindstudio-msserviceprofiler] [2026-03-04 03:35:37] [INFO]: The following files will be overwritten. To keep the original files, please manually copy or backup them.
+  - /usr/local/Ascend/cann-x.x.x/python/site-packages/ms_service_profiler
+  - /usr/local/Ascend/cann-x.x.x/python/site-packages/ms_service_profiler/libms_service_profiler.so
+Confirm to proceed? [y/N]: 
+```
+
+> 注意：升级将自动覆盖升级路径下的 `ms_service_profiler`、`libms_service_profiler.so`、`include/msServiceProfiler` 等目标文件。如需保留原文件，请在升级前根据升级列表手动备份。
+>
+> 注意：若未设置 `ASCEND_TOOLKIT_HOME` 且未指定 `--install-path`，升级将失败并提示需手动指定路径。
+
+
 ## 卸载
 ```shell
 pip uninstall ms_service_profiler -y

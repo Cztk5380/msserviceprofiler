@@ -2,6 +2,8 @@
 # the params for checking
 install_args_num=0
 install_path_num=0
+upgrade_flag=0
+quiet_flag=0
 MSSERVICE_RUN_NAME="mindstudio-msserviceprofiler"
 PATH_LENGTH=4096
 package_arch=$(uname -m)
@@ -26,15 +28,17 @@ function get_log_file() {
 	  echo "${log_dir}/ascend_install.log"
 }
 
+
 function log_init() {
-    if [ ! -f "$log_file" ]; then
-        touch $log_file
-        if [ $? -ne 0 ]; then
-            print_log "ERROR" "touch $log_file permission denied"
-            exit 1
-        fi
+    local log_dir
+    log_dir=$(dirname "$log_file")
+    if [ ! -d "$log_dir" ]; then
+        mkdir -p "$log_dir" || { echo "[${MSSERVICE_RUN_NAME}] [$(date +"%Y-%m-%d %H:%M:%S")] [ERROR]: Failed to create log directory: $log_dir"; exit 1; }
     fi
-    chmod 640 $log_file
+    if [ ! -f "$log_file" ]; then
+        touch "$log_file" || { echo "[${MSSERVICE_RUN_NAME}] [$(date +"%Y-%m-%d %H:%M:%S")] [ERROR]: Failed to create log file: $log_file"; exit 1; }
+    fi
+    chmod 640 "$log_file"
 }
 
 function check_path() {
@@ -108,11 +112,17 @@ function parse_script_args() {
             continue
             ;;
         --quiet)
+            quiet_flag=1
             shift
             continue
             ;;
         --install)
             let "install_args_num+=1"
+            shift
+            continue
+            ;;
+        --upgrade)
+            upgrade_flag=1
             shift
             continue
             ;;
@@ -135,14 +145,14 @@ function parse_script_args() {
 }
 
 function check_args() {
-    if [ ${install_args_num} -ne 0 ] && [ ${uninstall_flag} -eq 1 ]; then
- 	      print_log "ERROR" "Input option is invalid. Please try --help."
- 	      exit 1
- 	     fi
- 	  if [ ${install_args_num} -eq 0 ] && [ ${uninstall_flag} -eq 0 ]; then
- 	  	  print_log "ERROR" "Input option is invalid. Please try --help."
- 	  	  exit 1
- 	  fi
+    local op_count=0
+    [ ${install_args_num} -gt 0 ] && op_count=$((op_count + 1))
+    [ ${upgrade_flag} -eq 1 ] && op_count=$((op_count + 1))
+    [ ${uninstall_flag} -eq 1 ] && op_count=$((op_count + 1))
+    if [ ${op_count} -ne 1 ]; then
+        print_log "ERROR" "Must specify exactly one of --install, --upgrade, or --uninstall. Please try --help."
+        exit 1
+    fi
     if [ ${install_path_num} -gt 1 ]; then
         print_log "ERROR" "Do not input --install-path many times. Please try --help."
         exit 1
@@ -150,21 +160,28 @@ function check_args() {
 }
 
 function execute_run() {
- 	  if [ ${uninstall_flag} -eq 1 ]; then
- 	  	  bash uninstall.sh ${install_path}
- 	  	  if [ $? -ne 0 ]; then
- 	  	      print_log "ERROR" "${MSSERVICE_RUN_NAME} package uninstall failed."
- 	  	      exit 1
- 	  	  fi
- 	  	  print_log "INFO" "${MSSERVICE_RUN_NAME} package uninstall success."
- 	  elif [ ${install_args_num} -gt 0 ]; then
- 	  	  bash install.sh ${install_path} ${package_arch} ${install_for_all_flag}
- 	  	  if [ $? -ne 0 ]; then
- 	  	      print_log "ERROR" "${MSSERVICE_RUN_NAME} package install failed."
- 	  	      exit 1
- 	  	  fi
- 	  	  print_log "INFO" "${MSSERVICE_RUN_NAME} package install success, the path is: '${install_path}'."
- 	  fi
+    if [ ${uninstall_flag} -eq 1 ]; then
+        bash uninstall.sh ${install_path}
+        if [ $? -ne 0 ]; then
+            print_log "ERROR" "${MSSERVICE_RUN_NAME} package uninstall failed."
+            exit 1
+        fi
+        print_log "INFO" "${MSSERVICE_RUN_NAME} package uninstall success."
+    elif [ ${install_args_num} -gt 0 ]; then
+        bash install.sh ${install_path} ${package_arch} ${install_for_all_flag} 0
+        if [ $? -ne 0 ]; then
+            print_log "ERROR" "${MSSERVICE_RUN_NAME} package install failed."
+            exit 1
+        fi
+        print_log "INFO" "${MSSERVICE_RUN_NAME} package install success, the path is: '${install_path}'."
+    elif [ ${upgrade_flag} -eq 1 ]; then
+        bash upgrade.sh ${upgrade_path} ${quiet_flag}
+        if [ $? -ne 0 ]; then
+            print_log "ERROR" "${MSSERVICE_RUN_NAME} package upgrade failed."
+            exit 1
+        fi
+        print_log "INFO" "${MSSERVICE_RUN_NAME} upgrade completed, the path is: '${upgrade_path}'."
+    fi
 }
 
 function get_default_install_path() {
@@ -175,6 +192,7 @@ function get_default_install_path() {
     fi
 }
 
+
 # init log file
 log_file=$(get_log_file)
 log_init
@@ -183,4 +201,27 @@ install_path=$(get_default_install_path)
 #0, this footnote path;1, path for executing run;2, parents' dir for run package;3, run params
 parse_script_args $*
 check_args
+# Create install path when --install (default path may not exist)
+if [ ${install_args_num} -gt 0 ]; then
+    [ ! -d "${install_path}" ] && mkdir -p "${install_path}"
+fi
+# Set upgrade path when --upgrade: use --install-path if specified, else ASCEND_TOOLKIT_HOME (must be set)
+if [ ${upgrade_flag} -eq 1 ]; then
+    if [ ${install_path_num} -gt 0 ]; then
+        upgrade_path="${install_path}"
+    else
+        if [ -z "${ASCEND_TOOLKIT_HOME}" ]; then
+            print_log "ERROR" "ASCEND_TOOLKIT_HOME is not set. Please specify --install-path to set the upgrade path."
+            exit 1
+        fi
+        upgrade_path="${ASCEND_TOOLKIT_HOME}"
+    fi
+    upgrade_path="${upgrade_path%/}"
+    if [ ! -e "${upgrade_path}" ]; then
+        print_log "WARN" "Upgrade path does not exist: ${upgrade_path}."
+        exit 1
+    fi
+    check_path "${upgrade_path}"
+    upgrade_path=$(readlink -f "${upgrade_path}")
+fi
 execute_run
