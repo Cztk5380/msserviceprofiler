@@ -5,12 +5,15 @@ package_arch=${2}
 install_for_all_flag=${3}
 pylocal=y
 right=750
+root_libmsserviceprofiler_right=444
+user_libmsserviceprofiler_right=440
 MSSERVICE_RUN_NAME="mindstudio-msserviceprofiler"
 SHARE_INFO_DIR="share/info"
 UNINSTALL_SCRIPT="uninstall.sh"
 VERSION_INFO="version.info"
 MSSERVICEPROFILER="msserviceprofiler"
 CANN_UNINSTALL_SCRIPT="cann_uninstall.sh"
+LIB_MS_SERVICE_PROFILER="libms_service_profiler.so"
 
 function print_log() {
     if [ ! -f "$log_file" ]; then
@@ -54,6 +57,8 @@ function implement_install() {
     copy_file ${VERSION_INFO} ${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${VERSION_INFO}
 	  # install whl
     install_whl_package $pylocal ms_service_profiler-*.whl ${install_path%/}/python/site-packages
+    # libms_service_profiler.so
+    copy_file ${install_path%/}/python/site-packages/ms_service_profiler/${LIB_MS_SERVICE_PROFILER} ${install_path}/${arch_name}/lib64/${LIB_MS_SERVICE_PROFILER}
     if [ $? -ne 0 ]; then
         print_log "ERROR" "Install msserviceprofiler whl failed."
         return 1
@@ -99,6 +104,20 @@ function delete_msserviceprofiler() {
     rm -rf ${install_path%/}/python/site-packages/ms_service_profiler*
 }
 
+function set_libmsserviceprofiler_right() {
+	libmsserviceprofiler_right=${user_libmsserviceprofiler_right}
+	if [ "$install_for_all_flag" = "1" ] || [ "$UID" = "0" ]; then
+		libmsserviceprofiler_right=${root_libmsserviceprofiler_right}
+	fi
+}
+
+function chmod_libmsserviceprofiler() {
+
+	if [ -f "${install_path}/${arch_name}/lib64/${LIB_MS_SERVICE_PROFILER}" ]; then
+		chmod ${libmsserviceprofiler_right} "${install_path}/${arch_name}/lib64/${LIB_MS_SERVICE_PROFILER}"
+	fi
+}
+
 function register_uninstall() {
  	   if [ ! -f "${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${UNINSTALL_SCRIPT}" ]; then
  	       print_log "ERROR" "No such file: ${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${UNINSTALL_SCRIPT}"
@@ -123,3 +142,5 @@ implement_install
 if [ $? -eq 0 ]; then
  	  register_uninstall
 fi
+set_libmsserviceprofiler_right
+chmod_libmsserviceprofiler

@@ -4,6 +4,7 @@ install_args_num=0
 install_path_num=0
 MSSERVICE_RUN_NAME="mindstudio-msserviceprofiler"
 PATH_LENGTH=4096
+package_arch=$(uname -m)
 install_for_all_flag=0
 uninstall_flag=0
 
