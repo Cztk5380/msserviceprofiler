@@ -24,6 +24,7 @@
 #include <random>
 #include <mutex>
 #include <new>
+#include <cstdlib>
 
 #include <google/protobuf/util/json_util.h>
 #include "opentelemetry/proto/trace/v1/trace.pb.h"
@@ -138,6 +139,89 @@ void SpanSetStatus(TRACE_SPAN_DATA spanData, const bool isSuccess, const std::st
     }
 }
 
+struct TraceEnvConfig {
+    bool autoTraceEnabled = false;
+    bool errorOnlySamplingEnabled = false;
+    int sampleRateN = 0;
+};
+
+// 解析 "0"/"1" 型环境变量
+static bool ParseEnvFlag(const char *envStr, bool &out, const char *envName)
+{
+    if (envStr == nullptr || envStr[0] == '\0') {
+        return false;
+    }
+    std::string value(envStr);
+    if (value == "1") {
+        out = true;
+        return true;
+    }
+    if (value == "0") {
+        out = false;
+        return true;
+    }
+    PROF_LOGW("%s invalid value: %s, expect 0 or 1, ignore.", envName, envStr);
+    return false;
+}
+
+// 解析正整数环境变量，要求全部为数字且 >0
+static bool ParsePositiveIntFromEnv(const char *envStr, int &out)
+{
+    if (envStr == nullptr || envStr[0] == '\0') {
+        return false;
+    }
+    uint64_t value = 0;
+    for (const char *p = envStr; *p != '\0'; ++p) {
+        if (*p < '0' || *p > '9') {
+            return false;
+        }
+        value = value * 10 + static_cast<uint64_t>(*p - '0');
+        if (value > static_cast<uint64_t>(std::numeric_limits<int>::max())) {
+            return false;
+        }
+    }
+    if (value == 0) {
+        return false;
+    }
+    out = static_cast<int>(value);
+    return true;
+}
+
+static TraceEnvConfig &GetTraceEnvConfig()
+{
+    static TraceEnvConfig config;
+    static std::once_flag initFlag;
+    std::call_once(initFlag, []() {
+        // MS_PROFILER_AUTO_TRACE: "1" 开启自动 trace，"0" 关闭，其他值视为无效
+        if (const char *autoTraceEnv = std::getenv("MS_PROFILER_AUTO_TRACE")) {
+            bool flag = false;
+            if (ParseEnvFlag(autoTraceEnv, flag, "MS_PROFILER_AUTO_TRACE")) {
+                config.autoTraceEnabled = flag;
+            }
+        }
+
+        // MS_PROFILER_SAMPLE_ERROR: "1" 开启错误采样，仅保留 ERROR；"0" 关闭，其他值为无效
+        if (const char *errorOnlyEnv = std::getenv("MS_PROFILER_SAMPLE_ERROR")) {
+            bool flag = false;
+            if (ParseEnvFlag(errorOnlyEnv, flag, "MS_PROFILER_SAMPLE_ERROR")) {
+                config.errorOnlySamplingEnabled = flag;
+            }
+        }
+
+        // MS_PROFILER_SAMPLE_RATE: 表示每多少次请求中采样一次，例如 100 表示每 100 次请求采样 1 次
+        // 采样率：>0 表示每 sampleRateN 次请求中采样 1 次；<=0 表示不启用概率采样
+        if (const char *rateEnv = std::getenv("MS_PROFILER_SAMPLE_RATE")) {
+            int rate = 0;
+            if (ParsePositiveIntFromEnv(rateEnv, rate)) {
+                config.sampleRateN = rate;
+            } else {
+                PROF_LOGW("MS_PROFILER_SAMPLE_RATE invalid value: %s, expect positive integer, ignore.", rateEnv);
+            }
+        }
+    });
+    return config;
+}
+
 void SpanEndAndFree(TRACE_SPAN_DATA spanData, std::string &&moduleName_)
 {
     if (!spanData) {
@@ -146,6 +230,19 @@ void SpanEndAndFree(TRACE_SPAN_DATA spanData, std::string &&moduleName_)
     SpanPtr spanPb = (SpanPtr)spanData;
     thread_local std::string data;
     spanPb->set_end_time_unix_nano(MsUtils::GetCurrentTimeInNanoseconds());
+
+    auto &cfg = GetTraceEnvConfig();
+    if (cfg.errorOnlySamplingEnabled) {
+        if (spanPb->status().code() != opentelemetry::proto::trace::v1::Status::STATUS_CODE_ERROR) {
+            PROF_LOGD("SpanEndAndFree skip span by error-only sampling, status=%d",
+                static_cast<int>(spanPb->status().code()));
+            delete spanPb;
+            return;
+        } else {
+            PROF_LOGD("SpanEndAndFree keep error span under error-only sampling, status=%d",
+                static_cast<int>(spanPb->status().code()));
+        }
+    }
 
     google::protobuf::ArenaOptions arena_options;
     // It's easy to allocate datas larger than 1024 when we populate basic resource and attributes
@@ -246,6 +343,25 @@ bool hexStr2SpanId(const std::string &spanStr, SpanId &spanId)
     }
 }
 
+// 概率采样：MS_PROFILER_SAMPLE_RATE=N 表示 N 条请求里采 1 条，仅在 sampleFlag 为 true 时生效
+static bool applyProbabilitySampling(bool sampleFlag)
+{
+    if (!sampleFlag) {
+        return false;
+    }
+    auto &cfg = GetTraceEnvConfig();
+    // 未配置或配置非法时，不额外做概率过滤
+    if (cfg.sampleRateN <= 0) {
+        return true;
+    }
+    static thread_local uint64_t counter = 0;
+    uint64_t idx = counter++ % static_cast<uint64_t>(cfg.sampleRateN);
+    bool sampled = (idx == 0);
+    PROF_LOGD("probability sampling (deterministic): N=%d, idx=%llu, sampled=%d",
+        cfg.sampleRateN, static_cast<unsigned long long>(idx), sampled);
+    return sampled;
+}
+
 TraceContextInfo ParseHttpCtx(const std::string &traceParent, const std::string &traceB3)
 {
     std::string strTraceParent = traceParent.c_str();
@@ -295,6 +411,18 @@ TraceContextInfo ParseHttpCtx(const std::string &traceParent, const std::string 
             return TraceContextInfo{traceId, spanId, parseSuccessFlag && sampleFlag};
         }
     } else {
+        // traceparent 与 traceb3 均为空时，若环境变量 MS_PROFILER_AUTO_TRACE 为 "1" 时自动生成 trace_id
+        auto &cfg = GetTraceEnvConfig();
+        if (cfg.autoTraceEnabled) {
+            PROF_LOGD("MS_PROFILER_AUTO_TRACE enabled, generate new trace context.");
+            TraceId newTraceId(msServiceProfiler::TraceContext::GenTraceId(),
+                msServiceProfiler::TraceContext::GenSpanId());
+            SpanId newSpanId(msServiceProfiler::TraceContext::GenSpanId());
+            PROF_LOGD("auto generated TraceId high=0x%016llx low=0x%016llx",
+                static_cast<unsigned long long>(newTraceId.as_uint64[0]),
+                static_cast<unsigned long long>(newTraceId.as_uint64[1]));
+            return TraceContextInfo{newTraceId, newSpanId, applyProbabilitySampling(true)};
+        }
         LOG_ONCE_D("no trace info. ");
         return TraceContextInfo{{0, 0}, 0, false};
     }
