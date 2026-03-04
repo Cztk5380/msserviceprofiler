@@ -27,9 +27,13 @@ from ms_service_profiler.patcher.core.config_loader import (
     _build_hook_points,
     _resolve_handler_func,
     _resolve_metrics_handler_func,
+    _is_pattern_symbol,
+    _parse_symbol_pattern,
     ConfigLoader,
-    DynamicHooker,
-    ConfigHooker
+    ProfilingConfig,
+    MetricsConfig,
+    PatternEntry,
+    ConfigHooker,
 )
 
 
@@ -57,6 +61,51 @@ class TestBuildHookPoints:
     ])
     def test_build_hook_points(self, module_path, method_name, class_name, expected):
         assert _build_hook_points(module_path, method_name, class_name) == expected
+
+
+class TestIsPatternSymbol:
+    """测试 _is_pattern_symbol 函数"""
+
+    @pytest.mark.parametrize("symbol_path,expected", [
+        ("vllm.model_executor.models.*:*.embed_multimodal", True),
+        ("module.path:ClassName.method_name", False),
+        ("module.*:*.foo", True),
+        ("", False),
+    ])
+    def test_is_pattern_symbol(self, symbol_path, expected):
+        assert _is_pattern_symbol(symbol_path) == expected
+
+    def test_is_pattern_symbol_non_string_returns_false(self):
+        assert _is_pattern_symbol(123) is False
+
+
+class TestParseSymbolPattern:
+    """测试 _parse_symbol_pattern 函数"""
+
+    def test_parse_pattern_valid_class_method(self):
+        r = _parse_symbol_pattern("vllm.model_executor.models.*:*.embed_multimodal")
+        assert r == ("vllm.model_executor.models.*", "*", "embed_multimodal")
+
+    def test_parse_pattern_valid_class_dot_method(self):
+        r = _parse_symbol_pattern("pkg.mod:Cls.method")
+        assert r == ("pkg.mod", "Cls", "method")
+
+    def test_parse_pattern_no_dot_in_rest_returns_none(self):
+        with patch("ms_service_profiler.patcher.core.config_loader.logger"):
+            assert _parse_symbol_pattern("some.module:func_name") is None
+
+    @pytest.mark.parametrize("symbol_path", [
+        "no_colon",
+        "module:*",
+    ])
+    def test_parse_pattern_invalid_returns_none(self, symbol_path):
+        with patch("ms_service_profiler.patcher.core.config_loader.logger"):
+            assert _parse_symbol_pattern(symbol_path) is None
+
+    def test_parse_pattern_method_contains_star_returns_none(self):
+        """method_name 中不允许含 *"""
+        with patch("ms_service_profiler.patcher.core.config_loader.logger"):
+            assert _parse_symbol_pattern("mod:Cls.method_*") is None
 
 
 class TestResolveHandlerFunc:
@@ -148,9 +197,9 @@ class TestConfigLoader:
                 h1, h2 = MagicMock(), MagicMock()
                 MockDH.side_effect = [h1, h2]
                 result = self.loader.load_profiling()
-        assert isinstance(result, dict)
-        assert result["module.path:ClassName.method_name"] == [h1]
-        assert result["another.module:function_name"] == [h2]
+        assert isinstance(result, ProfilingConfig)
+        assert result.concrete["module.path:ClassName.method_name"] == [h1]
+        assert result.concrete["another.module:function_name"] == [h2]
                 
     def test_load_multiple_handlers_same_symbol_returns_all(self):
         self._create_test_config("")
@@ -163,44 +212,80 @@ class TestConfigLoader:
                 h1, h2 = MagicMock(), MagicMock()
                 MockDH.side_effect = [h1, h2]
                 result = self.loader.load_profiling()
-        assert result["module.path:ClassName.method_name"] == [h1, h2]
+        assert result.concrete["module.path:ClassName.method_name"] == [h1, h2]
 
     @pytest.mark.parametrize("yaml_return", [[], None, {"key": "value"}])
     def test_load_empty_or_invalid_returns_empty_dict(self, yaml_return):
         with patch("ms_service_profiler.patcher.core.config_loader.load_yaml_config", return_value=yaml_return):
-            assert self.loader.load_profiling() == {}
+            result = self.loader.load_profiling()
+            assert isinstance(result, ProfilingConfig)
+            assert not result.concrete and not result.patterns
     @pytest.mark.parametrize("raw_config", [
         [{"domain": "TestDomain", "name": "test"}, {"symbol": "module.path:ClassName.method_name", "domain": "Valid"}],
         [{"symbol": "invalid_format_without_colon"}, {"symbol": "module.path:ClassName.method_name", "domain": "Valid"}],
     ])
     def test_load_skips_invalid_items(self, raw_config):
         with patch("ms_service_profiler.patcher.core.config_loader.load_yaml_config", return_value=raw_config):
-            with patch("ms_service_profiler.patcher.core.config_loader.DynamicHooker") as MockDH:
+            with patch("ms_service_profiler.patcher.core.config_loader.ConfigHooker") as MockDH:
                 MockDH.return_value = MagicMock()
                 result = self.loader.load_profiling()
-        assert len(result) == 1
-        assert "module.path:ClassName.method_name" in result
+        assert len(result.concrete) == 1
+        assert "module.path:ClassName.method_name" in result.concrete
     def test_load_real_yaml_parses_correctly(self):
         self._create_test_config(
             '- symbol: "sglang.srt.managers.scheduler:Scheduler.get_next_batch_to_run"\n  domain: "Schedule"\n'
             '- symbol: "sglang.srt.managers.scheduler:Scheduler.run_batch"\n  domain: "ModelExecute"\n'
         )
-        with patch("ms_service_profiler.patcher.core.config_loader.DynamicHooker") as MockDH:
+        with patch("ms_service_profiler.patcher.core.config_loader.ConfigHooker") as MockDH:
             h1, h2 = MagicMock(), MagicMock()
             MockDH.side_effect = [h1, h2]
             result = self.loader.load_profiling()
-        assert len(result) == 2
-        assert "sglang.srt.managers.scheduler:Scheduler.get_next_batch_to_run" in result
-        assert "sglang.srt.managers.scheduler:Scheduler.run_batch" in result
+        assert len(result.concrete) == 2
+        assert "sglang.srt.managers.scheduler:Scheduler.get_next_batch_to_run" in result.concrete
+        assert "sglang.srt.managers.scheduler:Scheduler.run_batch" in result.concrete
 
     def test_load_logs_debug(self):
         with patch("ms_service_profiler.patcher.core.config_loader.load_yaml_config") as mock_yaml:
             mock_yaml.return_value = [{"symbol": "module.path:ClassName.method_name", "domain": "TestDomain"}]
-            with patch("ms_service_profiler.patcher.core.config_loader.DynamicHooker"):
+            with patch("ms_service_profiler.patcher.core.config_loader.ConfigHooker"):
                 with patch("ms_service_profiler.patcher.core.config_loader.logger") as mock_logger:
                     self.loader.load_profiling()
                     mock_logger.debug.assert_called()
                     assert self.config_path in mock_logger.debug.call_args[0][0]
+
+    def test_load_profiling_with_pattern_symbol_returns_patterns(self):
+        """含模式 symbol 的配置应解析出 patterns 列表"""
+        raw = [
+            {"symbol": "vllm.model_executor.models.*:*.embed_multimodal", "name": "multimodalEmbedding", "domain": "M"},
+        ]
+        with patch("ms_service_profiler.patcher.core.config_loader.load_yaml_config", return_value=raw):
+            with patch("ms_service_profiler.patcher.core.config_loader.make_default_time_hook") as m:
+                m.return_value = MagicMock()
+                result = self.loader.load_profiling()
+        assert isinstance(result, ProfilingConfig)
+        assert len(result.patterns) == 1
+        assert result.patterns[0].module_pattern == "vllm.model_executor.models.*"
+        assert result.patterns[0].method_name == "embed_multimodal"
+        assert result.patterns[0].pattern_id == "vllm.model_executor.models.*:*.embed_multimodal"
+
+
+class TestProfilingConfigMetricsConfigMerge:
+    """测试 ProfilingConfig.merge / MetricsConfig.merge"""
+
+    def test_profiling_config_merge(self):
+        h1, h2 = MagicMock(), MagicMock()
+        c1 = ProfilingConfig(concrete={"a": [h1]}, patterns=[])
+        c2 = ProfilingConfig(concrete={"b": [h2], "a": [h2]}, patterns=[])
+        merged = ProfilingConfig.merge(c1, c2)
+        assert merged.concrete["a"] == [h1, h2]
+        assert merged.concrete["b"] == [h2]
+
+    def test_metrics_config_merge(self):
+        h = MagicMock()
+        c1 = MetricsConfig(concrete={"x": [h]}, patterns=[])
+        c2 = None
+        merged = MetricsConfig.merge(c1, c2)
+        assert merged.concrete["x"] == [h]
 
 
 class TestResolveMetricsHandlerFunc:
@@ -253,21 +338,23 @@ class TestConfigLoaderLoadMetrics:
         with patch("ms_service_profiler.patcher.core.config_loader.load_yaml_config", return_value=raw):
             with patch("ms_service_profiler.patcher.core.config_loader.wrap_handler_with_metrics") as mock_wrap:
                 mock_wrap.side_effect = lambda h, _: h
-                with patch("ms_service_profiler.patcher.core.config_loader.DynamicHooker") as MockDH:
+                with patch("ms_service_profiler.patcher.core.config_loader.ConfigHooker") as MockDH:
                     h1, h2 = MagicMock(), MagicMock()
                     MockDH.side_effect = [h1, h2]
                     result = self.loader.load_metrics()
-        assert isinstance(result, dict)
-        assert "module.path:ClassName.method_name" in result
-        assert "other.module:func" in result
-        assert len(result["module.path:ClassName.method_name"]) == 1
-        assert len(result["other.module:func"]) == 1
+        assert isinstance(result, MetricsConfig)
+        assert "module.path:ClassName.method_name" in result.concrete
+        assert "other.module:func" in result.concrete
+        assert len(result.concrete["module.path:ClassName.method_name"]) == 1
+        assert len(result.concrete["other.module:func"]) == 1
 
     @pytest.mark.parametrize("yaml_return", [[], None, {"key": "value"}])
     def test_load_metrics_empty_or_invalid_returns_empty_dict(self, yaml_return):
-        """空或非列表配置返回空字典"""
+        """空或非列表配置返回空 MetricsConfig"""
         with patch("ms_service_profiler.patcher.core.config_loader.load_yaml_config", return_value=yaml_return):
-            assert self.loader.load_metrics() == {}
+            result = self.loader.load_metrics()
+            assert isinstance(result, MetricsConfig)
+            assert not result.concrete and not result.patterns
 
     def test_load_metrics_skips_invalid_items(self):
         """缺少 symbol 或非法 symbol 的项被跳过"""
@@ -276,8 +363,22 @@ class TestConfigLoaderLoadMetrics:
             {"symbol": "module.path:ClassName.method_name", "domain": "Valid"},
         ]
         with patch("ms_service_profiler.patcher.core.config_loader.load_yaml_config", return_value=raw):
-            with patch("ms_service_profiler.patcher.core.config_loader.DynamicHooker") as MockDH:
+            with patch("ms_service_profiler.patcher.core.config_loader.ConfigHooker") as MockDH:
                 MockDH.return_value = MagicMock()
                 result = self.loader.load_metrics()
-        assert len(result) == 1
-        assert "module.path:ClassName.method_name" in result
+        assert len(result.concrete) == 1
+        assert "module.path:ClassName.method_name" in result.concrete
+
+    def test_load_metrics_with_pattern_symbol_returns_patterns(self):
+        """含模式 symbol 的 metrics 配置应解析出 patterns"""
+        raw = [
+            {"symbol": "vllm.models.*:*.some_method", "domain": "D"},
+        ]
+        with patch("ms_service_profiler.patcher.core.config_loader.load_yaml_config", return_value=raw):
+            with patch("ms_service_profiler.patcher.core.config_loader.wrap_handler_with_metrics") as mock_wrap:
+                mock_wrap.side_effect = lambda h, _: h
+                result = self.loader.load_metrics()
+        assert isinstance(result, MetricsConfig)
+        assert len(result.patterns) == 1
+        assert result.patterns[0].module_pattern == "vllm.models.*"
+        assert result.patterns[0].method_name == "some_method"

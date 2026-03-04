@@ -57,6 +57,10 @@
   name: _prepare_inputs
   domain: Execute
 
+- symbol: "vllm.model_executor.models.*:*.embed_multimodal"
+  name: multimodalEmbedding
+  domain: Multimodal
+
 - symbol: vllm_ascend.utils:ProfileExecuteDuration.capture_async
   min_version: "0.9.1"
   handler: ms_service_profiler.patcher.vllm.handlers.v1.model_handlers:capture_async
@@ -86,6 +90,9 @@
 - symbol: vllm.v1.engine.output_processor:OutputProcessor.process_outputs
   min_version: "0.9.1"
   handler: ms_service_profiler.patcher.vllm.handlers.v1.request_handlers:process_outputs
+
+# ===== Multimodal Input Embedding（方案 C：一条模式覆盖 models 下所有 embed_multimodal） =====
+
 
 # ===== Meta =====
 

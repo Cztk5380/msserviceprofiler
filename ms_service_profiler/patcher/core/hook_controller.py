@@ -29,12 +29,20 @@ Hook 控制器：统一管理 hook 的启用/禁用状态和流程。
 
 from __future__ import annotations
 
-from typing import Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
+from .config_loader import MetricsConfig, ProfilingConfig
 from .logger import logger
 from .symbol_watcher import SymbolWatchFinder
 
 GetHandlers = Callable[[], Optional[dict]]
+
+
+def _config_has_handlers(cfg: Any) -> bool:
+    """判断 ProfilingConfig / MetricsConfig 是否非空。"""
+    if cfg is None:
+        return False
+    return bool(getattr(cfg, "concrete", None)) or bool(getattr(cfg, "patterns", None))
 
 
 class HookController:
@@ -66,16 +74,16 @@ class HookController:
     
     def enable(
         self,
-        profiling_handlers: Optional[dict] = None,
-        metrics_handlers: Optional[dict] = None,
+        profiling_handlers: Optional[Any] = None,
+        metrics_handlers: Optional[Any] = None,
     ) -> int:
         """启用 hooks（支持重复调用以动态更新配置）。
         
         每次调用使用传入的 profiling 与 metrics 两路 Handler 字典，支持动态增删点位。
         
         Args:
-            profiling_handlers: ConfigLoader.load_profiling() 的解析结果
-            metrics_handlers: ConfigLoader.load_metrics() 的解析结果
+            profiling_handlers: ConfigLoader.load_profiling() 返回的 ProfilingConfig
+            metrics_handlers: ConfigLoader.load_metrics() 返回的 MetricsConfig
             
         Returns:
             当前已启用的 hook 数量
@@ -88,7 +96,7 @@ class HookController:
             else:
                 logger.info("Enabling profiler hooks...")
 
-            if not profiling_handlers and not metrics_handlers:
+            if not _config_has_handlers(profiling_handlers) and not _config_has_handlers(metrics_handlers):
                 logger.warning("No configuration loaded")
                 return 0
 
@@ -115,7 +123,7 @@ class HookController:
             logger.exception("Failed to enable hooks: %s", str(e))
             return 0
 
-    def update_metrics_handlers(self, metrics_handlers: Optional[Dict]) -> int:
+    def update_metrics_handlers(self, metrics_handlers: Optional[Any]) -> int:
         """仅更新 watcher 的 metric 部分（单独传 metric 的 handler 字典）。
         当已 enable 时：从 watcher 取当前 profiling，再 load_handlers(profiling=当前, metrics=传入)，然后重新 prepare/apply。
         当未 enable 时（仅开 metric）：按“仅 metric”模式 load/apply，并置 _enabled=True，保证有打屏与生效。
@@ -127,14 +135,14 @@ class HookController:
                 current_profiling = self._watcher.get_current_profiling_handlers()
                 self._watcher.load_handlers(
                     profiling_handlers=current_profiling,
-                    metrics_handlers=metrics_handlers or {},
+                    metrics_handlers=metrics_handlers or MetricsConfig(),
                     hooks_enabled=self._enabled,
                 )
             else:
                 logger.info("Enabling metric hooks (metric-only mode)...")
                 self._watcher.load_handlers(
-                    profiling_handlers={},
-                    metrics_handlers=metrics_handlers or {},
+                    profiling_handlers=ProfilingConfig(),
+                    metrics_handlers=metrics_handlers,
                     hooks_enabled=False,
                 )
             self._watcher.check_and_apply_existing_modules()

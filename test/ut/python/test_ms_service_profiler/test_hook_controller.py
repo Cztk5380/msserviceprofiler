@@ -7,6 +7,7 @@
 from unittest.mock import Mock, MagicMock, patch
 import pytest
 
+from ms_service_profiler.patcher.core.config_loader import MetricsConfig, ProfilingConfig
 from ms_service_profiler.patcher.core.hook_controller import HookController
 from ms_service_profiler.patcher.core.symbol_watcher import SymbolWatchFinder
 
@@ -50,39 +51,42 @@ class TestHookControllerEnable:
 
     def test_enable_success_first_time(self, hook_controller, mock_watcher):
         handlers = {"mod:func": [MagicMock(), MagicMock()]}
+        profiling_config = ProfilingConfig(concrete=handlers)
         mock_watcher.apply_all_hooks.return_value = [MagicMock(), MagicMock()]
 
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
-            n = hook_controller.enable(profiling_handlers=handlers, metrics_handlers=None)
+            n = hook_controller.enable(profiling_handlers=profiling_config, metrics_handlers=None)
 
         assert n == 2
         assert hook_controller._enabled is True
-        mock_watcher.load_handlers.assert_called_once_with(
-            profiling_handlers=handlers, metrics_handlers=None, hooks_enabled=False
-        )
+        mock_watcher.load_handlers.assert_called_once()
+        call_kw = mock_watcher.load_handlers.call_args[1]
+        assert call_kw["profiling_handlers"] is profiling_config
+        assert call_kw["hooks_enabled"] is False
         mock_watcher.check_and_apply_existing_modules.assert_called_once()
         mock_watcher.apply_all_hooks.assert_called_once()
         mock_watcher.set_auto_apply.assert_called_once_with(True)
 
     def test_enable_reload_when_already_enabled(self, hook_controller, mock_watcher):
         hook_controller._enabled = True
-        hook_controller._watcher._symbol_handlers_profiling = None
         handlers = {"mod:func": [MagicMock()]}
+        current_profiling = ProfilingConfig(concrete=handlers)
+        mock_watcher.get_current_profiling_handlers.return_value = current_profiling
+        mock_watcher.get_current_metrics_handlers.return_value = MetricsConfig()
         mock_watcher.apply_all_hooks.return_value = [MagicMock()]
-        # 已启用且传入 metrics_handlers=None 时，源码会用 get_current_metrics_handlers() 填充
-        mock_watcher.get_current_metrics_handlers.return_value = None
 
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
-            n = hook_controller.enable(profiling_handlers=handlers, metrics_handlers=None)
+            n = hook_controller.enable(profiling_handlers=current_profiling, metrics_handlers=None)
 
         assert n == 1
-        mock_watcher.load_handlers.assert_called_once_with(
-            profiling_handlers=handlers, metrics_handlers=None, hooks_enabled=True
-        )
+        mock_watcher.load_handlers.assert_called_once()
+        call_kw = mock_watcher.load_handlers.call_args[1]
+        assert call_kw["profiling_handlers"] is current_profiling
+        assert call_kw["hooks_enabled"] is True
 
     def test_enable_empty_config(self, hook_controller, mock_watcher):
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
-            n = hook_controller.enable(profiling_handlers={}, metrics_handlers=None)
+            n = hook_controller.enable(profiling_handlers=ProfilingConfig(), metrics_handlers=None)
 
         assert n == 0
         assert hook_controller._enabled is False
@@ -101,7 +105,9 @@ class TestHookControllerEnable:
         mock_watcher.load_handlers.side_effect = RuntimeError("load error")
 
         with patch("ms_service_profiler.patcher.core.hook_controller.logger"):
-            n = hook_controller.enable(profiling_handlers=handlers, metrics_handlers=None)
+            n = hook_controller.enable(
+                profiling_handlers=ProfilingConfig(concrete=handlers), metrics_handlers=None
+            )
 
         assert n == 0
         assert hook_controller._enabled is False
@@ -171,7 +177,8 @@ class TestHookControllerGetCallbacks:
 
     def test_on_start_callback_calls_enable(self, hook_controller, mock_watcher):
         handlers = {"mod:func": [MagicMock()]}
-        get_handlers = Mock(return_value=handlers)
+        profiling_config = ProfilingConfig(concrete=handlers)
+        get_handlers = Mock(return_value=profiling_config)
         mock_watcher.apply_all_hooks.return_value = [MagicMock()]
 
         on_start, _ = hook_controller.get_callbacks(get_handlers)
@@ -180,9 +187,11 @@ class TestHookControllerGetCallbacks:
             on_start()
 
         get_handlers.assert_called_once()
-        mock_watcher.load_handlers.assert_called_once_with(
-            profiling_handlers=handlers, metrics_handlers=None, hooks_enabled=False
-        )
+        mock_watcher.load_handlers.assert_called_once()
+        call_kw = mock_watcher.load_handlers.call_args[1]
+        assert call_kw["profiling_handlers"].concrete == handlers
+        assert call_kw["metrics_handlers"] is None
+        assert call_kw["hooks_enabled"] is False
 
     def test_on_stop_callback_calls_disable(self, hook_controller, mock_watcher):
         hook_controller._enabled = True

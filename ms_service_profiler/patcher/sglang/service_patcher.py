@@ -19,7 +19,7 @@ import sys
 from typing import Callable, Optional, Tuple
 
 from ..core.utils import check_profiling_enabled
-from ..core.config_loader import ConfigLoader
+from ..core.config_loader import ConfigLoader, ProfilingConfig
 from ..core.symbol_watcher import SymbolWatchFinder
 from ..core.hook_controller import HookController
 from ..core.logger import logger
@@ -62,12 +62,12 @@ class SGLangPatcher:
             logger.info("Using profiling config path: %s", path)
         return path
 
-    def _load_config(self):
+    def _load_config(self) -> Optional[ProfilingConfig]:
         """加载配置文件（通过 ConfigLoader）。
 
         Returns:
-            Optional[Dict[str, List[DynamicHooker]]]: 由 ConfigLoader 解析得到的 Handler 列表，
-                失败时返回 None
+            Optional[ProfilingConfig]: 由 ConfigLoader.load_profiling() 返回的配置（concrete + patterns），
+                失败时返回 None。
         """
         config_path = self._find_config_path()
         if not config_path:

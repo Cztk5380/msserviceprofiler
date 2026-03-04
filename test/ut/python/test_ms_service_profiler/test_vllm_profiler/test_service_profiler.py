@@ -22,6 +22,7 @@ import os
 import sys
 import pytest
 
+from ms_service_profiler.patcher.core.config_loader import ProfilingConfig, MetricsConfig
 from ms_service_profiler.patcher.core.symbol_watcher import SymbolWatchFinder
 from ms_service_profiler.patcher.vllm.service_patcher import VLLMProfiler
 
@@ -43,14 +44,19 @@ def sample_config():
     ]
 
 
-@pytest.fixture
-def sample_handlers():
-    """提供 load_handlers 用的 Handler 格式 fixture"""
+def _sample_handlers_dict():
+    """供 fixture 使用的 dict，SymbolWatchFinder 内部仍按 concrete 存为 dict。"""
     return {
         'module1:Class1.method1': [MagicMock()],
         'module2:function2': [MagicMock()],
         'parent.child.grandchild:function3': [MagicMock()],
     }
+
+
+@pytest.fixture
+def sample_handlers():
+    """提供 load_handlers 用的 ProfilingConfig（concrete 为上述 dict）。"""
+    return ProfilingConfig(concrete=_sample_handlers_dict())
 
 
 @pytest.fixture
@@ -141,7 +147,9 @@ class TestLoadHandlers:
     @staticmethod
     def test_load_handlers_empty(symbol_watch_finder):
         """测试加载空配置"""
-        symbol_watch_finder.load_handlers(profiling_handlers={}, metrics_handlers={})
+        symbol_watch_finder.load_handlers(
+            profiling_handlers=ProfilingConfig(), metrics_handlers=MetricsConfig()
+        )
         assert symbol_watch_finder._config_loaded is True
         assert symbol_watch_finder._symbol_handlers_profiling == {}
         assert symbol_watch_finder._symbol_handlers_metrics == {}
@@ -304,7 +312,9 @@ class TestOnSymbolModuleLoaded:
             'target.module:direct_func': [MagicMock()],
             'target.module.child:child_func': [MagicMock()],
         }
-        symbol_watch_finder.load_handlers(profiling_handlers=handlers, metrics_handlers=None)
+        symbol_watch_finder.load_handlers(
+            profiling_handlers=ProfilingConfig(concrete=handlers), metrics_handlers=None
+        )
         
         symbol_watch_finder._on_symbol_module_loaded('target.module')
         
@@ -402,20 +412,21 @@ class TestLoadConfig:
               handler: "handlers:time_hook"
             """)
 
+        from ms_service_profiler.patcher.core.config_loader import ProfilingConfig
+
         mock_handlers = {'test.module:function1': [MagicMock()]}
         with patch.dict(os.environ, {'PROFILING_SYMBOLS_PATH': mock_config_file}):
             with patch('ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader') as MockConfigLoader:
                 mock_loader_instance = MagicMock()
-                mock_loader_instance.load_profiling.return_value = mock_handlers
-                mock_loader_instance.load_metrics.return_value = {}
+                mock_loader_instance.load_profiling.return_value = ProfilingConfig(concrete=mock_handlers)
+                mock_loader_instance.load_metrics.return_value = None
                 MockConfigLoader.return_value = mock_loader_instance
                 result = service_profiler._load_config()
                 assert isinstance(result, tuple)
                 assert len(result) == 2
                 profiling, metrics = result
-                assert isinstance(profiling, dict)
-                assert len(profiling) > 0
-                # _load_config 仅加载 profiling，metrics 由 C++ 回调单独控制，不调用 load_metrics
+                assert isinstance(profiling, ProfilingConfig)
+                assert len(profiling.concrete) > 0
                 mock_loader_instance.load_profiling.assert_called()
                 assert metrics is None
 
@@ -430,8 +441,10 @@ class TestLoadConfig:
             with patch('ms_service_profiler.patcher.vllm.service_patcher.VLLMProfiler._find_default_config_path',
                        return_value=str(default_cfg)):
                 with patch('ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader') as MockConfigLoader:
+                    from ms_service_profiler.patcher.core.config_loader import ProfilingConfig
+
                     mock_loader_instance = MagicMock()
-                    mock_loader_instance.load_profiling.return_value = {}
+                    mock_loader_instance.load_profiling.return_value = ProfilingConfig()
                     MockConfigLoader.return_value = mock_loader_instance
 
                     result = service_profiler._load_config()
@@ -439,7 +452,7 @@ class TestLoadConfig:
                     assert os.path.exists(env_path)
                     assert MockConfigLoader.called
                     profiling, metrics = result
-                    assert profiling is not None or metrics is not None or (profiling == {} and metrics == {})
+                    assert profiling is not None or metrics is not None
 
     @staticmethod
     def test_load_config_env_var_not_yaml(service_profiler):
@@ -462,9 +475,11 @@ class TestLoadConfig:
         with patch.dict(os.environ, {}):
             with patch.object(service_profiler, '_find_default_config_path', return_value=mock_config_file):
                 with patch('ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader') as MockConfigLoader:
+                    from ms_service_profiler.patcher.core.config_loader import ProfilingConfig
+
                     mock_loader_instance = MagicMock()
-                    mock_loader_instance.load_profiling.return_value = {}
-                    mock_loader_instance.load_metrics.return_value = {}
+                    mock_loader_instance.load_profiling.return_value = ProfilingConfig()
+                    mock_loader_instance.load_metrics.return_value = None
                     MockConfigLoader.return_value = mock_loader_instance
                     result = service_profiler._load_config()
                     profiling, metrics = result
@@ -637,7 +652,9 @@ class TestCheckAndApplyExistingModules:
         """测试检查和应用已存在的模块"""
         from ms_service_profiler.patcher.core.hook_controller import HookController
         watcher = SymbolWatchFinder()
-        watcher.load_handlers(profiling_handlers=mock_handlers_data, metrics_handlers=None)
+        watcher.load_handlers(
+            profiling_handlers=ProfilingConfig(concrete=mock_handlers_data), metrics_handlers=None
+        )
         service_profiler._controller = HookController(watcher)
         
         with patch.dict('sys.modules', {'test.module': Mock()}):
@@ -651,7 +668,9 @@ class TestCheckAndApplyExistingModules:
         """测试检查已应用的模块"""
         from ms_service_profiler.patcher.core.hook_controller import HookController
         watcher = SymbolWatchFinder()
-        watcher.load_handlers(profiling_handlers=mock_handlers_data, metrics_handlers=None)
+        watcher.load_handlers(
+            profiling_handlers=ProfilingConfig(concrete=mock_handlers_data), metrics_handlers=None
+        )
         watcher._applied_hooks.add('test.module:function1')
         service_profiler._controller = HookController(watcher)
         
@@ -665,7 +684,9 @@ class TestCheckAndApplyExistingModules:
         """测试模块未加载的情况"""
         from ms_service_profiler.patcher.core.hook_controller import HookController
         watcher = SymbolWatchFinder()
-        watcher.load_handlers(profiling_handlers=mock_handlers_data, metrics_handlers=None)
+        watcher.load_handlers(
+            profiling_handlers=ProfilingConfig(concrete=mock_handlers_data), metrics_handlers=None
+        )
         service_profiler._controller = HookController(watcher)
         
         if 'test.module' in sys.modules:
@@ -940,7 +961,9 @@ class TestLoadMetricsConfig:
 
     @staticmethod
     def test_load_metrics_config_success_returns_merged_handlers(service_profiler):
-        """默认配置与用户配置均加载成功时返回合并后的 handlers"""
+        """默认配置与用户配置均加载成功时返回合并后的 MetricsConfig"""
+        from ms_service_profiler.patcher.core.config_loader import MetricsConfig
+
         default_handlers = {"default:sym": [MagicMock()]}
         user_handlers = {"user:sym": [MagicMock()]}
         with patch.object(service_profiler, "_get_default_metrics_config_path", return_value="/fake/default.yaml"):
@@ -948,48 +971,95 @@ class TestLoadMetricsConfig:
                 with patch.object(service_profiler, "_find_metrics_config_path", return_value="/fake/metrics.yaml"):
                     with patch("ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader") as MockLoader:
                         mock_default = MagicMock()
-                        mock_default.load_metrics.return_value = default_handlers
+                        mock_default.load_metrics.return_value = MetricsConfig(concrete=default_handlers)
                         mock_user = MagicMock()
-                        mock_user.load_metrics.return_value = user_handlers
+                        mock_user.load_metrics.return_value = MetricsConfig(concrete=user_handlers)
                         MockLoader.side_effect = [mock_default, mock_user]
                         result = service_profiler._load_metrics_config()
                         assert result is not None
-                        assert "default:sym" in result
-                        assert "user:sym" in result
-                        assert result["default:sym"] == default_handlers["default:sym"]
-                        assert result["user:sym"] == user_handlers["user:sym"]
+                        assert "default:sym" in result.concrete
+                        assert "user:sym" in result.concrete
+                        assert result.concrete["default:sym"] == default_handlers["default:sym"]
+                        assert result.concrete["user:sym"] == user_handlers["user:sym"]
 
     @staticmethod
     def test_load_metrics_config_default_only_when_no_user_path(service_profiler):
-        """仅有默认配置时也返回 handlers"""
+        """仅有默认配置时也返回 MetricsConfig"""
+        from ms_service_profiler.patcher.core.config_loader import MetricsConfig
+
         default_handlers = {"default:sym": [MagicMock()]}
         with patch.object(service_profiler, "_get_default_metrics_config_path", return_value="/fake/default.yaml"):
             with patch("ms_service_profiler.patcher.vllm.service_patcher.os.path.isfile", return_value=True):
                 with patch.object(service_profiler, "_find_metrics_config_path", return_value=None):
                     with patch("ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader") as MockLoader:
                         mock_loader = MagicMock()
-                        mock_loader.load_metrics.return_value = default_handlers
+                        mock_loader.load_metrics.return_value = MetricsConfig(concrete=default_handlers)
                         MockLoader.return_value = mock_loader
                         result = service_profiler._load_metrics_config()
-                        assert result == default_handlers
+                        assert result.concrete == default_handlers
 
     @staticmethod
     def test_load_metrics_config_user_exception_still_returns_default(service_profiler):
-        """用户配置加载异常时，若默认配置成功则仍返回默认 handlers"""
+        """用户配置加载异常时，若默认配置成功则仍返回默认 MetricsConfig"""
+        from ms_service_profiler.patcher.core.config_loader import MetricsConfig
+
         default_handlers = {"default:sym": [MagicMock()]}
         with patch.object(service_profiler, "_get_default_metrics_config_path", return_value="/fake/default.yaml"):
             with patch("ms_service_profiler.patcher.vllm.service_patcher.os.path.isfile", return_value=True):
                 with patch.object(service_profiler, "_find_metrics_config_path", return_value="/fake/user.yaml"):
                     with patch("ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader") as MockLoader:
                         mock_default = MagicMock()
-                        mock_default.load_metrics.return_value = default_handlers
+                        mock_default.load_metrics.return_value = MetricsConfig(concrete=default_handlers)
                         mock_user = MagicMock()
                         mock_user.load_metrics.side_effect = Exception("load failed")
                         MockLoader.side_effect = [mock_default, mock_user]
                         with patch("ms_service_profiler.patcher.vllm.service_patcher.logger") as mock_logger:
                             result = service_profiler._load_metrics_config()
-                            assert result == default_handlers
+                            assert result.concrete == default_handlers
                             mock_logger.warning.assert_called_once()
+
+    @staticmethod
+    def test_load_metrics_config_just_default_true_returns_default_only(service_profiler):
+        """just_default=True 时只加载默认配置，不合并用户配置"""
+        from ms_service_profiler.patcher.core.config_loader import MetricsConfig
+
+        default_handlers = {"default:sym": [MagicMock()]}
+        with patch.object(service_profiler, "_get_default_metrics_config_path", return_value="/fake/default.yaml"):
+            with patch("ms_service_profiler.patcher.vllm.service_patcher.os.path.isfile", return_value=True):
+                with patch("ms_service_profiler.patcher.vllm.service_patcher.ConfigLoader") as MockLoader:
+                    mock_loader = MagicMock()
+                    mock_loader.load_metrics.return_value = MetricsConfig(concrete=default_handlers)
+                    MockLoader.return_value = mock_loader
+                    result = service_profiler._load_metrics_config(just_default=True)
+        assert result is not None
+        assert result.concrete == default_handlers
+        assert MockLoader.call_count == 1
+
+
+class TestLoadMetricHandlersOnly:
+    """测试 _load_metric_handlers_only 方法"""
+
+    @staticmethod
+    def test_load_metric_handlers_only_calls_load_metrics_config(service_profiler):
+        """应调用 _load_metrics_config 并透传 just_default"""
+        from ms_service_profiler.patcher.core.config_loader import MetricsConfig
+
+        cfg = MetricsConfig(concrete={"a": [MagicMock()]})
+        with patch.object(service_profiler, "_load_metrics_config", return_value=cfg) as mock_load:
+            result = service_profiler._load_metric_handlers_only()
+            mock_load.assert_called_once_with(just_default=False)
+            assert result == cfg
+
+    @staticmethod
+    def test_load_metric_handlers_only_just_default_true(service_profiler):
+        """just_default=True 时只加载默认 metrics 配置"""
+        from ms_service_profiler.patcher.core.config_loader import MetricsConfig
+
+        cfg = MetricsConfig(concrete={"default_only": [MagicMock()]})
+        with patch.object(service_profiler, "_load_metrics_config", return_value=cfg) as mock_load:
+            result = service_profiler._load_metric_handlers_only(just_default=True)
+            mock_load.assert_called_once_with(just_default=True)
+            assert result.concrete["default_only"] == cfg.concrete["default_only"]
 
 
 class TestIntegration:

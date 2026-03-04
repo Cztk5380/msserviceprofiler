@@ -21,16 +21,44 @@ ConfigLoader: 加载 YAML 配置并解析为 Handler 列表。
 - 读取 config_path 对应的 yml 文件
 - 将配置解析为以 symbol 为键、Handler 列表为值的结构
 - 支持 yml 中配置的 handler 或默认 handler（make_default_time_hook）
+- 支持模式 symbol（含 * 通配），返回 ProfilingConfig / MetricsConfig（concrete + patterns）
 """
 
 import importlib
-from typing import Dict, List, Optional, Tuple, Any, Callable
+import json
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple, Callable
 
 from .utils import load_yaml_config
 from .logger import logger
-from .dynamic_hook import make_default_time_hook, DynamicHooker, ConfigHooker
+from .dynamic_hook import make_default_time_hook, ConfigHooker
 from .metric_hook import wrap_handler_with_metrics
-import json
+
+
+def _is_pattern_symbol(symbol_path: str) -> bool:
+    """判断是否为模式 symbol（含 * 通配）。"""
+    return isinstance(symbol_path, str) and '*' in symbol_path
+
+
+def _parse_symbol_pattern(symbol_path: str) -> Optional[Tuple[str, str, str]]:
+    """解析模式 symbol，返回 (module_pattern, class_pattern, method_name)。
+    格式仅支持一个冒号：module.path.*:class_pattern.method_name（或 module:function）。
+    """
+    if ":" not in symbol_path:
+        logger.warning("Invalid symbol path format: %s", symbol_path)
+        return None
+    module_pattern, rest = symbol_path.split(":", 1)
+    module_pattern = module_pattern.strip()
+    rest = rest.strip()
+    if "." not in rest:
+        logger.warning("Pattern symbol must be module:class.method_name (one colon): %s", symbol_path)
+        return None
+    class_pattern, method_name = rest.split(".", 1)
+    class_pattern, method_name = class_pattern.strip(), method_name.strip()
+    if not method_name or "*" in method_name:
+        logger.warning("Pattern symbol method_name must be concrete (no *): %s", symbol_path)
+        return None
+    return (module_pattern, class_pattern, method_name)
 
 
 def _parse_symbol_path(symbol_path: str) -> Tuple[str, str, Optional[str]]:
@@ -107,6 +135,68 @@ def _resolve_metrics_handler_func(symbol_info: dict, method_name: str) -> Callab
     return wrap_handler_with_metrics(_metrics_noop_handler, symbol_info)
 
 
+@dataclass
+class PatternEntry:
+    """一条模式配置，在模块加载时再解析为具体 hook 点。"""
+
+    module_pattern: str
+    method_name: str
+    class_pattern: str
+    name: str
+    domain: str
+    handler_func: Callable
+    min_version: Optional[str] = None
+    max_version: Optional[str] = None
+    caller_filter: Optional[str] = None
+    need_locals: bool = False
+    pattern_id: str = ""
+
+
+def _merge_config_impl(
+    configs: Tuple[Optional[Any], ...],
+    concrete_attr: str = "concrete",
+    patterns_attr: str = "patterns",
+) -> Tuple[Dict[str, List[ConfigHooker]], List[PatternEntry]]:
+    """合并多份配置的 concrete 与 patterns。仅接受 Config 类型或 None。"""
+    merged_concrete: Dict[str, List[ConfigHooker]] = {}
+    merged_patterns: List[PatternEntry] = []
+    for c in configs:
+        if c is None:
+            continue
+        for sym, handlers in (getattr(c, concrete_attr, None) or {}).items():
+            merged_concrete.setdefault(sym, []).extend(handlers)
+        merged_patterns.extend(getattr(c, patterns_attr, None) or [])
+    return merged_concrete, merged_patterns
+
+
+@dataclass
+class ProfilingConfig:
+    """Profiling 配置：精确 symbol 的 handler 字典 + 模式列表。"""
+
+    concrete: Dict[str, List[ConfigHooker]] = field(default_factory=dict)
+    patterns: List[PatternEntry] = field(default_factory=list)
+
+    @classmethod
+    def merge(cls, *configs: Optional["ProfilingConfig"]) -> "ProfilingConfig":
+        """合并多个 ProfilingConfig（concrete 按 symbol 合并列表，patterns 拼接）。"""
+        merged_concrete, merged_patterns = _merge_config_impl(configs)
+        return cls(concrete=merged_concrete, patterns=merged_patterns)
+
+
+@dataclass
+class MetricsConfig:
+    """Metrics 配置：精确 symbol 的 handler 字典 + 模式列表。"""
+
+    concrete: Dict[str, List[ConfigHooker]] = field(default_factory=dict)
+    patterns: List[PatternEntry] = field(default_factory=list)
+
+    @classmethod
+    def merge(cls, *configs: Optional["MetricsConfig"]) -> "MetricsConfig":
+        """合并多个 MetricsConfig。"""
+        merged_concrete, merged_patterns = _merge_config_impl(configs)
+        return cls(concrete=merged_concrete, patterns=merged_patterns)
+
+
 class ConfigLoader:
     """配置加载器：读取 yml 文件，返回以 symbol 为粒度的 Handler 列表。
     
@@ -127,22 +217,22 @@ class ConfigLoader:
         """
         self._config_path = config_path
     
-    def load_profiling(self) -> Optional[Dict[str, List[ConfigHooker]]]:
-        """加载 profiling yml 配置并解析为 Handler 列表。
+    def load_profiling(self) -> ProfilingConfig:
+        """加载 profiling yml 配置并解析为 Handler 列表与模式列表。
         
         Returns:
-            Dict[str, List[DynamicHooker]]: symbol_path -> Handler 列表。
-                同一 symbol 若有多个 handler 配置，则在该 symbol 的列表中包含多个 Handler。
+            ProfilingConfig: concrete (symbol_path -> Handler 列表) + patterns (模式列表)。
         """
         raw_config = load_yaml_config(self._config_path)
         if not raw_config:
-            return {}
+            return ProfilingConfig()
         
         if not isinstance(raw_config, list):
             logger.warning("Config should be a list of symbol configurations")
-            return {}
+            return ProfilingConfig()
         
         result: Dict[str, List[ConfigHooker]] = {}
+        pattern_entries: List[PatternEntry] = []
         
         for item in raw_config:
             if not isinstance(item, dict) or 'symbol' not in item:
@@ -150,6 +240,31 @@ class ConfigLoader:
                 continue
             
             symbol_path = item['symbol']
+            need_locals = "expr" in json.dumps(item) or "handler" in json.dumps(item)
+
+            if _is_pattern_symbol(symbol_path):
+                parsed = _parse_symbol_pattern(symbol_path)
+                if not parsed:
+                    continue
+                module_pattern, class_pattern, method_name = parsed
+                handler_func = _resolve_handler_func(item, method_name)
+                name = item.get('name', method_name)
+                domain = item.get('domain', 'Default')
+                pattern_entries.append(PatternEntry(
+                    module_pattern=module_pattern,
+                    method_name=method_name,
+                    class_pattern=class_pattern,
+                    name=name,
+                    domain=domain,
+                    handler_func=handler_func,
+                    min_version=item.get('min_version'),
+                    max_version=item.get('max_version'),
+                    caller_filter=item.get('caller_filter'),
+                    need_locals=need_locals,
+                    pattern_id=symbol_path,
+                ))
+                continue
+
             module_path, method_name, class_name = _parse_symbol_path(symbol_path)
             if not module_path:
                 continue
@@ -164,34 +279,62 @@ class ConfigLoader:
                 min_version=item.get('min_version'),
                 max_version=item.get('max_version'),
                 caller_filter=item.get('caller_filter'),
-                need_locals="expr" in json.dumps(item) or "handler" in json.dumps(item),
+                need_locals=need_locals,
             )
             
             if symbol_path not in result:
                 result[symbol_path] = []
             result[symbol_path].append(handler_instance)
         
-        logger.debug(f"ConfigLoader loaded {len(result)} profiling symbols from {self._config_path}")
-        return result
+        logger.debug(
+            f"ConfigLoader loaded {len(result)} profiling symbols, {len(pattern_entries)} patterns from {self._config_path}"
+        )
+        return ProfilingConfig(concrete=result, patterns=pattern_entries)
 
-    def load_metrics(self) -> Optional[Dict[str, List[ConfigHooker]]]:
-        """加载 metrics yml 并解析为 Handler 列表（每个 handler 经 wrap_handler_with_metrics 包装）。
+    def load_metrics(self) -> MetricsConfig:
+        """加载 metrics yml 并解析为 Handler 列表与模式列表（每个 handler 经 wrap_handler_with_metrics 包装）。
 
         Returns:
-            Dict[str, List[DynamicHooker]]: symbol_path -> Handler 列表，格式与 load() 一致。
+            MetricsConfig: concrete + patterns，格式与 load_profiling 对称。
         """
         raw_config = load_yaml_config(self._config_path)
         if not raw_config:
-            return {}
+            return MetricsConfig()
         if not isinstance(raw_config, list):
             logger.warning("Metrics config should be a list of symbol configurations")
-            return {}
+            return MetricsConfig()
         result: Dict[str, List[ConfigHooker]] = {}
+        pattern_entries: List[PatternEntry] = []
         for item in raw_config:
             if not isinstance(item, dict) or 'symbol' not in item:
                 logger.warning("Skip invalid metrics config item: missing 'symbol'")
                 continue
             symbol_path = item['symbol']
+            need_locals = "expr" in json.dumps(item) or "handler" in json.dumps(item)
+
+            if _is_pattern_symbol(symbol_path):
+                parsed = _parse_symbol_pattern(symbol_path)
+                if not parsed:
+                    continue
+                module_pattern, class_pattern, method_name = parsed
+                handler_func = _resolve_metrics_handler_func(item, method_name)
+                name = item.get('name', method_name)
+                domain = item.get('domain', 'Default')
+                pattern_entries.append(PatternEntry(
+                    module_pattern=module_pattern,
+                    method_name=method_name,
+                    class_pattern=class_pattern,
+                    name=name,
+                    domain=domain,
+                    handler_func=handler_func,
+                    min_version=item.get('min_version'),
+                    max_version=item.get('max_version'),
+                    caller_filter=item.get('caller_filter'),
+                    need_locals=need_locals,
+                    pattern_id=symbol_path,
+                ))
+                continue
+
             module_path, method_name, class_name = _parse_symbol_path(symbol_path)
             if not module_path:
                 continue
@@ -204,10 +347,12 @@ class ConfigLoader:
                 min_version=item.get('min_version'),
                 max_version=item.get('max_version'),
                 caller_filter=item.get('caller_filter'),
-                need_locals="expr" in json.dumps(item) or "handler" in json.dumps(item),
+                need_locals=need_locals,
             )
             if symbol_path not in result:
                 result[symbol_path] = []
             result[symbol_path].append(handler_instance)
-        logger.debug(f"ConfigLoader loaded {len(result)} metrics symbols from {self._config_path}")
-        return result
+        logger.debug(
+            f"ConfigLoader loaded {len(result)} metrics symbols, {len(pattern_entries)} patterns from {self._config_path}"
+        )
+        return MetricsConfig(concrete=result, patterns=pattern_entries)

@@ -7,6 +7,7 @@
 from unittest.mock import Mock, MagicMock, patch
 import pytest
 
+from ms_service_profiler.patcher.core.config_loader import MetricsConfig, ProfilingConfig
 from ms_service_profiler.patcher.core.symbol_watcher import SymbolWatchFinder
 
 
@@ -92,7 +93,9 @@ class TestLoadHandlersRemovedSymbols:
     def test_load_config_first_time_no_removed(self, watcher):
         handlers = {"a.b:func1": [MagicMock()], "c.d:func2": [MagicMock()]}
         with patch("ms_service_profiler.patcher.core.symbol_watcher.logger"):
-            watcher.load_handlers(profiling_handlers=handlers, metrics_handlers=None)
+            watcher.load_handlers(
+                profiling_handlers=ProfilingConfig(concrete=handlers), metrics_handlers=None
+            )
 
         assert watcher._config_loaded is True
         assert len(watcher._symbol_handlers_profiling) == 2
@@ -101,7 +104,9 @@ class TestLoadHandlersRemovedSymbols:
 
     def test_load_handlers_empty_dict(self, watcher):
         with patch("ms_service_profiler.patcher.core.symbol_watcher.logger"):
-            watcher.load_handlers(profiling_handlers={}, metrics_handlers={})
+            watcher.load_handlers(
+                profiling_handlers=ProfilingConfig(), metrics_handlers=MetricsConfig()
+            )
 
         assert watcher._config_loaded is True
         assert len(watcher._symbol_handlers_profiling) == 0
@@ -110,7 +115,9 @@ class TestLoadHandlersRemovedSymbols:
     def test_load_handlers_single_symbol(self, watcher):
         handlers = {"a:func": [MagicMock()]}
         with patch("ms_service_profiler.patcher.core.symbol_watcher.logger"):
-            watcher.load_handlers(profiling_handlers=handlers, metrics_handlers=None)
+            watcher.load_handlers(
+                profiling_handlers=ProfilingConfig(concrete=handlers), metrics_handlers=None
+            )
 
         assert len(watcher._symbol_handlers_profiling) == 1
         assert "a:func" in watcher._symbol_handlers_profiling
@@ -119,14 +126,19 @@ class TestLoadHandlersRemovedSymbols:
         watcher._config_loaded = True
         watcher._applied_hooks = {"old.mod:func"}
         hooker = MagicMock()
+        watcher._symbol_handlers_profiling = {"old.mod:func": [hooker]}
         watcher._symbol_to_hooker["old.mod:func"] = [hooker]
-        watcher._prepared_hookers = [hooker]
-        watcher._applied_hookers = [hooker]
+        watcher._prepared_hookers.add(hooker)
+        watcher._applied_hookers.append(hooker)
 
         new_handlers = {"new.mod:func2": [MagicMock()]}
 
         with patch("ms_service_profiler.patcher.core.symbol_watcher.logger"):
-            watcher.load_handlers(profiling_handlers=new_handlers, metrics_handlers=None, hooks_enabled=False)
+            watcher.load_handlers(
+                profiling_handlers=ProfilingConfig(concrete=new_handlers),
+                metrics_handlers=None,
+                hooks_enabled=False,
+            )
 
         assert "old.mod:func" not in watcher._symbol_to_hooker
         assert "old.mod:func" not in watcher._applied_hooks
@@ -139,14 +151,19 @@ class TestLoadHandlersRemovedSymbols:
         hook_helper = MagicMock()
         hooker = MagicMock()
         hooker.hooks = [hook_helper]
+        watcher._symbol_handlers_profiling = {"old.mod:func": [hooker]}
         watcher._symbol_to_hooker["old.mod:func"] = [hooker]
-        watcher._prepared_hookers = [hooker]
-        watcher._applied_hookers = [hooker]
+        watcher._prepared_hookers.add(hooker)
+        watcher._applied_hookers.append(hooker)
 
         new_handlers = {"new.mod:func2": [MagicMock()]}
 
         with patch("ms_service_profiler.patcher.core.symbol_watcher.logger"):
-            watcher.load_handlers(profiling_handlers=new_handlers, metrics_handlers=None, hooks_enabled=True)
+            watcher.load_handlers(
+                profiling_handlers=ProfilingConfig(concrete=new_handlers),
+                metrics_handlers=None,
+                hooks_enabled=True,
+            )
 
         hooker.recover.assert_called_once()
         assert "old.mod:func" not in watcher._symbol_to_hooker
