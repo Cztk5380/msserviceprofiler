@@ -13,7 +13,6 @@
 |Atlas 推理系列产品|√|
 |Atlas 训练系列产品|×|
 
-
 >![](public_sys-resources/icon-notice.gif) **须知：** 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
@@ -40,8 +39,6 @@ Profiler &ArrayAttr(const char *attrName, const T &startIter, const T &endIter, 
 |endIter|输入|任意的迭代器结束。|
 |callback|输入|回调函数第一个入参是当前对象，可以调用它添加属性，第二个入参是当前迭代，可以用它获取需要记录的属性内容。|
 
-
 ## 返回值说明<a name="section8800235121218"></a>
 
 Profiler&返回当前对象，支持链式调用。
-

@@ -1,25 +1,37 @@
 # msServiceProfiler工具安装指南
+
 ## 安装说明
+
 本文介绍msServiceProfiler工具的安装，升级和卸载。
+
 ## 安装前准备
+
 ### 环境准备
+
 - 准备**Python环境**：需要 Python 3.10 或更高版本。Python版本查询可使用命令行。
+
 ```bash
 python --version
 ```
+
 - 安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《CANN 软件安装指南》。
+
 ### 约束
+
 - 构建安装依赖 sqlite3，安装参考命令行：
+
 ```bash
 apt-get install libsqlite3-dev
 ```
+
 - 如需运行单元测试用例，则需要额外安装 lcov 进行覆盖率统计。安装参考命令行：
+
 ```bash
 apt-get install lcov
 ```
 
 ## 命令行安装
-#### pip 安装 msserviceprofiler
+
 ```shell
 # 安装构建依赖
 apt-get install libsqlite3-dev  # 在RHEL/CentOS/Fedora等使用`yum`的系统上，应使用 yum install sqlite sqlite-devel 
@@ -28,7 +40,9 @@ git clone https://gitcode.com/Ascend/msserviceprofiler.git
 cd msserviceprofiler
 pip install -e .
 ```
+
 构建安装成功将有下述回显信息。
+
 ```shell
 Successfully built ms_service_profiler
 ...
@@ -89,10 +103,13 @@ Confirm to proceed? [y/N]:
 
 
 ## 卸载
+
 ```shell
 pip uninstall ms_service_profiler -y
 ```
+
 卸载成功将有下述回显信息。
+
 ```shell
 Found existing installation: ms_service_profiler x.x.x
 Uninstalling ms_service_profiler-x.x.x:

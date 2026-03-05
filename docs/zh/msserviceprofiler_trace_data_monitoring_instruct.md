@@ -6,11 +6,10 @@ msServiceProfiler Trace提供基于OpenTelemetry Protocol（OTLP）协议的Trac
 
 msServiceProfiler Trace采集MindIE Motor服务中的请求响应时间、响应状态、客户端IP/端口、服务端IP/端口等数据，最后将采集到的数据推送至Jaeger等支持OTLP协议的开源监测平台进行可视化分析。
 
--   当前版本主要面向MindIE推理框架，支持单机及多机PD竞争部署模式。
--   当前仅支持对MindIE的[/v1/chat/completions](https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0078.html)和[/v1/completions](https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0323.html)两个请求发送的核心接口进行Trace监测。
--   msServiceProfiler Trace数据监测接口包括“msServiceProfiler API参考（C++） \>  [Trace数据监测](./cpp_api/trace_data_monitoring/README.md)”。
--   有关MindIE Motor相关介绍请参见《[MindIE Motor开发指南](https://gitcode.com/Ascend/MindIE Motor/blob/dev/docs/zh/user_guide/README.md)》。
-
+- 当前版本主要面向MindIE推理框架，支持单机及多机PD竞争部署模式。
+- 当前仅支持对MindIE的[/v1/chat/completions](https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0078.html)和[/v1/completions](https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0323.html)两个请求发送的核心接口进行Trace监测。
+- msServiceProfiler Trace数据监测接口包括“msServiceProfiler API参考（C++） \>  [Trace数据监测](./cpp_api/trace_data_monitoring/README.md)”。
+- 有关MindIE Motor相关介绍请参见《[MindIE Motor开发指南](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/README.md)》。
 
 ## 产品支持情况<a name="ZH-CN_TOPIC_0000002489576470"></a>
 
@@ -25,11 +24,9 @@ msServiceProfiler Trace采集MindIE Motor服务中的请求响应时间、响应
 |Atlas 推理系列产品|  √   |
 |Atlas 训练系列产品|  x   |
 
-
 >![](public_sys-resources/icon-notice.gif) **须知：** 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
-
 
 ## 使用前准备<a name="ZH-CN_TOPIC_0000002486482024"></a>
 
@@ -41,7 +38,7 @@ msServiceProfiler Trace采集MindIE Motor服务中的请求响应时间、响应
 
 3. 安装环境依赖，命令如下：
 
-   ```
+   ```bash
    pip install opentelemetry-exporter-otlp-proto-grpc==1.33.1
    pip install opentelemetry-exporter-otlp-proto-http==1.33.1
    ```
@@ -56,77 +53,77 @@ msServiceProfiler Trace转发数据最大支持400并发，超过400并发可能
 
 相关日志提示（下述日志每小时只上报1次）：
 
-```
+```ColdFusion
 # 积压请求数量超过10w出现请求积压告警
 2025-11-26 15:45:59,038 - 4059906 - msServiceProfiler - WARNING - Trace data is being stacked: {积压数量}
 # 积压请求数量超过100w出现数据丢失告警
 2025-11-26 15:45:59,522 - 4059906 - msServiceProfiler - WARNING - Trace data queue is full, discarding the oldest data.
 ```
 
-
 ## 数据采集<a name="ZH-CN_TOPIC_0000002518521923"></a>
 
 ### 开启采集开关<a name="ZH-CN_TOPIC_0000002486322048"></a>
 
-1.  通过配置环境变量MS\_TRACE\_ENABLE开启Trace采集开关。
+1. 通过配置环境变量MS\_TRACE\_ENABLE开启Trace采集开关。
 
-    ```
+    ```bash
     export MS_TRACE_ENABLE=1
     ```
 
-    -   配置为1表示开启。
-    -   不配置或其他值为关闭。
+    - 配置为1表示开启。
+    - 不配置或其他值为关闭。
 
-2.  运行MindIE Motor服务。
-
+2. 运行MindIE Motor服务。
 
 ### 配置目标采集服务器<a name="ZH-CN_TOPIC_0000002518641905"></a>
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >出于安全考虑，推荐用户使用安全模式，建议使用TLS认证。
 
-在[启动Trace转发进程](#启动Trace转发进程)前，需要通过环境变量设置目标采集服务器。
+在[启动Trace转发进程](#启动trace转发进程)前，需要通过环境变量设置目标采集服务器。
 
 当前支持以下四种协议配置。
 
--   HTTP
+- HTTP
 
-    ```
+    ```bash
     export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
     export OTEL_EXPORTER_OTLP_ENDPOINT=http://xxx:xxx/v1/traces    # 配置数据转发的IP和端口，例如http://localhost:4318/v1/traces
     ```
 
--   HTTP + TLS
+- HTTP + TLS
 
-    ```
+    ```bash
     export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
     export OTEL_EXPORTER_OTLP_ENDPOINT=https://xxx:xxx/v1/traces    # 配置数据转发的IP和端口，例如https://localhost:4318/v1/traces
     export OTEL_EXPORTER_OTLP_CERTIFICATE=/home/certificates/ca/ca.crt    # 设置证书的绝对路径，该目录属主、文件属主和当前用户一致，目录权限700，文件权限600
     ```
 
--   gRPC
+- gRPC
 
-    ```
+    ```bash
     export OTEL_EXPORTER_OTLP_PROTOCOL="grpc"
     export OTEL_EXPORTER_OTLP_ENDPOINT=http://xxx:xxx    # 配置数据转发的IP和端口，例如http://localhost:4317
     ```
 
--   gRPC + TLS
+- gRPC + TLS
 
-    ```
+    ```bash
     export OTEL_EXPORTER_OTLP_PROTOCOL="grpc"
     export OTEL_EXPORTER_OTLP_ENDPOINT=https://xxx:xxx    # 配置数据转发的IP和端口，例如https://localhost:4317
     export OTEL_EXPORTER_OTLP_CERTIFICATE=/home/certificates/ca/ca.crt    # 设置证书的绝对路径，该目录属主、文件属主和当前用户一致，目录权限700，文件权限600
     ```
 
->![](public_sys-resources/icon-notice.gif) **须知：** 
->-   当前只支持单向认证，双向认证相关配置参数不支持，配置会导致功能不可用。不可用配置参数如下：
->    -   OTEL\_EXPORTER\_OTLP\_TRACES\_CLIENT\_KEY
->    -   OTEL\_EXPORTER\_OTLP\_CLIENT\_KEY
->    -   OTEL\_EXPORTER\_OTLP\_TRACES\_CLIENT\_CERTIFICATE
->    -   OTEL\_EXPORTER\_OTLP\_CLIENT\_CERTIFICATE
->-   本工具依赖OpenTelemetry三方库实现。本文仅说明此工具使用的必备参数。更多功能接口请开发者深入其官方文档自行探索。
-
+>[!NOTE] 说明
+>
+>本工具依赖OpenTelemetry三方库实现。本文仅说明此工具使用的必备参数。更多功能接口请开发者深入其官方文档自行探索。
+>
+>当前只支持单向认证，双向认证相关配置参数不支持，配置会导致功能不可用。不可用配置参数如下：
+>
+>- OTEL\_EXPORTER\_OTLP\_TRACES\_CLIENT\_KEY
+>- OTEL\_EXPORTER\_OTLP\_CLIENT\_KEY
+>- OTEL\_EXPORTER\_OTLP\_TRACES\_CLIENT\_CERTIFICATE
+>- OTEL\_EXPORTER\_OTLP\_CLIENT\_CERTIFICATE
 
 ### 启动Trace转发进程
 
@@ -140,7 +137,7 @@ msServiceProfiler Trace转发数据最大支持400并发，超过400并发可能
 
 **命令格式<a name="section10872103414491"></a>**
 
-```
+```bash
 python -m ms_service_profiler.trace [--log-level]
 ```
 
@@ -154,12 +151,11 @@ options参数说明请参见[参数说明](#section379581401015)。
 |--|--|--|
 |--log-level|设置日志级别，取值为：<br/>debug：调试级别。该级别的日志记录了调试信息，便于开发人员或维护人员定位问题。<br/>info：正常级别。记录工具正常运行的信息。默认值。<br/>warning：警告级别。记录工具和预期的状态不一致，但不影响整个进程运行的信息。<br/>error：一般错误级别。fatal：严重错误级别。critical：致命错误级别。|否|
 
-
 **使用示例<a name="section246434914919"></a>**
 
 使用默认配置启动Trace转发进程。命令如下：
 
-```
+```bash
 python -m ms_service_profiler.trace
 ```
 
@@ -169,21 +165,20 @@ python -m ms_service_profiler.trace
 
 转发进程启动成功时打印示例如下：
 
-```
+```ColdFusion
 2025-11-27 18:46:42,737 - 23410 - msServiceProfiler - INFO - Start http/protobuf exporter, endpoint: http://localhost:4318/v1/traces
 2025-11-27 18:46:42,737 - 23410 - msServiceProfiler - INFO - Start socket server success, listen addr: OTLP_SOCKET
 2025-11-27 18:46:42,737 - 23410 - msServiceProfiler - INFO - Start scheduler task: interval 1s
 2025-11-27 18:46:42,738 - 23410 - msServiceProfiler - INFO - Start OTLPForwarderService success, running...
 ```
 
-
 ### 发送请求
 
 当前建议使用/v1/chat/completions及/v1/completions接口发送请求。且这两个接口的HTTP请求头中需要添加“开启采样”信息。当前支持添加“开启采样”的HTTP请求头格式如下：
 
--   W3C Trace Context \(traceparent\)
--   B3 Single Header \(单一头格式\)
--   B3 Multiple Headers \(多头格式\)
+- W3C Trace Context \(traceparent\)
+- B3 Single Header \(单一头格式\)
+- B3 Multiple Headers \(多头格式\)
 
 HTTP请求头需要添加的内容格式详细配置介绍如下：
 
@@ -191,7 +186,7 @@ HTTP请求头需要添加的内容格式详细配置介绍如下：
 
 例如：
 
-```
+```http
 traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01
 ```
 
@@ -204,12 +199,11 @@ traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01
 |parent-id|36~51位|16字符|父Span ID（8字节，16个十六进制字符），标识当前操作的直接上游|必选|
 |trace-flags|53~54位|2字符|Trace标志，目前只使用最低位：**01=采样，00=不采样**|必选|
 
-
 **B3 Single Header（单一头格式）<a name="section10847195822715"></a>**
 
 例如：
 
-```
+```http
 b3: 0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-1-0000000000000001
 ```
 
@@ -222,12 +216,11 @@ b3: 0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-1-0000000000000001
 |Sampled|51位|采样决策|1个字符|**1=采样****0=不采样**|必选|
 |ParentSpanId|53~68位|父Span ID|16个十六进制字符|可选字段，标识直接上游Span|可选|
 
-
 **B3 Multiple Headers（多头格式）<a name="section1410152418280"></a>**
 
 例如：
 
-```
+```http
 X-B3-TraceId: 0af7651916cd43dd8448eb211c80319c
 X-B3-SpanId: b7ad6b7169203331
 X-B3-Sampled: 1
@@ -241,14 +234,13 @@ X-B3-Sampled: 1
 |X-B3-SpanId|当前Span ID|16个十六进制字符（8字节）|任意16位十六进制字符串|标识当前服务操作的唯一ID，每个Span都有独立的SpanId|必选|
 |X-B3-Sampled|采样决策|字符串|**1 = 采样****0 = 不采样**|控制是否记录Trace数据到后端系统，避免产生过多性能开销|必选|
 
-
 **执行发送请求<a name="section113815183112"></a>**
 
 发送的HTTP请求头中必须添加上述三种HTTP请求头格式的其中一种，才可以执行发送请求并开启Trace数据监测功能。其中配置的SpanId和TraceId会作为每个请求的索引。
 
 以在HTTP请求头添加W3C Trace Context \(traceparent\)格式为例，执行发送请求命令如下：
 
-```
+```http
 curl http://127.0.0.1:1025/v1/chat/completions \
 -X POST \
 -H "Content-Type: application/json" -H "traceparent: 04-01f92f3577b34da6a3ce929d0e0e4703-00f067aa0ba90203-01" \
@@ -261,8 +253,6 @@ curl http://127.0.0.1:1025/v1/chat/completions \
 "temperature": 0.5,
 "stream": false }'
 ```
-
-
 
 ## 输出结果说明<a name="ZH-CN_TOPIC_0000002486322050"></a>
 
@@ -292,7 +282,6 @@ curl http://127.0.0.1:1025/v1/chat/completions \
 |tags[key=server.path]|请求路径，string类型，示例值/v1/chat/completions。|
 |tags[key=span.kind]|Span类型，string类型，示例值server。|
 
-
 **表 3**  网络信息
 
 |字段|说明|
@@ -302,7 +291,6 @@ curl http://127.0.0.1:1025/v1/chat/completions \
 |tags[key=server.net.peer.ip]|客户端IP地址，string类型，示例值127.0.0.1。|
 |tags[key=server.net.peer.port]|客户端端口，string类型，示例值36694。|
 
-
 **表 4**  状态信息
 
 |字段|说明|
@@ -310,6 +298,3 @@ curl http://127.0.0.1:1025/v1/chat/completions \
 |tags[key=error]|是否发生错误（仅当请求返回错误时存在），bool类型。示例值：请求错误时为true。请求正确时不出现该值。|
 |tags[key=otel.status_code]|OpenTelemetry状态码，string类型。示例值：请求正确时为OK。请求错误时为ERROR。|
 |tags[key=otel.status_description]|错误详细描述（仅当请求返回错误时存在），string类型，示例值{"error":"Request param contains not messages or messages null","error_type":"Input Validation Error"}。|
-
-
-

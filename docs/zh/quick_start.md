@@ -1,4 +1,4 @@
-# 服务化调优<a name="ZH-CN_TOPIC_0000002475358702"></a>
+# 服务化性能调优工具快速入门<a name="ZH-CN_TOPIC_0000002475358702"></a>
 
 服务化框架的性能调优往往如同置身 “黑盒”，问题根源难以精准定位 —— 比如请求量攀升后响应速度显著下降、硬件设备更换后性能表现迥异等场景，都难以快速排查。
 
@@ -9,18 +9,18 @@ msServiceProfiler（服务化调优工具）提供全链路性能剖析，清晰
 
 ## 前提条件<a name="section1605203618349"></a>
 
--   在使用性能调优工具前，请先阅读《msServiceProfiler工具安装指南》中的“[约束](msserviceprofiler_install_guide.md#约束)”章节的使用约束，了解相关约束条件。
--   请参见《MindIE安装指南》完成MindIE的安装和配置并确认MindIE Motor可以正常运行。
+- 在使用性能调优工具前，请先阅读《msServiceProfiler工具安装指南》中的“[约束](msserviceprofiler_install_guide.md#约束)”章节的使用约束，了解相关约束条件。
+- 请参见《MindIE安装指南》完成MindIE的安装和配置并确认MindIE Motor可以正常运行。
 
 ## 操作步骤<a name="section166491954201410"></a>
 
-1.  <a name="li104932444507"></a>配置环境变量。
+1. <a name="li104932444507"></a>配置环境变量。
 
     msServiceProfiler的采集能力需要在部署MindIE Motor服务之前，通过设置环境变量SERVICE\_PROF\_CONFIG\_PATH方能生效。如果环境变量拼写错误，或者没有在部署MindIE Motor服务之前设置环境变量，都无法使能msServiceProfiler的采集能力。
 
     以ms\_service\_profiler\_config.json文件名为例，执行下列命令配置环境变量。
 
-    ```
+    ```bash
     export SERVICE_PROF_CONFIG_PATH="./ms_service_profiler_config.json"
     ```
 
@@ -29,11 +29,11 @@ msServiceProfiler（服务化调优工具）提供全链路性能剖析，清晰
     >![](public_sys-resources/icon-caution.gif) **注意：** 
     >在多机部署时，通常不建议将配置文件或其指定的数据存储路径放置在共享目录（如网络共享位置）。 由于数据写入方式可能涉及额外的网络或缓冲环节，而非直接落盘，此类配置在某些情况下可能导致预期外的系统行为或结果。
 
-2.  运行MindIE Motor服务。
+2. 运行MindIE Motor服务。
 
     如果正确配置了环境变量，工具会在服务部署完成之前输出如下\[msservice\_profiler\]开头的日志，说明msServiceProfiler已启动，如下所示。
 
-    ```
+    ```ColdFusion
     [msservice_profiler] [PID:225] [INFO] [ParseEnable:179] profile enable_: false
     [msservice_profiler] [PID:225] [INFO] [ParseAclTaskTime:264] profile enableAclTaskTime_: false
     [msservice_profiler] [PID:225] [INFO] [ParseAclTaskTime:265] profile msptiEnable_: false
@@ -42,7 +42,7 @@ msServiceProfiler（服务化调优工具）提供全链路性能剖析，清晰
 
     如果SERVICE\_PROF\_CONFIG\_PATH环境变量所指定的配置文件不存在，工具输出自动创建的日志。以[1](#li104932444507)的配置为例，那么工具输出日志如下。
 
-    ```
+    ```ColdFusion
     [msservice_profiler] [PID:225] [INFO] [SaveConfigToJsonFile:588] Successfully saved profiler configuration to: ./ms_service_profiler_config.json
     ```
 
@@ -50,11 +50,11 @@ msServiceProfiler（服务化调优工具）提供全链路性能剖析，清晰
 
    MindIE Motor服务部署成功之后，可以通过修改配置文件中的字段来进行精准控制采集行为（此处仅以配置以下三个字段为例）。
 
-   ```
+   ```json
    {
-   	"enable": 1,
-   	"prof_dir": "${PATH}/prof_dir/",
-   	"acl_task_time": 0
+    "enable": 1,
+    "prof_dir": "${PATH}/prof_dir/",
+    "acl_task_time": 0
    }
    ```
 
@@ -70,11 +70,13 @@ msServiceProfiler（服务化调优工具）提供全链路性能剖析，清晰
 
    每当enable字段发生变更时，工具都会输出对应的日志进行告知。
 
-   ```
+   ```ColdFusion
    [msservice_profiler] [PID:3259] [INFO] [DynamicControl:407] Profiler Enabled Successfully!
    ```
+
    或者
-   ```
+
+   ```ColdFusion
    [msservice_profiler] [PID:3057] [INFO] [DynamicControl:411] Profiler Disabled Successfully!
    ```
 
@@ -82,18 +84,18 @@ msServiceProfiler（服务化调优工具）提供全链路性能剖析，清晰
 
 4. 数据解析。
 
-   1.  安装环境依赖。
+   1. 安装环境依赖。
 
-       ```
+       ```bash
        python >= 3.10
        pandas >= 2.2
        numpy >= 1.24.3
        psutil >= 5.9.5
        ```
 
-   2.  执行解析命令示例：
+   2. 执行解析命令示例：
 
-       ```
+       ```bash
        python3 -m ms_service_profiler.parse --input-path=${PATH}/prof_dir
        ```
 
@@ -108,4 +110,3 @@ msServiceProfiler（服务化调优工具）提供全链路性能剖析，清晰
    根据MindStudio Insight工具的可视化呈现性能数据，如下图所示：
 
    ![](figures/zh-cn_image_0000002478067012.png)
-

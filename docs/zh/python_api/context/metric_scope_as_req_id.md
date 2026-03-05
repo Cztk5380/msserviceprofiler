@@ -1,6 +1,5 @@
 # metric\_scope\_as\_req\_id<a name="ZH-CN_TOPIC_0000002149528612"></a>
 
-
 ## 产品支持情况<a name="section8178181118225"></a>
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
@@ -13,7 +12,6 @@
 |Atlas 200I/500 A2 推理产品|×|
 |Atlas 推理系列产品|√|
 |Atlas 训练系列产品|×|
-
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
@@ -36,4 +34,3 @@ def metric_scope_as_req_id(self)
 ## 返回值说明<a name="section776014535188"></a>
 
 Profiler返回当前对象，支持链式调用。
-

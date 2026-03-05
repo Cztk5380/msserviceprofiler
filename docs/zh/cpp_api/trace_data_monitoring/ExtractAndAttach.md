@@ -13,7 +13,6 @@
 |Atlas 推理系列产品|√|
 |Atlas 训练系列产品|×|
 
-
 >![](public_sys-resources/icon-notice.gif) **须知：** 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
@@ -37,8 +36,6 @@ size_t ExtractAndAttach(const std::string& traceParentOfW3C, const std::string& 
 |traceParentOfW3C|输入|W3C标准的trace-parent字符串。|
 |traceOfB3|输入|B3标准的trace字符串。|
 
-
 ## 返回值说明<a name="section16621124213476"></a>
 
 返回上下文索引，作为[Unattach](Unattach.md)的调用参数。
-

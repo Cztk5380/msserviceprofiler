@@ -31,5 +31,3 @@ Python接口导入：from ms\_service\_profiler import Profiler, Level
 |[domain](./context/domain.md)|指定该数据的域，相同域的记录在trace数据中归为一类。|
 |[res](./context/res.md)|添加资源ID，数据和timeline根据资源ID进行关联。|
 |[get_msg](./context/get_msg.md)|获取当前记录的数据。|
-
-

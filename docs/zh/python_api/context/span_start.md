@@ -13,7 +13,6 @@
 |Atlas 推理系列产品|√|
 |Atlas 训练系列产品|×|
 
-
 >![](public_sys-resources/icon-notice.gif) **须知：** 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
@@ -34,8 +33,6 @@ def span_start(self, span_name)
 |--|--|--|
 |span_name|输入|区间名字。|
 
-
 ## 返回值说明<a name="section776014535188"></a>
 
 Profiler返回当前对象，支持链式调用。
-

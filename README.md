@@ -1,5 +1,7 @@
 # MindStudio Service Profiler
+
 ## 最新消息
+
 - [2025.12.30] 支持Torch Profiler数据采集，解析。
 - [2025.11.30] 支持与OpenTelemetry开源生态对接，进行Trace数据追踪。
 - [2025.11.24] 支持无侵入式自动插桩采集vLLM框架服务化性能数据。
@@ -13,11 +15,14 @@
 - [2025.08.25] 支持vLLM-v1服务化框架性能数据采集，解析。
 
 ## 简介
+
 本文介绍推理服务化性能数据采集工具，本工具主要使用msServiceProfiler接口，在MindIE和vLLM推理服务化进程中，采集关键过程的开始和结束时间点，识别关键函数或迭代等信息，记录关键事件，支持多样的信息采集，对性能问题快速定位。
 
 ## 目录结构
+
 关键目录如下，详细目录介绍参见[项目目录](docs/zh/dir_structure.md)。
-```
+
+```ColdFusion
 ├─docs                             # 文档目录
 ├─include                          # 采集能力对外接口目录
 ├─ms_service_profiler              # 基础能力目录（解析、数据比对等），python源码主目录
@@ -30,6 +35,7 @@
 ```
 
 ## 版本说明
+
 | 发布版本 | 发布时间       | 发布Tag       | 兼容性说明    |
 | ------- |------------| ------------- | ------------- |
 | 26.0.0-alpha.1 | 2026/02/06 | tag_MindStudio_26.0.0-alpha.1 | 兼容昇腾CANN 8.5.0及以前版本。请参考[CANN安装指南](https://www.hiascend.com/cann)获取CANN安装包。 |
@@ -43,44 +49,57 @@
 - 工具的使用运行需要提前获取并安装CANN开源版本，当前CANN开源版本正在发布中，敬请期待。
 
 ## 工具安装
+
 安装msServiceProfiler工具，详情请参见《[msServiceProfiler工具安装指南](docs/zh/msserviceprofiler_install_guide.md)》。
 
 ## 快速入门
+
 msServiceProfiler服务化调优工具的快速入门，包括必要的操作步骤、参数说明等，具体请参见[快速入门](docs/zh/quick_start.md)。
 
-##  功能介绍
+## 功能介绍
 
 ### [服务化调优工具](docs/zh/msserviceprofiler_serving_tuning_instruct.md)
+
 服务化调优工具使用msServiceProfiler接口，采集关键过程的开始和结束时间点，识别关键函数或迭代等信息，记录关键事件，支持多样的信息采集，对性能问题快速定位。
 
 ### [vLLM服务化性能采集工具](docs/zh/vLLM_service_oriented_performance_collection_tool.md)
+
 vLLM服务化性能采集工具采集vLLM-Ascend的服务化框架性能数据以及算子性能数据。
 
 ### [vLLM 服务化 Prometheus 数据监测工具使用指南](docs/zh/vLLM_metrics_tool_instruct.md)
+
 vLLM 服务化 Prometheus 数据监测工具用于增强 vLLM-ascend 推理服务框架的原生监测能力。
 
 ### [SGLang服务化性能采集工具](docs/zh/SGLang_service_oriented_performance_collection_tool.md)
+
 SGLang 服务化性能采集工具用于监测和采集 SGLang 推理服务框架内部执行流程性能数据。
 
 ### [Trace数据监测工具](docs/zh/msserviceprofiler_trace_data_monitoring_instruct.md)
+
 Trace数据监测工具采集MindIE Motor服务中的请求响应时间、响应状态、客户端IP/端口、服务端IP/端口等数据，最后将采集到的数据推送至Jaeger等支持OTLP协议的开源监测平台进行可视化分析。
 
 ### [服务化性能数据比对工具](docs/zh/ms_service_profiler_compare_tool_instruct.md)
+
 服务化性能数据比对工具支持对使用msServiceProfiler工具采集的性能数据进行差异比对，通过比对快速识别可能存在的问题点。
 
 ### [服务化自动寻优工具](docs/zh/serviceparam_optimizer_instruct.md)
+
 基于msServiceProfiler工具采集的性能数据，提供服务化参数自动寻优能力，可以对服务化的参数以及测试工具的参数进行寻优。具体请参见服务化自动寻优工具。
 
 ### [服务化专家建议工具](docs/zh/service_profiling_advisor_instruct.md)
+
 基于benchmark 输出结果以及 service 的 config.json 配置，提供分析提高 TTFT / Throughput 等的优化点能力。具体请参见服务化专家建议工具。
 
 ### [服务化多维度解析工具](docs/zh/msserviceprofiler_multi_analyze_instruct.md)
+
 基于msServiceProfiler工具采集的性能数据，提供性能数据多维度分析能力，可以对性能数据进行batch维度、request维度和service维度分析。具体请参见服务化多维度解析工具。
 
 ### [服务化拆解工具](docs/zh/service_performance_split_tool_instruct.md)
+
 基于msServiceProfiler工具采集的性能数据，提供性能数据拆解能力，可以对batch内各阶段耗时进行分析。具体请参见服务化拆解工具。
 
 ## 贡献指导
+
 介绍如何向msServiceProfiler反馈问题、需求以及为msServiceProfiler贡献的代码开发流程，具体请参见[为MindStudio ServiceProfiler贡献](CONTRIBUTING.md)。
 
 ## 联系我们
@@ -91,6 +110,7 @@ Trace数据监测工具采集MindIE Motor服务中的请求响应时间、响应
 </div>
 
 ## 免责声明
+
 ### 致msServiceProfiler使用者
 
 1. 对于msServiceProfiler测试用例以及示例文件中所涉及的各模型和数据集，平台仅用于功能测试，华为不提供任何模型权重和数据集，如您使用这些数据进行训练/推理，请您特别注意应遵守对应模型和数据集的License，如您因使用这些模型和数据集而产生侵权纠纷，华为不承担任何责任。
@@ -104,12 +124,13 @@ Trace数据监测工具采集MindIE Motor服务中的请求响应时间、响应
 
 如果您不希望您的模型或数据集等信息在msServiceProfiler中被提及，或希望更新msServiceProfiler中有关的描述，请在GitCode提交issue，我们将根据您的issue要求删除或更新您相关描述。衷心感谢您对msServiceProfiler的理解和贡献。
 
-
 ## License
+
 msServiceProfiler产品的使用许可证，具体请参见[LICENSE](./LICENSE)。<br>
 msServiceProfiler工具docs目录下的文档适用CC-BY 4.0许可证，具体请参见[LICENSE](./docs/LICENSE)。
 
 ## 贡献声明
+
 1. 提交错误报告：如果您在msServiceProfiler中发现了一个不存在安全问题的漏洞，请在msServiceProfiler仓库中的Issues中搜索，以防该漏洞被重复提交，如果找不到漏洞可以创建一个新的Issues。如果发现了一个安全问题请不要将其公开，请参阅安全问题处理方式。提交错误报告时应该包含完整信息。
 2. 安全问题处理：本项目中对安全问题处理的形式，请通过邮箱通知项目核心人员确认编辑。
 3. 解决现有问题：通过查看仓库的Issues列表可以发现需要处理的问题信息, 可以尝试解决其中的某个问题。

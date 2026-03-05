@@ -13,7 +13,6 @@
 |Atlas 推理系列产品|√|
 |Atlas 训练系列产品|×|
 
-
 >![](public_sys-resources/icon-notice.gif) **须知：** 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
@@ -36,8 +35,6 @@ Span& Activate(uint64_t startTime = 0)
 |--|--|--|
 |startTime|输入|开始时间（0表示当前时间）。 |
 
-
 ## 返回值说明<a name="section16621124213476"></a>
 
 返回Span类对象的引用，该引用支持链式调用。
-

@@ -26,14 +26,13 @@ vLLM Service Profiler 适用于在 vLLM-ascend 推理服务过程中进行性能
 |Atlas 推理系列产品|  √   |
 |Atlas 训练系列产品|  x   |
 
-
 ### 使用前准备
+
 #### 环境准备
 
 1. 在昇腾环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《CANN 软件安装指南》。
 2. 完成 vLLM 和 vLLM-ascend 的安装和配置并确认 vLLM-ascend 可以正常运行，具体请参见 [vLLM-Ascend installation](https://vllm-ascend.readthedocs.io/en/latest/installation.html)。
 3. 升级 msServiceProfiler 工具，请参见《[msServiceProfiler工具安装指南 - 升级](./msserviceprofiler_install_guide.md#升级)》章节，基于源码构建 run 包并完成升级。
-
 
 #### 约束
 
@@ -46,6 +45,7 @@ vLLM Service Profiler 适用于在 vLLM-ascend 推理服务过程中进行性能
 **1. 准备采集**
 
 在启动服务前，需要设置以下环境变量：
+
 - `SERVICE_PROF_CONFIG_PATH`：指定性能分析配置文件路径
 - `PROFILING_SYMBOLS_PATH`：指定符号配置文件路径
 
@@ -86,6 +86,7 @@ curl http://localhost:8000/v1/completions \
 ```
 
 **4. 解析数据**
+
 ```bash
 # xxxx-xxxx 为采集工具根据 vLLM 启动时间自动创建的存放目录
 cd /root/.ms_server_profiler/xxxx-xxxx
@@ -98,13 +99,16 @@ msserviceprofiler parse --input-path=./ --output-path output
 
 解析完成后在`--output-path`指定的目录下会生成性能数据文件，详细介绍请参见[输出结果文件说明](#输出结果文件说明)。
 
-
 ## 点位配置使用指南
+
 ### 功能说明
+
 点位配置文件用于定义需要采集的函数/方法，支持灵活配置与自定义属性采集。
 
 ### 注意事项
+
 #### 内置/自定义点位配置文件
+
 点位配置文件已在 vLLM-ascend 以及工具中内置：
 
 - 默认加载路径：`~/.config/vllm_ascend/service_profiling_symbols.MAJOR.MINOR.PATCH.yaml`（适用于 vLLM-ascend 框架且文件名随已安装的 vllm 版本变化）
@@ -113,6 +117,7 @@ msserviceprofiler parse --input-path=./ --output-path output
 如需自定义采集点，推荐通过设置环境变量`PROFILING_SYMBOLS_PATH`，将一份点位配置文件复制到工作目录进行修改使用。
 
 #### 点位配置文件更新
+
 采集点位有更新，需要重启 vLLM 服务加载更新后的配置文件。
 
 ### 配置字段说明
@@ -187,7 +192,6 @@ msserviceprofiler parse --input-path=./ --output-path output
 2. `len(return) | str`：获取返回值长度并转换为字符串（等价于 `str(len(return))`）。
 3. `return[0] | attr input_ids | len`：获取返回值第一个元素的 `input_ids` 属性长度。
 
-
 #### 高级示例
 
 ```yaml
@@ -230,13 +234,16 @@ def custom_handler(original_func, this, *args, **kwargs):
     # 自定义处理逻辑
     pass
 ```
+
 >![](public_sys-resources/icon-note.gif) **说明：**
 > 若自定义处理函数导入失败，系统会自动回退至默认计时器模式。
 
 ### 输出说明
+
 自定义配置采集的函数或方法可以展示在解析输出的`chrome_tracing.json`时间轴上，下面给出一个示例：
 
 点位配置文件配置：
+
 ```yaml
 - symbol: vllm.entrypoints.openai.serving_chat:OpenAIServingChat.create_chat_completion
   name: OpenAIServingChat.create_chat_completion
@@ -250,10 +257,10 @@ def custom_handler(original_func, this, *args, **kwargs):
   name: EngineCoreProc.step
   domain: Engine
 ```
+
 `chrome_tracing.json`时间轴效果图：
 
 ![](figures/vllm_profiler_custom_symbol_timeline_display.PNG)
-
 
 ## 输出结果文件说明
 
@@ -262,15 +269,15 @@ def custom_handler(original_func, this, *args, **kwargs):
 |          输出件          | 说明                                                                                                                                         |
 |:---------------------:|:-------------------------------------------------------------------------------------------------------------------------------------------|
 | `chrome_tracing.json` | 记录推理服务化请求trace数据，可使用不同可视化工具进行查看，详细介绍请参考[数据可视化](./msserviceprofiler_serving_tuning_instruct.md#数据可视化)                                       |
-|     `profiler.db`     | 用于生成可视化折线图的SQLite数据库文件，详细介绍请参考[ profiler.db 说明](./msserviceprofiler_serving_tuning_instruct.md#profilerdb)                                 |
-|     `request.csv`     | 记录服务化推理请求为粒度的详细数据，详细介绍请参考[ request.csv 说明](./msserviceprofiler_serving_tuning_instruct.md#requestcsv)                                      |
+|     `profiler.db`     | 用于生成可视化折线图的SQLite数据库文件，详细介绍请参考[profiler.db 说明](./msserviceprofiler_serving_tuning_instruct.md#profilerdb)                                 |
+|     `request.csv`     | 记录服务化推理请求为粒度的详细数据，详细介绍请参考[request.csv 说明](./msserviceprofiler_serving_tuning_instruct.md#requestcsv)                                      |
 | `request_summary.csv` | 请求总体统计指标                                                                                                                                   |
-|     `kvcache.csv`     | 记录推理过程的显存使用情况，详细介绍请参考[ kvcache.csv 说明](./msserviceprofiler_serving_tuning_instruct.md#kvcachecsv)                                          |
-|      `batch.csv`      | 记录服务化推理batch为粒度的详细数据，详细介绍请参考[ batch.csv 说明](./msserviceprofiler_serving_tuning_instruct.md#batchcsv)                                       |
-|   `spec_decode.csv`   | 投机推理场景下以每条请求为粒度的详细数据，详细介绍请参考[ spec_decode.csv 说明](./msserviceprofiler_serving_tuning_instruct.md/#spec_decodecsv) |
+|     `kvcache.csv`     | 记录推理过程的显存使用情况，详细介绍请参考[kvcache.csv 说明](./msserviceprofiler_serving_tuning_instruct.md#kvcachecsv)                                          |
+|      `batch.csv`      | 记录服务化推理batch为粒度的详细数据，详细介绍请参考[batch.csv 说明](./msserviceprofiler_serving_tuning_instruct.md#batchcsv)                                       |
+|   `spec_decode.csv`   | 投机推理场景下以每条请求为粒度的详细数据，详细介绍请参考[spec_decode.csv 说明](./msserviceprofiler_serving_tuning_instruct.md#spec_decodecsv) |
 |  `batch_summary.csv`  | 批次调度总体统计指标                                                                                                                                 |
 | `service_summary.csv` | 服务化维度总体统计指标                                                                                                                                |
-|     `span_info/`      | 包含forward.csv, batchFrameworkProcessing.csv等关键span信息，详细介绍请参考[ span_info 目录说明 ](./msserviceprofiler_serving_tuning_instruct.md#span_info目录) |
+|     `span_info/`      | 包含forward.csv, batchFrameworkProcessing.csv等关键span信息，详细介绍请参考[span_info 目录说明](./msserviceprofiler_serving_tuning_instruct.md#span_info目录) |
 
 >![](public_sys-resources/icon-note.gif) **说明：**
 > 输出结果文件与domain域的采集有强关联关系，具体对照可以参照[domain域与解析结果对照表](./msserviceprofiler_serving_tuning_instruct.md#解析结果)。
@@ -295,7 +302,9 @@ def custom_handler(original_func, this, *args, **kwargs):
 | 8.0.RC3  |     v0.6.3     |       /        |
 
 ### 采集配置使用指南
+
 采集配置可以参考[数据采集](./msserviceprofiler_serving_tuning_instruct.md#数据采集)中的配置文件创建的说明以及注意事项的澄清。
 
 >![](public_sys-resources/icon-note.gif) **须知：**
+>
 > - vLLM Service Profiler 在 `acl_task_time` 参数配置为1时，不支持同时配置vLLM原生Torch Profiler 的 `VLLM_TORCH_PROFILER_DIR` 环境变量进行性能数据采集。

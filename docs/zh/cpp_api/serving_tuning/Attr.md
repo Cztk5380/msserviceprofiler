@@ -13,7 +13,6 @@
 |Atlas 推理系列产品|√|
 |Atlas 训练系列产品|×|
 
-
 >![](public_sys-resources/icon-notice.gif) **须知：** 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
@@ -38,8 +37,6 @@ inline Profiler &Attr(const char *attrName, const T value)
 |attrName|输入|属性名。|
 |value|输入|属性值，支持数值类和字符串类。|
 
-
 ## 返回值说明<a name="section8800235121218"></a>
 
 Profiler&返回当前对象，支持链式调用。
-

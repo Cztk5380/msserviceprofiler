@@ -1,9 +1,11 @@
 # 服务化自动寻优工具
+
 ## 简介
 
 **服务化自动寻优工具**（Serviceparam Optimizer）是一个基于PSO粒子寻优算法的服务化参数自动寻优工具，支持对 `MindIE` 和 `VLLM` 进行自动寻优，获取符合时延要求的最佳吞吐参数组合。
 
 工具支持仿真与轻量化两种模式，主要包括三大核心功能模块：
+
 - **参数寻优模块**：利用PSO粒子寻优算法自动生成服务化参数组合，不断逼近最优解；同时，Early Rejection算法通过理论建模、调优经验及部分实测数据对服务化参数完成早期评估；
 
 - **仿真模块**：基于XGBoost模型对大模型推理时长进行精准预测，结合服务化调度的虚拟时间轴技术，加速服务化参数验证速度。
@@ -38,40 +40,43 @@
 |Atlas 推理系列产品|  √   |
 |Atlas 训练系列产品|  x   |
 
-
 >![](public_sys-resources/icon-notice.gif) **须知：** 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
 
-
 ## 使用前准备
+
 **环境准备**
 准备好能正常运行服务化（如[MindIE Service](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/quick_start.md)/[VLLM Server](https://docs.vllm.ai/projects/ascend/en/latest/quick_start.html)）和测评工具（如`vllm_benchmark/ais_bench`，参见[测评工具部署](https://gitee.com/aisbench/benchmark/blob/master/README.md)）的环境。
 
-
 ## 工具安装
+
 寻优工具依赖服务化工具作为入口，如果没有安装服务化工具，请先完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。命令如下：
- ```sh
+
+ ```bash
  git clone https://gitcode.com/Ascend/msserviceprofiler.git # 如已拉取，则不用重复拉取
  cd msserviceprofiler/ms_serviceparam_optimizer
  pip install -e .[real] # 安装寻优工具轻量化版本
  ```
+
  使用轻量化的方式进行寻优则只需安装最少的依赖即可，仿真模式需要额外的依赖。
- ```
+
+ ```bash
  # 之前的步骤不变
  pip install -e .[speed] # 选择 speed 选项安装寻优工具插件
  ```
+
  如果上述安装失败，可尝试安装较少依赖的第三方包，但训练模型时，大数据量时性能较低。
- ```
+
+ ```bash
  pip install -e .[train] # 选择 train 选项安装寻优工具插件
  ```
 
-
 ## 工具卸载
-```shell
+
+```bash
 pip uninstall ms_serviceparam_optimizer
 ```
-
 
 ## 仿真模式版本配套关系
 
@@ -84,22 +89,24 @@ pip uninstall ms_serviceparam_optimizer
 
 由于工具涉及使用MindIE镜像，需遵从其启动方式，PD分离场景中，MindIE使用k8s等技术，需用户自行注意相关风险。
 
-
 ## 快速入门
+
 1. 完成[使用前准备](#使用前准备)章节要求。
 
 2. 修改配置文件：启动寻优前需用户按照实际情况配置[`config.toml`](../../ms_serviceparam_optimizer/ms_serviceparam_optimizer/config.toml)，包括寻优参数、测评工具参数、服务化参数。参考[配置文件说明](#配置文件说明)章节完成配置。
 
 3. 启动寻优：完成上述步骤后，执行以下命令，一键启动轻量化自动寻优：
-    ```
+
+    ```bash
     msserviceprofiler optimizer
     ```
+
     默认执行的是基于`Ais_Bench`的`MindIE`服务化参数寻优。
 
-4. 查看结果：寻优时间由模型大小和数据集大小决定，一般在4~8小时完成，结束后会生成`data_storage_*.csv`的文件并保存在当前目录的`result/store`子目录中，其中记录了各组参数的性能，详细介绍请参见[输出文件说明](#输出文件说明)。
-
+4. 查看结果：寻优时间由模型大小和数据集大小决定，一般在4~8小时完成，结束后会生成`data_storage_*.csv`的文件并保存在当前目录的`result/store`子目录中，其中记录了各组参数的性能，详细介绍请参见[输出结果文件说明](#输出结果文件说明)。
 
 ## 轻量化模式
+
 **功能说明**
 
 注重精度和可靠性，结合参数验证、参数寻优模块，通过真机实测给出可靠的服务化参数推荐值。
@@ -110,9 +117,10 @@ pip uninstall ms_serviceparam_optimizer
 
 **命令格式**
 
-```
+```bash
 msserviceprofiler optimizer [options]
 ```
+
 **参数说明**
 
 |参数|可选/必选|说明|
@@ -129,35 +137,46 @@ msserviceprofiler optimizer [options]
 1. 修改配置文件：启动寻优前需用户按照实际情况配置[`config.toml`](../../ms_serviceparam_optimizer/ms_serviceparam_optimizer/config.toml)，包括寻优参数、测评工具参数、服务化参数。参考[配置文件说明](#配置文件说明)章节完成配置。
 
 2. 如果需要设置环境变量作用于mindie/vllm服务，只需在运行工具前设置环境变量即可，例如：
-    ```
+
+    ```bash
     export ASCEND_RT_VISIBLE_DEVICES=0
     ```
+
     工具会在寻优过程中自动设置（仿真和轻量化模式均适用）。
 
 3. 前置条件准备就绪后，执行以下命令，一键启动轻量化自动寻优：
-    ```
+
+    ```bash
     msserviceprofiler optimizer
     ```
+
 **使用示例（vllm服务化参数寻优）**
 
 1. 修改配置文件：启动寻优前需用户按照实际情况配置[`config.toml`](../../ms_serviceparam_optimizer/ms_serviceparam_optimizer/config.toml)，包括寻优参数、测评工具参数、服务化参数。参考[配置文件说明](#配置文件说明)章节完成配置。
 2. 如果需要设置环境变量作用于mindie/vllm服务，只需在运行工具前设置环境变量即可，例如：
-    ```
+
+    ```bash
     export ASCEND_RT_VISIBLE_DEVICES=0
     ```
+
     工具会在寻优过程中自动设置（仿真和轻量化模式均适用）。
 
 3. 前置条件准备就绪后，执行以下命令，一键启动轻量化自动寻优：
-    ```
+
+    ```bash
     msserviceprofiler optimizer -e vllm
     ```
+
     若在VLLM场景下使用`vllm_benchmark`测评工具可参考
-    ```
+
+    ```bash
     msserviceprofiler optimizer -e vllm -b vllm_benchmark
     ```
+
 **输出说明**
 
 自动寻优完成后，输出csv格式的结果文件，在当前目录下生成result/store文件夹存放。详情介绍请参见[输出结果文件说明](#输出结果文件说明)。
+
 ## 仿真模式
 
 **功能说明**
@@ -169,14 +188,19 @@ msserviceprofiler optimizer [options]
 仿真模式需要先基于服务化采集数据进行训练，参照[服务化调优工具手册](https://www.hiascend.com/document/detail/zh/mindstudio/80RC1/T&ITools/Profiling/mindieprofiling_0001.html) 开启profiling实际跑一遍MindIE推理服务的测试脚本，将采集的profiling数据进行解析然后用于训练模型。profiling采集数据需要包括batch_type，batch_size，forward_time，batch_end_time(ms)，request_recv_token_size，request_reply_token_size，need_blocks，request_execution_time(ms)，first_token_latency(ms)。
 
 **命令格式**
+
 - train
-    ```
+
+    ```bash
     msserviceprofiler train [options]
     ```
+
 - optimizer
-    ```
+
+    ```bash
     msserviceprofiler optimizer [options]
     ```
+
 **train训练模型参数说明**
 
 |参数|可选/必选|说明|
@@ -201,26 +225,33 @@ msserviceprofiler optimizer [options]
 1. 修改配置文件：启动寻优前需用户按照实际情况配置[`config.toml`](../../ms_serviceparam_optimizer/ms_serviceparam_optimizer/config.toml)，包括寻优参数、测评工具参数、服务化参数。参考[配置文件说明](#配置文件说明)章节完成配置。
 
 2. 训练模型
-    ```
+
+    ```bash
     msserviceprofiler train -i=/path/to/input -o=/path/to/output 
     ```
+
 3. 寻优时需开启环境变量
-    ```
+
+    ```bash
     export MODEL_EVAL_STATE_ALL=True
     export MODEL_EVAL_STATE_IS_SLEEP_FLAG=True
     export PYTHONPATH=msserviceprofiler/:$PYTHONPATH #需根据实际路径修改
     ```
+
 4. 启动仿真模式寻优
-    ```
+
+    ```bash
     msserviceprofiler optimizer -e vllm -b vllm_benchmark
     ```
+
 **输出说明**
 
 自动寻优完成后，输出csv格式的结果文件，在当前目录下生成result/store文件夹存放。详情介绍请参见[输出结果文件说明](#输出结果文件说明)。
 
-
 ## 输出结果文件说明
+
 输出csv中的每一行对应一组参数，前四列为性能指标。用户可以根据需求筛选满足要求的性能行，将MindIE参数以及ais_bench/vllm_benchmark的参数改为csv中的数据即可。
+
 | 字段 | 说明 |
 | --- | --- |
 | generate_speed | 吞吐。 |
@@ -239,10 +270,12 @@ msserviceprofiler optimizer [options]
 其余列为对应的MindIE或VLLM的config.toml参数。
 
 ## 附录
+
 ### 配置文件说明
 
 **寻优参数**： `n_particles` （寻优种子数）、`iters` （迭代轮次数）、 `tpot_slo` （`time_per_output_token`的限制时延）等。
 用户可根据预估时间来自行配置种子和迭代次数。我们单个种子使用时间为拉起服务+测试数据。比如用户拉起服务+完成测试需9-10min，且愿意用8小时来进行寻优，则一共可跑约50个种子，建议用户配置5 * 10。设置种子数为10，迭代次数为5，建议用户配置种子数为迭代次数的2倍左右。
+
 |参数|可选/必选|说明|
 |---|---|---|
 |n_particles|必选|寻优种子数，即一组生成的参数组合数，取值范围为：1-1000的整数。建议设为 15 ~ 30。 |
@@ -280,7 +313,8 @@ msserviceprofiler optimizer [options]
 
 **服务化参数**： 可以参考[MindIE server 配置参数说明](https://www.hiascend.com/document/detail/zh/mindie/20RC1/mindieservice/servicedev/mindie_service0285.html)进行修改。
 服务化参数可直接指定参数的范围，如配置服务化参数 `max_batch_size` 的寻优搜索空间为 10 ~ 400，则可设置：
-```
+
+```shell
 [[mindie.target_field]]
 "name": "max_batch_size",    # 服务化参数名称
 "config_position": "BackendConfig.ScheduleConfig.maxBatchSize",    # 服务化参数在MindIE Server中的位置
@@ -288,8 +322,10 @@ msserviceprofiler optimizer [options]
 "max": 400,    # 最大值
 "dtype": "int"    # 数据类型
 ```
+
 此外，也可设置参数与另一参数相关，如 `max_prefill_batch_size` 与 `max_batch_size` 相关，`max_prefill_batch_size = ratio * max_batch_size (0 < ratio < 1)`则可设置：
-```
+
+```shell
 [[mindie.target_field]]
 "name": "max_prefill_batch_size",
 "config_position": "BackendConfig.ScheduleConfig.maxPrefillBatchSize",
@@ -298,8 +334,10 @@ msserviceprofiler optimizer [options]
 "dtype": "ratio", 
 "dtype_param": "max_batch_size"    # 表明该参数与max_batch_size相关
 ```
+
 使用vllm框架时，需修改`config.toml`中的`[vllm.command]`参数，如：
-```
+
+```shell
 [vllm.command]
 host = "127.0.0.1"
 port = 8000
@@ -307,6 +345,7 @@ model = "/workspace/vllm/models/llama-2-7b-chat-hf"
 served_model_name = "llama-2-7b-chat-hf"
 others = ""
 ```
+
 |参数|可选/必选|说明|
 |---|---|---|
 |host|必选| 主机ip，需与`[vllm_benchmark.command]`中的`host`保持一致，可设为`127.0.0.1`。|
@@ -316,9 +355,11 @@ others = ""
 |others|可选| 拼接其他参数，注意参数间使用空格分隔，参数内部不能留有空格。如：`--tensor-parallel-size 2 --no-enable-prefix-caching`。默认为空。| 
 
 ### PD分离寻优
+
 服务化自动寻优工具支持在MindIE的A2单机PD分离场景中进行参数寻优（仅支持轻量化模式），且需要k8s部署。需保证能正常使用k8s拉起MindIE服务。
 需要在`config.toml`中配置kubectl_default_path字段，将该字段配置为k8s安装脚本解压后的单机执行目录，目录结构需要为：
-```
+
+```ColdFusion
 K8s_v1.23_MindCluster.7.1.RC1.B098.aarch/
 ├── all_label_a2.sh
 ├── all_label_a3.sh
@@ -356,12 +397,16 @@ K8s_v1.23_MindCluster.7.1.RC1.B098.aarch/
     ├──user_config.json
     ├──user_config_base_A3.json
 ```
+
 即配置
-```
+
+```shell
 kubectl_default_path = "K8s_v1.23_MindCluster.7.1.RC1.B098.aarch/kubernetes_deploy_scripts_latest" #使用绝对路径
 ```
+
 如果需要配置pd配比的参数寻优只需在config.toml的mindie配置中添加如下参数：
-```
+
+```shell
 [[mindie.target_field]]
 name = "default_p_rate"
 config_position = "default_p_rate"
@@ -377,12 +422,17 @@ max = 3
 dtype = "share"    # 表明该参数与default_p_rate相关，两者之和为定值
 dtype_param = "default_p_rate"
 ```
+
 ### 插件模式
+
 现在寻优工具支持用户自定义推理框架以及测试工具，用户可以根据自己的需求配置。只需适配我们的插件模式，注册对应的插件即可,详情请参考[插件开发操作步骤](serviceparam_optimizer_plugin_instruct.md)。
 
 ### 日志说明
+
 寻优过程中默认日志为INFO级别，如果用户想看每一轮具体的日志，可以在使用工具前设置
-```
+
+```bash
 export MODELEVALSTATE_LEVEL=DEBUG
 ```
+
 对于每一轮的运行状态会进行输出，我们将具体的MindIE/VLLM日志重定向在/tmp目录下，可以根据打屏信息获取具体文件路径查看MindIE/VLLM运行状态。

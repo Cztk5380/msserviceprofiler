@@ -1,8 +1,11 @@
 # 自定义插件开发指导
+
 ## 简介
+
 寻优工具支持自定义插件，用户可通过开发自定义插件实现：自定义搜索参数配置、自定义服务框架，以及自定义性能测试工具。
 
 自定义插件开发流程如下：
+
 1. 创建自己的Python项目作为插件。
 2. 自定义插件开发。
 
@@ -14,26 +17,28 @@
 
     settings是通过pydantic-settings实现的，可在类里面添加删除属性。例如：
 
-    ```
+    ```python
     from ms_serviceparam_optimizer.config.config import Settings
     class CusSettings(Settings):
         name: str = "vllm-inference-optimization"
     ```
+
 2. 注册settings初始化函数
 
     在自己的Python项目里面添加注册函数，实现注册Settings初始化，例如：
 
-    ```
+    ```python
     def register():
         from vllm_inference_optimization.settings import CusSettings
         from ms_serviceparam_optimizer.config.config import register_settings
         register_settings(lambda : CusSettings())
     ```
+
 3. 使用settings
 
     使用时导入get_settings 来获取自定义的settings，例如：
 
-    ```
+    ```python
     from ms_serviceparam_optimizer.config.config import get_settings
     settings = get_settings()
     ```
@@ -42,7 +47,7 @@
 
 1. 继承ms_serviceparam_optimizer.optimizer.simulator.SimulatorInterface，实现base_url和data_field property，实现update_command方法等。例如：
 
-    ```
+    ```python
     class ms_serviceparam_optimizer.optimizer.simulator.SimulatorInterface()
         Bases: ABC
         #操作服务框架。用于操作服务相关功能。
@@ -64,18 +69,20 @@
             #运行时，其他的准备工作。 
             Returns: None
     ```
+
 2. 并在init文件中注册服务框架，例如：
 
-    ```
+    ```python
     from ms_serviceparam_optimizer.optimizer.register import register_simulator
     register_simulator("vllm_infer", VllmSimulator)
     ```
 
 ### 自定义性能测试工具
+
 1. 继承ms_serviceparam_optimizer.optimizer.benchmark.BenchmarkInterface，实现data_field property，get_performance_index方法等。
 例如：
 
-    ``` 
+    ```python
     class ms_serviceparam_optimizer.optimizer.benchmark.BenchmarkInterface():
         Bases: ABC
         property num_prompts: Tuple[OptimizerConfigField] | None
@@ -109,7 +116,7 @@
 
 2. 并在init文件中注册benchmark，例如：
 
-    ```
+    ```python
     from ms_serviceparam_optimizer.optimizer.register import register_benchmarks
     register_benchmarks("vllm_infer_benchmark", VllmBenchMark)
     ```
@@ -118,7 +125,8 @@
 
     将自定义的内容的注册函数添加到入口组'ms_serviceparam_optimizer.plugins'即可。
     例如通过调用vllm_inference_optimization模块的register来注册，例如：
-    ```
+
+    ```python
     [project.entry-points.'ms_serviceparam_optimizer.plugins']
     vllm_inference_optimization = "vllm_inference_optimization:register"
     ```
@@ -126,14 +134,14 @@
 4. 安装插件
     入口设置为ms_serviceparam_optimizer.plugins，例如：
 
-    ```
+    ```python
     [project.entry-points.'ms_serviceparam_optimizer.plugins']
     vllm_inference_optimization="vllm_inference_optimization:register"
     ```
 
     使用插件模式前需要先在插件目录中（确保当前路径下包含pyproject.toml）对插件进行安装，例如：
 
-    ```
+    ```bash
     pip install -e .
     ```
 
@@ -141,10 +149,12 @@
 
     可以通过寻优工具的调用参数来指定插件实现的模块。
     例如，新注册了服务框架vllm_infer和性能测试客户端vllm_infer_benchmark，先查看支持的服务和benchmark工具，是否包含刚刚注册的vllm_infer和vllm_infer_benchmark。例如：
-    ```
+
+    ```bash
     msserviceprofiler optimizer -h
     ```
-    ```
+
+    ```ColdFusion
     options:
     -h, --help show this help message and exit
     -lb, --load_breakpoint
@@ -158,6 +168,6 @@
 
     使用指定插件的实现进行寻优，例如：
 
-    ```
+    ```bash
     msserviceprofiler optimizer -e vllm_infer -b vllm_infer_benchmark
     ```

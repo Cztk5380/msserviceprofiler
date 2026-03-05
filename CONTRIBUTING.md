@@ -3,6 +3,7 @@
 感谢您考虑为 MindStudio ServiceProfiler（msServiceProfiler）做出贡献！我们欢迎任何形式的贡献，包括错误修复、功能增强、文档改进等，甚至只是反馈。无论您是经验丰富的开发者还是第一次参与开源项目，您的帮助都是非常宝贵的。
 
 您可以通过多种方式支持本项目：
+
 - 通过[Issues](https://gitcode.com/Ascend/msserviceprofiler/issues)反馈问题。
 - 建议或实现新功能。
 - 改进或扩展文档。
@@ -12,6 +13,7 @@
 ## 寻找可贡献的问题
 
 想要开始贡献？可以查看以下类型的问题：
+
 - [Good first issues](https://gitcode.com/Ascend/msserviceprofiler/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22)
 - [Call for contribution](https://gitcode.com/Ascend/msserviceprofiler/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22help%20wanted%22)
 
@@ -31,6 +33,7 @@
 1. 先在GitCode平台点击仓库右上角"Fork"按钮，将仓库克隆到个人账户
 
 2. 克隆到本地：
+
    ```bash
    git clone https://gitcode.com/<your-username>/msserviceprofiler.git
    cd msserviceprofiler
@@ -54,7 +57,7 @@
 
 7. 提交Pull Request
 
-   参见[提交Pull Request流程](#提交Pull-Request流程)。
+   参见[提交Pull Request流程](#提交pull-request流程)。
 
 ### 代码规范
 
@@ -195,7 +198,7 @@
 
 提交信息应该清晰地描述更改的内容和原因：
 
-```
+```text
 <type>: <subject>
 
 <body>
@@ -215,7 +218,7 @@
 
 示例：
 
-```
+```text
 feat：添加内存使用分析功能
 
 - 实现内存数据采集模块

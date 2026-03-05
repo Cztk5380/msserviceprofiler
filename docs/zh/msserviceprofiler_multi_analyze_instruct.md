@@ -1,9 +1,11 @@
 # 服务化多维度解析工具
 
 ## 简介
+
 服务化多维度解析工具（msServiceProfiler Multi Analyze）基于msServiceProfiler工具采集的性能数据进行多维度解析，包括request维度、batch维度、总体服务维度。
 
 ### 产品支持情况<a name="ZH-CN_TOPIC_0000002479925980"></a>
+>
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
 
@@ -14,7 +16,6 @@
 |Atlas 200I/500 A2 推理产品|  √   |
 |Atlas 推理系列产品|  √   |
 |Atlas 训练系列产品|  x   |
-
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
@@ -37,6 +38,7 @@
 ## 功能介绍
 
 ### 功能说明
+
 本工具可对服务化性能数据进行多维度解析。
 
 **注意事项**
@@ -44,6 +46,7 @@
 无
 
 ### 命令格式
+
     ```bash
     msserviceprofiler analyze 
     --input-path=/path/to/input 
@@ -62,7 +65,9 @@
 | --format         | 可选      | 设置性能数据输出文件的导出格式，取值为 json、csv、db。                                                                                                        |
 
 ### **输出结果文件说明**
+
 - `batch_summary.csv`
+
   | 字段                 | 说明                                            |
   | -------------------- | ----------------------------------------------- |
   | Metric | 指标项，包含列表头的指标项和行表头的指标数据。  |
@@ -78,7 +83,9 @@
   | P50  | 50%分位数。 |
   | P90  | 90%分位数。 |
   | P99  | 99%分位数。 |
+
 - `request_summary.csv`
+
   | 字段                 | 说明                                            |
   | -------------------- | ----------------------------------------------- |
   | Metric | 指标项，包含列表头的指标项和行表头的指标数据。  |
@@ -97,7 +104,9 @@
   | P50  | 50%分位数。 |
   | P90  | 90%分位数。 |
   | P99  | 99%分位数。 |
+
 - `service_summary.csv`
+
   | 字段                 | 说明                                            |
   | -------------------- | ----------------------------------------------- |
   | Metric | 指标项，包含列表头的指标项和行表头的指标数据。  |
@@ -108,7 +117,9 @@
   | generate_all_token_speed(token/s) | 每秒处理Token数，单位token/s （输入输出总数）。 |
   | 指标数据（行表头）  |
   | Value | 具体数值 |
+
 - 采集domain域与解析结果对照表
+
   | 解析结果                 | 采集domain域                                 |
   | -------------------- | ----------------------------------------------- |
   | batch_summary.csv | "BatchSchedule"。  |
