@@ -41,6 +41,15 @@ from ..core.logger import logger
 from ms_service_profiler.patcher.vllm.metrics.initialize import setup_vllm_metrics
 
 
+def _is_registry_subprocess() -> bool:
+    """当前进程是否以 python -m vllm.model_executor.models.registry 启动的子进程。
+    该子进程内不应安装 SymbolWatchFinder，否则会破坏 import 顺序导致 RuntimeWarning/SIGSEGV。
+    """
+    if len(sys.argv) >= 3 and sys.argv[1] == "-m" and sys.argv[2] == "vllm.model_executor.models.registry":
+        return True
+    return False
+
+
 class VLLMProfiler:
     """vLLM 框架适配器。
     
@@ -251,10 +260,13 @@ class VLLMProfiler:
 
             # 导入 handlers
             self._import_handlers()
-            # 创建 SymbolWatchFinder（未加载配置）并安装
+            # 创建 SymbolWatchFinder（未加载配置）并安装；registry 子进程内不安装，避免破坏 import 顺序
             watcher = SymbolWatchFinder()
-            sys.meta_path.insert(0, watcher)
-            logger.debug("Symbol watcher installed")
+            if not _is_registry_subprocess():
+                sys.meta_path.insert(0, watcher)
+                logger.debug("Symbol watcher installed")
+            else:
+                logger.debug("Skipping symbol watcher install (registry subprocess)")
             # 创建 HookController；首次 enable() 时再加载配置并 load_handlers
             self._controller = HookController(watcher)
             self._initialized = True
