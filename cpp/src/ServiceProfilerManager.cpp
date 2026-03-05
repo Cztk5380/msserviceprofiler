@@ -715,11 +715,11 @@ void ServiceProfilerManager::ProfStepCtrl()
                       currentStep, stopTargetStep_); // LCOV_EXCL_LINE
 
             StopProfiler();
+            stopTargetStep_ = -1;
             PROF_LOGI("Profiler Disabled Successfully!"); // LCOV_EXCL_LINE
             config_->SetFileEnable(0);
 
             profilerStoppedByLimit_ = true;
-            stopTargetStep_ = -1;
         }
     } else {
         if (stopTargetStep_ != -1) {
@@ -853,6 +853,7 @@ void ServiceProfilerManager::StartProfiler(bool isInit)
         return;
     }
 
+    stopTargetStep_ = -1;
     profilerStoppedByLimit_ = false;
     initiate = std::chrono::high_resolution_clock::now();  // 记录开始时间
 
