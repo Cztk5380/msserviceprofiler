@@ -10,3 +10,8 @@ test/coverage
 *.pickle
 *.coverage
 cmake-build-debug
+3rdparty/boundscheck/
+3rdparty/json/
+3rdparty/opentelemetry/include/opentelemetry/
+3rdparty/protobuf/
+
