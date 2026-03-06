@@ -13,7 +13,7 @@ RUN_SCRIPT_DIR=${TOP_DIR}/scripts
 chmod -R 755 ${RUN_SCRIPT_DIR}
 FILTER_PARAM_SCRIPT=${RUN_SCRIPT_DIR}/help.conf
 mkdir -p "${OUTPUT_DIR}"
-VERSION="none"
+VERSION="26.0.0"
 MAKESELF_DIR=${TOP_DIR}/opensource/makeself
 CREATE_RUN_SCRIPT=${MAKESELF_DIR}/makeself.sh
 CONTROL_PARAM_SCRIPT=${MAKESELF_DIR}/makeself-header.sh
