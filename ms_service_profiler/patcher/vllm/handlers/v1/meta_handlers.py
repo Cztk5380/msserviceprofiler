@@ -175,12 +175,12 @@ def _record_iteration_metrics(iteration_stats, labels: Dict[str, str]):
 
 
 @patcher(("vllm.v1.metrics.loggers", "StatLoggerManager.record"), min_version="0.9.1")
-def record(original_func, this, scheduler_stats, iteration_stats, mm_cache_stats, engine_idx, *args, **kwargs):
+def record(original_func, this, scheduler_stats, iteration_stats, *args, **kwargs):
 
     kv_stats = (scheduler_stats.kv_connector_stats
                 if (scheduler_stats is not None and scheduler_stats.kv_connector_stats)
                 else {})
-    labels = {"dp": kv_stats.get("dp", -1), "engine": engine_idx}
+    labels = {"dp": kv_stats.get("dp", -1)}
 
     # 删除临时数据
     if scheduler_stats is not None and scheduler_stats.kv_connector_stats is not None:
@@ -189,7 +189,7 @@ def record(original_func, this, scheduler_stats, iteration_stats, mm_cache_stats
         if scheduler_stats.kv_connector_stats == {}:
             scheduler_stats.kv_connector_stats = None
 
-    ret = original_func(this, scheduler_stats, iteration_stats, mm_cache_stats, engine_idx, *args, **kwargs)
+    ret = original_func(this, scheduler_stats, iteration_stats, *args, **kwargs)
 
     _record_scheduler_metrics(scheduler_stats, labels)
     _record_iteration_metrics(iteration_stats, labels)

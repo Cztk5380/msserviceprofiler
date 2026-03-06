@@ -119,7 +119,7 @@ class TestRecord:
                 assert result == "ok"
                 original_func.assert_called_once()
                 mock_sched.assert_called_once()
-                mock_iter.assert_called_once_with(iteration_stats, {"dp": 0, "engine": engine_idx})
+                mock_iter.assert_called_once_with(iteration_stats, {"dp": 0})
 
     def test_record_pops_dp_from_kv_connector_stats(self):
         """record 会从 scheduler_stats.kv_connector_stats 中删除临时 dp（删空后会置为 None）"""
@@ -313,7 +313,7 @@ class TestRecordEdgeCases:
                     None, None, None, 0,
                 )
                 assert result == "ok"
-                mock_sched.assert_called_once_with(None, {"dp": -1, "engine": 0})
+                mock_sched.assert_called_once_with(None, {"dp": -1})
 
     def test_record_kv_connector_stats_none_then_labels_dp_minus_one(self):
         """scheduler_stats 非 None 但 kv_connector_stats 为 None"""
@@ -326,7 +326,7 @@ class TestRecordEdgeCases:
                     original_func, MagicMock(),
                     scheduler_stats, None, None, 1,
                 )
-                mock_sched.assert_called_once_with(scheduler_stats, {"dp": -1, "engine": 1})
+                mock_sched.assert_called_once_with(scheduler_stats, {"dp": -1})
 
     def test_record_kv_connector_stats_only_dp_becomes_none_after_pop(self):
         """kv_connector_stats 仅含 dp 时 pop 后变为空字典，源码会置为 None"""

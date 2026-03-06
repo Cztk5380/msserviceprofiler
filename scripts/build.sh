@@ -124,7 +124,7 @@ function create_run_package() {
     ${CREATE_RUN_SCRIPT} \
     --header ${CONTROL_PARAM_SCRIPT} \
     --help-header ${file_param} \
-    --pigz \
+    --gzip \
     --tar-quietly \
     --complevel 4 \
     --nomd5 \
