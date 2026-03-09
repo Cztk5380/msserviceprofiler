@@ -29,14 +29,19 @@ import pytest
 import pandas as pd
 
 from ms_service_profiler.utils.file_open_check import OpenException
-from ms_service_profiler.exporters.exporter_trace import ExporterTrace, write_trace_data_to_file, \
-    save_trace_data_into_json, add_flow_event, create_trace_events, sort_trace_events_by_tid, add_mem_events, \
-    load_single_prof, find_cann_pid, merge_json_data, add_npu_events, add_kvcache_events, add_cpu_events, \
-    add_pull_kvcache_events, _prepare_data_smart_parallel, save_trace_data_into_db, _build_track_id_mapping_smart, \
-    _setup_database_optimizations, _collect_pid_tid_and_meta_events, _get_tid_from_event, _process_meta_events_batch, \
-    _find_thread_sort_index, _process_chunk_smart, _process_single_event, _is_slice_event, _is_counter_event, \
-    _is_flow_event, _prepare_slice_data_smart, _prepare_counter_data_smart, _prepare_flow_data_smart, \
-    sort_trace_events_by_pid
+from ms_service_profiler.exporters.exporter_trace import (
+    ExporterTrace, write_trace_data_to_file,
+    save_trace_data_into_json, add_flow_event, create_trace_events, sort_trace_events_by_tid, add_mem_events,
+    DETOKENIZE_NAME, BATCH_FRAMEWORK_PROCESSING_NAME, DETOKENIZE_FLOW_SUFFIX,
+)
+from ms_service_profiler.exporters.exporter_trace import (
+    load_single_prof, find_cann_pid, merge_json_data, add_npu_events, add_kvcache_events, add_cpu_events,
+    add_pull_kvcache_events, _prepare_data_smart_parallel, save_trace_data_into_db, _build_track_id_mapping_smart,
+    _setup_database_optimizations, _collect_pid_tid_and_meta_events, _get_tid_from_event, _process_meta_events_batch,
+    _find_thread_sort_index, _process_chunk_smart, _process_single_event, _is_slice_event, _is_counter_event,
+    _is_flow_event, _prepare_slice_data_smart, _prepare_counter_data_smart, _prepare_flow_data_smart,
+    sort_trace_events_by_pid,
+)
 
 
 # Mock 数据
@@ -1195,3 +1200,142 @@ class TestSortTraceEventsByPid(unittest.TestCase):
         result = _prepare_data_smart_parallel(events, {})
 
         self.assertEqual(len(result['slice']), 1)
+
+
+# ======================================================================
+# add_flow_event 双 flow 逻辑单测与边界用例
+# ======================================================================
+
+
+def _make_flow_event_df(rows, rid=0, pid=1):
+    """构造 flow_event_df：每行 name, domain, rid, start_time, end_time, during_time, pid."""
+    records = []
+    for r in rows:
+        name = r['name']
+        start = r['start_time']
+        dur = r.get('during_time', 10)
+        records.append({
+            'name': name,
+            'domain': r.get('domain', 'Api'),
+            'rid': rid,
+            'start_time': start,
+            'end_time': start + dur,
+            'during_time': dur,
+            'pid': r.get('pid', pid),
+        })
+    return pd.DataFrame(records)
+
+
+def _flows_by_id(flow_events):
+    """按 id 分组，每组按 ts 排序。"""
+    by_id = {}
+    for e in flow_events:
+        fid = e['id']
+        by_id.setdefault(fid, []).append(e)
+    for fid in by_id:
+        by_id[fid].sort(key=lambda x: (x['ts'], x.get('ph', '')))
+    return by_id
+
+
+class TestAddFlowEventDualFlow(unittest.TestCase):
+    """add_flow_event 双 flow 行为：无 detokenize 仅主链；有 detokenize 时主链+分支链."""
+
+    def test_no_detokenize_main_chain_only(self):
+        """无 detokenize（仅主链）：只生成一条 flow，id=rid，事件顺序与时间序一致，s/t/f 标法同原先。"""
+        rid = 42
+        flow_event_df = _make_flow_event_df([
+            {'name': 'modelExec', 'start_time': 100},
+            {'name': BATCH_FRAMEWORK_PROCESSING_NAME, 'start_time': 200},
+        ], rid=rid)
+        result = add_flow_event(flow_event_df)
+        flows = _flows_by_id(result)
+        self.assertEqual(len(flows), 1, '应只有一条 flow')
+        self.assertIn(str(rid), flows)
+        main = flows[str(rid)]
+        self.assertEqual(len(main), 2)
+        self.assertEqual(main[0]['ph'], 's')
+        self.assertEqual(main[1]['ph'], 'f')
+        self.assertEqual(main[0]['ts'], 100)
+        self.assertEqual(main[1]['ts'], 200)
+
+    def test_main_chain_and_branch_model_exec_batch_detokenize(self):
+        """modelExec → batchFrameworkProcessing → detokenize：主链无 detokenize，分支 modelExec→detokenize，分支 id=rid_detokenize。"""
+        rid = 1
+        flow_event_df = _make_flow_event_df([
+            {'name': 'modelExec', 'start_time': 100},
+            {'name': BATCH_FRAMEWORK_PROCESSING_NAME, 'start_time': 200},
+            {'name': DETOKENIZE_NAME, 'start_time': 250},
+        ], rid=rid)
+        result = add_flow_event(flow_event_df)
+        flows = _flows_by_id(result)
+        self.assertEqual(len(flows), 2, '应有主链 + 分支链')
+        self.assertIn(str(rid), flows)
+        self.assertIn(str(rid) + DETOKENIZE_FLOW_SUFFIX, flows)
+        main = flows[str(rid)]
+        branch = flows[str(rid) + DETOKENIZE_FLOW_SUFFIX]
+        self.assertEqual(len(main), 2, '主链应为 modelExec, batchFrameworkProcessing')
+        self.assertEqual(main[0]['ts'], 100)
+        self.assertEqual(main[1]['ts'], 200)
+        self.assertEqual(main[0]['ph'], 's')
+        self.assertEqual(main[1]['ph'], 'f')
+        self.assertEqual(len(branch), 2, '分支应为 modelExec, detokenize')
+        self.assertEqual(branch[0]['ts'], 100)
+        self.assertEqual(branch[1]['ts'], 250)
+        self.assertEqual(branch[0]['ph'], 's')
+        self.assertEqual(branch[1]['ph'], 'f')
+
+    def test_main_chain_skips_detokenize_branch_model_exec_detokenize(self):
+        """modelExec → detokenize → batchFrameworkProcessing：主链跳过 detokenize，分支 modelExec→detokenize。"""
+        rid = 2
+        flow_event_df = _make_flow_event_df([
+            {'name': 'modelExec', 'start_time': 100},
+            {'name': DETOKENIZE_NAME, 'start_time': 150},
+            {'name': BATCH_FRAMEWORK_PROCESSING_NAME, 'start_time': 200},
+        ], rid=rid)
+        result = add_flow_event(flow_event_df)
+        flows = _flows_by_id(result)
+        self.assertEqual(len(flows), 2)
+        main = flows[str(rid)]
+        branch = flows[str(rid) + DETOKENIZE_FLOW_SUFFIX]
+        self.assertEqual(len(main), 2, '主链应为 modelExec, batchFrameworkProcessing（时间序跳过 detokenize）')
+        self.assertEqual(main[0]['ts'], 100)
+        self.assertEqual(main[1]['ts'], 200)
+        self.assertEqual(len(branch), 2, '分支应为 modelExec, detokenize')
+        self.assertEqual(branch[0]['ts'], 100)
+        self.assertEqual(branch[1]['ts'], 150)
+        self.assertEqual(branch[1]['ph'], 'f')
+
+    def test_degenerate_batch_only_before_detokenize(self):
+        """仅 batchFrameworkProcessing → detokenize（退化）：分支链为 batch→detokenize。"""
+        rid = 3
+        flow_event_df = _make_flow_event_df([
+            {'name': BATCH_FRAMEWORK_PROCESSING_NAME, 'start_time': 100},
+            {'name': DETOKENIZE_NAME, 'start_time': 200},
+        ], rid=rid)
+        result = add_flow_event(flow_event_df)
+        flows = _flows_by_id(result)
+        self.assertEqual(len(flows), 2)
+        main = flows[str(rid)]
+        branch = flows[str(rid) + DETOKENIZE_FLOW_SUFFIX]
+        self.assertEqual(len(main), 1, '主链只有 batchFrameworkProcessing')
+        self.assertEqual(main[0]['ts'], 100)
+        self.assertEqual(len(branch), 2, '分支为 batch→detokenize')
+        self.assertEqual(branch[0]['ts'], 100)
+        self.assertEqual(branch[1]['ts'], 200)
+        self.assertEqual(branch[1]['ph'], 'f')
+
+    def test_branch_only_detokenize_single_event_ph_f(self):
+        """分支仅含 detokenize（无前驱）时，该唯一事件 ph='f'。"""
+        rid = 4
+        flow_event_df = _make_flow_event_df([
+            {'name': DETOKENIZE_NAME, 'start_time': 100},
+        ], rid=rid)
+        result = add_flow_event(flow_event_df)
+        flows = _flows_by_id(result)
+        self.assertEqual(len(flows), 1, '主链空不生成事件，仅有一条分支链')
+        self.assertNotIn(str(rid), flows, '主链无事件时不应产出主链 flow')
+        self.assertIn(str(rid) + DETOKENIZE_FLOW_SUFFIX, flows)
+        branch = flows[str(rid) + DETOKENIZE_FLOW_SUFFIX]
+        self.assertEqual(len(branch), 1)
+        self.assertEqual(branch[0]['ph'], 'f')
+        self.assertEqual(branch[0]['ts'], 100)

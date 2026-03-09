@@ -43,6 +43,9 @@ from ms_service_profiler.utils.trace_to_db import (
 
 # 常量定义
 LARGE_EVENTS_THRESHOLD = 5000000  # 当事件数量超过500万时，启用大数据量处理模式
+DETOKENIZE_NAME = 'detokenize'
+BATCH_FRAMEWORK_PROCESSING_NAME = 'batchFrameworkProcessing'
+DETOKENIZE_FLOW_SUFFIX = '_detokenize'
 MAX_PROCESSES_LARGE = 8  # 大数据量处理时的最大进程数限制，避免过多进程导致系统资源耗尽
 MIN_CHUNK_SIZE_LARGE = 200000  # 大数据量处理时每个数据块的最小事件数量，确保每个进程有足够的工作量
 PROGRESS_REPORT_INTERVAL = 10  # 进度报告间隔，每处理10个数据块报告一次进度（仅限debug模式）
@@ -366,42 +369,99 @@ def save_trace_data_into_json(trace_data, output):
     write_trace_data_to_file(trace_data.get("traceEvents", []), file_path)
 
 
+def _flow_events_from_sequence(events, flow_id, rid_for_cat, single_event_as_f=False):
+    """将事件序列转为 flow 的 s/t/f 事件列表。events 为按 start_time 排序的行 dict 列表。
+    single_event_as_f：当序列仅一个事件时是否标为 'f'（用于 detokenize 分支终点）。"""
+    result = []
+    for i, row in enumerate(events):
+        ph = 't'
+        if len(events) == 1:
+            ph = 'f' if single_event_as_f else ('i' if row.get('during_time', 0) == 0 else 'X')
+        else:
+            if i == 0:
+                ph = 's'
+            elif i == len(events) - 1:
+                ph = 'f'
+        result.append({
+            'name': 'flow_' + str(flow_id),
+            'ph': ph,
+            'ts': row['start_time'],
+            'id': str(flow_id),
+            'cat': str(rid_for_cat),
+            'pid': row['pid'],
+            'tid': row['domain'],
+        })
+    return result
+
+
+def _find_detokenize_predecessor(events_before_detokenize):
+    """
+    在 detokenize 之前的事件中找分支前驱：优先最近的非 batchFrameworkProcessing，否则取时间上最近的一个。
+    events_before_detokenize 已按 start_time 升序。
+    """
+    if not events_before_detokenize:
+        return None
+    non_batch = [e for e in events_before_detokenize if e.get('name') != BATCH_FRAMEWORK_PROCESSING_NAME]
+    if non_batch:
+        return max(non_batch, key=lambda e: e['start_time'])
+    return events_before_detokenize[-1]
+
+
 def add_flow_event(flow_event_df):
-    flow_event_df.loc[:, 'rid'] = flow_event_df['rid'].str.split(',')
+    if flow_event_df is None or flow_event_df.empty:
+        return []
+    flow_event_df = flow_event_df.copy()
+    # 兼容 rid 为字符串（逗号分隔）或已为列表
+    rid_col = flow_event_df['rid']
+    if rid_col.dtype == object and len(rid_col) > 0 and isinstance(rid_col.iloc[0], str):
+        flow_event_df.loc[:, 'rid'] = flow_event_df['rid'].astype(str).str.split(',')
     exploded_df = flow_event_df.explode('rid')
     exploded_df['tid'] = exploded_df['domain']
 
-    # 初始化 ph 列为默认值
-    exploded_df['ph'] = 't'
+    flow_trace_events = []
+    for rid, group in exploded_df.groupby('rid', sort=False):
+        # 按 start_time 排序
+        sorted_group = group.sort_values('start_time')
+        events_ordered = sorted_group.to_dict('records')
 
-    # 如果某个 rid 只有一行，根据during_time是否为0区分，为0就是ph=i，否则ph=x
-    single_occurrences = exploded_df['rid'].value_counts()
-    single_rids = single_occurrences[single_occurrences == 1].index
-    single_mask = exploded_df['rid'].isin(single_rids)
+        has_detokenize = any(e.get('name') == DETOKENIZE_NAME for e in events_ordered)
 
-    # 根据 during_time 的值来设置 ph（优先处理）
-    during_time_zero_mask = exploded_df['during_time'] == 0
-    exploded_df.loc[single_mask & during_time_zero_mask, 'ph'] = 'i'  # 瞬时事件
-    exploded_df.loc[single_mask & ~during_time_zero_mask, 'ph'] = 'X'  # 完整事件
+        if not has_detokenize:
+            # 无 detokenize：主链一条，id=rid，与原有行为一致
+            flow_trace_events.extend(_flow_events_from_sequence(events_ordered, rid, rid))
+            continue
 
-    # 找出每个 rid 的第一次和最后一次出现的位置（排除单次出现的）
-    multi_mask = ~single_mask  # 多次出现的记录
-    first_occurrences = exploded_df[multi_mask].groupby('rid').head(1).index
-    last_occurrences = exploded_df[multi_mask].groupby('rid').tail(1).index
+        # 有 detokenize：主链排除 detokenize；每个 detokenize 事件各生成一条分支链（predecessor -> 该 detokenize）
+        main_events = [e for e in events_ordered if e.get('name') != DETOKENIZE_NAME]
+        if main_events:
+            flow_trace_events.extend(_flow_events_from_sequence(main_events, rid, rid))
 
-    # 设置第一次出现为 's'
-    exploded_df.loc[first_occurrences, 'ph'] = 's'
+        # 分支：对每个 detokenize 事件生成一条分支，保证每个 detokenize 都有异步连线；分支内不包含其他 detokenize，避免「detokenize 后又连到后续事件」
+        detokenize_indices = [i for i, e in enumerate(events_ordered) if e.get('name') == DETOKENIZE_NAME]
+        for det_ordinal, det_idx in enumerate(detokenize_indices):
+            events_before = events_ordered[:det_idx]
+            pred = _find_detokenize_predecessor(events_before)
 
-    # 设置最后一次出现为 'f'
-    exploded_df.loc[last_occurrences, 'ph'] = 'f'
+            if pred is None:
+                branch_events = [events_ordered[det_idx]]
+            else:
+                try:
+                    pred_idx = next(
+                        i for i, e in enumerate(events_ordered)
+                        if e.get('name') == pred.get('name') and e.get('start_time') == pred.get('start_time')
+                    )
+                except StopIteration:
+                    pred_idx = det_idx - 1  # pred 来自 events_before，理论上不会发生
+                # 只取起点到 pred 之间的非 detokenize 事件 + 当前 detokenize，避免把前面的 detokenize 带进分支导致图上「detokenize 连到后续事件」
+                segment_before_this_det = events_ordered[:pred_idx + 1]
+                branch_events = [e for e in segment_before_this_det if e.get('name') != DETOKENIZE_NAME] + [events_ordered[det_idx]]
 
-    exploded_df['bp'] = ['b' if ph == 'f' else '' for ph in exploded_df['ph']]
-    exploded_df['name'] = 'flow_' + exploded_df['rid']
-    exploded_df['ts'] = exploded_df['start_time']
-    exploded_df['id'] = exploded_df['rid']
-    exploded_df['cat'] = exploded_df['rid']
-    exploded_df['pid'] = exploded_df['pid']
-    flow_trace_events = exploded_df[['name', 'ph', 'ts', 'id', 'cat', 'pid', 'tid']].to_dict(orient='records')
+            # 多个 detokenize 时用序号区分 flow id，便于在 tracing 图中分别显示
+            branch_flow_id = str(rid) + DETOKENIZE_FLOW_SUFFIX + ('' if len(detokenize_indices) == 1 else '_' + str(det_ordinal))
+            flow_trace_events.extend(_flow_events_from_sequence(
+                branch_events, branch_flow_id, rid, single_event_as_f=True
+            ))
+
     return flow_trace_events
 
 
