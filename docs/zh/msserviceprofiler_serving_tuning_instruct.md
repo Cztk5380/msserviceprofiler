@@ -5,7 +5,7 @@
 本文介绍推理服务化性能数据采集工具，本工具主要使用msServiceProfiler接口，在MindIE Motor推理服务化进程中，采集关键过程的开始和结束时间点，识别关键函数或迭代等信息，记录关键事件，支持多样的信息采集，对性能问题快速定位。
 
 - msServiceProfiler服务化调优接口包括“ [服务化调优 C++](./cpp_api/serving_tuning/README.md)”和“  [服务化调优 Python](./python_api/README.md)”。
-- 有关MindIE Motor相关介绍请参见《MindIE Motor开发指南》。
+- 有关MindIE Motor相关介绍请参见《[MindIE Motor开发指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/README.md)》。
 
 工具使用流程如下：
 
@@ -23,7 +23,7 @@
 |--|:----:|
 |Atlas A3 训练系列产品/Atlas A3 推理系列产品|  √   |
 |Atlas A2 训练系列产品/Atlas A2 推理系列产品|  √   |
-|Atlas 200I/500 A2 推理产品|  √   |
+|Atlas 200I/500 A2 推理产品|  x   |
 |Atlas 推理系列产品|  √   |
 |Atlas 训练系列产品|  x   |
 
@@ -33,11 +33,11 @@
 
 ## 使用前准备
 
-工具支持的硬件环境与MindIE一致，详细支持情况请参见《MindIE安装指南》的“安装说明”。
+工具支持的硬件环境与MindIE一致，详细支持情况请参见《[MindIE安装指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/install/installing_mindie.md)》的"安装说明"。
 
-1. 安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《CANN 软件安装指南》。
+1. 安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《[CANN 软件安装指南](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=netconda&OS=openEuler)》。
 2. 完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。
-3. 完成MindIE的安装和配置并确认MindIE Motor可以正常运行，具体请参见《MindIE安装指南》。
+3. 完成MindIE的安装和配置并确认MindIE Motor可以正常运行，具体请参见《[MindIE安装指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/install/installing_mindie.md)》。
 4. 完成以上环境准备后，可以进行一次配置预检动作，使用“[msprechecker](https://gitcode.com/Ascend/msit/tree/master/msprechecker)”工具，对环境变量和服务化配置等进行检查。
 
 ## 数据采集
@@ -48,7 +48,7 @@
 
 **注意事项<a name="section1725701319"></a>**
 
-- 服务化调优工具的acl\_task\_time开关与msprof工具的动态采集功能存在冲突，建议不要同时使用。msprof工具的动态采集功能相关介绍请参见《性能调优工具用户指南》。
+- 服务化调优工具的acl\_task\_time开关与msprof工具的动态采集功能存在冲突，建议不要同时使用。msprof工具的动态采集功能相关介绍请参见《[性能调优工具用户指南](https://www.hiascend.com/document/detail/zh/canncommercial/850/devaids/Profiling/atlasprofiling_16_0016.html)》。
 
 **使用示例<a name="section1541662513115"></a>**
 
@@ -60,20 +60,9 @@
      ```json
      {
          "enable": 1,
-         "metric_enable": 0,
          "prof_dir": "${PATH}",
-         "profiler_level": "INFO",
          "acl_task_time": 0,
-         "acl_prof_task_time_level": "",
-         "aclDataTypeConfig": "",
-         "aclprofAicoreMetrics": "",
-         "api_filter": "",
-         "kernel_filter": "",
-         "timelimit": 0,
-         "domain": "",
-         "torch_prof_stack": false,
-         "torch_prof_modules": false,
-         "torch_prof_step_num": 0
+         "acl_prof_task_time_level": ""
      }
      ```
 
@@ -87,10 +76,10 @@
      | profiler_level           | 数据采集等级，取值为INFO。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | 否       |
      | host_system_usage_freq   | CPU和内存系统指标采集频率，默认关闭不采集。范围整数1~50，单位Hz，表示每秒采集的次数。设置为-1时关闭采集该指标。<br/>开启该功能可能占用较大内存，不建议修改。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 否       |
      | npu_memory_usage_freq    | NPU Memory使用率指标的采集频率，默认关闭不采集。范围整数1~50，单位Hz，表示每秒采集的次数。设置为-1时关闭采集该指标。<br/>开启该功能可能占用较大内存，不建议修改。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | 否       |
-     | acl_task_time            | 开启采集算子下发耗时、算子执行耗时数据的开关，取值为：<br/>0：关闭。默认值，配置为0或其他非法值均表示关闭。<br/>1：开启。该功能开启时调用aclprofCreateConfig接口的ACL_PROF_TASK_TIME_L0参数。<br/>2：开启基于MSPTI接口的数据落盘。该功能开启时调用MSPTI接口进行性能数据采集，需要在拉起服务前配置如下环境变量：export LD_PRELOAD={INSTALL_DIR}/lib64/libmspti.so<br/>{INSTALL_DIR}请替换为CANN软件安装后文件存储路径。以root安装举例，则安装后文件存储路径为：/usr/local/Ascend/cann。<br/>3：开启基于Torch Profiler接口的数据落盘。<br/>以上aclprofCreateConfig接口及MSPTI接口详细介绍请参见《性能调优工具用户指南》。该功能开启时会占用一定的设备性能，导致采集的性能数据不准确，建议在模型执行耗时异常时开启，用于更细致的分析。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 否       |
+     | acl_task_time            | 开启采集算子下发耗时、算子执行耗时数据的开关，取值为：<br/>0：关闭。默认值，配置为0或其他非法值均表示关闭。<br/>1：开启。该功能开启时调用aclprofCreateConfig接口的ACL_PROF_TASK_TIME_L0参数。<br/>2：开启基于MSPTI接口的数据落盘。该功能开启时调用MSPTI接口进行性能数据采集，需要在拉起服务前配置如下环境变量：export LD_PRELOAD={INSTALL_DIR}/lib64/libmspti.so<br/>{INSTALL_DIR}请替换为CANN软件安装后文件存储路径。以root安装举例，则安装后文件存储路径为：/usr/local/Ascend/cann。<br/>3：开启基于Torch Profiler接口的数据落盘。<br/>以上aclprofCreateConfig接口及MSPTI接口详细介绍请参见《[性能调优工具用户指南](https://www.hiascend.com/document/detail/zh/canncommercial/850/devaids/Profiling/atlasprofiling_16_0016.html)》。该功能开启时会占用一定的设备性能，导致采集的性能数据不准确，建议在模型执行耗时异常时开启，用于更细致的分析。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 否       |
      | acl_prof_task_time_level | 设置性能数据采集的Level等级和时长，取值为：<br/>L0：Level0等级，表示采集算子下发耗时、算子执行耗时数据。与L1相比，由于不采集算子基本信息数据，采集时性能开销较小，可更精准统计相关耗时数据。等同于aclDataTypeConfig参数配置ACL_PROF_MSPROFTX、ACL_PROF_TASK_TIME_L0。<br/>L1：Level1等级，采集AscendCL接口的性能数据，包括Host与Device之间、Device间的同步异步内存复制时延；采集算子下发耗时、算子执行耗时数据以及算子基本信息数据，提供更全面的性能分析数据。等同于aclDataTypeConfig参数配置ACL_PROF_MSPROFTX、ACL_PROF_TASK_TIME、ACL_PROF_ACL_API。<br/>{time}：采集时长，取值范围为1~999的正整数，单位s。<br/>默认未配置本参数，表示采集L0数据，且采集到程序执行结束。配置其他非法值时取默认值。采集的Level等级和时长可同时配置，例如"acl_prof_task_time_level": "L1;10"。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 否       |
-     | aclDataTypeConfig        | 用户选择如下多个宏进行逻辑或，每个宏表示某一类性能数据，取值为：<br/>以下采集项的结果数据可参见《采集数据说明》，但具体采集结果请以实际情况为准。以下采集项一次可以配置一个或多个，例如："aclDataTypeConfig": "ACL_PROF_ACL_API"或"aclDataTypeConfig": "ACL_PROF_ACL_API, ACL_PROF_TASK_TIME"。<br/>ACL_PROF_ACL_API：表示采集接口的性能数据，包括Host与Device之间、Device间的同步异步内存复制时延等。<br/>ACL_PROF_TASK_TIME：采集算子下发耗时、算子执行耗时数据以及算子基本信息数据，提供更全面的性能分析数据。<br/>ACL_PROF_TASK_TIME_L0：采集算子下发耗时、算子执行耗时数据。与ACL_PROF_TASK_TIME相比，由于不采集算子基本信息数据，采集时性能开销较小，可更精准统计相关耗时数据。<br/>ACL_PROF_OP_ATTR：控制采集算子的属性信息，当前仅支持aclnn算子。ACL_PROF_AICORE_METRICS：表示采集AI Core性能指标数据，逻辑或时必须包括该宏，aicoreMetrics入参处配置的性能指标采集项才有效。<br/>ACL_PROF_TASK_MEMORY：控制CANN算子的内存占用情况采集开关，用于优化内存使用。单算子场景下，按照GE组件维度和算子维度采集算子内存大小及生命周期信息（单算子API执行方式不采集GE组件内存）；静态图和静态子图场景下，在算子编译阶段按照算子维度采集算子内存大小及生命周期信息。<br/>ACL_PROF_AICPU：表示采集AI CPU任务的开始、结束数据。<br/>ACL_PROF_L2CACHE：表示采集L2 Cache数据。<br/>ACL_PROF_HCCL_TRACE：控制通信数据采集开关。<br/>ACL_PROF_TRAINING_TRACE：控制迭代轨迹数据采集开关。<br/>ACL_PROF_RUNTIME_API：控制runtime api性能数据采集开关。<br/>ACL_PROF_MSPROFTX：获取用户和上层框架程序输出的性能数据。可在采集进程内（aclprofStart接口、aclprofStop接口之间）调用如下两种接口开启记录应用程序执行期间特定事件发生的时间跨度，并写入性能数据文件，再使用msprof工具解析该文件，并导出展示性能分析数据：<br/>mstx API（MindStudio Tools Extension API）接口详细操作请参见《mstx API使用示例》。msproftx扩展接口详细操作请参见“更多特性 > Profiling性能数据采集”。<br/>默认未配置本参数，以acl_prof_task_time_level参数配置为L0为准。 | 否       |
-     | aclprofAicoreMetrics     | AI Core性能指标采集项，取值为：以下采集项的结果数据可参见《op_summary（算子详细信息）》，但具体采集结果请以实际情况为准。以下采集项一次只能配置一个，例如："aclprofAicoreMetrics": "ACL_AICORE_PIPE_UTILIZATION"。<br/>ACL_AICORE_PIPE_UTILIZATION：计算单元和搬运单元耗时占比。<br/>ACL_AICORE_MEMORY_BANDWIDTH：外部内存读写类指令占比。<br/>ACL_AICORE_L0B_AND_WIDTH：内部内存读写类指令占比。ACL_AICORE_RESOURCE_CONFLICT_RATIO：流水线队列类指令占比。<br/>ACL_AICORE_MEMORY_UB：内部内存读写指令占比。ACL_AICORE_L2_CACHE：读写cache命中次数和缺失后重新分配次数。<br/>ACL_AICORE_NONE = 0xFF<br/>默认值为ACL_AICORE_PIPE_UTILIZATION。<br/>仅当aclDataTypeConfig配置了ACL_PROF_AICORE_METRICS后，本接口的配置才能生效。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | 否       |
+     | aclDataTypeConfig        | 用户选择如下多个宏进行逻辑或，每个宏表示某一类性能数据，取值为：<br/>以下采集项的结果数据可参见《[采集数据说明](https://www.hiascend.com/document/detail/zh/canncommercial/850/devaids/Profiling/atlasprofiling_16_0046.html)》，但具体采集结果请以实际情况为准。以下采集项一次可以配置一个或多个，例如："aclDataTypeConfig": "ACL_PROF_ACL_API"或"aclDataTypeConfig": "ACL_PROF_ACL_API, ACL_PROF_TASK_TIME"。<br/>ACL_PROF_ACL_API：表示采集接口的性能数据，包括Host与Device之间、Device间的同步异步内存复制时延等。<br/>ACL_PROF_TASK_TIME：采集算子下发耗时、算子执行耗时数据以及算子基本信息数据，提供更全面的性能分析数据。<br/>ACL_PROF_TASK_TIME_L0：采集算子下发耗时、算子执行耗时数据。与ACL_PROF_TASK_TIME相比，由于不采集算子基本信息数据，采集时性能开销较小，可更精准统计相关耗时数据。<br/>ACL_PROF_OP_ATTR：控制采集算子的属性信息，当前仅支持aclnn算子。ACL_PROF_AICORE_METRICS：表示采集AI Core性能指标数据，逻辑或时必须包括该宏，aicoreMetrics入参处配置的性能指标采集项才有效。<br/>ACL_PROF_TASK_MEMORY：控制CANN算子的内存占用情况采集开关，用于优化内存使用。单算子场景下，按照GE组件维度和算子维度采集算子内存大小及生命周期信息（单算子API执行方式不采集GE组件内存）；静态图和静态子图场景下，在算子编译阶段按照算子维度采集算子内存大小及生命周期信息。<br/>ACL_PROF_AICPU：表示采集AI CPU任务的开始、结束数据。<br/>ACL_PROF_L2CACHE：表示采集L2 Cache数据。<br/>ACL_PROF_HCCL_TRACE：控制通信数据采集开关。<br/>ACL_PROF_TRAINING_TRACE：控制迭代轨迹数据采集开关。<br/>ACL_PROF_RUNTIME_API：控制runtime api性能数据采集开关。<br/>ACL_PROF_MSPROFTX：获取用户和上层框架程序输出的性能数据。可在采集进程内（aclprofStart接口、aclprofStop接口之间）调用如下两种接口开启记录应用程序执行期间特定事件发生的时间跨度，并写入性能数据文件，再使用msprof工具解析该文件，并导出展示性能分析数据：<br/>mstx API（MindStudio Tools Extension API）接口详细操作请参见《[mstx API使用示例](https://www.hiascend.com/document/detail/zh/canncommercial/850/devaids/Profiling/atlasprofiling_16_0142.html)》。msproftx扩展接口详细操作请参见“更多特性 > Profiling性能数据采集”。<br/>默认未配置本参数，以acl_prof_task_time_level参数配置为L0为准。 | 否       |
+     | aclprofAicoreMetrics     | AI Core性能指标采集项，取值为：以下采集项的结果数据可参见《[op_summary（算子详细信息）](https://www.hiascend.com/document/detail/zh/canncommercial/850/devaids/Profiling/atlasprofiling_16_0067.html)》，但具体采集结果请以实际情况为准。以下采集项一次只能配置一个，例如："aclprofAicoreMetrics": "ACL_AICORE_PIPE_UTILIZATION"。<br/>ACL_AICORE_PIPE_UTILIZATION：计算单元和搬运单元耗时占比。<br/>ACL_AICORE_MEMORY_BANDWIDTH：外部内存读写类指令占比。<br/>ACL_AICORE_L0B_AND_WIDTH：内部内存读写类指令占比。ACL_AICORE_RESOURCE_CONFLICT_RATIO：流水线队列类指令占比。<br/>ACL_AICORE_MEMORY_UB：内部内存读写指令占比。ACL_AICORE_L2_CACHE：读写cache命中次数和缺失后重新分配次数。<br/>ACL_AICORE_NONE = 0xFF<br/>默认值为ACL_AICORE_PIPE_UTILIZATION。<br/>仅当aclDataTypeConfig配置了ACL_PROF_AICORE_METRICS后，本接口的配置才能生效。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | 否       |
      | api_filter               | 对性能数据进行过滤，配置该参数可自定义采集配置的API性能数据，例如传入“matmul”会落盘所有API数据中name字段包含matmul的性能数据。str类型，区分大小写，多个不同的筛选目标用“；”隔开，默认为空，表示落盘所有数据。<br/>仅当acl_task_time参数值为2时生效。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 否       |
      | kernel_filter            | 对性能数据进行过滤，配置该参数可自定义采集配置的Kernel性能数据，例如传入“matmul”会落盘所有Kernel数据中name字段包含matmul的性能数据。str类型，区分大小写，多个不同的筛选目标用“；”隔开，默认为空，表示落盘所有数据。<br/>仅当acl_task_time参数值为2时生效。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 否       |
      | timelimit                | 设置服务化性能数据采集的时长，配置该参数后，采集进程将在运行指定的时间后自动停止，取值范围为0~7200的整数，单位s，默认值0（表示不限制采集时间）。<br/>该采集时长建议最短设置为120s，可以根据实际情况进行增加，若采集时间过短，可能会导致数据不满足解析输出件生成，打印告警提示。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | 否       |
@@ -254,7 +243,7 @@ ms\_service\_profiler.parse解析生成的结果如下。
 |{host_name}_balance_ratio.png|"eplb_observe"|
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
->上表中未列出acl\_prof\_task\_time\_level、aclDataTypeConfig和aclprofAicoreMetrics参数采集数据的解析结果，这三个参数的详细结果介绍请参见《采集数据说明》和《op\_summary（算子详细信息)》，但具体采集结果请以实际情况为准。其中op\_statistic\_\*.csv和op\_summary\_\*.csv文件会在--output-path参数指定目录下的PROF\_XXX目录落盘；而其他由这三个参数采集的性能数据文件仍保存在prof\_dir参数指定路径的PROF\_XXX/mindstudio\_profiler\_output目录下。
+>上表中未列出acl\_prof\_task\_time\_level、aclDataTypeConfig和aclprofAicoreMetrics参数采集数据的解析结果，这三个参数的详细结果介绍请参见《[采集数据说明](https://www.hiascend.com/document/detail/zh/canncommercial/850/devaids/Profiling/atlasprofiling_16_0046.html)》和《[op\_summary（算子详细信息)](https://www.hiascend.com/document/detail/zh/canncommercial/850/devaids/Profiling/atlasprofiling_16_0067.html)》，但具体采集结果请以实际情况为准。其中op\_statistic\_\*.csv和op\_summary\_\*.csv文件会在--output-path参数指定目录下的PROF\_XXX目录落盘；而其他由这三个参数采集的性能数据文件仍保存在prof\_dir参数指定路径的PROF\_XXX/mindstudio\_profiler\_output目录下。
 
 包括如下文件：
 
@@ -290,7 +279,7 @@ ms\_service\_profiler.parse解析生成的结果如下。
 |moe_analysis|记录DeepSeek专家模型服务化推理时，基于MSPTI采集的MoeDistributeCombine算子和MoeDistributeDispatch算子快慢卡分析结果。|
 |data_link|用于在trace图显示forward的时候支持单击rid显示请求输入长度信息。|
 
-PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》中的“集群服务部署 > PD分离服务部署”章节。此文件主要用于可视化阶段连接Grafana展示图像，不对各表项细节做具体解释说明。
+PD分离部署场景及概念详细介绍请参见《[MindIE Motor开发指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/README.md)》中的“集群服务部署 > PD分离服务部署”章节。此文件主要用于可视化阶段连接Grafana展示图像，不对各表项细节做具体解释说明。
 
 ### **chrome\_tracing.json**
 
@@ -418,7 +407,7 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 
 PD分离部署场景通信类数据。PD分离部署场景属于多机多卡（集群）场景之一，需要在[采集数据](#li177905365245)时使用共享配置文件。
 
-PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》中的“集群服务部署 \> PD分离服务部署”章节。
+PD分离部署场景及概念详细介绍请参见《[MindIE Motor开发指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/README.md)》中的“集群服务部署 \> PD分离服务部署”章节。
 
 **表 7**  pd\_split\_communication.csv
 
@@ -435,7 +424,7 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 
 记录PD分离推理过程的KVCache在PD节点间的传输情况。PD分离部署场景属于多机多卡（集群）场景之一，需要在[采集数据](#li177905365245)时使用共享配置文件。
 
-PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》中的“集群服务部署 \> PD分离服务部署”章节。
+PD分离部署场景及概念详细介绍请参见《[MindIE Motor开发指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/README.md)》中的“集群服务部署 \> PD分离服务部署”章节。
 
 **表 8**  pd\_split\_kvcache.csv
 
@@ -456,7 +445,7 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 
 记录PD分离推理过程的请求分发到各个节点数量变化情况。PD分离部署场景属于多机多卡（集群）场景之一，需要在[采集数据](#li177905365245)时使用共享配置文件。
 
-PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》中的“集群服务部署 \> PD分离服务部署”章节。
+PD分离部署场景及概念详细介绍请参见《[MindIE Motor开发指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/README.md)》中的“集群服务部署 \> PD分离服务部署”章节。
 
 **表 9**  coordinator.csv
 
@@ -468,6 +457,38 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 |add_count|当前节点增加的请求数量。|
 |end_count|当前节点结束的请求数量。|
 |running_count|当前节点正在运行的请求数量。|
+
+### **request\_status.csv**
+
+统计服务化推理过程中，各个时刻的请求状态（处于waiting、running或swapped状态的请求个数）。可以根据统计的数据，绘制折线图，反映请求状态的变化趋势。
+
+**表 12**  request\_status.csv
+
+|字段|说明|
+|--|--|
+|hostuid|节点ID。|
+|pid|进程ID。|
+|start_datetime|请求到达时间。|
+|relative_timestamp(ms)|相对时间戳，单位ms。|
+|waiting|处于waiting状态的请求个数。|
+|running|处于running状态的请求个数。|
+|swapped|处于swapped状态的请求个数。|
+|timestamp(ms)|时间戳，单位ms。|
+
+### **span\_info目录**
+
+Span 是分布式追踪（Tracing）中的最小性能监测单元，对应推理服务中一个基础流程。 span_info 目录存储不同类型 Span 的性能数据，默认包含前向推理数据 forward.csv、批处理调度数据 BatchSchedule.csv。 支持自定义配置多种 span 类型，导出数据包含执行耗时、机器、进程标识等字段。以BatchSchedule.csv为例。
+
+**表 13**  BatchSchedule.csv
+
+|字段| 说明                                                |
+|--|---------------------------------------------------|
+|span_name| span类型。                                           |
+|start_datetime| span的开始时间。                                        |
+|end_datetime| span的结束时间。                                        |
+|during_time(ms)| span执行时间，单位ms。                                    |
+|hostname| 标识不同机器，相同机器该列的值相同。                                     |
+|pid| 进程ID。 |
 
 ### **ep\_balance.csv**
 
@@ -502,23 +523,6 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 
 **图 2**  moe\_analysis.png<a name="fig106051734569"></a>  
 ![](figures/moe_analysis-png.png "moe_analysis-png")
-
-### **request\_status.csv**
-
-统计服务化推理过程中，各个时刻的请求状态（处于waiting、running或swapped状态的请求个数）。可以根据统计的数据，绘制折线图，反映请求状态的变化趋势。
-
-**表 12**  request\_status.csv
-
-|字段|说明|
-|--|--|
-|hostuid|节点ID。|
-|pid|进程ID。|
-|start_datetime|请求到达时间。|
-|relative_timestamp(ms)|相对时间戳，单位ms。|
-|waiting|处于waiting状态的请求个数。|
-|running|处于running状态的请求个数。|
-|swapped|处于swapped状态的请求个数。|
-|timestamp(ms)|时间戳，单位ms。|
 
 ### **\{host\_name\}\_eplb\_\{i\}\_summed\_hot\_map\_by\_expert.png**
 
@@ -570,26 +574,13 @@ PD分离部署场景及概念详细介绍请参见《MindIE Motor开发指南》
 
 图中红色虚线表示模型在该时刻发生了专家负载均衡表的变化，对应的横坐标表示系统的本地时间。因为不同设备上的本地时间存在误差，模型运行时各个卡的任务流也会存在不同步的现象，展示的时间是取均值的结果，建议用户在采集前确保所有设备的本地时间保持同步。
 
-### **span\_info目录**
 
-Span 是分布式追踪（Tracing）中的最小性能监测单元，对应推理服务中一个基础流程。 span_info 目录存储不同类型 Span 的性能数据，默认包含前向推理数据 forward.csv、批处理调度数据 BatchSchedule.csv。 支持自定义配置多种 span 类型，导出数据包含执行耗时、机器、进程标识等字段。以BatchSchedule.csv为例。
-
-**表 13**  BatchSchedule.csv
-
-|字段| 说明                                                |
-|--|---------------------------------------------------|
-|span_name| span类型。                                           |
-|start_datetime| span的开始时间。                                        |
-|end_datetime| span的结束时间。                                        |
-|during_time(ms)| span执行时间，单位ms。                                    |
-|hostname| 标识不同机器，相同机器该列的值相同。                                     |
-|pid| 进程ID。 |
 
 ## 数据可视化
 
 ### MindStudio Insight可视化
 
-MindStudio Insight工具支持对服务化调优工具采集并解析的性能数据（[解析结果](#解析结果)）进行可视化，当前支持chrome\_tracing.json文件及profiler.db文件的可视化，详细操作及可视化结果介绍请参见《MindStudio Insight工具用户指南》中的“服务化调优”章节。
+MindStudio Insight工具支持对服务化调优工具采集并解析的性能数据（[解析结果](#解析结果)）进行可视化，当前支持chrome\_tracing.json文件及profiler.db文件的可视化，详细操作及可视化结果介绍请参见《[MindStudio Insight工具用户指南](https://www.hiascend.com/document/detail/zh/mindstudio/830/GUI_baseddevelopmenttool/msascendinsightug/Insight_userguide_0112.html?framework=mindspore)》中的"服务化调优"章节。
 
 ### Chrome tracing可视化
 
@@ -841,3 +832,4 @@ PROF(INFO, Domain("http").Res(reqId).Attr("attr", "attrValue").Event("test"));
 ### 服务化自动寻优工具<a name="ZH-CN_TOPIC_0000002387389717"></a>
 
 本工具基于msServiceProfiler工具采集的性能数据，提供服务化参数自动寻优能力，可以对服务化的参数以及测试工具的参数进行寻优。详细介绍请参见《[服务化自动寻优工具](./serviceparam_optimizer_instruct.md)》。
+

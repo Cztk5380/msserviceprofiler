@@ -9,7 +9,7 @@ msServiceProfiler Trace采集MindIE Motor服务中的请求响应时间、响应
 - 当前版本主要面向MindIE推理框架，支持单机及多机PD竞争部署模式。
 - 当前仅支持对MindIE的[/v1/chat/completions](https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0078.html)和[/v1/completions](https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0323.html)两个请求发送的核心接口进行Trace监测。
 - msServiceProfiler Trace数据监测接口包括“msServiceProfiler API参考（C++） \>  [Trace数据监测](./cpp_api/trace_data_monitoring/README.md)”。
-- 有关MindIE Motor相关介绍请参见《[MindIE Motor开发指南](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/README.md)》。
+- 有关MindIE Motor相关介绍请参见《[MindIE Motor开发指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/README.md)》。
 
 ## 产品支持情况<a name="ZH-CN_TOPIC_0000002489576470"></a>
 
@@ -32,7 +32,7 @@ msServiceProfiler Trace采集MindIE Motor服务中的请求响应时间、响应
 
 **环境准备<a name="section151144214396"></a>**
 
-1. 在昇腾环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《CANN 软件安装指南》。
+1. 在昇腾环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《[CANN 软件安装指南](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=netconda&OS=openEuler)》。
 
 2. 完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。
 
@@ -43,7 +43,7 @@ msServiceProfiler Trace采集MindIE Motor服务中的请求响应时间、响应
    pip install opentelemetry-exporter-otlp-proto-http==1.33.1
    ```
 
-4. 完成MindIE的安装和配置并确认MindIE Motor可以正常运行，具体请参见《MindIE安装指南》。
+4. 完成MindIE的安装和配置并确认MindIE Motor可以正常运行，具体请参见《[MindIE安装指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/install/installing_mindie.md)》。
 
 5. MindIE Motor服务所在的昇腾环境与OTLP采集器（Jaeger等）需建立稳定网络连接。
 

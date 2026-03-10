@@ -10,7 +10,7 @@ msServiceProfiler（服务化调优工具）提供全链路性能剖析，清晰
 ## 前提条件<a name="section1605203618349"></a>
 
 - 在使用性能调优工具前，请先阅读《msServiceProfiler工具安装指南》中的“[约束](msserviceprofiler_install_guide.md#约束)”章节的使用约束，了解相关约束条件。
-- 请参见《MindIE安装指南》完成MindIE的安装和配置并确认MindIE Motor可以正常运行。
+- 请参见《[MindIE安装指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/install/installing_mindie.md)》完成MindIE的安装和配置并确认MindIE Motor可以正常运行。
 
 ## 操作步骤<a name="section166491954201410"></a>
 
@@ -105,7 +105,7 @@ msServiceProfiler（服务化调优工具）提供全链路性能剖析，清晰
 
 5. 调优分析。
 
-   解析后的性能数据包含db格式、csv格式和json格式，用户可以通过csv进行请求、调度等不同维度的快速分析，也可以通过MindStudio Insight工具导入db文件或者json文件进行可视化分析，详细操作和分析说明请参见《MindStudio Insight工具用户指南》中的“服务化调优”章节。
+   解析后的性能数据包含db格式、csv格式和json格式，用户可以通过csv进行请求、调度等不同维度的快速分析，也可以通过MindStudio Insight工具导入db文件或者json文件进行可视化分析，详细操作和分析说明请参见《[MindStudio Insight工具用户指南](https://www.hiascend.com/document/detail/zh/mindstudio/830/GUI_baseddevelopmenttool/msascendinsightug/Insight_userguide_0112.html?framework=mindspore)》中的“服务化调优”章节。
 
    根据MindStudio Insight工具的可视化呈现性能数据，如下图所示：
 
