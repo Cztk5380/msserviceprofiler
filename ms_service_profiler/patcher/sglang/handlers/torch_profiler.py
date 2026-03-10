@@ -29,9 +29,10 @@ def torch_profiler_register():
     if step_num and step_num > 0:
         return
     
-    prof_build()
-    service_profiler.register_profiler_start_callback(prof_start)
-    service_profiler.register_profiler_stop_callback(prof_stop)
+    if service_profiler.is_torch_profiler_register():
+        prof_build()
+        service_profiler.register_profiler_start_callback(prof_start)
+        service_profiler.register_profiler_stop_callback(prof_stop)
     
     
 def prof_build():
