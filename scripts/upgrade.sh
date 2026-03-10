@@ -360,6 +360,7 @@ if [ "$quiet_flag" != "1" ]; then
     echo -n "Confirm to proceed? [y/N]: "
     read -r confirm
     if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+        print_log "INFO" "Upgrade cancelled by user."
         exit 0
     fi
 fi

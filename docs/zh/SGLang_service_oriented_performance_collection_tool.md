@@ -63,8 +63,9 @@ python -m sglang.launch_server --model-path=/Qwen2.5-0.5B-Instruct --device npu
 ```
 
 其中 `ms_service_profiler_config.json` 为采集配置文件，若不存在会自动生成默认配置。若有需要，可参照[采集配置使用指南](#采集配置使用指南)章节提前进行自定义配置。
+**注意：本工具不支持 host_system_usage_freq、npu_memory_usage_freq 利用率相关参数配置，以及 acl_task_time=2、api_filter、kernel_filter mspti采集相关配置参数。**
 
-`service_profiling_symbols.yaml` 为需要导入的埋点配置文件。你也可以选择不设置环境变量 `PROFILING_SYMBOLS_PATH` ，此时将使用默认的配置文件；若你指定的路径下不存在该文件，系统同样会在你指定的路径生成一份配置文件以便后续修改。可参考[点位配置使用指南](#点位配置使用指南)一节进行自定义。
+`service_profiling_symbols.yaml` 为需要导入的埋点配置文件。你也可以选择不设置环境变量 `PROFILING_SYMBOLS_PATH` ，此时将使用默认的配置文件。可参考[点位配置使用指南](#点位配置使用指南)一节进行自定义。
 
 **2. 开启采集**
 
