@@ -58,45 +58,21 @@ msServiceProfiler服务化调优工具的快速入门，包括必要的操作步
 
 ## 功能介绍
 
-### [服务化调优工具](docs/zh/msserviceprofiler_serving_tuning_instruct.md)
-
-服务化调优工具使用msServiceProfiler接口，采集关键过程的开始和结束时间点，识别关键函数或迭代等信息，记录关键事件，支持多样的信息采集，对性能问题快速定位。
-
-### [vLLM服务化性能采集工具](docs/zh/vLLM_service_oriented_performance_collection_tool.md)
-
-vLLM服务化性能采集工具采集vLLM-Ascend的服务化框架性能数据以及算子性能数据。
-
-### [vLLM 服务化 Prometheus 数据监测工具使用指南](docs/zh/vLLM_metrics_tool_instruct.md)
-
-vLLM 服务化 Prometheus 数据监测工具用于增强 vLLM-ascend 推理服务框架的原生监测能力。
-
-### [SGLang服务化性能采集工具](docs/zh/SGLang_service_oriented_performance_collection_tool.md)
-
-SGLang 服务化性能采集工具用于监测和采集 SGLang 推理服务框架内部执行流程性能数据。
-
-### [Trace数据监测工具](docs/zh/msserviceprofiler_trace_data_monitoring_instruct.md)
-
-Trace数据监测工具采集MindIE Motor服务中的请求响应时间、响应状态、客户端IP/端口、服务端IP/端口等数据，最后将采集到的数据推送至Jaeger等支持OTLP协议的开源监测平台进行可视化分析。
-
-### [服务化性能数据比对工具](docs/zh/ms_service_profiler_compare_tool_instruct.md)
-
-服务化性能数据比对工具支持对使用msServiceProfiler工具采集的性能数据进行差异比对，通过比对快速识别可能存在的问题点。
-
-### [服务化自动寻优工具](docs/zh/serviceparam_optimizer_instruct.md)
-
-基于msServiceProfiler工具采集的性能数据，提供服务化参数自动寻优能力，可以对服务化的参数以及测试工具的参数进行寻优。具体请参见服务化自动寻优工具。
-
-### [服务化专家建议工具](docs/zh/service_profiling_advisor_instruct.md)
-
-基于benchmark 输出结果以及 service 的 config.json 配置，提供分析提高 TTFT / Throughput 等的优化点能力。具体请参见服务化专家建议工具。
-
-### [服务化多维度解析工具](docs/zh/msserviceprofiler_multi_analyze_instruct.md)
-
-基于msServiceProfiler工具采集的性能数据，提供性能数据多维度分析能力，可以对性能数据进行batch维度、request维度和service维度分析。具体请参见服务化多维度解析工具。
-
-### [服务化拆解工具](docs/zh/service_performance_split_tool_instruct.md)
-
-基于msServiceProfiler工具采集的性能数据，提供性能数据拆解能力，可以对batch内各阶段耗时进行分析。具体请参见服务化拆解工具。
+面向不同使用场景，建议按照以下顺序快速体验本工具：
+1. **服务化性能调优**：详细理解服务化调优数据格式、可视化分析方式及典型调优流程，参见[服务化调优工具](docs/zh/msserviceprofiler_serving_tuning_instruct.md)。
+2. **vLLM / SGLang 场景专项采集**：如只关注某一框架，可直接参考对应服务化性能采集工具使用指南：
+   - [vLLM 服务化性能采集工具](docs/zh/vLLM_service_oriented_performance_collection_tool.md)
+   - [SGLang 服务化性能采集工具](docs/zh/SGLang_service_oriented_performance_collection_tool.md)
+3. **Trace 数据链路监测**：需要将服务端请求链路打通到 Jaeger 等 OTLP 生态时，参见[Trace数据监测工具](docs/zh/msserviceprofiler_trace_data_monitoring_instruct.md)。
+4. **采集数据的比对与多维分析**：对不同版本/配置的性能结果做对比或从多维度深入分析时，参见：
+   - [服务化性能数据比对工具](docs/zh/ms_service_profiler_compare_tool_instruct.md)
+   - [服务化多维度解析工具](docs/zh/msserviceprofiler_multi_analyze_instruct.md)
+   - [服务化拆解工具](docs/zh/service_performance_split_tool_instruct.md)
+5. **自动寻优与专家建议（进阶能力）**：在已有采集数据基础上进行参数自动寻优或获取专家建议时，参见：
+   - [服务化自动寻优工具](docs/zh/serviceparam_optimizer_instruct.md)
+   - [服务化自动寻优插件模式](docs/zh/serviceparam_optimizer_plugin_instruct.md)
+   - [服务化专家建议工具](docs/zh/service_profiling_advisor_instruct.md)
+6. **在线监控与 Prometheus 集成（vLLM 场景）**：如需在 vLLM-ascend 上结合 Prometheus 做在线监控，参见[vLLM 服务化 Prometheus 数据监测工具使用指南](docs/zh/vLLM_metrics_tool_instruct.md)。
 
 ## 贡献指导
 
