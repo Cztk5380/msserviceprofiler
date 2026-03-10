@@ -126,7 +126,7 @@ class ExporterTrace(TaskExporterBase):
             service_pid_str_map = {}
             for item in pid_ppid_map:
                 if item[2] == 'service':
-                    service_pid_str_map[int(item[0])] = item[0]
+                    service_pid_str_map[int(item[0])] = item[1]
             
             python_pids = {}
             for pid in torch_profiler_pid_list:
@@ -147,6 +147,7 @@ class ExporterTrace(TaskExporterBase):
                         break
 
             pid_ppid_map = [(str(pid), ppid, pid, source) for pid, ppid, source in pid_ppid_map]
+            
             logger.info(f"Total pid_ppid_map count: {len(pid_ppid_map)}, torch_profiler added: {len(torch_profiler_pid_list)}")
 
             trace_data = create_trace_events(all_data_df, pid_label_map, pid_ppid_map, torch_profiler_pid_domain_map, pid_domain_map)
@@ -539,48 +540,55 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None, 
     if not pid_ppid_map:
         return []
     
-    process_tree = {}
-    for pid, ppid, _, _ in pid_ppid_map:
-        process_tree[pid] = ppid
+    process_tree = {str(pid): str(ppid) for pid, ppid, _, _ in pid_ppid_map}
+    
+    def find_schedule_parent(start_pid):
+        group_pid = 0
+        current_pid = start_pid
+        visited = set()
+        while current_pid is not None:
+            current_key = str(current_pid)
+            if current_key in visited:
+                break
+            visited.add(current_key)
+            parent = process_tree.get(current_key)
+            if parent is None:
+                break
+            parent_int = int(parent) if str(parent).isdigit() else parent
+            if pid_domain_map and parent_int in pid_domain_map:
+                if pid_domain_map[parent_int].lower() == "schedule":
+                    group_pid = parent_int
+                    break
+            current_pid = parent_int
+        return group_pid
     
     def build_prcess_prefix(pid):
-        if pid in process_prefix:
-            return process_prefix[pid]
-        ppid = process_tree.get(pid)
+        pid_key = str(pid)
+        if pid_key in process_prefix:
+            return process_prefix[pid_key]
+        ppid = process_tree.get(pid_key)
         if ppid is None:
             return ""
         
         ppid_prefix = build_prcess_prefix(ppid)
         pid_prefix = f"{ppid_prefix}.{pid}"
-        process_prefix[pid] = pid_prefix
+        process_prefix[pid_key] = pid_prefix
         return pid_prefix
     
     process_prefix = {}
     
     child_to_parent = {
-        pid: ppid
+        str(pid): str(ppid)
         for pid, ppid, _, _ in pid_ppid_map
-        if ppid != pid
+        if str(pid) != str(ppid)
     }
     
     service_pid_to_group_pid = {}
     for str_pid, ppid, ori_pid, source in pid_ppid_map:
         if source == 'service' and pid_domain_map:
             pid_int = int(ori_pid) if not isinstance(ori_pid, int) else ori_pid
-            group_pid = 0
-            current_pid = ori_pid
-            while current_pid is not None:
-                str_current = str(current_pid)
-                parent = process_tree.get(str_current)
-                if parent is None:
-                    break
-                parent_int = int(parent) if isinstance(parent, str) and parent.isdigit() else parent
-                if pid_domain_map and parent_int in pid_domain_map:
-                    if pid_domain_map[parent_int].lower() == "schedule":
-                        group_pid = parent_int
-                        break
-                current_pid = parent_int
-            if group_pid == 0 and pid_domain_map and pid_int in pid_domain_map:
+            group_pid = find_schedule_parent(ori_pid)
+            if group_pid == 0 and pid_int in pid_domain_map:
                 if pid_domain_map[pid_int].lower() == "schedule":
                     group_pid = pid_int
             if group_pid != 0:
@@ -640,17 +648,7 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None, 
         if process_type == 'schedule':
             group_pid = pid
         else:
-            current_pid = pid
-            while current_pid is not None:
-                ppid = process_tree.get(current_pid) or process_tree.get(str(current_pid))
-                if ppid is None:
-                    break
-                ppid_int = int(ppid) if isinstance(ppid, str) and ppid.isdigit() else ppid
-                if pid_domain_map and ppid_int in pid_domain_map:
-                    if pid_domain_map[ppid_int].lower() == "schedule":
-                        group_pid = ppid_int
-                        break
-                current_pid = ppid_int
+            group_pid = find_schedule_parent(pid)
         
         if group_pid == 0 and source in ('torch', 'msprof'):
             pid_int = int(pid) if not isinstance(pid, int) else pid
@@ -666,7 +664,7 @@ def sort_trace_events_by_pid(pid_label_map, pid_ppid_map, coordinator_pid=None, 
         if source in ('torch', 'msprof'):
             ppid = process_tree.get(str(pid))
             if ppid:
-                parent_pid_for_sort = int(ppid) if isinstance(ppid, str) and ppid.isdigit() else ppid
+                parent_pid_for_sort = int(ppid) if ppid.isdigit() else ppid
         elif process_type == 'forward':
             parent_pid_for_sort = int(pid) if not isinstance(pid, int) else pid 
         if dp_rank is not None:
