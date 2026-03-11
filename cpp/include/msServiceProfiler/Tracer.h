@@ -41,6 +41,7 @@
     msServiceProfilerCompatible::ServiceProfilerInterface::GetInstance() \
         .CallWithRet<FUNC_NAME_VAR(FUNC), decltype(defValue), decltype(FUNC)>(defValue, ##__VA_ARGS__)
 
+
 namespace msServiceProfiler {
 class TraceContext {
 public:

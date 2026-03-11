@@ -20,6 +20,7 @@
 #include <vector>
 #include <array>
 #include <limits>
+#include <atomic>
 #include <cstdint>
 #include <random>
 #include <mutex>
@@ -354,9 +355,11 @@ static bool applyProbabilitySampling(bool sampleFlag)
     if (cfg.sampleRateN <= 0) {
         return true;
     }
-    static thread_local uint64_t counter = 0;
-    uint64_t idx = counter++ % static_cast<uint64_t>(cfg.sampleRateN);
+    // 进程级原子计数器，保证多线程下概率采样在进程内正确生效
+    static std::atomic<uint64_t> counter{0};
+    uint64_t idx = counter.fetch_add(1) % static_cast<uint64_t>(cfg.sampleRateN);
     bool sampled = (idx == 0);
+    
     PROF_LOGD("probability sampling (deterministic): N=%d, idx=%llu, sampled=%d",
         cfg.sampleRateN, static_cast<unsigned long long>(idx), sampled);
     return sampled;
@@ -380,7 +383,6 @@ TraceContextInfo ParseHttpCtx(const std::string &traceParent, const std::string 
     if (!strTraceParent.empty()) {
         // traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01
         // <version>-<trace-id>-<parent-id>-<trace-flags>
-
         auto splitValues = MsUtils::SplitStrToVector(strTraceParent, '-', true);
         if (splitValues.size() != 4) {
             LOG_ONCE_E("traceparent Format not recognized. ");
@@ -421,7 +423,8 @@ TraceContextInfo ParseHttpCtx(const std::string &traceParent, const std::string 
             PROF_LOGD("auto generated TraceId high=0x%016llx low=0x%016llx",
                 static_cast<unsigned long long>(newTraceId.as_uint64[0]),
                 static_cast<unsigned long long>(newTraceId.as_uint64[1]));
-            return TraceContextInfo{newTraceId, newSpanId, applyProbabilitySampling(true)};
+            return TraceContextInfo{
+                newTraceId, newSpanId, applyProbabilitySampling(true)};
         }
         LOG_ONCE_D("no trace info. ");
         return TraceContextInfo{{0, 0}, 0, false};
