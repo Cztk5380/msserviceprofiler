@@ -23,10 +23,10 @@ class ExecBenchmark(CommandExecutor):
         self.model_name = "llama"
         self.model_path = "/model"
         self.dataset_path = "/dataset"
-        self.server_port = 1025
-        self.server_ip = "127.0.0.1"
-        self.server_mannager_port = 1026
-        self.server_mannager_ip = "127.0.0.1"
+        self.server_port = 1078
+        self.server_ip = "127.0.0.9"
+        self.server_mannager_port = 1079
+        self.server_mannager_ip = "127.0.0.9"
 
     def set_model_path(self, model_path, model_name="llama"):
         self.model_name = model_name
@@ -36,11 +36,11 @@ class ExecBenchmark(CommandExecutor):
         self.dataset_type = dataset_type
         self.dataset_path = dataset_path
 
-    def set_service_port(self, server_port, server_ip="127.0.0.1"):
+    def set_service_port(self, server_port, server_ip="127.0.0.9"):
         self.server_port = server_port
         self.server_ip = server_ip
 
-    def set_service_mannager_port(self, server_mannager_port, server_mannager_ip="127.0.0.1"):
+    def set_service_mannager_port(self, server_mannager_port, server_mannager_ip="127.0.0.9"):
         self.server_mannager_port = server_mannager_port
         self.server_mannager_ip = server_mannager_ip
 
