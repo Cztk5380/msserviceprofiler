@@ -206,7 +206,7 @@ class Simulator(SimulatorInterface):
         """
         process_res = super().health()
         if process_res.stage != Stage.running:
-            # 当前mindie health接口不可用http://127.0.0.1:8825/v2/health/live
+            # 当前mindie health接口不可用http://localhost:8825/v2/health/live
             proxy_status = super(SimulatorInterface, self).health()
             self.run_log_offset = 0
             output = self.get_log()
@@ -257,7 +257,7 @@ class VllmSimulator(SimulatorInterface):
         Returns:
 
         """
-        return f"http://127.0.0.1:{self.config.command.port}/health"
+        return f"http://localhost:{self.config.command.port}/health"
 
     def stop(self, del_log: bool = True):
         """
@@ -484,7 +484,7 @@ class DisaggregationSimulator(SimulatorInterface):
                         if 'nodePort' in port:
                             curl_port = port['nodePort']
         if curl_port:
-            url = f"http://127.0.0.1:{curl_port}"
+            url = f"http://localhost:{curl_port}"
         else:
             raise ("cannot find port from mindie_service_single_container.yaml, please check")
 
