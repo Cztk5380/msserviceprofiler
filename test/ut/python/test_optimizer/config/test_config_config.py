@@ -16,7 +16,11 @@
 import unittest
 from copy import deepcopy
 import numpy as np
-from ms_serviceparam_optimizer.config.config import map_param_with_value, OptimizerConfigField
+from ms_serviceparam_optimizer.config.config import (
+    map_param_with_value, OptimizerConfigField,
+    ErrorPatternConfig, HealthCheckConfig,
+    ErrorType, ErrorSeverity
+)
 
 
 class TestMapParamWithValueRealFields(unittest.TestCase):
@@ -115,9 +119,97 @@ class TestMapParamWithValueRealFields(unittest.TestCase):
         result = map_param_with_value(params, self.default_support_field)
         
         # 验证边界处理
-        self.assertEqual(result[0].value, 24)  
-        self.assertEqual(result[1].value, 1)   
-        self.assertFalse(result[4].value) 
-        self.assertEqual(result[5].value, 4095) 
-        self.assertEqual(result[6].value, 499)  
-        self.assertEqual(result[7].value, 0)   
+        self.assertEqual(result[0].value, 24)
+        self.assertEqual(result[1].value, 1)
+        self.assertFalse(result[4].value)
+        self.assertEqual(result[5].value, 4095)
+        self.assertEqual(result[6].value, 499)
+        self.assertEqual(result[7].value, 0)
+
+
+class TestErrorPatternConfig(unittest.TestCase):
+    """测试 ErrorPatternConfig 配置类"""
+
+    def test_default_fatal_patterns(self):
+        """测试默认的 fatal_patterns 配置"""
+        config = ErrorPatternConfig()
+        self.assertIn(ErrorType.OUT_OF_MEMORY, config.fatal_patterns)
+        self.assertIn(ErrorType.DEVICE_ERROR, config.fatal_patterns)
+        self.assertIn("out of memory", config.fatal_patterns[ErrorType.OUT_OF_MEMORY])
+        self.assertIn("OOM", config.fatal_patterns[ErrorType.OUT_OF_MEMORY])
+        self.assertIn("device error", config.fatal_patterns[ErrorType.DEVICE_ERROR])
+        self.assertIn("NPU error", config.fatal_patterns[ErrorType.DEVICE_ERROR])
+
+    def test_default_retryable_patterns(self):
+        """测试默认的 retryable_patterns 配置"""
+        config = ErrorPatternConfig()
+        self.assertIn(ErrorType.NETWORK_ERROR, config.retryable_patterns)
+        self.assertIn(ErrorType.IO_ERROR, config.retryable_patterns)
+        self.assertIn("connection reset", config.retryable_patterns[ErrorType.NETWORK_ERROR])
+        self.assertIn("timeout", config.retryable_patterns[ErrorType.NETWORK_ERROR])
+        self.assertIn("file not found", config.retryable_patterns[ErrorType.IO_ERROR])
+        self.assertIn("permission denied", config.retryable_patterns[ErrorType.IO_ERROR])
+
+    def test_custom_patterns(self):
+        """测试自定义错误模式"""
+        custom_config = ErrorPatternConfig(
+            fatal_patterns={
+                ErrorType.OUT_OF_MEMORY: ["custom OOM pattern"]
+            },
+            retryable_patterns={
+                ErrorType.NETWORK_ERROR: ["custom network pattern"]
+            }
+        )
+        self.assertEqual(len(custom_config.fatal_patterns[ErrorType.OUT_OF_MEMORY]), 1)
+        self.assertEqual(custom_config.fatal_patterns[ErrorType.OUT_OF_MEMORY][0], "custom OOM pattern")
+        self.assertEqual(custom_config.retryable_patterns[ErrorType.NETWORK_ERROR][0], "custom network pattern")
+
+    def test_empty_patterns(self):
+        """测试空错误模式"""
+        empty_config = ErrorPatternConfig(
+            fatal_patterns={},
+            retryable_patterns={}
+        )
+        self.assertEqual(len(empty_config.fatal_patterns), 0)
+        self.assertEqual(len(empty_config.retryable_patterns), 0)
+
+
+class TestHealthCheckConfig(unittest.TestCase):
+    """测试 HealthCheckConfig 配置类"""
+
+    def test_default_service_errors(self):
+        """测试默认的 service_errors 配置"""
+        config = HealthCheckConfig()
+        self.assertIsInstance(config.service_errors, ErrorPatternConfig)
+        self.assertIn(ErrorType.OUT_OF_MEMORY, config.service_errors.fatal_patterns)
+        self.assertIn(ErrorType.NETWORK_ERROR, config.service_errors.retryable_patterns)
+
+    def test_default_benchmark_errors(self):
+        """测试默认的 benchmark_errors 配置"""
+        config = HealthCheckConfig()
+        self.assertIsInstance(config.benchmark_errors, ErrorPatternConfig)
+        self.assertEqual(len(config.benchmark_errors.fatal_patterns), 0)
+        self.assertIn(ErrorType.NETWORK_ERROR, config.benchmark_errors.retryable_patterns)
+        self.assertIn(ErrorType.IO_ERROR, config.benchmark_errors.retryable_patterns)
+
+    def test_custom_log_snippet_length(self):
+        """测试自定义 log_snippet_length"""
+        config = HealthCheckConfig(log_snippet_length=500)
+        self.assertEqual(config.log_snippet_length, 500)
+
+    def test_custom_health_check_config(self):
+        """测试自定义健康检查配置"""
+        custom_config = HealthCheckConfig(
+            service_errors=ErrorPatternConfig(
+                fatal_patterns={ErrorType.DEVICE_ERROR: ["device fault"]},
+                retryable_patterns={}
+            ),
+            benchmark_errors=ErrorPatternConfig(
+                fatal_patterns={},
+                retryable_patterns={ErrorType.IO_ERROR: ["disk full"]}
+            ),
+            log_snippet_length=300
+        )
+        self.assertIn("device fault", custom_config.service_errors.fatal_patterns[ErrorType.DEVICE_ERROR])
+        self.assertIn("disk full", custom_config.benchmark_errors.retryable_patterns[ErrorType.IO_ERROR])
+        self.assertEqual(custom_config.log_snippet_length, 300)

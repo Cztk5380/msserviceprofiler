@@ -24,24 +24,27 @@ from loguru import logger
 from ..common import get_train_sub_path, is_mindie, is_vllm
 from ..config.base_config import REAL_EVALUATION
 from ..config.config import get_settings, PerformanceIndex, OptimizerConfigField, \
-    map_param_with_value, CommunicationConfig, Stage
+    map_param_with_value, CommunicationConfig, Stage, ErrorSeverity
 from ..config.base_config import FOLDER_LIMIT_SIZE, REQUESTRATES
 from ..optimizer.communication import CommunicationForFile, CustomCommand
-from ..optimizer.plugins.simulate import VllmSimulator, Simulator, \
-    DisaggregationSimulator
+from ..optimizer.plugins.simulate import Simulator, DisaggregationSimulator
 from ..optimizer.store import DataStorage
 from ..optimizer.utils import get_folder_size
+from ..optimizer.health_check import (ErrorContext, BenchmarkHealthCheckHook,
+                                       ServiceHealthCheckHook, ServiceHookPoint, BenchmarkHookPoint,
+                                       HealthCheckContext, service_health_checks_hooks,
+                                       benchmark_health_checks_hooks, FatalError, RetryableError)
 
 
 class Scheduler:
     def __init__(self, simulator, benchmark, data_storage: DataStorage,
-                 bak_path: Optional[Path] = None, retry_number: int = 3, wait_start_time=1800):
+                 bak_path: Optional[Path] = None, retry_number: int = 3, wait_start_time: Optional[int] = None):
         self.simulator = simulator
         self.benchmark = benchmark
         self.data_storage = data_storage
         self.bak_path = bak_path
         self.retry_number = retry_number
-        self.wait_time = wait_start_time
+        self.wait_time = wait_start_time or get_settings().wait_start_time
         self.current_back_path = None
         self.simulate_run_info = None
         self.performance_index = None
@@ -49,6 +52,39 @@ class Scheduler:
         self.run_start_timestamp = None
         self.first_duration = None
         self.del_log = None
+        # 初始化健康检查钩子（分离的集合）
+        self.service_checks = ServiceHealthCheckHook()
+        self.benchmark_checks = BenchmarkHealthCheckHook()
+        # 注册默认检查
+        self._register_default_checks()
+
+    def _register_default_checks(self):
+        """注册默认健康检查（可被子类覆盖）"""
+        # 服务化框架检查
+        for name, func, priority in service_health_checks_hooks:
+            self.service_checks.register(name, func, priority=priority)
+        # 测评框架检查
+        for name, func, priority in benchmark_health_checks_hooks:
+            self.benchmark_checks.register(name, func, priority=priority)
+
+    def _create_check_context(self, elapsed: float) -> HealthCheckContext:
+        """创建检查上下文"""
+        return HealthCheckContext(
+            simulator=self.simulator,
+            benchmark=self.benchmark,
+            scheduler=self,
+            current_time=time.time(),
+            elapsed_time=elapsed
+        )
+
+    def _handle_error(self, error_context: ErrorContext) -> None:
+        """根据错误类型抛出不同的异常"""
+        if error_context.severity == ErrorSeverity.FATAL:
+            logger.error(f"Fatal error: {error_context.message}")
+            raise FatalError(error_context.message)
+        else:  # RETRYABLE
+            logger.warning(f"Retryable error: {error_context.message}")
+            raise RetryableError(error_context.message)
 
     def set_back_up_path(self):
         if self.bak_path:
@@ -62,14 +98,22 @@ class Scheduler:
 
     def wait_simulate(self):
         logger.debug("wait run simulator")
+        start_time = time.time()
         for _ in range(self.wait_time):
             time.sleep(1)
-            if hasattr(self.simulator, "check_success") and self.simulator.check_success():
-                logger.info(f"Successfully started the {self.simulator.process} process.")
-                return
-            if hasattr(self.simulator, "health") and self.simulator.health().stage == Stage.running:
-                logger.info(f"Successfully started the {self.simulator.process} process.")
-                return
+            elapsed = time.time() - start_time
+            context = self._create_check_context(elapsed)
+            # 执行启动检查钩子
+            result = self.service_checks.run(ServiceHookPoint.STARTUP_POLLING, context)
+            if result.is_healthy:
+                if hasattr(self.simulator, "check_success") and self.simulator.check_success():
+                    logger.info(f"Successfully started the {self.simulator.process} process.")
+                    return
+                if hasattr(self.simulator, "health") and self.simulator.health().stage == Stage.running:
+                    logger.info(f"Successfully started the {self.simulator.process} process.")
+                    return
+            else:
+                self._handle_error(result.error_context)
         raise TimeoutError(self.wait_time)
 
     def run_simulate(self, params: np.ndarray, params_field: Tuple[OptimizerConfigField]):
@@ -84,7 +128,17 @@ class Scheduler:
 
     def monitoring_status(self):
         logger.debug("monitor status")
+        start_time = time.time()
         for _ in range(get_settings().particles_time_out):
+            elapsed = time.time() - start_time
+            context = self._create_check_context(elapsed)
+            service_result = self.service_checks.run(ServiceHookPoint.RUNTIME_MONITOR, context)
+            if not service_result.is_healthy:
+                self._handle_error(service_result.error_context)
+            # 测评框架检查
+            benchmark_result = self.benchmark_checks.run(BenchmarkHookPoint.RUNTIME_MONITOR, context)
+            if not benchmark_result.is_healthy:
+                self._handle_error(benchmark_result.error_context)
             if hasattr(self.simulator, "check_success"):
                 if is_mindie() or is_vllm():
                     if self.simulator.process.poll() is not None:
@@ -115,39 +169,34 @@ class Scheduler:
         2. 启动benchmark 测试
         3. 检查mindie状态，检查benchmark状态
         """
-        for _ in range(self.retry_number):
+        for attempt  in range(self.retry_number):
             try:
+                # 1. 启动 simulator（wait_simulate 内部会运行钩子检查）
                 self.run_simulate(params, params_field)
-            except Exception as e:
-                logger.error(f"Failed in simulator Running. error: {e}, \n"
-                             f"simulator log {self.simulator.run_log}. \n"
-                             f"log last info \n{self.simulator.get_last_log()}")
-                logger.exception("what?!")
-                self.stop_target_server(False)
-                continue
-            time.sleep(1)
-            try:
+                time.sleep(1)
+                # 2. 启动 benchmark
                 self.benchmark.run(tuple(self.simulate_run_info))
-            except Exception as e:
-                logger.error(f"Failed in Benchmark Running. error: {e},\n"
-                             f"benchmark log {self.benchmark.run_log},\n"
-                             f"log last info \n{self.benchmark.get_last_log()}")
-                self.stop_target_server(False)
-                continue
-            time.sleep(1)
-            try:
+                time.sleep(1)
+                # 3. 监控状态（monitoring_status 内部会运行钩子检查）
                 self.monitoring_status()
-            except Exception as e:
+                # 成功完成
+                return
+            except FatalError as e:
+                # 致命错误（钩子检测到 OOM、设备错误等）立即退出，不重试
+                logger.error(f"Fatal error in run_target_server (attempt {attempt + 1}/{self.retry_number}): {e}, \n"
+                             f"simulator log: {self.simulator.run_log}, \n"
+                             f"log last info: {self.simulator.get_last_log()}")
                 self.stop_target_server(False)
-                logger.error(f"Failed in monitoring status. error: {e}, \n"
-                             f"simulator log {self.simulator.run_log}, \n"
-                             f"log last info {self.simulator.get_last_log()}.\n"
-                             f"benchmark log {self.benchmark.run_log}, \n"
-                             f"log last info \n{self.benchmark.get_last_log()}.")
+                raise
+            except RetryableError as e:
+                # 可重试错误（网络抖动、IO错误等）继续重试
+                logger.warning(
+                    f"Retryable error in run_target_server (attempt {attempt + 1}/{self.retry_number}): {e}, \n"
+                    f"simulator log: {self.simulator.run_log}, \n"
+                    f"log last info: {self.simulator.get_last_log()}")
+                self.stop_target_server(False)
                 continue
-            return
-        raise ValueError(
-            f"Failed in run_target_server")
+        raise ValueError(f"Failed in run_target_server after {self.retry_number} attempts")
 
     def stop_target_server(self, del_log: bool = False):
         self.simulator.stop(del_log)

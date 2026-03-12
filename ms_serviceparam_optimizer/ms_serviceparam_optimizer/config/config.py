@@ -16,14 +16,13 @@
 import bisect
 import json
 import os
-import time
 from collections.abc import Callable
 from copy import deepcopy
 from enum import Enum
 from inspect import isfunction
 from math import isinf, isclose
 from pathlib import Path
-from typing import Any, List, Tuple, Type, Optional, Union
+from typing import Any, List, Tuple, Type, Optional, Union, Dict
 
 import numpy as np
 from loguru import logger
@@ -35,7 +34,7 @@ from ..config.custom_command import VllmBenchmarkCommandConfig, \
     MindieCommandConfig, VllmCommandConfig, AisBenchCommandConfig, KubectlCommandConfig
 
 from .base_config import (
-    INSTALL_PATH, RUN_PATH, ServiceType, CUSTOM_OUTPUT, DeployPolicy, RUN_TIME,	
+    INSTALL_PATH, RUN_PATH, ServiceType, CUSTOM_OUTPUT, DeployPolicy, RUN_TIME,
     ms_serviceparam_optimizer_config_path, MODEL_EVAL_STATE_CONFIG_PATH, AnalyzeTool, BenchMarkPolicy,
 )
 
@@ -62,6 +61,21 @@ class Stage(Enum):
     stop = "stop"
 
 
+class ErrorSeverity(Enum):
+    """错误严重程度"""
+    FATAL = "fatal"
+    RETRYABLE = "retryable"
+
+
+class ErrorType(Enum):
+    """错误类型分类"""
+    OUT_OF_MEMORY = "out_of_memory"
+    DEVICE_ERROR = "device_error"
+    NETWORK_ERROR = "network_error"
+    IO_ERROR = "io_error"
+    UNKNOWN = "unknown"
+
+
 class ProcessState(BaseModel):
     stage: Stage = Stage.start
     info: str = ""
@@ -86,12 +100,12 @@ class OptimizerConfigField(BaseModel):
             self.min = self.max = self.constant
         elif self.constant is None and isclose(self.min, self.max, rel_tol=1e-5) and self.dtype in dtype_func.keys():
             self.constant = dtype_func.get(self.dtype, float)(self.max)
- 
+
         return self
- 
+
     def convert_dtype(self, value):
         return dtype_func.get(self.dtype, float)(value)
- 
+
     def find_available_value(self, value):
         _new_value = dtype_func.get(self.dtype, float)(value)
         if self.dtype == "enum":
@@ -111,7 +125,6 @@ class OptimizerConfigField(BaseModel):
                 return dtype_func.get(self.dtype, float)(self.min)
             else:
                 return dtype_func.get(self.dtype, float)(self.max)
-
 
 
 default_support_field = [
@@ -203,7 +216,7 @@ def update_optimizer_value(params_field: Tuple[OptimizerConfigField, ...],
             if _field.value == 0:
                 _field.value = 1
         if support_select_is_false:
-            # prefillTimeMsPerReq和decodeTimeMsPerReq在“supportSelectBatch”设置为“true”时生效。
+            # prefillTimeMsPerReq和decodeTimeMsPerReq在"supportSelectBatch"设置为"true"时生效。
             _field = simulate_run_info[i]
             if "prefillTimeMsPerReq" in _field.config_position:
                 _field.value = 0
@@ -293,7 +306,7 @@ def reverse_special_field(params_field: Tuple[OptimizerConfigField, ...], params
 
 
 def field_to_param(params_field: Tuple[OptimizerConfigField, ...]):
-    concurrency = request_rate = None
+    concurrency = None
     _params = []
     for _, v in enumerate(params_field):
         if v.constant is not None or isclose(v.min, v.max, rel_tol=1e-5):
@@ -450,6 +463,38 @@ class PsoStrategy(BaseModel):
     c2: str = "exp_decay"
 
 
+class ErrorPatternConfig(BaseModel):
+    """错误模式配置 - 3层设计：ErrorType -> patterns -> severity"""
+    fatal_patterns: Dict[ErrorType, List[str]] = Field(
+        default_factory=lambda: {
+            ErrorType.OUT_OF_MEMORY: ["out of memory", "OOM", "memory allocation failed", "Engine core initialization failed",
+                                      "RuntimeError"],
+            ErrorType.DEVICE_ERROR: ["device error", "NPU error", "device fault", "compute error"]
+        }
+    )
+    retryable_patterns: Dict[ErrorType, List[str]] = Field(
+        default_factory=lambda: {
+            ErrorType.NETWORK_ERROR: ["connection reset", "network unreachable", "timeout", "connection refused"],
+            ErrorType.IO_ERROR: ["file not found", "permission denied", "IO error", "no space left"]
+        }
+    )
+
+
+class HealthCheckConfig(BaseModel):
+    """健康检查配置"""
+    service_errors: ErrorPatternConfig = Field(default_factory=lambda: ErrorPatternConfig())
+    benchmark_errors: ErrorPatternConfig = Field(
+        default_factory=lambda: ErrorPatternConfig(
+            fatal_patterns={},
+            retryable_patterns={
+                ErrorType.NETWORK_ERROR: ["connection reset", "network unreachable", "timeout", "connection refused"],
+                ErrorType.IO_ERROR: ["file not found", "permission denied", "IO error", "no space left"]
+            }
+        )
+    )
+    log_snippet_length: int = 50
+
+
 class Settings(BaseSettings):
     """
     设置类的定义，通过读取配置文件初始化配置
@@ -458,7 +503,7 @@ class Settings(BaseSettings):
         toml_file=[INSTALL_PATH.joinpath("model_eval_state.toml"), Path("~/model_eval_state.toml").expanduser(),
                    RUN_PATH.joinpath("model_eval_state.toml"),
                    INSTALL_PATH.joinpath("config.toml"), INSTALL_PATH.joinpath("ms_serviceparam_optimizer/config.toml"),
-                   Path("~/config.toml").expanduser(), RUN_PATH.joinpath("config.toml"), ms_serviceparam_optimizer_config_path], 
+                   Path("~/config.toml").expanduser(), RUN_PATH.joinpath("config.toml"), ms_serviceparam_optimizer_config_path],
         env_prefix="model_eval_state_")
 
     output: Path = Field(default_factory=lambda: Path(os.getcwd()).joinpath("result").resolve(), validate_default=True)
@@ -467,6 +512,7 @@ class Settings(BaseSettings):
     pso_options: PsoOptions = PsoOptions()
     pso_strategy: PsoStrategy = PsoStrategy()
     particles_time_out: int = 1 * 60 * 60
+    wait_start_time: int = 1800
     n_particles: int = Field(default=5, gt=0, lt=1000)
     iters: int = Field(default=10, gt=0, lt=1000)
     ftol: float = -np.inf
@@ -497,7 +543,7 @@ class Settings(BaseSettings):
     mindie: MindieConfig = Field(default_factory=lambda data: MindieConfig(output=data["output"].joinpath("mindie")),
                                  validate_default=True)
     kubectl: KubectlConfig = Field(default_factory=lambda data: KubectlConfig(output=data["output"].joinpath("k8s")),
-                                 validate_default=True)
+                                   validate_default=True)
     ais_bench: AisBenchConfig = AisBenchConfig()
 
     vllm_benchmark: VllmBenchmarkConfig = VllmBenchmarkConfig()
@@ -506,6 +552,8 @@ class Settings(BaseSettings):
     data_storage: DataStorageConfig = Field(
         default_factory=lambda data: DataStorageConfig(store_dir=data["output"].joinpath("store")),
         validate_default=True)
+
+    health_check: HealthCheckConfig = Field(default_factory=HealthCheckConfig)
 
     @classmethod
     def settings_customise_sources(
@@ -573,7 +621,7 @@ class Settings(BaseSettings):
             return self
         with open_s(self.mindie.config_path, "r") as f:
             try:
-                mindie_config = json.load(f)
+                json.load(f)
             except json.decoder.JSONDecodeError as e:
                 logger.error(f"Failed in load {self.mindie.config_path!r}. error: {e}")
                 raise e

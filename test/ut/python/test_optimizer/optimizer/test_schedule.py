@@ -22,14 +22,16 @@ import numpy as np
 import pytest
 
 from ms_serviceparam_optimizer.config.config import (
-    CommunicationConfig, map_param_with_value, 
+    CommunicationConfig, map_param_with_value,
     get_settings, default_support_field, Stage,
-    OptimizerConfigField, PerformanceIndex
+    OptimizerConfigField, PerformanceIndex, ErrorSeverity, ErrorType
 )
 from ms_serviceparam_optimizer.optimizer.communication import CommunicationForFile, CustomCommand
-from ms_serviceparam_optimizer.optimizer.scheduler import ScheduleWithMultiMachine
+from ms_serviceparam_optimizer.optimizer.scheduler import ScheduleWithMultiMachine, Scheduler
 from ms_serviceparam_optimizer.config.base_config import FOLDER_LIMIT_SIZE
-from ms_serviceparam_optimizer.optimizer.scheduler import Scheduler
+from ms_serviceparam_optimizer.optimizer.health_check import (
+    FatalError, ErrorContext, RetryableError, ServiceHookPoint, BenchmarkHookPoint
+)
 
 
 class TestScheduleWithMultiMachine:
@@ -179,6 +181,8 @@ class TestScheduler(unittest.TestCase):
         self.data_storage = MagicMock()
         self.bak_path = MagicMock()
         self.scheduler = Scheduler(self.simulator, self.benchmark, self.data_storage, self.bak_path)
+        # 初始化 simulate_run_info 避免每个测试方法重复设置
+        self.scheduler.simulate_run_info = ()
 
     @patch('ms_serviceparam_optimizer.optimizer.utils.get_folder_size')
     def test_set_back_up_path_folder_size_exceeds_limit(self, mock_get_folder_size):
@@ -213,6 +217,76 @@ class TestScheduler(unittest.TestCase):
         self.scheduler.monitoring_status = MagicMock(side_effect=Exception('Monitoring error'))
         with self.assertRaises(Exception):
             self.scheduler.run_target_server(np.array([1, 2, 3]), ('field1', 'field2'))
+
+    def test_health_check_initialization(self):
+        """测试健康检查钩子的初始化"""
+        self.assertIsNotNone(self.scheduler.service_checks)
+        self.assertIsNotNone(self.scheduler.benchmark_checks)
+        self.assertIsInstance(self.scheduler.service_checks._hooks, dict)
+        self.assertIsInstance(self.scheduler.benchmark_checks._hooks, dict)
+
+    def test_register_default_checks(self):
+        """测试注册默认健康检查"""
+        self.assertIn(ServiceHookPoint.STARTUP_POLLING, self.scheduler.service_checks._hooks)
+        self.assertIn(ServiceHookPoint.RUNTIME_MONITOR, self.scheduler.service_checks._hooks)
+        self.assertIn(BenchmarkHookPoint.RUNTIME_MONITOR, self.scheduler.benchmark_checks._hooks)
+
+    def test_create_check_context(self):
+        """测试创建健康检查上下文"""
+        elapsed = 10.0
+        context = self.scheduler._create_check_context(elapsed)
+        self.assertEqual(context.simulator, self.simulator)
+        self.assertEqual(context.benchmark, self.benchmark)
+        self.assertEqual(context.scheduler, self.scheduler)
+        self.assertEqual(context.elapsed_time, elapsed)
+        self.assertFalse(context.startup)
+
+    def test_handle_fatal_error(self):
+        """测试处理致命错误（抛出 FatalError）"""
+        error_context = ErrorContext(
+            error_type=ErrorType.OUT_OF_MEMORY,
+            severity=ErrorSeverity.FATAL,
+            message="OOM detected"
+        )
+        with self.assertRaises(FatalError) as cm:
+            self.scheduler._handle_error(error_context)
+        self.assertEqual(str(cm.exception), "OOM detected")
+
+    def test_handle_retryable_error(self):
+        """测试处理可重试错误（抛出 RetryableError）"""
+        error_context = ErrorContext(
+            error_type=ErrorType.NETWORK_ERROR,
+            severity=ErrorSeverity.RETRYABLE,
+            message="Network error"
+        )
+        with self.assertRaises(RetryableError) as cm:
+            self.scheduler._handle_error(error_context)
+        self.assertEqual(str(cm.exception), "Network error")
+
+    @patch('time.sleep')
+    @patch('ms_serviceparam_optimizer.optimizer.scheduler.Scheduler.wait_simulate')
+    def test_run_target_server_fatal_no_retry(self, mock_wait, _):
+        """测试致命错误不重试，立即抛出"""
+        mock_wait.side_effect = FatalError("OOM error")
+        with self.assertRaises(FatalError):
+            self.scheduler.run_target_server(np.array([1, 2, 3]), ('field1', 'field2', 'field3'))
+        self.assertEqual(mock_wait.call_count, 1)
+
+    @patch('time.sleep')
+    @patch('ms_serviceparam_optimizer.optimizer.scheduler.Scheduler.monitoring_status')
+    @patch('ms_serviceparam_optimizer.optimizer.scheduler.Scheduler.wait_simulate')
+    def test_run_target_server_retryable_with_retry(self, mock_wait, _, mock_sleep):
+        """测试可重试错误会重试"""
+        mock_wait.side_effect = [
+            RetryableError("Network error"),
+            RetryableError("IO error"),
+            None
+        ]
+        self.simulator.health.return_value = MagicMock(stage=Stage.running)
+        self.scheduler.wait_time = 1
+
+        self.scheduler.run_target_server(np.array([1, 2, 3]), ('field1', 'field2', 'field3'))
+        self.assertEqual(mock_wait.call_count, 3)
 
 
 class TestSchedulerRunMethods(unittest.TestCase):
