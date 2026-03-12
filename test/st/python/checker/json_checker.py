@@ -34,8 +34,7 @@ def validate_json_keys(file_path: str) -> bool:
     # 预期的键集合
     expected_keys = {
         "enable", "prof_dir", "profiler_level", "acl_task_time",
-        "acl_prof_task_time_level", "api_filter", "kernel_filter",
-        "timelimit", "domain"
+        "acl_prof_task_time_level", "timelimit", "domain"
     }
     
     # 获取实际键集合
