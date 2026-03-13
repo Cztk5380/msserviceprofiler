@@ -58,7 +58,10 @@ function implement_install() {
 	  # install whl
     install_whl_package $pylocal ms_service_profiler-*.whl ${install_path%/}/python/site-packages
     # libms_service_profiler.so
+    lib64_right=$(stat -c "%a" ${install_path}/${arch_name}/lib64 2>/dev/null)
+    chmod -R ${right} ${install_path}/${arch_name}/lib64
     copy_file ${install_path%/}/python/site-packages/ms_service_profiler/${LIB_MS_SERVICE_PROFILER} ${install_path}/${arch_name}/lib64/${LIB_MS_SERVICE_PROFILER}
+    chmod -R ${lib64_right} ${install_path}/${arch_name}/lib64
     if [ $? -ne 0 ]; then
         print_log "ERROR" "Install msserviceprofiler whl failed."
         return 1
