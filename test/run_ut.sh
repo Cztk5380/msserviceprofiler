@@ -159,6 +159,7 @@ function run_ms_service_profiler_cpp_ut() {
         cmake --build ${BUILD_DIR} --target ${UT_TARGET} ${ST_TARGET} -j$(nproc)
     fi
 
+    export LD_LIBRARY_PATH=${BUILD_DIR}/3rdparty/ascend:$LD_LIBRARY_PATH
     ${BUILD_TEST_DIR}/${UT_TARGET}
     ${BUILD_TEST_DIR}/${ST_TARGET}
 }

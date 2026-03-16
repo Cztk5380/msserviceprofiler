@@ -6,6 +6,8 @@ find_package(Protobuf REQUIRED
     NO_DEFAULT_PATH
 )
 
+set(CMAKE_SKIP_RPATH TRUE)
+
 file(GLOB_RECURSE PROFILER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 add_library(ms_service_profiler SHARED
     ${PROFILER_SRC}
