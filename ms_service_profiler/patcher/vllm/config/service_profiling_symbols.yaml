@@ -70,10 +70,6 @@
   min_version: "0.9.1"
   handler: ms_service_profiler.patcher.vllm.handlers.v1.mtp_handlers:propose_draft_token_ids_npu
 
-- symbol: vllm_ascend.sample.rejection_sampler:AscendRejectionSampler.forward
-  min_version: "0.9.1"
-  handler: ms_service_profiler.patcher.vllm.handlers.v1.mtp_handlers:capture_rejection_output
-
 - symbol: vllm_ascend.sample.rejection_sampler:rejection_sample
   min_version: "0.9.1"
   handler: ms_service_profiler.patcher.vllm.handlers.v1.mtp_handlers:capture_rejection_output
@@ -90,9 +86,6 @@
 - symbol: vllm.v1.engine.output_processor:OutputProcessor.process_outputs
   min_version: "0.9.1"
   handler: ms_service_profiler.patcher.vllm.handlers.v1.request_handlers:process_outputs
-
-# ===== Multimodal Input Embedding（方案 C：一条模式覆盖 models 下所有 embed_multimodal） =====
-
 
 # ===== Meta =====
 
