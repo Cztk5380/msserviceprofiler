@@ -14,16 +14,27 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 
-import json
-import torch
-import torch_npu
 from ms_service_profiler.mstx import service_profiler
-from ms_service_profiler.profiler import Level
 from ms_service_profiler.utils.log import logger
 from ms_service_profiler.patcher.sglang import get_shared_state
 
+try:
+    import torch
+except ImportError:
+    torch = None  # type: ignore
+
+try:
+    import torch_npu
+except ImportError:
+    torch_npu = None  # type: ignore
+
+
 
 def torch_profiler_register():
+    if torch_npu is None:
+        logger.warning("[Torch Profiler] torch_npu not available, skip register_torch_profiler")
+        return
+
     step_num = service_profiler.get_torch_prof_step_num()
 
     if step_num and step_num > 0:
@@ -96,11 +107,20 @@ def prof_build():
     
 
 def prof_start():
+    if torch_npu is None:
+        return
     state = get_shared_state()
+    if not isinstance(state._rank, int):
+        logger.warning("[Torch Profiler] Invalid device id (%s), profiler start aborted", state._rank)
+        return
     torch.npu.set_device(state._rank)
-    state.torch_prof.start()
+    if hasattr(state, 'torch_prof'):
+        state.torch_prof.start()
+        logger.info("[Torch Profiler] Torch Profiler started")
 
 
 def prof_stop():
     state = get_shared_state()
-    state.torch_prof.stop()
+    if hasattr(state, 'torch_prof'):
+        state.torch_prof.stop()
+        logger.info("[Torch Profiler] Torch Profiler stopped")

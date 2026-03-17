@@ -22,6 +22,7 @@ from ..core.logger import set_log_level, logger
 from .service_patcher import SGLangPatcher
 from ...mstx import service_profiler as mstx_profiler
 from ms_service_profiler.patcher.core.utils import get_shared_state
+from ms_service_profiler.patcher.sglang.handlers.torch_profiler import torch_profiler_register
 
 
 set_log_level("info")  # Default is info, put here for user changes
@@ -57,9 +58,14 @@ def register_service_profiler():
 
 
 def patch_model_runner_with_torch_profiler():
-    import sglang.srt.model_executor.model_runner
-    from sglang.srt.model_executor.model_runner import ModelRunner
-    from ms_service_profiler.patcher.sglang.handlers.torch_profiler import torch_profiler_register
+    """Patch SGLang ModelRunner.load_model to register torch profiler."""
+    try:
+        from sglang.srt.model_executor.model_runner import ModelRunner
+    except ImportError:
+        logger.warning(
+            "[Torch Profiler] Failed to import SGLang ModelRunner, skip torch profiler patching for SGLang."
+        )
+        return
 
     original_load_model = ModelRunner.load_model
 
@@ -72,14 +78,19 @@ def patch_model_runner_with_torch_profiler():
 
 
 def patch_model_runner_init_torch_distributed():
+    """Patch SGLang ModelRunner.init_torch_distributed to record NPU rank."""
+    try:
+        from sglang.srt.model_executor.model_runner import ModelRunner
+    except ImportError:
+        logger.warning(
+            "[Torch Profiler] Failed to import SGLang ModelRunner, skip init_torch_distributed patching for SGLang."
+        )
+        return
 
-    import sglang.srt.model_executor.model_runner
-    from sglang.srt.model_executor.model_runner import ModelRunner
     state = get_shared_state()
     original_init_torch_distributed = ModelRunner.init_torch_distributed
 
     def new_init_torch_distributed(self, *args, **kwargs):
-
         result = original_init_torch_distributed(self, *args, **kwargs)
         with state._lock:
             state._rank = self.gpu_id

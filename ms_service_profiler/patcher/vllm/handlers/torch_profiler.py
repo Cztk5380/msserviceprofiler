@@ -34,7 +34,7 @@ pointer = None
 
 def register_torch_profiler():
     if torch_npu is None:
-        logger.debug("torch_npu not available, skip register_torch_profiler")
+        logger.warning("[Torch Profiler] torch_npu not available, skip register_torch_profiler")
         return
     patch_model_runner_with_torch_profiler_register()
     patch_model_runner_with_torch_profiler_enable()
@@ -47,7 +47,7 @@ def patch_model_runner_with_torch_profiler_enable():
         try:
             from vllm_ascend.worker.worker_v1 import NPUWorker
         except ImportError:
-            logger.warning("NPUWorker not available, skip register_torch_profiler")
+            logger.warning("[Torch Profiler] NPUWorker not available, skip register_torch_profiler")
             return
     
     def new_profile(self, is_start):
@@ -65,7 +65,7 @@ def patch_model_runner_with_torch_profiler_register():
         import vllm.v1.engine.core
         from vllm.v1.engine.core import EngineCore
     except ImportError:
-        logger.warning("EngineCore not available, skip register_torch_profiler")
+        logger.warning("[Torch Profiler] EngineCore not available, skip register_torch_profiler")
         return
     
     original_init = EngineCore._initialize_kv_caches
@@ -100,7 +100,7 @@ def torch_profiler_register():
     
 def prof_build():
     if torch_npu is None:
-        logger.debug("torch_npu not available, skip prof_build")
+        logger.warning("[Torch Profiler] torch_npu not available, skip prof_build") 
         return
     task_level_map = {
         "L0": torch_npu.profiler.ProfilerLevel.Level0,
@@ -166,6 +166,7 @@ def prof_start():
     state = get_shared_state()
     if hasattr(state, 'torch_prof'):
         state.torch_prof.start()
+        logger.info("[Torch Profiler] Torch Profiler started")
 
 
 def prof_stop():
@@ -174,3 +175,5 @@ def prof_stop():
     state = get_shared_state()
     if hasattr(state, 'torch_prof'):
         state.torch_prof.stop()
+        logger.info("[Torch Profiler] Torch Profiler stopped")
+        
