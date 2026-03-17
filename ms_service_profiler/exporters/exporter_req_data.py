@@ -26,7 +26,6 @@ from ms_service_profiler.exporters.utils import (
     write_result_to_db, check_domain_valid
 )
 
-
 def is_invaild_rid(rid):
     return ',' in rid or '{' in rid or ':' in rid
 
@@ -183,13 +182,20 @@ class ExporterReqData(ExporterBase):
         ]
         filtered_df = req_base_info.reindex(columns=required_colunms)
 
+        # 将可能混有 '' 与数值的列转为数值，避免 sort_values / .eq(0) 时 Float64 与 Str 比较触发 ufunc 错误
+        numeric_cols = ['start_time', 'recvTokenSize=', 'replyTokenSize=', 'execution_time']
+        for col in numeric_cols:
+            if col in filtered_df.columns:
+                filtered_df[col] = pd.to_numeric(filtered_df[col], errors='coerce')
+
         check_columns = ['recvTokenSize=', 'replyTokenSize=', 'execution_time']
 
         if filtered_df[check_columns].eq(0).all().all() or \
-            filtered_df[check_columns].isna().all().all() or \
-            filtered_df[check_columns].eq("").all().all():
-            logger.warning(f"The data is not complete for request.csv, " \
-                "prof data recv request or reply request was not captured. please check.")
+            filtered_df[check_columns].isna().all().all():
+            logger.warning(
+                "The data is not complete for request.csv, "
+                "prof data recv request or reply request was not captured. please check."
+            )
             return
 
         # 数据完整性检查之后，重命名之前添加排序逻辑
