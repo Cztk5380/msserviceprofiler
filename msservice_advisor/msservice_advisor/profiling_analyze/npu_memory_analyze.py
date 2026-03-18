@@ -166,7 +166,7 @@ def get_npu_ids_map():
             cmd, text=True, stderr=subprocess.STDOUT
         )
     except Exception as e:
-        raise RuntimeError(f"Command 'npu-smi info -m' failed: {e}") from e
+        raise RuntimeError("Command 'npu-smi info -m' failed")
 
     header_line, col_map = check_vaild_smi_output(output)
 
@@ -236,7 +236,7 @@ def cal_npu_gm_memory(npu_id):
 
         return cal_available_gm_memory(gm_capacity, gm_usage)
     except Exception as e:
-        logger.warning(f"Command npu-smi info -i $npu_id -t usages parse failed due to {e}")
+        logger.warning("Command npu-smi info -i $npu_id -t usages parse failed")
         return 0
 
 
