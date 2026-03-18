@@ -91,6 +91,9 @@ int NpuMemoryUsage::DcmiGetDeviceIdInCard(int cardId, int *deviceIdMax) const
     }
     DcmiGetDeviceIdInCardFunc dcmiGetDeviceIdInCard =
         (DcmiGetDeviceIdInCardFunc)dlsym(handleDcmi, "dcmi_get_device_id_in_card");
+    if (dcmiGetDeviceIdInCard == nullptr) {
+        return EXITCODE_EMPTY_DCMI_HANDLER;
+    }
     int mcuId = 0;
     int cpuId = 0;
     int ret = dcmiGetDeviceIdInCard(cardId, deviceIdMax, &mcuId, &cpuId);
@@ -118,6 +121,9 @@ int NpuMemoryUsage::DcmiGetDeviceHbmInfo(int cardId, int deviceId, struct dsmi_h
     }
     DcmiGetDeviceHbmInfoFunc dcmiGetDeviceHbmInfo =
         (DcmiGetDeviceHbmInfoFunc) dlsym(handleDcmi, "dcmi_get_device_hbm_info");
+    if (dcmiGetDeviceHbmInfo == nullptr) {
+        return EXITCODE_EMPTY_DCMI_HANDLER;
+    }
     int ret = dcmiGetDeviceHbmInfo(cardId, deviceId, hbmInfo);
     return ret;
 }

@@ -841,18 +841,24 @@ void Config::SaveConfigToJsonFile() const
             return;
         }
         close(fd);
+
+        std::string tempFilePathStr(tempPath.data());
+
         char realTempPath[PATH_MAX + 1] = {0};
         if (realpath(tempPath.data(), realTempPath) == nullptr) {
             PROF_LOGW("Failed to canonicalize path: %s", strerror(errno));  // LCOV_EXCL_LINE
+            remove(tempFilePathStr.c_str());
             return;
         }
         if (!SecurityUtils::CheckFileBeforeWrite(realTempPath)) {
+            remove(tempFilePathStr.c_str());
             return;
         }
         PROF_LOGD("file generation in the path %s", realTempPath);  // LCOV_EXCL_LINE
         std::ofstream outputFile(realTempPath);
         if (!outputFile.is_open()) {
             PROF_LOGW("Automatic config file generation failed %s", realTempPath);  // LCOV_EXCL_LINE
+            remove(tempFilePathStr.c_str());
             return;
         }
         outputFile << GetConfigData().dump(jsonIndentSize);
