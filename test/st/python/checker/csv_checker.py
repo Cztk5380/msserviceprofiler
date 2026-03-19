@@ -50,7 +50,7 @@ def check_req_csv(output_path, complete_req_cnt=0):
 
         # 完整的请求数量
         if complete_req_cnt > 0:
-            assert df.size == complete_req_cnt, f"request count not match. expected {complete_req_cnt}"
+            assert len(df) == complete_req_cnt, f"request count not match. expected {complete_req_cnt}, got {len(df)}"
             # recv_token_size和 reply_token_size 是否有值
             check_df_col_has_no_nan_value(df, "recv_token_size")
             check_df_col_has_no_nan_value(df, "reply_token_size")
@@ -124,6 +124,10 @@ def check_kvcache_csv(output_path, complete_req_cnt=0):
             if "KVCacheStatus" in unique_names:
                 # 新版本校验逻辑：只检查 KVCacheStatus
                 check_df_col_has_value(df, "name", "KVCacheStatus", empty_enable=(complete_req_cnt == 0))
+            elif "allocate" in unique_names:
+                # SGLang 检查 allocate 和 free
+                check_df_col_has_value(df, "name", "allocate", empty_enable=(complete_req_cnt == 0))
+                check_df_col_has_value(df, "name", "free", empty_enable=(complete_req_cnt == 0))
             elif "Free" in unique_names or "Allocate" in unique_names or "AppendSlot" in unique_names:
                 # 旧版本校验逻辑：检查 Free/Allocate/AppendSlot
                 check_df_col_has_value(df, "name", "Free", complete_req_cnt, empty_enable=(complete_req_cnt == 0))
@@ -131,7 +135,10 @@ def check_kvcache_csv(output_path, complete_req_cnt=0):
                 check_df_col_has_value(df, "name", "AppendSlot", empty_enable=(complete_req_cnt == 0))
             else:
                 # 未知格式，报错
-                assert False, f"Unknown kvcache data format. Expected name values: KVCacheStatus or Free/Allocate/AppendSlot, got: {unique_names}"
+                assert False, (
+                    f"Unknown kvcache data format. Expected name values: "
+                    f"KVCacheStatus, allocate/free, or Free/Allocate/AppendSlot, got: {unique_names}"
+                )
 
 
 def check_forward_csv(output_path, card_nums=0, device_nums=0):

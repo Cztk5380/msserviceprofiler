@@ -111,6 +111,40 @@ def check_kvcache_table(conn, complete_req_cnt=0):
             check_and_get_df_from_table(conn, cursor, table_name, expected_header, complete_req_cnt == 0)
 
 
+def check_sglang_db_tables(conn, complete_req_cnt=0):
+    """SGLang 场景下校验 profiler.db：kvcache 表及 insight 相关表（counter/flow/process/slice/thread/batch/request/data_table）"""
+    allow = complete_req_cnt == 0
+    with sqlite_cursor(conn) as cursor:
+        with check("kvcache"):
+            check_and_get_df_from_table(
+                conn, cursor, "kvcache",
+                ["name", "start_datetime", "total_blocks", "kvcache_usage_rate"],
+                allow,
+            )
+        with check("counter"):
+            check_and_get_df_from_table(conn, cursor, "counter", ["id", "name", "pid", "args", "timestamp"], allow)
+        with check("flow"):
+            check_and_get_df_from_table(
+                conn, cursor, "flow", ["id", "flow_id", "name", "cat", "timestamp", "track_id", "type"], allow
+            )
+        with check("process"):
+            check_and_get_df_from_table(conn, cursor, "process", ["pid", "process_name", "process_sort_index"], allow)
+        with check("slice"):
+            check_and_get_df_from_table(
+                conn, cursor, "slice", ["id", "timestamp", "duration", "name", "track_id", "args", "end_time"], allow
+            )
+        with check("thread"):
+            check_and_get_df_from_table(conn, cursor, "thread", ["tid", "pid", "thread_name", "track_id"], allow)
+        with check("batch"):
+            check_and_get_df_from_table(conn, cursor, "batch", ["name", "res_list", "batch_size", "batch_type"], allow)
+        with check("request"):
+            check_and_get_df_from_table(
+                conn, cursor, "request", ["http_rid", "recv_token_size", "reply_token_size"], allow
+            )
+        with check("data_table"):
+            check_and_get_df_from_table(conn, cursor, "data_table", ["id", "name", "view_name"], allow)
+
+
 def check_req_status_table(conn, complete_req_cnt=0):
     table_name = "request_status"
     with sqlite_cursor(conn) as cursor:

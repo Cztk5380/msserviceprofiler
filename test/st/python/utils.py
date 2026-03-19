@@ -17,12 +17,70 @@
 import subprocess
 import os
 import re
+import time
 import pandas as pd
 import pytest
 import logging
 import sqlite3
+from typing import List, Optional, Tuple
 
 COMMAND_SUCCESS = 0
+
+
+def detect_free_npu_card(max_devices: int = 4) -> Optional[List[int]]:
+    """
+    检测 NPU 上哪张卡剩余空闲（可用显存最多）。
+    通过 npu-smi info -i {device_id} -t usages 查询各卡显存占用，选取可用显存最多的卡号。
+    多人并发时：多卡可用显存相近时，按 pid+时间戳 分散到不同卡，避免抢同一张卡。
+
+    返回:
+        卡号列表，按优先级排序（首选在前），用于重试时依次换卡。检测失败时返回 None。
+    """
+    candidates: List[Tuple[int, float]] = []  # (device_id, available_mb)
+    for device_id in range(max_devices):
+        try:
+            cmd = ["npu-smi", "info", "-i", str(device_id), "-t", "usages"]
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode != 0:
+                continue
+            output = result.stdout or ""
+            capacity_mb = None
+            usage_pct = None
+            for line in output.splitlines():
+                line = line.strip()
+                cap_match = re.search(r"Capacity\(MB\)\s*:\s*(\d+)", line, re.I)
+                if cap_match:
+                    capacity_mb = int(cap_match.group(1))
+                    continue
+                usage_match = re.search(
+                    r"(?:Usage\s+Rate|Usage\s+Rate\(%\))\s*:\s*(\d+)", line, re.I
+                )
+                if usage_match:
+                    usage_pct = int(usage_match.group(1))
+                    continue
+            if capacity_mb is not None and usage_pct is not None:
+                available_mb = capacity_mb * (1 - usage_pct / 100.0)
+                candidates.append((device_id, available_mb))
+        except (subprocess.TimeoutExpired, ValueError, OSError):
+            continue
+    if not candidates:
+        return None
+    # 按可用显存降序
+    candidates.sort(key=lambda x: x[1], reverse=True)
+    best_available_mb = candidates[0][1]
+    # 多人并发：显存相近的卡（差距 < 10%）按 pid+毫秒时间戳 分散，降低同时拉起时撞卡概率
+    similar = [(d, m) for d, m in candidates if m >= best_available_mb * 0.9]
+    if len(similar) > 1:
+        idx = (os.getpid() + int(time.time() * 1000)) % len(similar)
+        ordered = similar[idx:] + similar[:idx]
+    else:
+        ordered = similar
+    return [d for d, _ in ordered]
 
 
 def execute_cmd(cmd):

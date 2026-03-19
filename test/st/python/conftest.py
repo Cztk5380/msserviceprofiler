@@ -31,6 +31,13 @@ def pytest_addoption(parser):
     )
     parser.addoption("--dataset-path", action="store", default="/dataset", help="dataset path")
     parser.addoption("--model-path", action="store", default="/model", help="model path")
+    parser.addoption(
+        "--sglang-port",
+        action="store",
+        type=int,
+        default=None,
+        help="SGLang server port (default: auto 7399+pid%%10000 for concurrent runs)",
+    )
     parser.addoption("--workspace", action="store", default="/workspace", help="workspace path")
     parser.addoption("--debug-mode", action="store", type=bool, default=False, help="debug")
 
@@ -54,6 +61,15 @@ def dataset_path(request):
 @pytest.fixture(scope="session")
 def model_path(request):
     return request.config.getoption("--model-path")
+
+
+@pytest.fixture(scope="session")
+def sglang_port(request):
+    port = request.config.getoption("--sglang-port")
+    if port is not None:
+        return port
+    # 多人并发时避免端口冲突：7399 + pid % 10000
+    return 7399 + (os.getpid() % 10000)
 
 
 @pytest.fixture(scope="session")
