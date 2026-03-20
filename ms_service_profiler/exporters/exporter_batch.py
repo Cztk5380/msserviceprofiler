@@ -101,11 +101,11 @@ def filter_batch_df(batch_name, batch_df, tx_data_df=None):
         if col in filtered_df.columns:
             filtered_df[col] = filtered_df[col].fillna(0)
 
-    # 导出时不包含 start_time(ms)/end_time(ms)，仅保留 start_datetime/end_datetime
+    all_cols = filtered_df.columns.tolist()
     time_cols = ['start_time(ms)', 'end_time(ms)']
-    cols_to_drop = [c for c in time_cols if c in filtered_df.columns]
-    if cols_to_drop:
-        filtered_df = filtered_df.drop(columns=cols_to_drop)
+    non_time_cols = [col for col in all_cols if col not in time_cols]
+    final_order = non_time_cols + [col for col in time_cols if col in all_cols]
+    filtered_df = filtered_df[final_order]
 
     return filtered_df
 
@@ -353,7 +353,7 @@ def _process_spec_decoding_rows(filtered_df):
     对 name=specDecoding 的行：步骤时间沿用 span 的 start/end/during；KVCache 列在此行填 0；
     prefill_batch_size、decode_batch_size 从同一步 modelExec 按 prof_id 与 end_time 复制；
     num_spec_accepted_tokens 由 modelRunnerExec 的 spec_decode_accepted_by_req 按步补全；
-    spec_accepted_ratio 等由 attr 或 res_list 计算。
+    accepted_ratio 等由 attr 或 res_list 计算。
     """
     if filtered_df is None or filtered_df.empty:
         return filtered_df
@@ -420,11 +420,11 @@ def _process_spec_decoding_rows(filtered_df):
                 if isinstance(r, dict) and 'rid' in r:
                     r['num_spec_accepted_tokens'] = accepted_by_req.get(str(r.get('rid')), 0)
 
-    # spec_accepted_ratio、spec_accepted_ratio_per_pos：优先用 attr 列，否则从 res_list 计算
-    if 'spec_accepted_ratio' not in filtered_df.columns:
-        filtered_df['spec_accepted_ratio'] = None
-    if 'spec_accepted_ratio_per_pos' not in filtered_df.columns:
-        filtered_df['spec_accepted_ratio_per_pos'] = None
+    # 文档字段为 accepted_ratio、accepted_ratio_per_pos。
+    if 'accepted_ratio' not in filtered_df.columns:
+        filtered_df['accepted_ratio'] = None
+    if 'accepted_ratio_per_pos' not in filtered_df.columns:
+        filtered_df['accepted_ratio_per_pos'] = None
 
     for idx in filtered_df.index[spec_mask]:
         res_list = filtered_df.at[idx, 'res_list']
@@ -446,7 +446,7 @@ def _process_spec_decoding_rows(filtered_df):
                 spec_per_req[rid] = spec_t
                 acc_per_req[rid] = acc_t
         if total_spec > 0:
-            filtered_df.at[idx, 'spec_accepted_ratio'] = round(total_acc / total_spec, 4)
+            filtered_df.at[idx, 'accepted_ratio'] = round(total_acc / total_spec, 4)
         max_pos = max(spec_per_req.values()) if spec_per_req else 0
         ratio_pos = {}
         for p in range(max_pos):
@@ -456,7 +456,7 @@ def _process_spec_decoding_rows(filtered_df):
             num = sum(1 for a in acc_per_req.values() if a >= p + 1)
             ratio_pos[str(p)] = round(num / denom, 4)
         if ratio_pos:
-            filtered_df.at[idx, 'spec_accepted_ratio_per_pos'] = ratio_pos
+            filtered_df.at[idx, 'accepted_ratio_per_pos'] = ratio_pos
 
     return filtered_df
 
@@ -852,13 +852,13 @@ class ExporterBatchData(ExporterBase):
                     'during_time(ms)': during_ms,
                     'spec_tokens': spec_tokens,
                     'accepted_tokens': accepted_tokens,
-                    'spec_accepted_ratio': acc_ratio,
+                    'accepted_ratio': acc_ratio,
                     'draft_model_time_ms': during_ms,
                 })
         if not rows:
             return pd.DataFrame(columns=[
                 'rid', 'iter', 'prof_id', 'start_datetime', 'end_datetime',
-                'during_time(ms)', 'spec_tokens', 'accepted_tokens', 'spec_accepted_ratio', 'draft_model_time_ms'
+                'during_time(ms)', 'spec_tokens', 'accepted_tokens', 'accepted_ratio', 'draft_model_time_ms'
             ])
         return pd.DataFrame(rows)
 

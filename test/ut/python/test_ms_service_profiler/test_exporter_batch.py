@@ -50,7 +50,7 @@ class TestFilterBatchDf:
         assert filter_batch_df("BatchSchedule", None) is None
         assert filter_batch_df("BatchSchedule", pd.DataFrame()).empty
 
-    def test_filter_preserves_name_subset_and_drops_time_cols(self):
+    def test_filter_preserves_name_subset_and_keeps_time_cols_at_tail(self):
         batch_df = pd.DataFrame({
             "name": ["BatchSchedule", "modelExec"],
             "res_list": ["[]", "[]"],
@@ -69,7 +69,8 @@ class TestFilterBatchDf:
                 with patch("ms_service_profiler.exporters.exporter_batch.add_dp_rank_column", side_effect=lambda df, _: df):
                     out = filter_batch_df("BatchSchedule", batch_df, None)
         assert out is not None and not out.empty
-        assert "start_time(ms)" not in out.columns and "end_time(ms)" not in out.columns
+        assert "start_time(ms)" in out.columns and "end_time(ms)" in out.columns
+        assert out.columns[-2:].tolist() == ["start_time(ms)", "end_time(ms)"]
         assert "start_datetime" in out.columns and "end_datetime" in out.columns
 
     def test_spec_decode_accepted_by_req_dropped_in_output(self):
@@ -136,7 +137,7 @@ class TestProcessSpecDecodingRows:
         assert out.loc[out["name"] == "specDecoding", "total_blocks"].iloc[0] == 0
         assert out.loc[out["name"] == "specDecoding", "used_blocks"].iloc[0] == 0
 
-    def test_spec_accepted_ratio_computed_from_res_list(self):
+    def test_accepted_ratio_computed_from_res_list(self):
         df = pd.DataFrame({
             "name": ["specDecoding"],
             "res_list": [[
@@ -145,7 +146,7 @@ class TestProcessSpecDecodingRows:
             ]],
         })
         out = _process_spec_decoding_rows(df)
-        assert out["spec_accepted_ratio"].iloc[0] == 0.5
+        assert out["accepted_ratio"].iloc[0] == 0.5
 
     def test_spec_decode_accepted_by_req_fills_res_list(self):
         df = pd.DataFrame({
@@ -191,7 +192,7 @@ class TestBuildSpecDecodeDf:
         assert out["rid"].iloc[0] == "r1"
         assert out["spec_tokens"].iloc[0] == 3
         assert out["accepted_tokens"].iloc[0] == 2
-        assert out["spec_accepted_ratio"].iloc[0] == round(2 / 3, 4)
+        assert out["accepted_ratio"].iloc[0] == round(2 / 3, 4)
         assert "start_datetime" in out.columns and "end_datetime" in out.columns
         assert "start_time(ms)" not in out.columns and "end_time(ms)" not in out.columns
 
@@ -218,7 +219,7 @@ class TestBuildSpecDecodeDf:
             "prof_id": [0],
         })
         out = ExporterBatchData._build_spec_decode_df(batch_df)
-        assert out["spec_accepted_ratio"].iloc[0] is None
+        assert out["accepted_ratio"].iloc[0] is None
 
     def test_empty_res_list_returns_empty_dataframe_with_columns(self):
         batch_df = pd.DataFrame({
