@@ -18,7 +18,6 @@
 #ifndef SERVICE_PROFILER_DB_DEFINE_H
 #define SERVICE_PROFILER_DB_DEFINE_H
 
-#include <cstddef>
 
 namespace msServiceProfiler {
 

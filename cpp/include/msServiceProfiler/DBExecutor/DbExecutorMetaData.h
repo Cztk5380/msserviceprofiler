@@ -19,7 +19,6 @@
 #define SERVICE_PROFILER_DB_EXECUTOR_META_H
 
 #include <string>
-#include <utility>
 #include <sqlite3.h>
 #include <cstdio>
 

@@ -21,14 +21,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <array>
-#include <chrono>
-#include <utility>
-#include <limits>
-#include <cstdint>
 #include <random>
-#include <mutex>
-#include <unistd.h>
 #include <sys/syscall.h>
 
 #include "ServiceProfilerInterface.h"

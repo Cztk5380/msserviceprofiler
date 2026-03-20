@@ -86,7 +86,7 @@ private:
     bool inited = false;
     int workingThreadNum = 0;
     std::string outputDir_;
-    sqlite3 *db;
+    sqlite3 *db = nullptr;
     sqlite3_stmt *stmtApi;
     sqlite3_stmt *stmtKernel;
     sqlite3_stmt *stmtCommunication;

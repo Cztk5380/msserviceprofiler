@@ -22,8 +22,6 @@
 #include <functional>
 #include <string>
 #include <map>
-#include <vector>
-#include <mutex>
 #include <sqlite3.h>
 
 #include "Log.h"
