@@ -6,9 +6,8 @@
 - **注意：由于 CPU、内存等硬件差异，网络环境等不同，以及模型参数配置的细节不同等，当前建议值不能保证性能一定有提升，需要实际修改后验证。**
 
 ## 产品支持情况
->
-> **说明：** 
->昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
+
+> **说明：** 昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
 
 |产品类型| 是否支持 |
 |--|:----:|
@@ -26,9 +25,9 @@
 - **Python环境**：需要Python 3.10或更高版本。
 - **依赖包安装**：
 
-    ```bash
-    pip install scipy loguru pandas psutil # 安装必要的依赖
-    ```
+```bash
+pip install scipy loguru pandas psutil  # 安装必要的依赖
+```
 
 ### 数据准备
 
@@ -37,19 +36,18 @@
 
 ## 工具安装
 
-- **源码安装**
-  服务化专家建议工具依赖服务化工具作为入口，如果没有安装服务化工具，请先完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装
+- **源码安装**：服务化专家建议工具依赖服务化工具作为入口，如果没有安装服务化工具，请先完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。
 
-  ```sh
-  git clone https://gitcode.com/Ascend/msserviceprofiler.git # 如已拉取，则不用重复拉取
-  cd msserviceprofiler/msservice_advisor
-  pip install .
-  msserviceprofiler advisor -h
-  ```
+```bash
+git clone https://gitcode.com/Ascend/msserviceprofiler.git  # 如已拉取，则不用重复拉取
+cd msserviceprofiler/msservice_advisor
+pip install .
+msserviceprofiler advisor -h
+```
 
 ## 工具卸载
 
-```shell
+```bash
 pip uninstall msservice_advisor
 ```
 
@@ -71,13 +69,13 @@ pip uninstall msservice_advisor
 
 ### 命令格式
 
-  ```sh
-  # 指定输入输出的 token 长度 `-in, --input_token_num` 以及 `-out, --output_token_num`
-  msserviceprofiler advisor -in 4096 -out 256
+```bash
+# 指定输入输出的 token 长度 -in, --input_token_num 以及 -out, --output_token_num
+msserviceprofiler advisor -in 4096 -out 256
 
-  # 或提供 `instance` 文件夹
-  msserviceprofiler advisor -i /your/path/instance/
-  ```
+# 或提供 instance 文件夹
+msserviceprofiler advisor -i /your/path/instance/
+```
 
 ### 参数说明
 
@@ -94,19 +92,17 @@ pip uninstall msservice_advisor
 
 ### 使用示例
 
-- **使用场景一**
-  - 输入 -i 参数或 -in 参数，MindIE Service config.json中相关参数配置正确，并且满足服务化配置的可用NPU显存不为0（即上述[功能说明-使用场景一](#功能说明)的第三点）。
+- **使用场景一**：输入 -i 参数或 -in 参数，MindIE Service config.json 中相关参数配置正确，并且满足服务化配置的可用 NPU 显存不为 0（即上述[功能说明-使用场景一](#功能说明)的第三点）。
 
-  ```sh
-  msserviceprofiler advisor -in 4096 -out 256
-  ```
+```bash
+msserviceprofiler advisor -in 4096 -out 256
+```
 
-- **使用场景二**
-  - 根据 `-i, --instance_path` 指定的 benchmark 输出 `instance` 结果，拟合数据并给出 `maxBatchSize` 以及 `maxPrefillBatchSize` 建议值，其中 `maxBatchSize` 会综合考虑 `建议结果1` 的建议值。
+- **使用场景二**：根据 `-i, --instance_path` 指定的 benchmark 输出 `instance` 结果，拟合数据并给出 `maxBatchSize` 以及 `maxPrefillBatchSize` 建议值，其中 `maxBatchSize` 会综合考虑 `建议结果1` 的建议值。
 
-  ```sh
-  msserviceprofiler advisor -i /your/path/instance/
-  ```
+```bash
+msserviceprofiler advisor -i /your/path/instance/
+```
 
 ### 输出说明
 
@@ -119,35 +115,35 @@ pip uninstall msservice_advisor
   - 若maxBatchSize值设置过大，则会导致模型拉起失败，此时应当将该值向range中的最小值靠近，直到模型能成功拉起。
   - maxPrefillBatchSize通常都设置为maxBatchSize的一半。
 
-  ```sh
-  # msservice_advisor_logger - INFO - </think>
-  # msservice_advisor_logger - INFO -
-  # msservice_advisor_logger - INFO - <advice>
-  # msservice_advisor_logger - INFO - [config] maxBatchSize
-  # msservice_advisor_logger - INFO - [advice] 取值范围为 [xx, xx]，平均值为 xx
-  # msservice_advisor_logger - INFO - [reason] 经过对当前显存信息的计算，建议将maxBatchSize的值设置为平均值大小，并逐渐向范围最大值调整，以占满整个显存
-  # msservice_advisor_logger - INFO - </advice>
-  ```
+```text
+# msservice_advisor_logger - INFO - </think>
+# msservice_advisor_logger - INFO -
+# msservice_advisor_logger - INFO - <advice>
+# msservice_advisor_logger - INFO - [config] maxBatchSize
+# msservice_advisor_logger - INFO - [advice] 取值范围为 [xx, xx]，平均值为 xx
+# msservice_advisor_logger - INFO - [reason] 经过对当前显存信息的计算，建议将maxBatchSize的值设置为平均值大小，并逐渐向范围最大值调整，以占满整个显存
+# msservice_advisor_logger - INFO - </advice>
+```
 
 - **使用场景二**
   - 结果给出 `maxBatchSize` 以及 `maxPrefillBatchSize` 建议值，其中 `maxBatchSize` 会综合考虑 `建议结果1` 的建议值。
   - **可尝试将该推荐值应用到 `config.json` 中，并重新验证性能查看是否有所提升，如果结果不理想，可尝试只应用其中一个值，并验证推理性能。**
   - 该方式下同时会生成拟合数据图像，用于查看拟合数据是否合理。
 
-  ```sh
-  # msservice_advisor_logger - INFO - 拟合画图路径：func_curv_031734.png
-  # msservice_advisor_logger - INFO - <think>
-  # ...
-  # msservice_advisor_logger - INFO - </think>
-  # msservice_advisor_logger - INFO -
-  # msservice_advisor_logger - INFO - <advice>
-  # msservice_advisor_logger - INFO - [config] maxBatchSize
-  # msservice_advisor_logger - INFO - [advice] 尝试设置为 25，原值50
-  # msservice_advisor_logger - INFO - [reason] 经过当前不同batch的时延数据，通过函数拟合分析，建议最优batch_size
-  # msservice_advisor_logger - INFO -
-  # msservice_advisor_logger - INFO - [config] maxPrefillBatchSize
-  # msservice_advisor_logger - INFO - [advice] 尝试设置为 50，原值100
-  # msservice_advisor_logger - INFO - [reason] 经过当前不同batch的时延数据，通过函数拟合分析，建议最优batch_size
-  # msservice_advisor_logger - INFO -
-  # msservice_advisor_logger - INFO - </advice>
-  ```
+```text
+# msservice_advisor_logger - INFO - 拟合画图路径：func_curv_031734.png
+# msservice_advisor_logger - INFO - <think>
+# ...
+# msservice_advisor_logger - INFO - </think>
+# msservice_advisor_logger - INFO -
+# msservice_advisor_logger - INFO - <advice>
+# msservice_advisor_logger - INFO - [config] maxBatchSize
+# msservice_advisor_logger - INFO - [advice] 尝试设置为 25，原值50
+# msservice_advisor_logger - INFO - [reason] 经过当前不同batch的时延数据，通过函数拟合分析，建议最优batch_size
+# msservice_advisor_logger - INFO -
+# msservice_advisor_logger - INFO - [config] maxPrefillBatchSize
+# msservice_advisor_logger - INFO - [advice] 尝试设置为 50，原值100
+# msservice_advisor_logger - INFO - [reason] 经过当前不同batch的时延数据，通过函数拟合分析，建议最优batch_size
+# msservice_advisor_logger - INFO -
+# msservice_advisor_logger - INFO - </advice>
+```

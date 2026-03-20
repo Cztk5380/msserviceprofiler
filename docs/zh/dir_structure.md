@@ -2,7 +2,7 @@
 
 msServiceprofiler详细项目目录介绍如下
 
-```ColdFusion
+```text
 3rdparty/                                                    # 第三方依赖目录
     ├── CMakeLists.txt                                       # 第三方依赖的根CMakeLists配置文件
     ├── ascend/                                              # 昇腾(Ascend)AI计算平台相关依赖
@@ -144,3 +144,4 @@ ms_serviceparam_optimizer/                                              # 自动
             ├── test_msguard/                                # 安全模块测试
             ├── test_vllm_profiler/                          # vLLM数据采集能力测试
             └── test_${name}.py                              # ${name}模块测试，${name}为模块名称
+```

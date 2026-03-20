@@ -59,20 +59,26 @@ msServiceProfiler服务化调优工具的快速入门，包括必要的操作步
 ## 功能介绍
 
 面向不同使用场景，建议按照以下顺序快速体验本工具：
+
 1. **服务化性能调优**：详细理解服务化调优数据格式、可视化分析方式及典型调优流程，参见[服务化调优工具](docs/zh/msserviceprofiler_serving_tuning_instruct.md)。
+
 2. **vLLM / SGLang 场景专项采集**：如只关注某一框架，可直接参考对应服务化性能采集工具使用指南：
-   - [vLLM 服务化性能采集工具](docs/zh/vLLM_service_oriented_performance_collection_tool.md)
-   - [SGLang 服务化性能采集工具](docs/zh/SGLang_service_oriented_performance_collection_tool.md)
+    - [vLLM 服务化性能采集工具](docs/zh/vLLM_service_oriented_performance_collection_tool.md)
+    - [SGLang 服务化性能采集工具](docs/zh/SGLang_service_oriented_performance_collection_tool.md)
+
 3. **Trace 数据链路监测**：需要将服务端请求链路打通到 Jaeger 等 OTLP 生态时，参见[Trace数据监测工具](docs/zh/msserviceprofiler_trace_data_monitoring_instruct.md)。
+
 4. **采集数据的比对与多维分析**：对不同版本/配置的性能结果做对比或从多维度深入分析时，参见：
-   - [服务化性能数据比对工具](docs/zh/ms_service_profiler_compare_tool_instruct.md)
-   - [服务化多维度解析工具](docs/zh/msserviceprofiler_multi_analyze_instruct.md)
-   - [服务化拆解工具](docs/zh/service_performance_split_tool_instruct.md)
+    - [服务化性能数据比对工具](docs/zh/ms_service_profiler_compare_tool_instruct.md)
+    - [服务化多维度解析工具](docs/zh/msserviceprofiler_multi_analyze_instruct.md)
+    - [服务化拆解工具](docs/zh/service_performance_split_tool_instruct.md)
+
 5. **自动寻优与专家建议（进阶能力）**：在已有采集数据基础上进行参数自动寻优或获取专家建议时，参见：
-   - [服务化自动寻优工具](docs/zh/serviceparam_optimizer_instruct.md)
-   - [服务化自动寻优插件模式](docs/zh/serviceparam_optimizer_plugin_instruct.md)
-   - [服务化专家建议工具](docs/zh/service_profiling_advisor_instruct.md)
-6. **在线监控与 Prometheus 集成（vLLM 场景）**：如需在 vLLM-ascend 上结合 Prometheus 做在线监控，参见[vLLM 服务化 Prometheus 数据监测工具使用指南](docs/zh/vLLM_metrics_tool_instruct.md)。
+    - [服务化自动寻优工具](docs/zh/serviceparam_optimizer_instruct.md)
+    - [服务化自动寻优插件模式](docs/zh/serviceparam_optimizer_plugin_instruct.md)
+    - [服务化专家建议工具](docs/zh/service_profiling_advisor_instruct.md)
+
+6. **Prometheus 在线监测（vLLM 场景）**：如需在 vLLM-ascend 上结合 Prometheus 做在线监控，参见[vLLM 服务化 Prometheus 数据监测工具使用指南](docs/zh/vLLM_metrics_tool_instruct.md)。
 
 ## 贡献指导
 

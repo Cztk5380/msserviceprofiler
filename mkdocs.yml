@@ -1,0 +1,130 @@
+site_name: MindStudio Service Profiler
+site_url: !ENV READTHEDOCS_CANONICAL_URL
+docs_dir: docs
+# 在 Read the Docs 子路径下避免 404，使用 .html 而非目录 URL
+use_directory_urls: false
+
+plugins:
+  - search
+  - include-markdown:
+      rewrite_relative_urls: true
+
+theme:
+  name: material
+  language: zh
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: 切换到深色模式
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: 切换到浅色模式
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.tabs.link
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - 首页: index.md
+  - 开始使用:
+    - 安装指南: zh/msserviceprofiler_install_guide.md
+    - 快速入门: zh/quick_start.md
+    - 项目目录: zh/dir_structure.md
+  - 功能介绍:
+    - 1. 服务化性能调优:
+      - 服务化调优工具: zh/msserviceprofiler_serving_tuning_instruct.md
+    - 2. vLLM / SGLang 场景专项采集:
+      - vLLM 服务化性能采集工具: zh/vLLM_service_oriented_performance_collection_tool.md
+      - SGLang 服务化性能采集工具: zh/SGLang_service_oriented_performance_collection_tool.md
+    - 3. Trace 数据链路监测:
+      - 服务化Trace数据监测工具: zh/msserviceprofiler_trace_data_monitoring_instruct.md
+    - 4. 采集数据的比对与多维分析:
+      - 服务化性能数据比对工具: zh/ms_service_profiler_compare_tool_instruct.md
+      - 服务化多维度解析工具: zh/msserviceprofiler_multi_analyze_instruct.md
+      - 服务化拆解工具: zh/service_performance_split_tool_instruct.md
+    - 5. 自动寻优与专家建议:
+      - 服务化自动寻优工具: zh/serviceparam_optimizer_instruct.md
+      - 服务化自动寻优插件模式: zh/serviceparam_optimizer_plugin_instruct.md
+      - 服务化专家建议工具: zh/service_profiling_advisor_instruct.md
+    - 6. Prometheus 在线监测:
+      - vLLM 服务化 Prometheus 数据监测工具: zh/vLLM_metrics_tool_instruct.md
+  - API:
+    - 服务化调优:
+      - Python API:
+        - 概述: zh/python_api/README.md
+        - init: zh/python_api/context/init.md
+        - __enter__/__exit__: zh/python_api/context/__enter__-__exit__.md
+        - attr: zh/python_api/context/attr.md
+        - domain: zh/python_api/context/domain.md
+        - event: zh/python_api/context/event.md
+        - get_msg: zh/python_api/context/get_msg.md
+        - launch: zh/python_api/context/launch.md
+        - link: zh/python_api/context/link.md
+        - metric: zh/python_api/context/metric.md
+        - metric_inc: zh/python_api/context/metric_inc.md
+        - metric_scope: zh/python_api/context/metric_scope.md
+        - metric_scope_as_req_id: zh/python_api/context/metric_scope_as_req_id.md
+        - res: zh/python_api/context/res.md
+        - span_end: zh/python_api/context/span_end.md
+        - span_start: zh/python_api/context/span_start.md
+      - C++ API:
+        - 概述: zh/cpp_api/serving_tuning/README.md
+        - 宏定义: zh/cpp_api/serving_tuning/macro_definitions.md
+        - Attr: zh/cpp_api/serving_tuning/Attr.md
+        - ArrayAttr: zh/cpp_api/serving_tuning/ArrayAttr.md
+        - ArrayResource: zh/cpp_api/serving_tuning/ArrayResource.md
+        - Domain: zh/cpp_api/serving_tuning/Domain.md
+        - Event: zh/cpp_api/serving_tuning/Event.md
+        - GetMsg: zh/cpp_api/serving_tuning/GetMsg.md
+        - IsEnable: zh/cpp_api/serving_tuning/IsEnable.md
+        - Launch: zh/cpp_api/serving_tuning/Launch.md
+        - Link: zh/cpp_api/serving_tuning/Link.md
+        - Metric: zh/cpp_api/serving_tuning/Metric.md
+        - MetricInc: zh/cpp_api/serving_tuning/MetricInc.md
+        - MetricScope: zh/cpp_api/serving_tuning/MetricScope.md
+        - MetricScopeAsGlobal: zh/cpp_api/serving_tuning/MetricScopeAsGlobal.md
+        - MetricScopeAsReqID: zh/cpp_api/serving_tuning/MetricScopeAsReqID.md
+        - NumArrayAttr: zh/cpp_api/serving_tuning/NumArrayAttr.md
+        - Resource: zh/cpp_api/serving_tuning/Resource.md
+        - SpanEnd: zh/cpp_api/serving_tuning/SpanEnd.md
+        - SpanStart: zh/cpp_api/serving_tuning/SpanStart.md
+    - Trace 监测:
+      - 概述: zh/cpp_api/trace_data_monitoring/README.md
+      - Activate: zh/cpp_api/trace_data_monitoring/Activate.md
+      - addResAttribute: zh/cpp_api/trace_data_monitoring/addResAttribute.md
+      - Attach: zh/cpp_api/trace_data_monitoring/Attach.md
+      - End: zh/cpp_api/trace_data_monitoring/End.md
+      - ExtractAndAttach: zh/cpp_api/trace_data_monitoring/ExtractAndAttach.md
+      - GetCurrent: zh/cpp_api/trace_data_monitoring/GetCurrent.md
+      - GetTraceCtx: zh/cpp_api/trace_data_monitoring/GetTraceCtx.md
+      - IsEnable: zh/cpp_api/trace_data_monitoring/IsEnable.md
+      - SetAttribute: zh/cpp_api/trace_data_monitoring/SetAttribute.md
+      - SetStatus: zh/cpp_api/trace_data_monitoring/SetStatus.md
+      - Span: zh/cpp_api/trace_data_monitoring/Span.md
+      - StartSpanAsActive: zh/cpp_api/trace_data_monitoring/StartSpanAsActive.md
+      - TraceContext: zh/cpp_api/trace_data_monitoring/TraceContext.md
+      - Tracer: zh/cpp_api/trace_data_monitoring/Tracer.md
+      - Unattach: zh/cpp_api/trace_data_monitoring/Unattach.md
+  - 更多:
+    - 开发者指南: zh/developer_guide/development_guide.md
+    - 社区扩展:
+      - 扩展列表: community_extensions_docs/community_extensions.md
+      - 贡献指南: community_extensions_docs/community_extensions_contributing.md
+    - 发布说明: zh/release_notes.md
+    - 安全声明: zh/security_statement.md
+    - 漏洞处理流程: zh/vulnerability_handling_procedure.md
+    - 公网地址: zh/public_ip_address.md
+    - 贡献指导: contributing.md
+    - 设计文档:
+      - 26.0.0 特性设计: design/MindStudio Service Profiler 26.0.0 特性设计说明书.md

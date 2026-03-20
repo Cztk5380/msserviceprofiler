@@ -75,25 +75,26 @@ msServiceProfiler Trace转发数据最大支持400并发，超过400并发可能
 
 2. 通过配置环境变量支持更灵活的采样控制。
 
-    
     | 环境变量名 | 说明 | 
     |------------|------|
     | `MS_PROFILER_AUTO_TRACE` | 当请求头中没有传递 trace_id 时，是否自动生成 trace_id。设置为 `1` 时开启自动生成；未设置或设置为其他值时不生成。 | 
     | `MS_PROFILER_SAMPLE_RATE` | 设置采样频率，仅对自动生成 `trace_id` 的请求生效。该值为正整数 N，表示每 N 次请求采样 1 次。若未设置或设置为非正整数，则不采样。 | 
     | `MS_PROFILER_SAMPLE_ERROR` | 是否仅上报错误的请求（适用于所有请求）。设置为 `1` 时仅上报错误 Span；未设置或设置为其他值时上报所有请求。 | 
-    ```bash
-    # 设置环境变量示例
-    
-    # 开启自动生成 trace_id（当请求头缺失时）
-    export MS_PROFILER_AUTO_TRACE=1
 
-    # 设置采样率为每100次请求采样1次（仅对自动生成的trace生效）
-    export MS_PROFILER_SAMPLE_RATE=100
+```bash
+# 设置环境变量示例
 
-    # 设置仅上报错误的请求
-    export MS_PROFILER_SAMPLE_ERROR=1
-    ```
-3. 运行MindIE Motor服务。
+# 开启自动生成 trace_id（当请求头缺失时）
+export MS_PROFILER_AUTO_TRACE=1
+
+# 设置采样率为每100次请求采样1次（仅对自动生成的trace生效）
+export MS_PROFILER_SAMPLE_RATE=100
+
+# 设置仅上报错误的请求
+export MS_PROFILER_SAMPLE_ERROR=1
+```
+
+**3.** 运行MindIE Motor服务。
 
 ### 配置目标采集服务器<a name="ZH-CN_TOPIC_0000002518641905"></a>
 
