@@ -33,7 +33,7 @@ import sys
 import importlib_metadata
 from typing import Dict, List, Optional, Tuple, Callable
 
-from ..core.utils import parse_version_tuple, check_profiling_enabled
+from ..core.utils import parse_version_tuple, check_profiling_enabled, install_symbol_watcher
 from ..core.config_loader import ConfigLoader, ProfilingConfig, MetricsConfig
 from ..core.symbol_watcher import SymbolWatchFinder
 from ..core.hook_controller import HookController
@@ -263,8 +263,8 @@ class VLLMProfiler:
             # 创建 SymbolWatchFinder（未加载配置）并安装；registry 子进程内不安装，避免破坏 import 顺序
             watcher = SymbolWatchFinder()
             if not _is_registry_subprocess():
-                sys.meta_path.insert(0, watcher)
-                logger.debug("Symbol watcher installed")
+                if install_symbol_watcher(watcher):
+                    logger.debug("Symbol watcher installed")
             else:
                 logger.debug("Skipping symbol watcher install (registry subprocess)")
             # 创建 HookController；首次 enable() 时再加载配置并 load_handlers

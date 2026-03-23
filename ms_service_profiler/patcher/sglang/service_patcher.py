@@ -18,7 +18,7 @@ import os
 import sys
 from typing import Callable, Optional, Tuple
 
-from ..core.utils import check_profiling_enabled
+from ..core.utils import check_profiling_enabled, install_symbol_watcher
 from ..core.config_loader import ConfigLoader, ProfilingConfig
 from ..core.symbol_watcher import SymbolWatchFinder
 from ..core.hook_controller import HookController
@@ -107,8 +107,8 @@ class SGLangPatcher:
             self._import_handlers()
             # 创建 SymbolWatchFinder（未加载配置）并安装；首次 enable() 时再加载配置并 load_handlers
             watcher = SymbolWatchFinder()
-            sys.meta_path.insert(0, watcher)
-            logger.debug("Symbol watcher installed")
+            if install_symbol_watcher(watcher):
+                logger.debug("Symbol watcher installed")
             self._controller = HookController(watcher)
             self._initialized = True
             logger.debug("SGLang Service Patcher initialized successfully")

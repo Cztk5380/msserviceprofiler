@@ -256,7 +256,7 @@ class TestFindSpec:
 
 
 class TestOnSymbolModuleLoaded:
-    """测试 _on_symbol_module_loaded 方法"""
+    """测试 on_symbol_module_loaded 方法"""
 
     @staticmethod
     @patch.object(SymbolWatchFinder, '_prepare_handlers_for_module')
@@ -266,7 +266,7 @@ class TestOnSymbolModuleLoaded:
         """测试模块加载回调 - 直接匹配"""
         symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
-        symbol_watch_finder._on_symbol_module_loaded('module1')
+        symbol_watch_finder.on_symbol_module_loaded('module1')
         
         mock_prepare_handlers.assert_called_once()
         assert mock_prepare_handlers.call_args[0][0] == 'module1'
@@ -282,7 +282,7 @@ class TestOnSymbolModuleLoaded:
         """测试模块加载回调 - 父包匹配且子模块导入成功"""
         symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
-        symbol_watch_finder._on_symbol_module_loaded('parent.child')
+        symbol_watch_finder.on_symbol_module_loaded('parent.child')
         
         mock_import_module.assert_called_once_with('parent.child.grandchild')
         mock_prepare_handlers.assert_not_called()
@@ -297,7 +297,7 @@ class TestOnSymbolModuleLoaded:
         
         symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
-        symbol_watch_finder._on_symbol_module_loaded('parent.child')
+        symbol_watch_finder.on_symbol_module_loaded('parent.child')
         
         mock_import_module.assert_called_once_with('parent.child.grandchild')
         mock_prepare_handlers.assert_not_called()
@@ -316,7 +316,7 @@ class TestOnSymbolModuleLoaded:
             profiling_handlers=ProfilingConfig(concrete=handlers), metrics_handlers=None
         )
         
-        symbol_watch_finder._on_symbol_module_loaded('target.module')
+        symbol_watch_finder.on_symbol_module_loaded('target.module')
         
         mock_prepare_handlers.assert_called_once_with('target.module', [
             ('target.module:direct_func', handlers['target.module:direct_func'])
@@ -345,7 +345,7 @@ class TestLoaderWrapper:
             mock_loader.create_module.assert_called_once_with(mock_spec)
             
             # 测试 exec_module 方法（包括回调调用）
-            with patch.object(symbol_watch_finder, '_on_symbol_module_loaded') as mock_callback:
+            with patch.object(symbol_watch_finder, 'on_symbol_module_loaded') as mock_callback:
                 mock_module = Mock()
                 wrapper.exec_module(mock_module)
                 mock_loader.exec_module.assert_called_once_with(mock_module)
@@ -658,7 +658,7 @@ class TestCheckAndApplyExistingModules:
         service_profiler._controller = HookController(watcher)
         
         with patch.dict('sys.modules', {'test.module': Mock()}):
-            with patch.object(service_profiler._controller._watcher, '_on_symbol_module_loaded') as mock_callback:
+            with patch.object(service_profiler._controller._watcher, 'on_symbol_module_loaded') as mock_callback:
                 with patch('ms_service_profiler.patcher.vllm.service_patcher.logger.debug') as mock_debug:
                     service_profiler._controller._watcher.check_and_apply_existing_modules()
                     mock_callback.assert_called_once_with('test.module')
@@ -675,7 +675,7 @@ class TestCheckAndApplyExistingModules:
         service_profiler._controller = HookController(watcher)
         
         with patch.dict('sys.modules', {'test.module': Mock()}):
-            with patch.object(service_profiler._controller._watcher, '_on_symbol_module_loaded') as mock_callback:
+            with patch.object(service_profiler._controller._watcher, 'on_symbol_module_loaded') as mock_callback:
                 service_profiler._controller._watcher.check_and_apply_existing_modules()
                 mock_callback.assert_called_once()
 
@@ -692,7 +692,7 @@ class TestCheckAndApplyExistingModules:
         if 'test.module' in sys.modules:
             del sys.modules['test.module']
         
-        with patch.object(service_profiler._controller._watcher, '_on_symbol_module_loaded') as mock_callback:
+        with patch.object(service_profiler._controller._watcher, 'on_symbol_module_loaded') as mock_callback:
             service_profiler._controller._watcher.check_and_apply_existing_modules()
             mock_callback.assert_not_called()
 
@@ -1221,7 +1221,7 @@ class TestIntegration:
             assert result.loader != mock_loader
             
             # 模拟模块加载完成
-            with patch.object(symbol_watch_finder, '_on_symbol_module_loaded') as mock_callback:
+            with patch.object(symbol_watch_finder, 'on_symbol_module_loaded') as mock_callback:
                 # 执行模块加载
                 mock_module = Mock()
                 result.loader.exec_module(mock_module)

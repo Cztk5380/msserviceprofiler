@@ -15,6 +15,7 @@
 # -------------------------------------------------------------------------
 
 import json
+import sys
 import os
 import threading
 from typing import Optional, Dict, Any, List
@@ -134,3 +135,29 @@ def get_shared_state() -> SharedHookState:
                 _GLOBAL_SHARED_STATE = SharedHookState()
 
     return _GLOBAL_SHARED_STATE
+
+def install_symbol_watcher(watcher) -> bool:
+    """安装符号观察器。
+    
+    尝试使用 ms_service_metric.core.symbol_watcher.SymbolWatcher 进行符号监控，
+    如果不可用则回退到使用 sys.meta_path.insert 方式。
+    
+    Args:
+        watcher: SymbolWatchFinder 实例，用于处理模块加载事件
+        
+    Returns:
+        bool: 是否成功安装 SymbolWatcher（True表示使用了SymbolWatcher，False表示回退到meta_path）
+    """
+    try:
+        from ms_service_metric.core.symbol_watcher import SymbolWatcher
+    except ImportError:
+        sys.meta_path.insert(0, watcher)
+        logger.debug("Symbol watcher installed via sys.meta_path")
+        return False
+    
+    symbol_watcher = SymbolWatcher()
+    symbol_watcher.start()
+    symbol_watcher.watch(lambda module_name: watcher.on_symbol_module_loaded(module_name))
+    logger.debug("Symbol watcher installed via SymbolWatcher")
+    return True
+       

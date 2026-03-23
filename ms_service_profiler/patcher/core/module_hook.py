@@ -27,6 +27,10 @@ from .logger import logger
 from .registry import add_to_hook_registry
 from .inject import inject_function
 from .utils import FunctionContext
+try:
+    from ms_service_metric.core.hook_chain import get_chain
+except ImportError:
+    get_chain = None
 
 MAX_HOOK_FAILURES = 5
 
@@ -546,36 +550,45 @@ class VLLMHookerBase(ABC):
             if ori_func is None:
                 continue
             
-            # 如果需要获取 locals 的值，直接修改原函数
-            if self.context_hook_funcs and self.need_locals:
-                ori_func = inject_function(ori_func, self.context_hook_funcs)
+            hook_node = get_chain(ori_func).add_chain_node() if get_chain is not None else None
+            if hook_node is not None:
+                ori_func = hook_node.ori_wrap
             
             # 创建可追踪的原函数包装器，用于避免重复执行
             trackable_ori_func = TrackableOriginalFunc(ori_func)
             
-            if self.context_hook_funcs and not self.need_locals:
-                # 如果不需要locals，并且有 context_hook_funcs, 创建一个函数，将 context_hook_funcs 和 wrap_hook_func 结合起来，尽量减小封装层
-                profiler_func = self.hook_func_not_need_locals(trackable_ori_func, ori_func, self.context_hook_funcs, self.wrap_hook_func)
-            elif self.wrap_hook_func == VLLMHookerBase.default_hook_func:
+            if self.wrap_hook_func == VLLMHookerBase.default_hook_func:
                 # 如果都没有原始的 wrap_hook_func, 就直接使用原函数，拜托一层一层的封装
                 profiler_func = ori_func
             else:
                 # 如果有原始的 wrap_hook_func, 就使用修改前的方式
                 profiler_func = profiler_func_maker(trackable_ori_func)
+
             
-            cur_hook = HookHelper(ori_func, None)
+            if hook_node is not None:
+                wrapped = self.replace_func(trackable_ori_func, pname, profiler_func, on_recover=_recover_current)
+                hook_node.set_hook_func(wrapped)
+                
+                def _recover_current(cur_hook_ref=hook_node):
+                    try:
+                        cur_hook_ref.recover()
+                    except Exception as e:
+                        logger.error(f"Recover call failed: {e}")
+                        
+                self.hooks.append(hook_node)
+            else:
+                cur_hook = HookHelper(ori_func, None)
+                def _recover_current(cur_hook_ref=cur_hook):
+                    try:
+                        cur_hook_ref.recover()
+                    except Exception as e:
+                        logger.error(f"Recover call failed: {e}")
 
-            def _recover_current(cur_hook_ref=cur_hook):
-                try:
-                    cur_hook_ref.recover()
-                except Exception as e:
-                    logger.error(f"Recover call failed: {e}")
-
-            wrapped = self.replace_func(trackable_ori_func, pname, profiler_func, on_recover=_recover_current)
-            cur_hook.new_function = wrapped
-            cur_hook.replace()
-            self.hooks.append(cur_hook)
-            logger.debug(f"replacing {ori_func} with {self.applied_hook_func_name}")
+                wrapped = self.replace_func(trackable_ori_func, pname, profiler_func, on_recover=_recover_current)
+                cur_hook.new_function = wrapped
+                cur_hook.replace()
+                self.hooks.append(cur_hook)
+                logger.debug(f"replacing {ori_func} with {self.applied_hook_func_name}")
 
     def recover(self):
         try:

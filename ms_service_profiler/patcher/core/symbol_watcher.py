@@ -312,7 +312,7 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
 
             def exec_module(self, module):
                 orig_loader.exec_module(module)
-                self._finder._on_symbol_module_loaded(fullname)
+                self._finder.on_symbol_module_loaded(fullname)
 
         wrapper = LoaderWrapper()
         wrapper._finder = self
@@ -341,7 +341,7 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
             return True
         return False
 
-    def _on_symbol_module_loaded(self, fullname: str):
+    def on_symbol_module_loaded(self, fullname: str):
         """当 symbol 模块加载完成时的回调。"""
         logger.debug(f"SymbolWatchFinder: Module loaded callback for {fullname}")
         self._prepare_hooks_for_module(fullname)
@@ -428,7 +428,7 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
             if module_path in sys.modules and module_path not in seen:
                 seen.add(module_path)
                 logger.debug(f"Module {module_path} already loaded, preparing handlers")
-                self._on_symbol_module_loaded(module_path)
+                self.on_symbol_module_loaded(module_path)
         # pattern symbol处理逻辑
         for fullname in list(sys.modules.keys()):
             if not fullname or fullname in seen:
@@ -436,5 +436,5 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
             if self._is_target_symbol(fullname):
                 seen.add(fullname)
                 logger.debug(f"Module {fullname} matches pattern, preparing handlers")
-                self._on_symbol_module_loaded(fullname)
+                self.on_symbol_module_loaded(fullname)
         return True
