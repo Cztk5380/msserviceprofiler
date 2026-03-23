@@ -30,7 +30,7 @@ import os
 from typing import Optional, Tuple
 
 from ms_service_metric.utils.logger import get_logger
-from ms_service_metric.metrics.meta_state import set_dp_rank
+from ms_service_metric.metrics.meta_state import set_dp_rank, get_meta_state
 from ms_service_metric.core.symbol_handler_manager import SymbolHandlerManager
 
 logger = get_logger(__name__)
@@ -71,6 +71,7 @@ class VLLMMetricAdapter:
 
         # 设置meta_state的dp_rank
         self._setup_dp_rank()
+        self._setup_pd_role()
 
         # 创建并初始化SymbolHandlerManager
         self._manager = SymbolHandlerManager()
@@ -124,6 +125,29 @@ class VLLMMetricAdapter:
         # 设置到meta_state
         set_dp_rank(dp_rank)
         logger.debug(f"Set dp_rank to meta_state: {dp_rank}")
+        
+    def _setup_pd_role(self):
+        """设置dp_rank到meta_state
+        
+        尝试从vLLM的各种配置中获取dp_rank。
+        """
+        pd_role = "mixed"
+        
+        try:
+            from vllm.distributed.ec_transfer import get_ec_transfer, has_ec_transfer
+            if has_ec_transfer():
+                pd_role = "prefill" if get_ec_transfer().is_producer else "decode"
+        except Exception as e:
+            try:
+                from vllm.distributed.kv_transfer import get_kv_transfer_group, has_kv_transfer_group
+                if has_kv_transfer_group():
+                    pd_role = str(get_kv_transfer_group().role)
+            except Exception as e:
+                logger.warning(f"Failed to get pd_role: {e}")
+
+        # 设置到meta_state
+        get_meta_state().set("pd_role", pd_role.lower())
+        logger.debug(f"Set role to meta_state: {pd_role.lower()}")
     
     def _get_config_path(self) -> Tuple[Optional[str], Optional[str]]:
         """获取配置文件路径

@@ -38,7 +38,7 @@ from prometheus_client import (
 from prometheus_client import multiprocess
 
 from ms_service_metric.utils.logger import get_logger
-from ms_service_metric.metrics.meta_state import get_meta_state
+from ms_service_metric.metrics.meta_state import get_meta_state, MetaState
 
 logger = get_logger("metrics_manager")
 
@@ -154,7 +154,7 @@ class MetricsManager:
         self._metric_prefix = prefix
         logger.debug(f"Set metric prefix: {prefix}")
     
-    def _get_meta_state(self) -> Any:
+    def _get_meta_state(self) -> MetaState:
         """获取元数据状态
         
         使用全局的get_meta_state()获取元数据状态，
@@ -268,6 +268,9 @@ class MetricsManager:
         if "dp" not in label_names:
             label_names = list(label_names)  # 创建副本避免修改原列表
             label_names.append("dp")
+        if "role" not in label_names:
+            label_names = list(label_names)  # 创建副本避免修改原列表
+            label_names.append("role")
         
         return label_names
     
@@ -284,18 +287,16 @@ class MetricsManager:
         """
         labels = labels.copy() if labels is not None else {}
         
-        if "dp" in labels:
-            return labels
-        
+        meta_state = self._get_meta_state()
         # 尝试从meta_state获取dp_rank
         try:
-            meta_state = self._get_meta_state()
-            dp_value =meta_state.dp_rank
+            if "dp" not in labels:
+                labels["dp"] = meta_state.dp_rank
         except Exception as e:
             logger.warning(f"Failed to get dp_rank from meta_state: {e}")
-            dp_value = "-1"
+            labels["dp"] = "-1"
         
-        labels["dp"] = dp_value
+        labels["role"] = meta_state.get("role", "mixed")
         return labels
     
     def _sanitize_metric_name(self, name: str) -> str:

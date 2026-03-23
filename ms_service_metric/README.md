@@ -298,6 +298,10 @@ flake8 ms_service_metric/
 └─────────────────────────────────────────────────────────────┘
 ```
 
+## 安全风险
+
+Metric 数据监测利用了 vllm 的 metric 功能，对外提供接口。[详细参考](https://github.com/vllm-project/vllm/tree/main/examples/online_serving/prometheus_grafana) ，需注意可能存在的安全风险
+
 ## 许可证
 
 木兰宽松许可证第2版 (Mulan PSL v2)
