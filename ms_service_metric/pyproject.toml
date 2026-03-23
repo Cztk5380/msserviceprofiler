@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = {find = {}}
+include-package-data = true
+
+[tool.setuptools.package-data]
+"ms_service_metric" = ["**/*.yaml", "**/*.yml"]
+
+[project]
+name = "ms_service_metric"
+version = '26.0.0'
+description = "一个轻量级的 Python 服务指标采集库，支持动态 Hook 和 Prometheus 指标输出"
+readme = "README.md"
+requires-python = ">=3.10"
+
+dependencies = [
+    'pyyaml',
+    'prometheus-client',
+    'posix_ipc; sys_platform == "linux"',
+    'bytecode',
+]
+
+[project.optional-dependencies]
+dev = ['pytest', 'pytest-cov', 'black', 'flake8']
+
+[project.scripts]
+ms-service-metric = "ms_service_metric.control.cli:main"
+
+[project.entry-points."vllm.general_plugins"]
+"ms_service_metric" = "ms_service_metric.adapters.vllm.adapter:initialize_vllm_metric"
