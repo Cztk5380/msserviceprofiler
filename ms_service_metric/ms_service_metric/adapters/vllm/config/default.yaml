@@ -1,0 +1,15 @@
+
+# ===== Meta（默认配置，始终生效）=====
+- symbol: vllm.v1.engine.core:DPEngineCoreProc.add_request
+  handler: ms_service_metric.adapters.vllm.handlers.meta_handlers:init_data_parallel
+
+- symbol: vllm.v1.metrics.loggers:StatLoggerManager.record
+  handler: ms_service_metric.adapters.vllm.handlers.meta_handlers:record
+
+- symbol: vllm.v1.core.sched.scheduler:Scheduler.make_stats
+  handler: ms_service_metric.adapters.vllm.handlers.meta_handlers:make_stats
+
+- symbol: vllm.v1.metrics.loggers:StatLoggerManager.record
+  handler: ms_service_metric.adapters.vllm.handlers.meta_handlers:record_dp_rank
+  lock_patch: true
+

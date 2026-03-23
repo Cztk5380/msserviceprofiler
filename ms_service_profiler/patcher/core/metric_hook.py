@@ -293,7 +293,7 @@ class HookMetrics:
                 else:
                     metric_obj.observe(value)
         except Exception as e:
-            logger.warning(f"Metics - Failed to record metric {metric_name}: {e}")
+            logger.warning(f"Metrics - Failed to record metric {metric_name}: {e}")
 
     def _sanitize_metric_name(self, name: str) -> str:
         """清理指标名称，确保符合Prometheus规范"""

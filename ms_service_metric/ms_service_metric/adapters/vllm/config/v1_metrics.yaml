@@ -1,0 +1,93 @@
+# vLLM v1 版本 Metric 配置
+# 从重构前的 service_metrics_symbols.yaml 迁移
+
+# ===== worker =====
+- symbol: vllm.v1.worker.gpu_model_runner:AsyncGPUModelRunnerOutput.get_output
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:runner_get_output_hooker
+
+- symbol: vllm.v1.core.sched.scheduler:Scheduler.schedule
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:scheduler_scheduler_hooker
+
+# ===== engine =====
+- symbol: vllm.v1.engine.async_llm:AsyncLLM.add_request
+  metrics:
+    - name: engine:async_add_request:duration
+
+
+# ===== 时间拆解 =====
+- symbol: vllm.v1.utils:record_function_or_nullcontext
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:record_function_timer_hook
+
+# vllm-ascend  version: v0.13.rc2 版本去除了capture_async，但是没关系，他们用 record_function_or_nullcontext 代替了
+- symbol: vllm_ascend.utils:ProfileExecuteDuration.capture_async
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:record_function_timer_hook_vllm_ascend
+
+# ===== Custom Metrics（用户自定义点位）=====
+- symbol: vllm.entrypoints.openai.serving_chat:OpenAIServingChat.create_chat_completion
+  metrics:
+    - name: server:create_chat_completion:duration
+      type: timer
+
+- symbol: vllm.v1.engine.output_processor:OutputProcessor.process_outputs
+  metrics:
+    - name: output_processor_duration
+      type: timer
+    - name: engine_core_outputs_len 
+      expr: len(engine_core_outputs)
+      type: histogram
+      buckets: [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 10000, 262144]
+
+
+- symbol: vllm.v1.engine.async_llm:AsyncLLM.generate  # 调用 add_request, 然后死循环等结束。
+  metrics:
+    - name: engine:generate:duration
+
+- symbol: vllm.v1.engine.input_processor:InputProcessor.process_inputs
+  metrics:
+    - name: engine:tokenizer_encode
+
+- symbol: vllm.v1.core.sched.scheduler:Scheduler.update_from_output # 处理返回output
+  metrics:
+    - name: scheduler:update_from_output:duration
+
+# ===== Executor =====
+- symbol: vllm.v1.executor.multiproc_executor:MultiprocExecutor.execute_model
+  metrics:
+    - name: executor:execute_model:duration
+
+- symbol: vllm_ascend.worker.model_runner_v1:NPUModelRunner.execute_model
+  metrics:
+    - name: executor:model_runner_execute_model:duration
+
+- symbol: vllm_ascend.worker.model_runner_v1:NPUModelRunner._prepare_inputs
+  metrics:
+    - name: executor:prepare_inputs:duration
+
+# - symbol: vllm.v1.sample.sampler:Sampler.forward
+#   metrics:
+#     - name: executor:sampler:duration
+#       expr: duration
+
+- symbol: vllm.v1.executor.multiproc_executor:MultiprocExecutor.sample_tokens
+  metrics:
+    - name: executor:sample_tokens:duration
+
+
+# ===== engine core processor =====
+- symbol: vllm.v1.engine.core:EngineCoreProc._process_input_queue # 从请求队列里面获取数据，并且放到 scheduler 的队列中
+  metrics:
+    - name: engine_core:process_input_queue:duration
+
+- symbol: vllm.v1.engine.core:EngineCoreProc._process_engine_step # 从返回队列中获取数据，并推给 CoreClient
+  metrics:
+    - name: engine_core:process_engine_step:duration
+
+- symbol: vllm.v1.engine.core:EngineCore.step # 一步
+  metrics:
+    - name: engine_core:engine_core_step:duration
+
+# ===== Batch | Scheduler =====
+- symbol: vllm.v1.core.sched.scheduler:Scheduler.add_request # 添加到 waitting 队列，request 会记录时间
+  metrics:
+    - name: scheduler:add_request:duration
+
