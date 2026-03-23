@@ -1,76 +1,77 @@
----
 name: "🔌 扩展提交"
 description: "提交您的扩展插件或配置方案"
 title: "[Extension]: 您的扩展名称"
 labels: ["extension"]
----
-
-# 📦 扩展提交表单
-
-请填写此表单提交您的扩展。**提交前请确保**：
-1. 扩展是开源的并有明确的许可证
-2. 有可用的代码仓库（GitCode/GitHub/GitLab/Gitee 等公开仓库）
-3. 与 msServiceProfiler 使用场景相关
-
-审核通过后，维护者会将信息加入 [社区扩展与插件列表](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/zh/community_extension_docs/community_extensions.md)。
-
----
-
-## 基本信息
-| 字段 | 值 | 说明 |
-|------|-----|------|
-| **扩展名称** |  | 简洁的英文名称，如：my-prof/brainstorm/brainstorm/brainstorm-plugin |
-| **一句话描述** |  | 不超过50字的功能描述 |
-| **完整描述** |  | 详细功能介绍、使用场景、与 msServiceProfiler 的关系等 |
-
----
-
-## 仓库与链接
-```yaml
-必填:
-  仓库地址: "https://gitcode.com/username/repo"   # 或 GitHub/GitLab/Gitee 等
-  许可证类型: "MIT"   # MIT/Apache-2.0 等
-
-可选:
-  文档地址: ""
-  演示/截图链接: ""
-```
-
----
-
-## 版本与兼容性
-| 项目 | 值 | 说明 |
-|------|-----|------|
-| **当前版本** |  | 如 v1.0.0（可选） |
-| **兼容的 msServiceProfiler 版本** |  | 如 >=26.0.0（可选） |
-| **依赖项** |  | 如 python>=3.11（可选） |
-
----
-
-## 分类
-请选择最合适的分类（单选）：
-- [ ] **插件** - 增强或扩展 msServiceProfiler 功能的工具/插件
-- [ ] **配置方案** - 配置文件、模板、场景化配置
-- [ ] **其他** - 上述未涵盖的扩展类型
-
----
-
-## 维护信息
-| 项目 | 值 | 说明 |
-|------|-----|------|
-| **维护者** |  | 仓库平台用户名（如 @yourusername） |
-| **联系邮箱** | （可选） | 用于重要通知 |
-
----
-
-## 审核清单
-**请确认以下事项**：
-- [ ] 扩展代码开源，仓库中有明确的许可证文件
-- [ ] 有基本 README 说明用途与使用方式
-- [ ] 与 msServiceProfiler 使用场景相关
-- [ ] 理解审核通过后将被收录至 [社区扩展与插件列表](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/zh/community_extension_docs/community_extensions.md)
-
----
-
-## 补充信息
-（可选：开发背景、特殊说明等）
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # 📦 扩展提交表单
+         
+        请填写此表单提交您的扩展。**提交前请确保**：
+        1. 扩展是开源的并有明确的许可证
+        2. 有可用的代码仓库（GitCode/GitHub/GitLab/Gitee 等公开仓库）
+        3. 与 msServiceProfiler 使用场景相关
+         
+        审核通过后，维护者会将信息加入 [社区扩展与插件列表](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/community_extension_docs/community_extensions.md)。
+         
+        ----
+         
+        ## 基本信息
+        | 字段 | 值 | 说明 |
+        |------|-----|------|
+        | **扩展名称** |  | 简洁的英文名称，如：my-prof/brainstorm/brainstorm/brainstorm-plugin |
+        | **一句话描述** |  | 不超过50字的功能描述 |
+        | **完整描述** |  | 详细功能介绍、使用场景、与 msServiceProfiler 的关系等 |
+         
+        ----
+         
+        ## 仓库与链接
+        ```yaml
+        必填:
+          仓库地址: "https://gitcode.com/username/repo"   # 或 GitHub/GitLab/Gitee 等
+          许可证类型: "MIT"   # MIT/Apache-2.0 等
+         
+        可选:
+          文档地址: ""
+          演示/截图链接: ""
+        ```
+         
+        ----
+         
+        ## 版本与兼容性
+        | 项目 | 值 | 说明 |
+        |------|-----|------|
+        | **当前版本** |  | 如 v1.0.0（可选） |
+        | **兼容的 msServiceProfiler 版本** |  | 如 >=26.0.0（可选） |
+        | **依赖项** |  | 如 python>=3.11（可选） |
+         
+        ----
+         
+        ## 分类
+        请选择最合适的分类（单选）：
+        - [ ] **插件** - 增强或扩展 msServiceProfiler 功能的工具/插件
+        - [ ] **配置方案** - 配置文件、模板、场景化配置
+        - [ ] **其他** - 上述未涵盖的扩展类型
+         
+        ----
+         
+        ## 维护信息
+        | 项目 | 值 | 说明 |
+        |------|-----|------|
+        | **维护者** |  | 仓库平台用户名（如 @yourusername） |
+        | **联系邮箱** | （可选） | 用于重要通知 |
+         
+        ----
+         
+        ## 审核清单
+        **请确认以下事项**：
+        - [ ] 扩展代码开源，仓库中有明确的许可证文件
+        - [ ] 有基本 README 说明用途与使用方式
+        - [ ] 与 msServiceProfiler 使用场景相关
+        - [ ] 理解审核通过后将被收录至 [社区扩展与插件列表](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/community_extension_docs/community_extensions.md)
+         
+        ----
+         
+        ## 补充信息
+        （可选：开发背景、特殊说明等）
