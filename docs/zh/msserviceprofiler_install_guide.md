@@ -40,9 +40,44 @@ apt-get install lcov
 
 ## 安装和升级
 
-基于源码构建 run 包并执行安装或升级，CANN Toolkit 中的 msServiceProfiler 工具将被自动替换为最新版本。
+支持两种方式安装/升级：
 
-**前置条件**：请先完成[安装前准备](#安装前准备)。
+- 方式一：从 release 页面下载整包并安装（推荐）。
+- 方式二：基于源码构建 run 包并安装。
+
+### 方式一：release 整包下载安装（推荐）
+
+软件安装包发布地址：
+
+- [msserviceprofiler releases](https://gitcode.com/Ascend/msserviceprofiler/releases/)
+
+下载后建议先进行完整性校验（MD5），再执行 `pip install` 安装。示例如下：
+
+```shell
+# 1. 下载 release 安装包（以实际发布文件名为准）
+wget https://gitcode.com/Ascend/msserviceprofiler/releases/download/<tag>/<package>.whl
+
+# 2. MD5 完整性校验（将 <expected_md5> 替换为 release 页面提供的 MD5）
+md5sum <package>.whl
+echo "<expected_md5>  <package>.whl" | md5sum -c -
+
+# 3. 安装
+pip install <package>.whl
+```
+
+> **说明：**
+>
+> - `<expected_md5>` 请以 release 页面同版本安装包对应的 MD5 值为准。
+> - 各版本安装包 MD5 清单请参见[版本说明](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/zh/release_notes.md#安装包-md5-校验值)。
+> - 若需要升级到指定版本，请先执行 `pip uninstall ms_service_profiler -y`，再安装目标版本 wheel 包。
+>
+> **MD5sum 校验不一致处理建议：**
+>
+> - 若 `md5sum -c -` 输出 `FAILED`，请勿继续执行 `pip install`。
+> - 请先删除当前下载文件并重新下载，再次执行 MD5 校验。
+> - 仍无法通过校验时，请在 release 页面核对文件名与版本是否一致，并通过 Issues 反馈问题。
+
+### 方式二：源码构建 run 包并安装/升级
 
 ```shell
 # 1. 安装构建依赖
