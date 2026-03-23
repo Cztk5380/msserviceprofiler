@@ -59,7 +59,83 @@ ms-service-metric restart
 ms-service-metric status
 ```
 
+### 3. Prometheus + Grafana 可视化 (Windows)
+
+#### 安装 Prometheus
+
+1. 下载 Prometheus Windows 版本:
+   - 访问 [Prometheus 下载页面](https://prometheus.io/download/)
+   - 下载 `prometheus-<version>.windows-amd64.zip`
+
+2. 解压并配置:
+   
+   ```powershell
+   # 解压到指定目录
+   Expand-Archive -Path prometheus-*.zip -DestinationPath C:\Prometheus
+   ```
+
+3. 修改 `prometheus.yml` 配置文件，添加 vLLM 指标采集任务:
+   
+   ```yaml
+   scrape_configs:
+     - job_name: 'vllm'
+       static_configs:
+         - targets: ['localhost:8000']
+       metrics_path: /metrics
+   ```
+
+4. 启动 Prometheus:
+   
+   ```powershell
+   cd C:\Prometheus
+   .\prometheus.exe --config.file=prometheus.yml
+   ```
+   
+   Prometheus 默认访问地址: http://localhost:9090
+
+#### 安装 Grafana
+
+1. 下载 Grafana Windows 版本:
+   
+   - 访问 [Grafana 下载页面](https://grafana.com/grafana/download?platform=windows)
+   - 下载并运行安装程序
+
+2. 启动 Grafana 服务:
+   
+   ```powershell
+   # 通过服务管理器启动
+   net start grafana
+   
+   # 或者手动启动
+   cd "C:\Program Files\GrafanaLabs\grafana\bin"
+   .\grafana-server.exe
+   ```
+
+   Grafana 默认访问地址: http://localhost:3000
+   - 默认用户名: `admin`
+   - 默认密码: `admin`
+
+#### 导入 Dashboard
+
+1. 登录 Grafana Web 界面 (http://localhost:3000)
+
+2. 创建 Prometheus 数据源:
+   - 左侧菜单: **Configuration** → **Data sources**
+   - 点击 **Add data source**
+   - 选择 **Prometheus**
+   - URL 填写: `http://localhost:9090`
+   - 点击 **Save & Test**
+
+3. 导入 MsServiceMetric Dashboard:
+   - 左侧菜单: **Dashboards** → **Import**
+   - 点击 **Upload dashboard JSON file**
+   - 选择 [Dashboard 样例文件(下载到本地，匹配默认的采集配置)](https://gitcode.com/Ascend/msserviceprofiler/blob/master/ms_service_metric/example/MsServiceMetric-grafana-Dashboard.json) 文件
+   - 点击 **Import**   
+   - 选择刚才创建的 Prometheus 数据源
+
 ## 配置
+
+用户可以自定义需要采集的内容，可以通过：MS_SERVICE_METRIC_VLLM_CONFIG 环境变量指定yaml 文件。如果不指定，默认使用内部的采集配置
 
 ### 配置文件格式
 
