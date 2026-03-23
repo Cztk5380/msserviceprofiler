@@ -15,7 +15,7 @@
 # -------------------------------------------------------------------------
 
 
-from .base_processor import BaseFrameworkProcessor
+from .split_base_processor import BaseFrameworkProcessor
 
 
 class MindIEProcessor(BaseFrameworkProcessor):

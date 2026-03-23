@@ -16,28 +16,27 @@
 
 from ms_service_profiler.exporters.base import ExporterBase
 
-from ..common.utils import logger
-from ..common.split_utils import get_service_type
+from ms_service_profiler.utils.ext_utils import logger
+from ms_service_profiler.utils.split_utils import get_service_type
 
 
-class ExporterPrefill(ExporterBase):
-    name = "prefill_data"
-
+class ExporterDecode(ExporterBase):
+    name = "decode_data"
+ 
     @classmethod
     def initialize(cls, args):
         cls.args = args
-
+ 
     @classmethod
     def export(cls, data) -> None:
-        cls.args.batch_size = cls.args.prefill_batch_size
-        cls.args.batch_num = cls.args.prefill_number
-        cls.args.rid = cls.args.prefill_rid
+        cls.args.batch_size = cls.args.decode_batch_size
+        cls.args.batch_num = cls.args.decode_number
+        cls.args.rid = cls.args.decode_rid
         df = data.get('tx_data_df')
         if df is None:
             logger.error("The data is empty, please check")
             return
         processor = get_service_type(df)
         processor.initialize(cls.args)
-        processor.run_split(df, "Prefill")
-        
-        logger.info("Export prefill data successfully.")
+        processor.run_split(df, "Decode")
+        logger.info("Export decode data successfully.")

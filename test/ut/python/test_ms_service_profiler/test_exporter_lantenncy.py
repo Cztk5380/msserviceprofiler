@@ -14,15 +14,12 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 
-import os
 import argparse
 import unittest
 from unittest.mock import patch
-from unittest.mock import ANY
-import numpy as np
 import pandas as pd
 from ms_service_profiler.exporters.exporter_latency import ExporterLatency, TimeIntervalConfig
-from ms_service_profiler.ms_service_profiler_ext.exporters.exporter_summary import (
+from ms_service_profiler.exporters.exporter_summary import (
     process_each_record,
     gen_exporter_results,
     print_warning_log,
@@ -100,7 +97,7 @@ class TestTimestampConverter(unittest.TestCase):
         }
 
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.exporters.exporter_summary.process_each_record')
+    @patch('ms_service_profiler.exporters.exporter_summary.process_each_record')
     def test_gen_exporter_results(self, mock_process_each_record):
         data = {'batch_type': ['Prefill', 'Decode', 'Decode'],
                 'name': ['httpRes', 'httpRes', 'httpRes'],

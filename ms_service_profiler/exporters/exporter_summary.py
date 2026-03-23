@@ -24,8 +24,8 @@ from ms_service_profiler.exporters.base import ExporterBase
 from ms_service_profiler.utils.log import logger
 
 from msguard.security.io import mkdir_s, open_s
-from ..common.csv_fields import RequestCSVFields, BatchCSVFields, ServiceCSVFields
-from ..common.constants import US_PER_MS
+from ms_service_profiler.utils.csv_fields import RequestCSVFields, BatchCSVFields, ServiceCSVFields
+from ms_service_profiler.utils.constants import US_PER_MS
 
 
 METRIC_COLUMN = "Metric"
@@ -36,11 +36,9 @@ def is_contained_valid_iter_info(rid_list, token_id_list):
     检查 rid_list 和 token_id_list 是否为有效且长度相等的 list 或 tuple
     限制输入类型为list或tuple
     """
-    # 检查是否为 None
     if rid_list is None or token_id_list is None:
         return False
 
-    # 检查类型是否为list或者tuple
     if not isinstance(rid_list, (list, tuple)):
         return False
 

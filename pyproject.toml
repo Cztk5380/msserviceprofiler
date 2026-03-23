@@ -30,10 +30,10 @@ dependencies = [
 "msserviceprofiler" = "ms_service_profiler.__main__:main"
 
 [project.entry-points."ms_service_profiler_plugins"]
-"analyze" = "ms_service_profiler.ms_service_profiler_ext.analyze:arg_parse"
-"compare" = "ms_service_profiler.ms_service_profiler_ext.compare:arg_parse"
+"analyze" = "ms_service_profiler.analyze:arg_parse"
+"compare" = "ms_service_profiler.compare:arg_parse"
 "parse" = "ms_service_profiler.parse:arg_parse"
-"split" = "ms_service_profiler.ms_service_profiler_ext.split:arg_parse"
+"split" = "ms_service_profiler.split:arg_parse"
 
 [project.entry-points."vllm.general_plugins"]
 "msserviceprofiler" = "ms_service_profiler.patcher.vllm:register_service_profiler"

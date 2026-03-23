@@ -19,9 +19,8 @@ from abc import abstractmethod
 import pandas as pd
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv
 
-from ..common.constants import MAX_BATCH_NUMBER
-from ..common.utils import logger
-from ..common.split_utils import (
+from ms_service_profiler.utils.ext_utils import logger
+from ms_service_profiler.utils.split_utils import (
     CSV_COLUMNS, RENAMED_COLUMNS, get_statistics_data, PREFILL_NAME
 )
 

@@ -19,7 +19,7 @@ import stat
 import argparse
 
 from .constants import EXT_SIZE_MAPPING, TENSOR_MAX_SIZE
-from .utils import confirmation_interaction
+from .ext_utils import confirmation_interaction
 
 
 def _has_soft_link(path: str) -> bool:

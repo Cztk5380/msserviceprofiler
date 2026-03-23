@@ -2,14 +2,14 @@
 import os
 import tempfile
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import argparse
 import pandas as pd
 import numpy as np
-import subprocess  # <-- 新增：用于 mock subprocess 异常
+
 
 # 正确导入路径（不含 is_valid_ascend_pt_path）
-from ms_service_profiler.ms_service_profiler_ext.compare import (
+from ms_service_profiler.compare import (
     read_sql_from_given_path,
     validate_and_clean_df,
     compute_stats,
@@ -28,7 +28,7 @@ class TestCompareToolHighCoverage(unittest.TestCase):
     # -----------------------------
     # 1. read_sql_from_given_path
     # -----------------------------
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.DBDataSource')
+    @patch('ms_service_profiler.compare.DBDataSource')
     def test_read_sql_from_given_path_success(self, mock_db):
         df1 = pd.DataFrame({'name': ['a'], 'during_time': [10]})
         df2 = pd.DataFrame({'name': ['b'], 'during_time': [20]})
@@ -50,7 +50,7 @@ class TestCompareToolHighCoverage(unittest.TestCase):
             self.assertEqual(len(result), 2)
             self.assertIn('name', result.columns)
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.DBDataSource')
+    @patch('ms_service_profiler.compare.DBDataSource')
     def test_read_sql_from_given_path_no_valid_data(self, mock_db):
         mock_db.process.return_value = {'tx_data_df': pd.DataFrame()}
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -59,7 +59,7 @@ class TestCompareToolHighCoverage(unittest.TestCase):
             result = read_sql_from_given_path(tmpdir)
             self.assertTrue(result.empty)
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.DBDataSource')
+    @patch('ms_service_profiler.compare.DBDataSource')
     def test_read_sql_from_given_path_exception_handling(self, mock_db):
         mock_db.process.side_effect = Exception("DB error")
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -68,7 +68,7 @@ class TestCompareToolHighCoverage(unittest.TestCase):
             result = read_sql_from_given_path(tmpdir)
             self.assertTrue(result.empty)
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.os.walk')
+    @patch('ms_service_profiler.compare.os.walk')
     def test_read_sql_from_given_path_no_db_files(self, mock_walk):
         mock_walk.return_value = [('.', [], ['a.txt', 'b.log'])]
         result = read_sql_from_given_path("/fake")
@@ -250,7 +250,7 @@ class TestCompareToolHighCoverage(unittest.TestCase):
     # -----------------------------
     # 5. arg_parse
     # -----------------------------
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.check_input_dir_valid')
+    @patch('ms_service_profiler.compare.check_input_dir_valid')
     def test_arg_parse(self, mock_check):
         mock_check.side_effect = lambda x: x  # 直接返回输入值
         parser = argparse.ArgumentParser()
@@ -263,9 +263,9 @@ class TestCompareToolHighCoverage(unittest.TestCase):
     # -----------------------------
     # 6. main (integration)
     # -----------------------------
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.save_dataframe_to_csv')
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.read_sql_from_given_path')
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.set_log_level')
+    @patch('ms_service_profiler.compare.save_dataframe_to_csv')
+    @patch('ms_service_profiler.compare.read_sql_from_given_path')
+    @patch('ms_service_profiler.compare.set_log_level')
     def test_main_success(self, mock_set_log, mock_read, mock_save):
         df = pd.DataFrame({'name': ['test'], 'during_time': [100]})
         mock_read.return_value = df
@@ -279,7 +279,7 @@ class TestCompareToolHighCoverage(unittest.TestCase):
         self.assertEqual(mock_read.call_count, 2)
         mock_save.assert_called_once()
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.read_sql_from_given_path')
+    @patch('ms_service_profiler.compare.read_sql_from_given_path')
     def test_main_empty_input(self, mock_read):
         mock_read.return_value = pd.DataFrame()
         args = argparse.Namespace(
@@ -291,7 +291,7 @@ class TestCompareToolHighCoverage(unittest.TestCase):
         main(args)
         self.assertEqual(mock_read.call_count, 1)
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.read_sql_from_given_path')
+    @patch('ms_service_profiler.compare.read_sql_from_given_path')
     def test_main_empty_golden(self, mock_read):
         input_df = pd.DataFrame({'name': ['a'], 'during_time': [1]})
         mock_read.side_effect = [input_df, pd.DataFrame()]
@@ -340,8 +340,8 @@ class TestCompareToolHighCoverage(unittest.TestCase):
         result = _find_ascend_pt_dirs("/non/existent/path")
         self.assertEqual(result, [])
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.os.listdir')
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.os.path.isdir')
+    @patch('ms_service_profiler.compare.os.listdir')
+    @patch('ms_service_profiler.compare.os.path.isdir')
     def test_match_ascend_pt_paths_by_device_device_match(self, mock_isdir, mock_listdir):
         def fake_listdir(path):
             if 'input' in path:
@@ -380,10 +380,10 @@ class TestCompareToolHighCoverage(unittest.TestCase):
             self.assertEqual(gold, golden_pt)
 
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.subprocess')
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.read_sql_from_given_path')
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.save_dataframe_to_csv')
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.set_log_level')
+    @patch('ms_service_profiler.compare.subprocess')
+    @patch('ms_service_profiler.compare.read_sql_from_given_path')
+    @patch('ms_service_profiler.compare.save_dataframe_to_csv')
+    @patch('ms_service_profiler.compare.set_log_level')
     def test_main_operator_invalid_paths_skipped(self, mock_set_log, mock_save, mock_read, mock_subprocess):
         args = argparse.Namespace(
             input_path="/input",
@@ -392,7 +392,7 @@ class TestCompareToolHighCoverage(unittest.TestCase):
             log_level="info"
         )
 
-        with patch('ms_service_profiler.ms_service_profiler_ext.compare.match_ascend_pt_paths_by_device') as mock_match:
+        with patch('ms_service_profiler.compare.match_ascend_pt_paths_by_device') as mock_match:
             mock_match.return_value = ("", "")  # Invalid paths
 
             df = pd.DataFrame({'name': ['op'], 'during_time': [10]})
@@ -407,20 +407,20 @@ class TestCompareToolHighCoverage(unittest.TestCase):
             mock_save.assert_called_once()
 
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.os.listdir')
+    @patch('ms_service_profiler.compare.os.listdir')
     def test_find_ascend_pt_dirs_permission_error(self, mock_listdir):
         mock_listdir.side_effect = OSError("Permission denied")
         result = _find_ascend_pt_dirs("/some/dir")
         self.assertEqual(result, [])
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.os.listdir')
+    @patch('ms_service_profiler.compare.os.listdir')
     def test_extract_device_map_inner_exception(self, mock_listdir):
         mock_listdir.side_effect = [['PROF_1_device'], OSError("Disk error")]
         result = extract_device_to_ascend_pt_map("/root")
         self.assertIsInstance(result, dict)
 
     def test_match_paths_golden_empty_fallback(self):
-        with patch('ms_service_profiler.ms_service_profiler_ext.compare._find_ascend_pt_dirs') as mock_find:
+        with patch('ms_service_profiler.compare._find_ascend_pt_dirs') as mock_find:
             mock_find.side_effect = lambda x: ['/input/ascend_pt'] if 'input' in x else []
             input_pt, golden_pt = match_ascend_pt_paths_by_device("/input", "/golden")
             self.assertEqual(input_pt, "/input/ascend_pt")
@@ -430,10 +430,10 @@ class TestCompareToolHighCoverage(unittest.TestCase):
         df = read_sql_from_given_path("/invalid/path")
         self.assertTrue(df.empty)
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.os.listdir')
+    @patch('ms_service_profiler.compare.os.listdir')
     def test_read_sql_no_db_files(self, mock_listdir):
         mock_listdir.return_value = ['log.txt']
-        with patch('ms_service_profiler.ms_service_profiler_ext.compare.os.path.isdir', return_value=True):
+        with patch('ms_service_profiler.compare.os.path.isdir', return_value=True):
             df = read_sql_from_given_path("/valid/path")
             self.assertTrue(df.empty)
 
@@ -453,7 +453,7 @@ class TestCompareToolHighCoverage(unittest.TestCase):
         self.assertIn('name', result.columns)
         self.assertTrue(result.empty)
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.compare.read_sql_from_given_path')
+    @patch('ms_service_profiler.compare.read_sql_from_given_path')
     def test_main_input_empty(self, mock_read):
         args = argparse.Namespace(
             input_path="/input",
@@ -481,11 +481,11 @@ class TestCompareToolHighCoverage(unittest.TestCase):
 
     def test_extract_device_to_ascend_pt_map_basic(self):
         """基本场景：一个 PROF 目录 + 一个 device_数字"""
-        with patch('ms_service_profiler.ms_service_profiler_ext.compare.os.listdir') as mock_listdir, \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare.os.path.isdir', return_value=True), \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare._find_ascend_pt_dirs',
+        with patch('ms_service_profiler.compare.os.listdir') as mock_listdir, \
+                patch('ms_service_profiler.compare.os.path.isdir', return_value=True), \
+                patch('ms_service_profiler.compare._find_ascend_pt_dirs',
                       return_value=['/root/ascend_pt']), \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare._extract_prof_number', return_value=123):
+                patch('ms_service_profiler.compare._extract_prof_number', return_value=123):
             # 第一次 os.listdir('/root/ascend_pt') → ['PROF_123_xxx']
             # 第二次 os.listdir('/root/ascend_pt/PROF_123_xxx') → ['device_456']
             mock_listdir.side_effect = [
@@ -498,11 +498,11 @@ class TestCompareToolHighCoverage(unittest.TestCase):
 
     def test_extract_device_to_ascend_pt_map_multiple_devices(self):
         """一个 PROF 目录包含多个合法 device"""
-        with patch('ms_service_profiler.ms_service_profiler_ext.compare.os.listdir') as mock_listdir, \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare.os.path.isdir', return_value=True), \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare._find_ascend_pt_dirs',
+        with patch('ms_service_profiler.compare.os.listdir') as mock_listdir, \
+                patch('ms_service_profiler.compare.os.path.isdir', return_value=True), \
+                patch('ms_service_profiler.compare._find_ascend_pt_dirs',
                       return_value=['/root/ascend_pt']), \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare._extract_prof_number', return_value=100):
+                patch('ms_service_profiler.compare._extract_prof_number', return_value=100):
             mock_listdir.side_effect = [
                 ['PROF_100_run'],
                 ['device_0', 'device_1', 'device_invalid', 'device_99']
@@ -514,11 +514,11 @@ class TestCompareToolHighCoverage(unittest.TestCase):
 
     def test_extract_device_to_ascend_pt_map_skip_non_digit_device(self):
         """跳过非数字后缀的 device_"""
-        with patch('ms_service_profiler.ms_service_profiler_ext.compare.os.listdir') as mock_listdir, \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare.os.path.isdir', return_value=True), \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare._find_ascend_pt_dirs',
+        with patch('ms_service_profiler.compare.os.listdir') as mock_listdir, \
+                patch('ms_service_profiler.compare.os.path.isdir', return_value=True), \
+                patch('ms_service_profiler.compare._find_ascend_pt_dirs',
                       return_value=['/root/pt']), \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare._extract_prof_number', return_value=200):
+                patch('ms_service_profiler.compare._extract_prof_number', return_value=200):
             mock_listdir.side_effect = [
                 ['PROF_200_exp'],
                 ['device_', 'device_abc', 'device_12x', 'device_789']  # 只有 device_789 合法
@@ -533,8 +533,8 @@ class TestCompareToolHighCoverage(unittest.TestCase):
         """
         # 模拟 extract_device_to_ascend_pt_map 返回值
         with patch(
-                'ms_service_profiler.ms_service_profiler_ext.compare.extract_device_to_ascend_pt_map') as mock_extract, \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare._find_ascend_pt_dirs') as mock_find:
+                'ms_service_profiler.compare.extract_device_to_ascend_pt_map') as mock_extract, \
+                patch('ms_service_profiler.compare._find_ascend_pt_dirs') as mock_find:
             # golden 有 device 1,2；input 有 device 3,4 → 无交集
             mock_extract.side_effect = [
                 {3: "/input/pt3", 4: "/input/pt4"},  # input_map
@@ -560,13 +560,13 @@ class TestCompareToolHighCoverage(unittest.TestCase):
             output_path="/output",
             log_level="info"
         )
-        with patch('ms_service_profiler.ms_service_profiler_ext.compare.set_log_level'), \
+        with patch('ms_service_profiler.compare.set_log_level'), \
                 patch(
-                    'ms_service_profiler.ms_service_profiler_ext.compare.match_ascend_pt_paths_by_device') as mock_match, \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare.logger'), \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare.subprocess.run') as mock_run, \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare.read_sql_from_given_path') as mock_read, \
-                patch('ms_service_profiler.ms_service_profiler_ext.compare.save_dataframe_to_csv'):
+                    'ms_service_profiler.compare.match_ascend_pt_paths_by_device') as mock_match, \
+                patch('ms_service_profiler.compare.logger'), \
+                patch('ms_service_profiler.compare.subprocess.run') as mock_run, \
+                patch('ms_service_profiler.compare.read_sql_from_given_path') as mock_read, \
+                patch('ms_service_profiler.compare.save_dataframe_to_csv'):
             # 关键：让 match 返回非空路径 → 触发 subprocess
             mock_match.return_value = ("/input/pt", "/golden/pt")
 
@@ -574,7 +574,7 @@ class TestCompareToolHighCoverage(unittest.TestCase):
             mock_read.return_value = pd.DataFrame({'name': ['op'], 'during_time': [10]})
 
             # 调用 main
-            from ms_service_profiler.ms_service_profiler_ext.compare import main
+            from ms_service_profiler.compare import main
             main(args)
 
             # 断言 subprocess.run 被调用

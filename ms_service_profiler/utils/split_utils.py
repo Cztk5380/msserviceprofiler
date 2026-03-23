@@ -14,7 +14,7 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 
-from .utils import logger
+from .ext_utils import logger
 from .constants import US_PER_MS
 
 CSV_COLUMNS = ["name", "during_time", "pid", "tid", "start_time", "end_time", "rid", "start_datetime", 
@@ -80,7 +80,8 @@ def get_statistics_data(framework_df, filter_name, name):
 
 
 def get_service_type(framework_df):
-    from ..split_processor import VllmProcessor, MindIEProcessor, MindIEProcessorV2
+    from ms_service_profiler.processor.vllm_split_processor import VllmProcessor
+    from ms_service_profiler.processor.mindie_split_processor import MindIEProcessor, MindIEProcessorV2
     result_service = MindIEProcessor()
     name_set = set(list(framework_df["name"]))
     if "deserializeExecuteResponse" not in name_set:

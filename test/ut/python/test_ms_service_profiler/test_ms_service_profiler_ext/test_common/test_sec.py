@@ -16,13 +16,11 @@
 
 import os
 import stat
-import shutil
 import unittest
 from unittest import mock
 
-from ms_service_profiler.ms_service_profiler_ext.common.sec import (
-    list_dir_common_check, traverse_dir_common_check,
-    read_file_common_check, execute_file_common_check
+from ms_service_profiler.utils.ext_sec import (
+    list_dir_common_check, read_file_common_check
 )
 
 

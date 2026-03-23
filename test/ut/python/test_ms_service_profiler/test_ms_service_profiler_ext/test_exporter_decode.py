@@ -22,7 +22,7 @@ from argparse import Namespace
 import numpy as np
 import pandas as pd
 
-from ms_service_profiler.ms_service_profiler_ext.exporters.exporter_decode import ExporterDecode
+from ms_service_profiler.exporters.exporter_decode import ExporterDecode
 
 
 class TestExporterDecodeFunction(unittest.TestCase):

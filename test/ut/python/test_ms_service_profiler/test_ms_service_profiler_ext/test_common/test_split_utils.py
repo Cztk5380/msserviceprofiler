@@ -16,16 +16,15 @@
 
 import unittest
 import pandas as pd
-from ms_service_profiler.ms_service_profiler_ext.common.split_utils import (
+from ms_service_profiler.utils.split_utils import (
     get_statistics_data, get_service_type,
     PREFILL_NAME, DECODE_NAME
 )
-from ms_service_profiler.ms_service_profiler_ext.split_processor import (
-    VllmProcessor,
+from ms_service_profiler.processor.vllm_split_processor import VllmProcessor
+from ms_service_profiler.processor.mindie_split_processor import (
     MindIEProcessor,
     MindIEProcessorV2
 )
-from ms_service_profiler.ms_service_profiler_ext.common.constants import US_PER_MS
 
 
 # 测试用例

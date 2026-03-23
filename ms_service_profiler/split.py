@@ -23,8 +23,8 @@ from msguard.security.io import mkdir_s
 
 
 def add_exporters(args):
-    from ms_service_profiler.ms_service_profiler_ext.exporters.exporter_prefill import ExporterPrefill
-    from ms_service_profiler.ms_service_profiler_ext.exporters.exporter_decode import ExporterDecode
+    from ms_service_profiler.exporters.exporter_prefill import ExporterPrefill
+    from ms_service_profiler.exporters.exporter_decode import ExporterDecode
 
     if not hasattr(args, "format"):
         args.format = "csv"

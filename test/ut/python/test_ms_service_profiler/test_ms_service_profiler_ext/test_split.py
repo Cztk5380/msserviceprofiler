@@ -18,17 +18,16 @@ import unittest
 
 from argparse import Namespace
 from pathlib import Path
-from unittest.mock import patch
 
 import argparse
 import pytest
 
-from ms_service_profiler.ms_service_profiler_ext.split import (
+from ms_service_profiler.split import (
     add_exporters, main, arg_parse, 
     check_string_valid, check_non_negative_integer
 )
-from ms_service_profiler.ms_service_profiler_ext.exporters.exporter_prefill import ExporterPrefill
-from ms_service_profiler.ms_service_profiler_ext.exporters.exporter_decode import ExporterDecode
+from ms_service_profiler.exporters.exporter_prefill import ExporterPrefill
+from ms_service_profiler.exporters.exporter_decode import ExporterDecode
 
 
 class TestSplitFuctions(unittest.TestCase):
@@ -88,7 +87,7 @@ class TestSplitFuctions(unittest.TestCase):
         mocker.patch("argparse.ArgumentParser.parse_args", return_value=self.mock_args)
         mocker.patch("ms_service_profiler.utils.log.set_log_level")
         mocker.patch(
-            "ms_service_profiler.ms_service_profiler_ext.split.add_exporters",
+            "ms_service_profiler.split.add_exporters",
             return_value=[ExporterPrefill, ExporterDecode]
         )
         mocker.patch.object(Path, "mkdir")

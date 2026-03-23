@@ -23,7 +23,7 @@ from msguard.security.io import mkdir_s
 
 
 def add_summary_exporter(func):
-    from ms_service_profiler.ms_service_profiler_ext.exporters.exporter_summary import ExporterSummary
+    from ms_service_profiler.exporters.exporter_summary import ExporterSummary
 
     def wrapper(args):
         default_exporters = func(args)
@@ -75,18 +75,14 @@ def main(args):
     from ms_service_profiler.exporters.factory import ExporterFactory
     from ms_service_profiler.exporters.utils import create_sqlite_db
 
-    # 初始化日志等级
     set_log_level(args.log_level)
 
-    # 初始化Exporter
     wrapped_create_exporters = add_summary_exporter(ExporterFactory.create_exporters)
     exporters = wrapped_create_exporters(args)
 
-    # 创建output目录
     mkdir_s(args.output_path)
     if not Rule.output_dir._is_satisfied_by(args.output_path):
         raise argparse.ArgumentTypeError(f"Output path is not valid: {args.output_path!r}")
     create_sqlite_db(args.output_path)
 
-    # 解析数据并导出
     parse(args.input_path, custom_plugins, exporters, args=args)

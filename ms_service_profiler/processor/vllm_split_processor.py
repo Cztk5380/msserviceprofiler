@@ -15,7 +15,21 @@
 # -------------------------------------------------------------------------
 
 
-__all__ = ["MindIEProcessor", "VllmProcessor", "MindIEProcessorV2"]
+from .split_base_processor import BaseFrameworkProcessor
 
-from .mindie_processor import MindIEProcessor, MindIEProcessorV2
-from .vllm_processor import VllmProcessor
+
+class VllmProcessor(BaseFrameworkProcessor):
+    batch_start_name = "batchFrameworkProcessing"
+    batch_end_name = "forward"
+    http_start_name = "httpReq"
+    http_end_name = "httpRes"
+    key_name = "forward"
+    all_time_name = "AllTime"
+    http_list = ["httpReq", "encode", "decodeEnd", "httpRes"]
+    name_list = [batch_start_name, "preprocess", batch_end_name]
+    filter_list = [http_start_name, http_end_name, all_time_name]
+    name_list = name_list + http_list
+
+    @classmethod
+    def initialize(cls, args):
+        cls.args = args

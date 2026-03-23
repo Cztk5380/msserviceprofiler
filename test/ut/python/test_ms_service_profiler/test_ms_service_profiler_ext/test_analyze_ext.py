@@ -23,10 +23,9 @@ import pytest
 
 from ms_service_profiler.exporters.factory import ExporterFactory
 from ms_service_profiler.exporters.exporter_batch import ExporterBatchData
-from ms_service_profiler.utils.log import set_logger
-from ms_service_profiler.ms_service_profiler_ext import analyze
-from ms_service_profiler.ms_service_profiler_ext.analyze import add_summary_exporter, main, arg_parse
-from ms_service_profiler.ms_service_profiler_ext.exporters.exporter_summary import ExporterSummary
+from ms_service_profiler import analyze
+from ms_service_profiler.analyze import add_summary_exporter, main, arg_parse
+from ms_service_profiler.exporters.exporter_summary import ExporterSummary
 
 
 class TestMainFunction:
@@ -63,7 +62,7 @@ class TestMainFunction:
         mock_initialize.assert_called_once_with(args)
 
     def test_command_line_interface(self):
-        mock_main = self.mocker.patch("ms_service_profiler.ms_service_profiler_ext.analyze.main")
+        mock_main = self.mocker.patch("ms_service_profiler.analyze.main")
         self.mocker.patch("sys.argv", ["script_name", "analyze", "--input-path", "/tmp/fake/input"])
 
         parser = argparse.ArgumentParser()

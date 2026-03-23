@@ -18,7 +18,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import numpy as np
 import pandas as pd
-from ms_service_profiler.ms_service_profiler_ext.exporters.exporter_summary import (
+from ms_service_profiler.exporters.exporter_summary import (
     is_contained_valid_iter_info,
     process_batch_record,
     calculate_statistics,
@@ -34,7 +34,7 @@ from ms_service_profiler.ms_service_profiler_ext.exporters.exporter_summary impo
     get_new_ttft_wait_time,
     ExporterSummary
 )
-from ms_service_profiler.ms_service_profiler_ext.common.csv_fields import (
+from ms_service_profiler.utils.csv_fields import (
     RequestCSVFields, BatchCSVFields, ServiceCSVFields
 )
 
@@ -350,10 +350,10 @@ class TestExporterSummaryFunctions(unittest.TestCase):
 
 
 class TestGenExporterResults(unittest.TestCase):
-    @patch('ms_service_profiler.ms_service_profiler_ext.exporters.exporter_summary.process_each_record')
-    @patch('ms_service_profiler.ms_service_profiler_ext.exporters.exporter_summary.calculate_request_metrics')
-    @patch('ms_service_profiler.ms_service_profiler_ext.exporters.exporter_summary.calculate_statistics')
-    @patch('ms_service_profiler.ms_service_profiler_ext.exporters.exporter_summary.calculate_batch_metrics')
+    @patch('ms_service_profiler.exporters.exporter_summary.process_each_record')
+    @patch('ms_service_profiler.exporters.exporter_summary.calculate_request_metrics')
+    @patch('ms_service_profiler.exporters.exporter_summary.calculate_statistics')
+    @patch('ms_service_profiler.exporters.exporter_summary.calculate_batch_metrics')
     def test_gen_exporter_results(self, mock_calculate_batch_metrics, mock_calculate_statistics,
                                    mock_calculate_request_metrics, mock_process_each_record):
                                   
@@ -379,7 +379,7 @@ class TestGenExporterResults(unittest.TestCase):
 
 
 class TestGetNewTotalTime(unittest.TestCase):
-    @patch('ms_service_profiler.ms_service_profiler_ext.exporters.exporter_summary.is_invaild_rid')
+    @patch('ms_service_profiler.exporters.exporter_summary.is_invaild_rid')
     def test_empty_rid(self, mock_is_invaild_rid):
         mock_is_invaild_rid.return_value = False
         all_data_df = pd.DataFrame({
@@ -391,7 +391,7 @@ class TestGetNewTotalTime(unittest.TestCase):
         result = get_new_total_time(all_data_df)
         self.assertEqual(result, {})
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.exporters.exporter_summary.is_invaild_rid')
+    @patch('ms_service_profiler.exporters.exporter_summary.is_invaild_rid')
     def test_invalid_rid(self, mock_is_invaild_rid):
         mock_is_invaild_rid.return_value = True
         all_data_df = pd.DataFrame({
@@ -487,7 +487,7 @@ class TestExport(unittest.TestCase):
         cls.args = MagicMock()
         cls.args.output_path = '/path/to/output'
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.exporters.exporter_summary.logger')
+    @patch('ms_service_profiler.exporters.exporter_summary.logger')
     def test_export_empty_data(self, mock_logger):
         # 测试当data为空时的情况
         ExporterSummary.initialize(self.args)
@@ -495,7 +495,7 @@ class TestExport(unittest.TestCase):
         mock_logger.warning.assert_called_once_with("The data is empty, please check")
         self.assertIsNone(result)
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.exporters.exporter_summary.logger')
+    @patch('ms_service_profiler.exporters.exporter_summary.logger')
     def test_export_empty_df(self, mock_logger):
         # 测试当all_data_df为空时的情况
         ExporterSummary.initialize(self.args)

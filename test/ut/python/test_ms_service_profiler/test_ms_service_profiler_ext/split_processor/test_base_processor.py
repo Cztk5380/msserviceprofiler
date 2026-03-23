@@ -17,7 +17,7 @@
 import unittest
 from unittest.mock import patch
 import pandas as pd
-from ms_service_profiler.ms_service_profiler_ext.split_processor.base_processor import (
+from ms_service_profiler.processor.split_base_processor import (
     BaseFrameworkProcessor
 )
 
@@ -31,7 +31,7 @@ class TestBatchSizeRecommend(unittest.TestCase):
         })
         self.instance = BaseFrameworkProcessor()  # 替换为实际的类实例
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.split_processor.base_processor.logger')
+    @patch('ms_service_profiler.processor.split_base_processor.logger')
     def test_no_matching_rows(self, mock_logger):
         result = self.instance._get_batch_size_recommend(self.framework_df, "nonexistent_type")
         self.assertEqual(result, [-1])
@@ -41,7 +41,7 @@ class TestBatchSizeRecommend(unittest.TestCase):
         result = self.instance._get_batch_size_recommend(self.framework_df, "type1")
         self.assertEqual(result, [32])
 
-    @patch('ms_service_profiler.ms_service_profiler_ext.split_processor.base_processor.logger')
+    @patch('ms_service_profiler.processor.split_base_processor.logger')
     def test_preprocess_framework_df_key_error(self, mock_logger):
         # 测试KeyError的情况
         df = pd.DataFrame({
