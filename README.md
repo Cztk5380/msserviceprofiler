@@ -104,3 +104,22 @@ msServiceProfiler由华为公司的下列部门联合贡献：
 - 昇腾计算MindStudio开发部
 
 感谢来自社区的每一个PR，欢迎贡献msServiceProfiler！ 
+
+## 关于MindStudio团队
+
+华为MindStudio全流程开发工具链团队致力于提供端到端的昇腾AI应用开发解决方案，使能开发者高效完成训练开发、推理开发和算子开发。您可以通过以下渠道更深入了解华为MindStudio团队：
+
+<div style="display: flex; align-items: center; gap: 10px;">
+    <span>昇腾论坛：</span>
+    <a href="https://www.hiascend.com/forum/" rel="nofollow">
+        <img src="https://img.shields.io/badge/Website-%231e37ff?style=for-the-badge&logo=bytedance&logoColor=white">
+    </a>
+    <span style="margin-left: 20px;">昇腾小助手：</span>
+    <a href="https://gitcode.com/Ascend/msinsight/blob/master/docs/zh/user_guide/figures/readme/xiaozhushou.png" rel="nofollow noopener">
+        <img src="https://img.shields.io/badge/WeChat-07C160?style=for-the-badge&logo=wechat&logoColor=white">
+    </a>
+    <span style="margin-left: 20px;">MindStudio公众号：</span>
+    <img width="100" src="./docs/assets/gongzhonghao.jpg" />
+</div>
+
+在公众号中私信【交流群】，可以获取技术交流群二维码
