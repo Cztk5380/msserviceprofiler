@@ -11,7 +11,7 @@ include-package-data = true
 
 [project]
 name = "ms_serviceparam_optimizer"
-version = '8.3.0'
+version = '26.0.0'
 requires-python = ">=3.10"
 
 dependencies = [
