@@ -28,7 +28,7 @@ from .registry import add_to_hook_registry
 from .inject import inject_function
 from .utils import FunctionContext
 try:
-    from ms_service_metric.core.hook_chain import get_chain
+    from ms_service_metric.core.hook.hook_chain import get_chain
 except ImportError:
     get_chain = None
 
@@ -566,14 +566,14 @@ class VLLMHookerBase(ABC):
 
             
             if hook_node is not None:
-                wrapped = self.replace_func(trackable_ori_func, pname, profiler_func, on_recover=_recover_current)
-                hook_node.set_hook_func(wrapped)
-                
                 def _recover_current(cur_hook_ref=hook_node):
                     try:
                         cur_hook_ref.recover()
                     except Exception as e:
                         logger.error(f"Recover call failed: {e}")
+
+                wrapped = self.replace_func(trackable_ori_func, pname, profiler_func, on_recover=_recover_current)
+                hook_node.set_hook_func(wrapped)
                         
                 self.hooks.append(hook_node)
             else:

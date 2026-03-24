@@ -149,7 +149,7 @@ def install_symbol_watcher(watcher) -> bool:
         bool: 是否成功安装 SymbolWatcher（True表示使用了SymbolWatcher，False表示回退到meta_path）
     """
     try:
-        from ms_service_metric.core.symbol_watcher import SymbolWatcher
+        from ms_service_metric.core.module.symbol_watcher import SymbolWatcher
     except ImportError:
         sys.meta_path.insert(0, watcher)
         logger.debug("Symbol watcher installed via sys.meta_path")
