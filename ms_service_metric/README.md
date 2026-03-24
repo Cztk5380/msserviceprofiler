@@ -133,6 +133,10 @@ ms-service-metric status
    - 点击 **Import**   
    - 选择刚才创建的 Prometheus 数据源
 
+### 4. 更多介绍
+
+详细使用方法，请参考：[使用指南](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/zh/vLLM_metrics_tool_instruct.md)
+
 ## 配置
 
 用户可以自定义需要采集的内容，可以通过：MS_SERVICE_METRIC_VLLM_CONFIG 环境变量指定yaml 文件。如果不指定，默认使用内部的采集配置
