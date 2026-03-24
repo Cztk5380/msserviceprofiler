@@ -30,12 +30,11 @@ from ...config.base_config import CUSTOM_OUTPUT, MODEL_EVAL_STATE_CONFIG_PATH, \
     ms_serviceparam_optimizer_config_path
 from ..utils import close_file_fp, remove_file, kill_children, \
     backup, kill_process
-
-
+from ...config.constant import ProcessState, Stage
 
 class CustomProcess:
     from ...config.config import OptimizerConfigField
-    
+
     def __init__(self, bak_path: Optional[Path] = None, command: Optional[List[str]] = None,
                  work_path: Optional[Path] = None, print_log: bool = False,
                  process_name: str = ""):
@@ -49,7 +48,17 @@ class CustomProcess:
         self.print_log = print_log
         self.process_name = process_name
         self.env = os.environ.copy()
-        self.command = None
+        self._process_stage = ProcessState(stage=Stage.stop)
+
+    @property
+    def process_stage(self):
+        return self._process_stage
+    
+    @process_stage.setter
+    def process_stage(self, value):
+        if value.stage == self._process_stage.stage:
+            return
+        self._process_stage = value
 
     @staticmethod
     def kill_residual_process(process_name):
@@ -143,6 +152,7 @@ class CustomProcess:
         try:
             self.process = subprocess.Popen(self.command, env=self.env, stdout=self.run_log_fp,
                                             stderr=subprocess.STDOUT, cwd=self.work_path)
+            self.process_stage = ProcessState(stage=Stage.start)
         except OSError as e:
             logger.error(f"Failed to run {self.command}. error {e}")
             raise e
@@ -164,7 +174,6 @@ class CustomProcess:
         return output
 
     def health(self):
-        from ...config.config import ProcessState, Stage
         """
         检查任务是否运行成功
         Returns: 返回bool值，检查程序是否成功启动
@@ -189,6 +198,7 @@ class CustomProcess:
             return
         _process_state = self.process.poll()
         if _process_state is not None:
+            self.process_stage = ProcessState(stage=Stage.stop)
             logger.info(f"The program has exited. exit_code: {_process_state}")
             return
         try:
@@ -203,8 +213,10 @@ class CustomProcess:
             else:
                 logger.error(f"The {self.process.pid} process shutdown failed.")
             kill_children(children)
+            self.process_stage = ProcessState(stage=Stage.stop)
         except Exception as e:
             logger.error(f"Failed to stop simulator process. {e}")
+            self.process_stage = ProcessState(stage=Stage.error, info=f"Failed to stop simulator process. {e}")
 
     def get_last_log(self, number: int = 5):
         output = None

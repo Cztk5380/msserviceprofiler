@@ -21,7 +21,8 @@ from typing import Tuple, Optional
 import requests
 
 from .custom_process import BaseDataField, CustomProcess
-from ...config.config import OptimizerConfigField, ProcessState, Stage
+from ...config.config import OptimizerConfigField
+from ...config.constant import ProcessState, Stage
 
 
 class SimulatorInterface(CustomProcess, BaseDataField, ABC):
@@ -75,12 +76,15 @@ class SimulatorInterface(CustomProcess, BaseDataField, ABC):
         Returns: None
 
         """
+        last_process_stage = self.process_stage
         process_res = super().health()
         if process_res.stage == Stage.error:
             return process_res
         try:
             res = requests.get(self.base_url, timeout=10)
         except requests.exceptions.RequestException as e:
+            if last_process_stage.stage == Stage.start:
+                return ProcessState(stage=Stage.start, info=str(e))
             return ProcessState(stage=Stage.error, info=str(e))
         else:
             if res.status_code == 200:

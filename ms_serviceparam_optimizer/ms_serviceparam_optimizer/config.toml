@@ -12,6 +12,39 @@ sample_size = 1000
 # -------------------------选取top_k进入精调------------------------------------------------
 [data_storage]
 pso_top_k = 0
+# -------------------------运行中检测日志异常------------------------------------------------
+# 日志检测功能会自动监控服务化框架和测评工具的运行日志，
+# 根据错误类型采取不同的处理策略：
+# - 致命错误（FATAL）：立即停止调度器，不进行重试
+# - 可重试错误（RETRYABLE）：触发重试机制（最多重试3次）
+# 配置建议：
+# 1. 从最小严格模式开始，逐步根据实际情况放宽
+# 2. 避免使用过于宽泛的模式（如 "error", "exception", "failed"）
+# 3. 优先使用完整的错误信息（如 "out of memory" 而不是 "memory"）
+# 4. 区分服务化框架和测评工具的错误模式
+#
+# 默认配置为空，请根据实际场景配置以下内容：
+# [health_check.service_errors.fatal_patterns]
+# out_of_memory = ["out of memory", "OOM killed", "MemoryError"]
+# device_error = ["NPU error", "device fault", "Ascend error"]
+
+# [health_check.service_errors.retryable_patterns]
+# network_error = ["connection reset", "connection refused", "timeout"]
+# io_error = ["file not found", "permission denied", "IO error"]
+[health_check]
+log_snippet_length = 200
+[health_check.service_errors.fatal_patterns]
+out_of_memory = []
+device_error = []
+[health_check.service_errors.retryable_patterns]
+network_error = []
+io_error = []
+[health_check.benchmark_errors.fatal_patterns]
+out_of_memory = []
+device_error = []
+[health_check.benchmark_errors.retryable_patterns]
+network_error = []
+io_error = []
 
 # -------------------------mindie相关配置------------------------------------------------
 [mindie]

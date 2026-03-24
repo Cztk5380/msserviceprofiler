@@ -14,6 +14,8 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 import os
+from enum import Enum
+from pydantic import BaseModel
 
 MODEL_EVAL_STATE_SIMULATE = "MODEL_EVAL_STATE_SIMULATE"
 MODEL_EVAL_STATE_ALL = "MODEL_EVAL_STATE_ALL"
@@ -28,3 +30,13 @@ REQUESTRATES = ("REQUESTRATE",)
 CONCURRENCYS = ("CONCURRENCY", "MAXCONCURRENCY")
 METRIC_TTFT = 'ttft'
 METRIC_TPOT = 'tpot'
+
+class Stage(Enum):
+    start = "start"
+    running = "running"
+    error = "error"
+    stop = "stop"
+
+class ProcessState(BaseModel):
+    stage: Stage = Stage.start
+    info: str = ""

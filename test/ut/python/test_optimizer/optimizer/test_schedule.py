@@ -23,9 +23,10 @@ import pytest
 
 from ms_serviceparam_optimizer.config.config import (
     CommunicationConfig, map_param_with_value,
-    get_settings, default_support_field, Stage,
+    get_settings, default_support_field,
     OptimizerConfigField, PerformanceIndex, ErrorSeverity, ErrorType
 )
+from ms_serviceparam_optimizer.config.constant import Stage
 from ms_serviceparam_optimizer.optimizer.communication import CommunicationForFile, CustomCommand
 from ms_serviceparam_optimizer.optimizer.scheduler import ScheduleWithMultiMachine, Scheduler
 from ms_serviceparam_optimizer.config.base_config import FOLDER_LIMIT_SIZE

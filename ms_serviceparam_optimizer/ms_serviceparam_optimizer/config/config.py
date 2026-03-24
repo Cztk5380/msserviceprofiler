@@ -54,13 +54,6 @@ class PerformanceConfig(BaseModel):
 dtype_func = {"int": int, "float": float}
 
 
-class Stage(Enum):
-    start = "start"
-    running = "running"
-    error = "error"
-    stop = "stop"
-
-
 class ErrorSeverity(Enum):
     """错误严重程度"""
     FATAL = "fatal"
@@ -74,11 +67,6 @@ class ErrorType(Enum):
     NETWORK_ERROR = "network_error"
     IO_ERROR = "io_error"
     UNKNOWN = "unknown"
-
-
-class ProcessState(BaseModel):
-    stage: Stage = Stage.start
-    info: str = ""
 
 
 class OptimizerConfigField(BaseModel):
@@ -467,15 +455,14 @@ class ErrorPatternConfig(BaseModel):
     """错误模式配置 - 3层设计：ErrorType -> patterns -> severity"""
     fatal_patterns: Dict[ErrorType, List[str]] = Field(
         default_factory=lambda: {
-            ErrorType.OUT_OF_MEMORY: ["out of memory", "OOM", "memory allocation failed", "Engine core initialization failed",
-                                      "RuntimeError"],
-            ErrorType.DEVICE_ERROR: ["device error", "NPU error", "device fault", "compute error"]
+            ErrorType.OUT_OF_MEMORY: [],
+            ErrorType.DEVICE_ERROR: []
         }
     )
     retryable_patterns: Dict[ErrorType, List[str]] = Field(
         default_factory=lambda: {
-            ErrorType.NETWORK_ERROR: ["connection reset", "network unreachable", "timeout", "connection refused"],
-            ErrorType.IO_ERROR: ["file not found", "permission denied", "IO error", "no space left"]
+            ErrorType.NETWORK_ERROR: [],
+            ErrorType.IO_ERROR: []
         }
     )
 
@@ -487,8 +474,8 @@ class HealthCheckConfig(BaseModel):
         default_factory=lambda: ErrorPatternConfig(
             fatal_patterns={},
             retryable_patterns={
-                ErrorType.NETWORK_ERROR: ["connection reset", "network unreachable", "timeout", "connection refused"],
-                ErrorType.IO_ERROR: ["file not found", "permission denied", "IO error", "no space left"]
+                ErrorType.NETWORK_ERROR: [],
+                ErrorType.IO_ERROR: []
             }
         )
     )

@@ -354,6 +354,31 @@ others = ""
 |served_model_name|必选| 模型名称，需与`[vllm_benchmark.command]`中的`served_model_name`保持一致。|
 |others|可选| 拼接其他参数，注意参数间使用空格分隔，参数内部不能留有空格。如：`--tensor-parallel-size 2 --no-enable-prefix-caching`。默认为空。| 
 
+**日志检测**：检查日志中出现的异常信息，区分致命错误和可重试错误，实现智能错误处理和重试机制。可检测的错误类型包括内存溢出（OOM）、设备故障（NPU）、网络错误和IO错误等。致命错误（如OOM、NPU故障）会立即停止调度器，可重试错误（如网络抖动、IO失败）会触发自动重试（最多3次）。
+
+|参数|可选/必选|说明|
+|---|---|---|
+|log_snippet_length|可选|日志片段长度，用于显示错误详情。取值范围：50-1000，默认为200。|
+|service_errors.fatal_patterns|可选|服务化框架致命错误模式列表，默认为空。常见致命错误包括内存溢出、设备故障等。|
+|service_errors.retryable_patterns|可选|服务化框架可重试错误模式列表，默认为空。常见可重试错误包括网络错误、IO错误等。|
+|benchmark_errors.fatal_patterns|可选|测评工具致命错误模式列表，默认为空。|
+|benchmark_errors.retryable_patterns|可选|测评工具可重试错误模式列表，默认为空。|
+
+配置示例：
+
+```toml
+[health_check]
+log_snippet_length = 200
+
+[health_check.service_errors.fatal_patterns]
+out_of_memory = ["out of memory", "OOM killed", "MemoryError"]
+device_error = ["NPU error", "device fault", "Ascend error"]
+
+[health_check.service_errors.retryable_patterns]
+network_error = ["connection reset", "connection refused", "timeout"]
+io_error = ["file not found", "permission denied", "IO error"]
+```
+
 ### PD分离寻优
 
 服务化自动寻优工具支持在MindIE的A2单机PD分离场景中进行参数寻优（仅支持轻量化模式），且需要k8s部署。需保证能正常使用k8s拉起MindIE服务。

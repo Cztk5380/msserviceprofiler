@@ -24,8 +24,9 @@ from loguru import logger
 from ..common import get_train_sub_path, is_mindie, is_vllm
 from ..config.base_config import REAL_EVALUATION
 from ..config.config import get_settings, PerformanceIndex, OptimizerConfigField, \
-    map_param_with_value, CommunicationConfig, Stage, ErrorSeverity
+    map_param_with_value, CommunicationConfig, ErrorSeverity
 from ..config.base_config import FOLDER_LIMIT_SIZE, REQUESTRATES
+from ..config.constant import Stage
 from ..optimizer.communication import CommunicationForFile, CustomCommand
 from ..optimizer.plugins.simulate import Simulator, DisaggregationSimulator
 from ..optimizer.store import DataStorage
@@ -109,9 +110,23 @@ class Scheduler:
                 if hasattr(self.simulator, "check_success") and self.simulator.check_success():
                     logger.info(f"Successfully started the {self.simulator.process} process.")
                     return
-                if hasattr(self.simulator, "health") and self.simulator.health().stage == Stage.running:
-                    logger.info(f"Successfully started the {self.simulator.process} process.")
-                    return
+                elif hasattr(self.simulator, "health"):
+                    res = self.simulator.health()
+                    if res.stage == Stage.running:
+                        logger.info(f"Successfully started the {self.simulator.process} process.")
+                        return
+                    elif res.stage == Stage.start:
+                        if int(elapsed) % 60 == 0:
+                            logger.warning(f"Check the service status at {elapsed} seconds. status: {res.stage}. info: {res.info}")
+                        continue
+                    elif res.stage == Stage.stop or res.stage == Stage.error:
+                        logger.error(f"Failed to start the {self.simulator.process} process.")
+                        raise subprocess.SubprocessError(f"Failed in run simulator. status: {res.stage}. info: {res.info}")
+                    else:
+                        logger.warning(f" Unknown Status. status: {res.stage}. info: {res.info}")
+                else:
+                    raise RuntimeError(f"No actionable method found. the expected is check_success or health. "
+                                       f"simulator: {type(self.simulator)}")
             else:
                 self._handle_error(result.error_context)
         raise TimeoutError(self.wait_time)

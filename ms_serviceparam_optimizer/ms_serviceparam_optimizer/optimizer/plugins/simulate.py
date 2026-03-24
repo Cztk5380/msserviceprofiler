@@ -33,9 +33,9 @@ from ..utils import remove_file, close_file_fp, backup
 from ...config.custom_command import VllmCommand, MindieCommand
 from ...config.config import (
     get_settings, OptimizerConfigField, VllmConfig,
-    MindieConfig, KubectlConfig, Stage, ProcessState
+    MindieConfig, KubectlConfig
 )
-
+from ...config.constant import Stage, ProcessState
 
 @dataclass
 class ConfigContextdict:

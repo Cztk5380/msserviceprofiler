@@ -26,7 +26,7 @@ from loguru import logger
 from msguard.security import open_s
 from ..config.base_config import CUSTOM_OUTPUT, MODEL_EVAL_STATE_CONFIG_PATH, \
     ms_serviceparam_optimizer_config_path
-from ..config.config import OptimizerConfigField, get_settings, ProcessState, Stage
+from ..config.config import OptimizerConfigField, get_settings
 from ..optimizer.utils import close_file_fp, remove_file, kill_children, \
     backup, kill_process
 

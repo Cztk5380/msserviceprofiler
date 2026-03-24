@@ -122,7 +122,7 @@ class TestHealthCheckHooks(unittest.TestCase):
 
 
 class TestServiceHealthChecks(unittest.TestCase):
-    @patch('ms_serviceparam_optimizer.config.config.get_settings')
+    @patch('ms_serviceparam_optimizer.optimizer.health_check.get_settings')
     def test_no_error(self, mock_get_settings):
         mock_config = MagicMock()
         mock_config.fatal_patterns = {}
@@ -145,7 +145,7 @@ class TestServiceHealthChecks(unittest.TestCase):
         result = ServiceHealthChecks.check_log_errors(context)
         self.assertTrue(result.is_healthy)
 
-    @patch('ms_serviceparam_optimizer.config.config.get_settings')
+    @patch('ms_serviceparam_optimizer.optimizer.health_check.get_settings')
     def test_detect_fatal_error(self, mock_get_settings):
         mock_config = MagicMock()
         mock_config.fatal_patterns = {
@@ -178,7 +178,7 @@ class TestServiceHealthChecks(unittest.TestCase):
         self.assertEqual(result.error_context.error_type, ErrorType.OUT_OF_MEMORY)
         self.assertEqual(result.error_context.severity, ErrorSeverity.FATAL)
 
-    @patch('ms_serviceparam_optimizer.config.config.get_settings')
+    @patch('ms_serviceparam_optimizer.optimizer.health_check.get_settings')
     def test_detect_retryable_error(self, mock_get_settings):
         mock_config = MagicMock()
         mock_config.fatal_patterns = {}
@@ -225,7 +225,7 @@ class TestServiceHealthChecks(unittest.TestCase):
 
 
 class TestBenchmarkHealthChecks(unittest.TestCase):
-    @patch('ms_serviceparam_optimizer.config.config.get_settings')
+    @patch('ms_serviceparam_optimizer.optimizer.health_check.get_settings')
     def test_no_error(self, mock_get_settings):
         mock_config = MagicMock()
         mock_config.fatal_patterns = {}
@@ -253,7 +253,7 @@ class TestBenchmarkHealthChecks(unittest.TestCase):
         result = BenchmarkHealthChecks.check_log_errors(context)
         self.assertTrue(result.is_healthy)
 
-    @patch('ms_serviceparam_optimizer.config.config.get_settings')
+    @patch('ms_serviceparam_optimizer.optimizer.health_check.get_settings')
     def test_detect_network_error(self, mock_get_settings):
         mock_config = MagicMock()
         mock_config.fatal_patterns = {}

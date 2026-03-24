@@ -130,26 +130,6 @@ class TestMapParamWithValueRealFields(unittest.TestCase):
 class TestErrorPatternConfig(unittest.TestCase):
     """测试 ErrorPatternConfig 配置类"""
 
-    def test_default_fatal_patterns(self):
-        """测试默认的 fatal_patterns 配置"""
-        config = ErrorPatternConfig()
-        self.assertIn(ErrorType.OUT_OF_MEMORY, config.fatal_patterns)
-        self.assertIn(ErrorType.DEVICE_ERROR, config.fatal_patterns)
-        self.assertIn("out of memory", config.fatal_patterns[ErrorType.OUT_OF_MEMORY])
-        self.assertIn("OOM", config.fatal_patterns[ErrorType.OUT_OF_MEMORY])
-        self.assertIn("device error", config.fatal_patterns[ErrorType.DEVICE_ERROR])
-        self.assertIn("NPU error", config.fatal_patterns[ErrorType.DEVICE_ERROR])
-
-    def test_default_retryable_patterns(self):
-        """测试默认的 retryable_patterns 配置"""
-        config = ErrorPatternConfig()
-        self.assertIn(ErrorType.NETWORK_ERROR, config.retryable_patterns)
-        self.assertIn(ErrorType.IO_ERROR, config.retryable_patterns)
-        self.assertIn("connection reset", config.retryable_patterns[ErrorType.NETWORK_ERROR])
-        self.assertIn("timeout", config.retryable_patterns[ErrorType.NETWORK_ERROR])
-        self.assertIn("file not found", config.retryable_patterns[ErrorType.IO_ERROR])
-        self.assertIn("permission denied", config.retryable_patterns[ErrorType.IO_ERROR])
-
     def test_custom_patterns(self):
         """测试自定义错误模式"""
         custom_config = ErrorPatternConfig(
