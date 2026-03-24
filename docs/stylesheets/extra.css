@@ -30,7 +30,7 @@
   cursor: default !important;
 }
 
-/* 日间/夜间模式统一：侧边栏章节标题 - 深靛蓝，更清晰易读 */
+/* 日间/夜间模式统一：侧边栏章节标题 - 柔和靛蓝，日夜间均舒适 */
 [data-md-color-scheme="default"] .md-nav__item--nested > .md-nav__link,
 [data-md-color-scheme="default"] .md-nav__item--nested > .md-nav__link:hover,
 [data-md-color-scheme="default"] .md-nav__item--nested > .md-nav__link:focus,
@@ -41,9 +41,9 @@
 [data-md-color-scheme="slate"] .md-nav__item--nested > .md-nav__link:focus,
 [data-md-color-scheme="slate"] .md-nav__item--nested > .md-nav__link:focus-within,
 [data-md-color-scheme="slate"] .md-nav__item--nested[open] > .md-nav__link {
-  color: #4338ca !important;
-  background-color: rgba(67, 56, 202, 0.12) !important;
-  border-left: 3px solid #4338ca !important;
+  color: #7c7fd4 !important;
+  background-color: rgba(124, 127, 212, 0.12) !important;
+  border-left: 3px solid #7c7fd4 !important;
   padding-left: 0.4rem !important;
   margin-left: 0.2rem !important;
   border-radius: 0 4px 4px 0 !important;

@@ -119,12 +119,14 @@ nav:
   - 更多:
     - 开发者指南: zh/developer_guide/development_guide.md
     - 社区扩展:
-      - 扩展列表: community_extensions_docs/community_extensions.md
-      - 贡献指南: community_extensions_docs/community_extensions_contributing.md
-    - 发布说明: zh/release_notes.md
-    - 安全声明: zh/security_statement.md
-    - 漏洞处理流程: zh/vulnerability_handling_procedure.md
-    - 公网地址: zh/public_ip_address.md
-    - 贡献指导: contributing.md
+      - 扩展列表: community_extension_docs/community_extensions.md
+      - 贡献指南: community_extension_docs/community_extensions_contributing.md
+      - 免责声明: zh/legal/disclaimer.md
+      - License: zh/legal/license_notice.md
+      - 发布说明: zh/release_notes.md
+      - 安全声明: zh/security_statement.md
+      - 漏洞处理流程: zh/vulnerability_handling_procedure.md
+      - 公网地址: zh/public_ip_address.md
+      - 贡献指导: contributing.md
     - 设计文档:
       - 26.0.0 特性设计: design/MindStudio Service Profiler 26.0.0 特性设计说明书.md
