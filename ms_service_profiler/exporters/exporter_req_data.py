@@ -199,7 +199,20 @@ class ExporterReqData(ExporterBase):
             return
 
         # 数据完整性检查之后，重命名之前添加排序逻辑
-        filtered_df = filtered_df.sort_values(by='start_time').reset_index(drop=True)
+        start_time_sort_key = pd.to_numeric(filtered_df['start_time'], errors='coerce')
+        invalid_start_time_count = start_time_sort_key.isna().sum()
+        if invalid_start_time_count > 0:
+            logger.debug(
+                f"ExporterReqData: {invalid_start_time_count} rows have invalid start_time values and will be sorted last."
+            )
+
+        filtered_df = (
+            filtered_df
+            .assign(_start_time_sort_key=start_time_sort_key)
+            .sort_values(by='_start_time_sort_key', na_position='last', kind='stable')
+            .drop(columns=['_start_time_sort_key'])
+            .reset_index(drop=True)
+        )
 
         filtered_df = filtered_df.rename(columns={
                 'rid': 'http_rid',

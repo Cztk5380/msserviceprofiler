@@ -15,7 +15,7 @@
 # -------------------------------------------------------------------------
 
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
@@ -443,6 +443,105 @@ class TestProcessorRes(unittest.TestCase):
         self.assertListEqual(test_df['rid'].to_list(), ['101,102', '101,102'])
         self.assertListEqual(test_df['rid_list'].to_list(), [['101', '102'], ['101', '102']])
         self.assertListEqual(test_df['dp_list'].to_list(), [['0', '0'], ['1', '1']])
+
+    def test_extract_iter_from_batch(self):
+        req = {'rid': 'req-001', 'iter_size': 3}
+        with patch('ms_service_profiler.processor.processor_res.VllmHelper.add_req_batch_iter', return_value='req-001#3') as mock_add:
+            result = self.processor.extract_iter_from_batch(req)
+
+        mock_add.assert_called_once_with('req-001', 3)
+        self.assertEqual(result, 'req-001#3')
+
+    def test_extract_ids_from_reslist_with_iter_size_and_dp(self):
+        rid = [
+            {'rid': 'req-001', 'iter_size': 2},
+            {'rid': 'req-002', 'dp': '0'},
+            {'rid': 'req-003', 'iter': '5'},
+            'req-004'
+        ]
+
+        with patch.object(self.processor, 'extract_iter_from_batch', return_value='req-001#2') as mock_extract:
+            rid_list, token_id_list, dp_list = self.processor.extract_ids_from_reslist(rid)
+
+        mock_extract.assert_called_once_with({'rid': 'req-001', 'iter_size': 2})
+        self.assertEqual(rid_list, ['req-001', 'req-002', 'req-003', 'req-004'])
+        self.assertEqual(token_id_list, ['req-001#2', 5, None])
+        self.assertEqual(dp_list, ['0'])
+
+    def test_extract_rid_with_scalar_keeps_empty_lists(self):
+        result = self.processor.extract_rid('req-001')
+
+        self.assertEqual(result[0], 'req-001')
+        self.assertListEqual(result[1], [])
+        self.assertListEqual(result[2], [])
+        self.assertListEqual(result[3], [])
+
+    def test_parse_forward_process_uses_same_host_parent_rid_map(self):
+        data = {
+            "tx_data_df": pd.DataFrame({
+                "hostname": ["host2"],
+                "pid": [1002],
+                "name": ["forward"],
+                "ppid": ["1001"],
+                "deviceid": [None],
+                "from": [None],
+                "to": [None],
+                "rid": [20]
+            })
+        }
+        meta_data = {"is_forward": True, "hostname": "host2", "ppid": "1001"}
+        meta_data_list = [
+            {"hostname": "host2", "pid": "1001", "rid_map": {"20": "200"}},
+            {"hostname": "host3", "pid": "1005", "rid_map": {"20": "300"}}
+        ]
+
+        result = self.processor.parse(data, meta_data, meta_data_list)
+
+        self.assertEqual(result["tx_data_df"].iloc[0]["rid"], '200')
+
+    def test_parse_forward_process_falls_back_to_merged_rid_map(self):
+        data = {
+            "tx_data_df": pd.DataFrame({
+                "hostname": ["host9"],
+                "pid": [1009],
+                "name": ["forward"],
+                "ppid": ["9999"],
+                "deviceid": [None],
+                "from": [None],
+                "to": [None],
+                "rid": ['rid-A']
+            })
+        }
+        meta_data = {"is_forward": True, "hostname": "host9", "ppid": "9999"}
+        meta_data_list = [
+            {"hostname": "host2", "pid": "1001", "rid_map": {"rid-A": "mapped-rid"}}
+        ]
+
+        result = self.processor.parse(data, meta_data, meta_data_list)
+
+        self.assertEqual(result["tx_data_df"].iloc[0]["rid"], 'mapped-rid')
+
+    def test_parse_forward_process_clears_numeric_rid_map(self):
+        data = {
+            "tx_data_df": pd.DataFrame({
+                "hostname": ["host9"],
+                "pid": [1009],
+                "name": ["forward"],
+                "ppid": ["9999"],
+                "deviceid": [None],
+                "from": [None],
+                "to": [None],
+                "rid": [20]
+            })
+        }
+        meta_data = {"is_forward": True, "hostname": "host9", "ppid": "9999"}
+        meta_data_list = [
+            {"hostname": "host2", "pid": "1001", "rid_map": {"20": "200"}}
+        ]
+
+        result = self.processor.parse(data, meta_data, meta_data_list)
+
+        self.assertEqual(result["tx_data_df"].iloc[0]["rid"], '20')
 
 
 if __name__ == "__main__":

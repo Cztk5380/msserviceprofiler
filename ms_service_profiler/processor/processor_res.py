@@ -117,14 +117,13 @@ class ProcessorRes(ProcessorBase):
         return rid_list, token_id_list, dp_list
 
     def extract_rid(self, rid):
-        rid_list, token_id_list, dp_list = None, None, None
+        rid_list, token_id_list, dp_list = [], [], []
 
         if isinstance(rid, list):
             rid_list, token_id_list, dp_list = self.extract_ids_from_reslist(rid)
             rid = ','.join(map(str, rid_list))
 
         return rid, rid_list, token_id_list, dp_list
-
 
     def process_each_df(self, data_df, rid_map):
         if 'rid' not in data_df.columns:
@@ -153,8 +152,7 @@ class ProcessorRes(ProcessorBase):
 
         rid_map = dict()
         if meta_data.get("is_forward", False) is False:
-            rid_map = meta_data.get("rid_map")
-
+            rid_map = meta_data.get("rid_map") or {}
             self.process_each_df(data_df, rid_map)
             # 删除from to
             if "from" in data_df:
@@ -173,10 +171,11 @@ class ProcessorRes(ProcessorBase):
 
             for meta_data_process in meta_data_list:
                 if meta_data_process.get("hostname") == hostname and meta_data_process.get("pid") == ppid:
-                    rid_map = meta_data_process.get("rid_map")
+                    rid_map = meta_data_process.get("rid_map") or {}
                     break
             else:
                 rid_map = rid_map_all
+
             self.process_each_df(data_df, rid_map)
 
         return data
