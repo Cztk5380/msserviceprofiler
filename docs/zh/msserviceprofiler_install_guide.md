@@ -54,7 +54,7 @@ apt-get install lcov
 下载后建议先进行完整性校验（MD5），再执行 `pip install` 安装。示例如下：
 
 ```shell
-# 1. 下载 release 安装包（以实际发布文件名为准）
+# 1. 点击页面下载或者使用wget下载 release 安装包（以实际发布文件名为准）
 wget https://gitcode.com/Ascend/msserviceprofiler/releases/download/<tag>/<package>.whl
 
 # 2. MD5 完整性校验（将 <expected_md5> 替换为 release 页面提供的 MD5）
@@ -73,7 +73,7 @@ pip install <package>.whl
 >
 > **MD5sum 校验不一致处理建议：**
 >
-> - 若 `md5sum -c -` 输出 `FAILED`，请勿继续执行 `pip install`。
+> - 若 `md5sum -c -` 输出 `FAILED`或者`失败`，请勿继续执行 `pip install`。
 > - 请先删除当前下载文件并重新下载，再次执行 MD5 校验。
 > - 仍无法通过校验时，请在 release 页面核对文件名与版本是否一致，并通过 Issues 反馈问题。
 
