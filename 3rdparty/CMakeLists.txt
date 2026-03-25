@@ -63,7 +63,7 @@ set(PROTOC_CMD ${PROTOBUF_BUILD_DIR}/protoc)
 if(NOT EXISTS ${PROTOBUF_DIR})
     message(STATUS "Cloning protobuf v3.21.9 ...")
     execute_process(
-        COMMAND git clone https://gitcode.com/gh_mirrors/pro/protobuf.git
+        COMMAND git clone https://gitcode.com/GitHub_Trending/pr/protobuf.git
                 --depth 1 -b v3.21.9 ${PROTOBUF_DIR}
         RESULT_VARIABLE _clone_result
         OUTPUT_VARIABLE _clone_output
