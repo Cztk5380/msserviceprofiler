@@ -20,7 +20,7 @@
 
 # vllm-ascend  version: v0.13.rc2 版本去除了capture_async，但是没关系，他们用 record_function_or_nullcontext 代替了
 - symbol: vllm_ascend.utils:ProfileExecuteDuration.capture_async
-  max_version: "0.12.0"
+  max_version: "0.13.0rc1"
   handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:record_function_timer_hook_vllm_ascend
 
 # ===== Custom Metrics（用户自定义点位）=====

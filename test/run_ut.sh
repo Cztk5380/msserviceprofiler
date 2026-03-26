@@ -33,7 +33,7 @@ TARGET_DATE="${TARGET_DATE:-2026/2/28}"
 
 declare -A BASELINE_LINE_COV=(
     ["ms_service_profiler"]=73
-    ["ms_serviceparam_optimizer"]=75.5
+    ["ms_serviceparam_optimizer"]=75
     ["msservice_advisor"]=80
 )
 

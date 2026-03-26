@@ -151,7 +151,7 @@ class TestLoadConfig:
                     result = patcher._load_config()
                     assert isinstance(result, ProfilingConfig)
                     assert result.concrete == mock_handlers
-                    MockConfigLoader.assert_called_once_with('/mock/path.yaml')
+                    MockConfigLoader.assert_called_once_with('/mock/path.yaml', None)
                     mock_loader_instance.load_profiling.assert_called_once()
                     mock_info.assert_called_once_with(
                         "Loading SGLang profiling symbols from: %s",

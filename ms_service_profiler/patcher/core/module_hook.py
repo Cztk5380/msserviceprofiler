@@ -25,7 +25,6 @@ from typing import Union, Tuple, List, Optional, Callable, Any
 from packaging.version import Version
 from .logger import logger
 from .registry import add_to_hook_registry
-from .inject import inject_function
 from .utils import FunctionContext
 try:
     from ms_service_metric.core.hook.hook_chain import get_chain

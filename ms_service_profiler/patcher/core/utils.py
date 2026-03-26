@@ -110,6 +110,36 @@ def parse_version_tuple(version_str: str) -> tuple:
     return tuple(nums[:3])
 
 
+def get_package_version(package_name: str) -> Optional[str]:
+    """获取已安装包的版本号。
+    
+    优先使用 Python 3.8+ 内置的 importlib.metadata，
+    如果失败则尝试从包的 __version__ 属性获取。
+    
+    Args:
+        package_name: 包名，如 "vllm", "sglang"
+        
+    Returns:
+        Optional[str]: 版本号，如果包未安装则返回 None
+    """
+    # 优先使用 Python 3.8+ 内置的 importlib.metadata
+    try:
+        from importlib.metadata import version
+        return version(package_name)
+    except ImportError:
+        pass
+    except Exception:
+        pass
+    
+    # 如果无法获取，尝试从包的 __version__ 属性获取
+    try:
+        import importlib
+        module = importlib.import_module(package_name)
+        return getattr(module, "__version__", None)
+    except Exception:
+        return None
+
+
 class SharedHookState:
     """共享的 hook 状态类。"""
 

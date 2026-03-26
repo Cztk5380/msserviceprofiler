@@ -35,6 +35,7 @@ from ms_service_metric.utils.shm_manager import (
     STATE_OFF,
     STATE_ON,
 )
+from ms_service_metric.utils.version import get_package_version, check_version_match
 
 __all__ = [
     # 表达式求值
@@ -56,4 +57,7 @@ __all__ = [
     "SharedMemoryManager",
     "STATE_OFF",
     "STATE_ON",
+    # 版本工具
+    "get_package_version",
+    "check_version_match",
 ]

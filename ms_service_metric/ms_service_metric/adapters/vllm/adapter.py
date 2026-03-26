@@ -30,6 +30,7 @@ import os
 from typing import Optional, Tuple
 
 from ms_service_metric.utils.logger import get_logger
+from ms_service_metric.utils.version import get_package_version
 from ms_service_metric.metrics.meta_state import set_dp_rank, get_meta_state
 from ms_service_metric.core.symbol_handler_manager import SymbolHandlerManager
 
@@ -53,6 +54,7 @@ class VLLMMetricAdapter:
         """初始化适配器"""
         self._manager: Optional[SymbolHandlerManager] = None
         self._initialized = False
+        self._version: Optional[str] = None
         
     def initialize(self):
         """初始化适配器
@@ -65,6 +67,10 @@ class VLLMMetricAdapter:
 
         logger.info("Initializing VLLMMetricAdapter")
 
+        # 检测vLLM版本
+        self._version = self._detect_vllm_version()
+        logger.info(f"Detected vLLM version: {self._version}")
+
         # 设置vLLM metrics环境（多进程、registry、前缀等）
         from ms_service_metric.adapters.vllm.metrics_init import setup_vllm_metrics
         setup_vllm_metrics()
@@ -73,8 +79,8 @@ class VLLMMetricAdapter:
         self._setup_dp_rank()
         self._setup_pd_role()
 
-        # 创建并初始化SymbolHandlerManager
-        self._manager = SymbolHandlerManager()
+        # 创建并初始化SymbolHandlerManager（传入版本信息）
+        self._manager = SymbolHandlerManager(current_version=self._version)
 
         # 加载vLLM V1版本的配置
         config_path, default_config_path = self._get_config_path()
@@ -148,7 +154,21 @@ class VLLMMetricAdapter:
         # 设置到meta_state
         get_meta_state().set("pd_role", pd_role.lower())
         logger.debug(f"Set role to meta_state: {pd_role.lower()}")
-    
+
+    def _detect_vllm_version(self) -> Optional[str]:
+        """检测vLLM版本
+
+        使用 get_package_version 获取 vllm 包版本信息。
+
+        Returns:
+            vLLM版本字符串，如果检测失败返回None
+        """
+        version = get_package_version("vllm")
+        if version:
+            logger.debug(f"vLLM version: {version}")
+            return version
+        return None
+
     def _get_config_path(self) -> Tuple[Optional[str], Optional[str]]:
         """获取配置文件路径
         

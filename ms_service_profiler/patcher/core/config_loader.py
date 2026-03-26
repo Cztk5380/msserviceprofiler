@@ -207,15 +207,18 @@ class ConfigLoader:
     
     Attributes:
         _config_path: 配置文件路径
+        _framework_version: 框架版本号，用于版本检查
     """
     
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str, framework_version: Optional[str] = None):
         """初始化 ConfigLoader。
         
         Args:
             config_path: yml 配置文件路径
+            framework_version: 框架版本号，如 "0.9.1"，用于版本检查
         """
         self._config_path = config_path
+        self._framework_version = framework_version
     
     def load_profiling(self) -> ProfilingConfig:
         """加载 profiling yml 配置并解析为 Handler 列表与模式列表。
@@ -280,6 +283,7 @@ class ConfigLoader:
                 max_version=item.get('max_version'),
                 caller_filter=item.get('caller_filter'),
                 need_locals=need_locals,
+                framework_version=self._framework_version,
             )
             
             if symbol_path not in result:
@@ -348,6 +352,7 @@ class ConfigLoader:
                 max_version=item.get('max_version'),
                 caller_filter=item.get('caller_filter'),
                 need_locals=need_locals,
+                framework_version=self._framework_version,
             )
             if symbol_path not in result:
                 result[symbol_path] = []

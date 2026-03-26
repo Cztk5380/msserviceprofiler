@@ -60,12 +60,16 @@ class SymbolHandlerManager:
         _updating: 标记是否正在批量更新
     """
     
-    def __init__(self):
-        """初始化SymbolHandlerManager"""
-        logger.debug("Initializing SymbolHandlerManager")
+    def __init__(self, current_version: Optional[str] = None):
+        """初始化SymbolHandlerManager
+        
+        Args:
+            current_version: 当前框架版本，用于版本控制
+        """
+        logger.debug(f"Initializing SymbolHandlerManager, version={current_version}")
         
         # 配置管理
-        self._config = SymbolConfig()
+        self._config = SymbolConfig(current_version=current_version)
         
         # 模块监视器
         self._watcher = SymbolWatcher()
@@ -90,6 +94,9 @@ class SymbolHandlerManager:
         self._enabled = False
         self._lock = threading.Lock()
         self._updating = False
+        
+        # 保存版本信息
+        self._current_version = current_version
         
         logger.debug("SymbolHandlerManager initialized")
     

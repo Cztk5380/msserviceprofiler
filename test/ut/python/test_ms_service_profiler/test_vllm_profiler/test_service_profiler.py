@@ -483,7 +483,7 @@ class TestLoadConfig:
                     MockConfigLoader.return_value = mock_loader_instance
                     result = service_profiler._load_config()
                     profiling, metrics = result
-                    MockConfigLoader.assert_any_call(mock_config_file)
+                    MockConfigLoader.assert_any_call(mock_config_file, None)
                     assert mock_loader_instance.load_profiling.called
 
     @staticmethod
@@ -767,12 +767,10 @@ class TestFindConfigPath:
             assert result == expected_path
 
     @staticmethod
-    @patch('ms_service_profiler.patcher.vllm.service_patcher.importlib_metadata.distribution')
+    @patch('ms_service_profiler.patcher.vllm.service_patcher.get_package_version')
     def test_find_config_path_vllm_ascend_directory_not_found(mock_distribution, temp_config_dir, monkeypatch):
         """测试 vllm_ascend 目录不存在的情况"""
-        mock_dist = Mock()
-        mock_dist.locate_file.return_value = None  # 目录不存在
-        mock_distribution.return_value = mock_dist
+        mock_distribution.return_value = None
         
         # Mock vllm 模块，避免尝试导入真实模块
         fake_vllm = type("Vllm", (), {"__version__": "0.9.2"})
@@ -800,12 +798,10 @@ class TestFindConfigPath:
             assert result is None or result.endswith('service_profiling_symbols.yaml')
 
     @staticmethod
-    @patch('ms_service_profiler.patcher.vllm.service_patcher.importlib_metadata.distribution')
+    @patch('ms_service_profiler.patcher.vllm.service_patcher.get_package_version')
     def test_find_config_path_vllm_ascend_config_not_found(mock_distribution, temp_config_dir, monkeypatch):
         """测试 vllm_ascend 目录存在但配置文件不存在的情况"""
-        mock_dist = Mock()
-        mock_dist.locate_file.return_value = temp_config_dir
-        mock_distribution.return_value = mock_dist
+        mock_distribution.return_value = temp_config_dir
         
         # Mock vllm 模块，避免尝试导入真实模块
         fake_vllm = type("Vllm", (), {"__version__": "0.9.2"})
@@ -842,7 +838,7 @@ class TestFindConfigPath:
     def test_find_config_path_local_project_success(mock_isfile, mock_dirname):
         """测试成功找到本地项目配置"""
         # 实现先查本地：os.path.join(dirname(__file__), 'config', 'service_profiling_symbols.yaml')
-        with patch('ms_service_profiler.patcher.vllm.service_patcher.importlib_metadata.distribution') as mock_distribution:
+        with patch('ms_service_profiler.patcher.vllm.service_patcher.get_package_version') as mock_distribution:
             mock_distribution.side_effect = Exception("Test error")
             
             mock_isfile.return_value = True
@@ -859,7 +855,7 @@ class TestFindConfigPath:
     def test_find_config_path_no_config_found(mock_isfile):
         """测试找不到任何配置文件的情况"""
         # 模拟 vllm_ascend 查找失败
-        with patch('ms_service_profiler.patcher.vllm.service_patcher.importlib_metadata.distribution') as mock_distribution:
+        with patch('ms_service_profiler.patcher.vllm.service_patcher.get_package_version') as mock_distribution:
             mock_distribution.side_effect = Exception("Test error")
             
             # 模拟本地配置文件也不存在
@@ -1103,7 +1099,7 @@ class TestAutoDetectV1Default:
     """测试 _auto_detect_v1_default 函数"""
     
     @staticmethod
-    @patch('ms_service_profiler.patcher.vllm.service_patcher.importlib_metadata.version')
+    @patch('ms_service_profiler.patcher.vllm.service_patcher.get_package_version')
     def test_auto_detect_v1_default_new_version(mock_version):
         """测试新版本 vLLM (>= 0.9.2) 返回 '1'"""
         mock_version.return_value = "0.9.2"
@@ -1114,7 +1110,7 @@ class TestAutoDetectV1Default:
         mock_version.assert_called_with("vllm")
 
     @staticmethod
-    @patch('ms_service_profiler.patcher.vllm.service_patcher.importlib_metadata.version')
+    @patch('ms_service_profiler.patcher.vllm.service_patcher.get_package_version')
     @pytest.mark.parametrize("version,expected", [
         ("0.9.2", "1"),
         ("0.9.3", "1"),
@@ -1132,7 +1128,7 @@ class TestAutoDetectV1Default:
         assert result == expected
 
     @staticmethod
-    @patch('ms_service_profiler.patcher.vllm.service_patcher.importlib_metadata.version')
+    @patch('ms_service_profiler.patcher.vllm.service_patcher.get_package_version')
     def test_auto_detect_v1_default_old_version(mock_version):
         """测试旧版本 vLLM (< 0.9.2) 返回 '0'"""
         mock_version.return_value = "0.9.1"
@@ -1142,7 +1138,7 @@ class TestAutoDetectV1Default:
         assert result == "0"
 
     @staticmethod
-    @patch('ms_service_profiler.patcher.vllm.service_patcher.importlib_metadata.version')
+    @patch('ms_service_profiler.patcher.vllm.service_patcher.get_package_version')
     def test_auto_detect_v1_default_version_not_found(mock_version):
         """测试 vLLM 包未找到的情况"""
         mock_version.side_effect = importlib.metadata.PackageNotFoundError("vllm not found")
@@ -1152,7 +1148,7 @@ class TestAutoDetectV1Default:
         assert result == "0"
 
     @staticmethod
-    @patch('ms_service_profiler.patcher.vllm.service_patcher.importlib_metadata.version')
+    @patch('ms_service_profiler.patcher.vllm.service_patcher.get_package_version')
     def test_auto_detect_v1_default_version_parse_error(mock_version):
         """测试版本解析错误的情况"""
         mock_version.return_value = "invalid.version.string"
@@ -1163,7 +1159,7 @@ class TestAutoDetectV1Default:
         assert result == "0"
 
     @staticmethod
-    @patch('ms_service_profiler.patcher.vllm.service_patcher.importlib_metadata.version')
+    @patch('ms_service_profiler.patcher.vllm.service_patcher.get_package_version')
     def test_auto_detect_v1_default_general_exception(mock_version):
         """测试其他异常情况"""
         mock_version.side_effect = Exception("Unexpected error")
@@ -1174,7 +1170,7 @@ class TestAutoDetectV1Default:
 
     @staticmethod
     @patch.dict('os.environ', {'VLLM_USE_V1': '1'})
-    @patch('ms_service_profiler.patcher.vllm.service_patcher.importlib_metadata.version')
+    @patch('ms_service_profiler.patcher.vllm.service_patcher.get_package_version')
     def test_auto_detect_v1_default_env_var_set(mock_version):
         """测试环境变量已设置的情况（虽然函数不检查，但确保不影响）"""
         # 注意：函数本身不检查环境变量，但测试确保环境变量不影响函数行为
@@ -1186,7 +1182,7 @@ class TestAutoDetectV1Default:
         assert result == "0"
 
     @staticmethod
-    @patch('ms_service_profiler.patcher.vllm.service_patcher.importlib_metadata.version')
+    @patch('ms_service_profiler.patcher.vllm.service_patcher.get_package_version')
     def test_auto_detect_with_complex_version_string(mock_version):
         """测试复杂的版本字符串"""
         complex_versions = [

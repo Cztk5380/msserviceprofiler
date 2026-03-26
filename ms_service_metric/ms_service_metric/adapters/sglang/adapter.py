@@ -27,6 +27,7 @@ import os
 from typing import Optional
 
 from ms_service_metric.utils.logger import get_logger
+from ms_service_metric.utils.version import get_package_version
 from ms_service_metric.core.symbol_handler_manager import SymbolHandlerManager
 
 
@@ -94,20 +95,17 @@ class SGLangMetricAdapter:
     def _detect_sglang_version(self) -> Optional[str]:
         """检测SGLang版本
         
+        使用 get_package_version 获取 sglang 包版本信息。
+        
         Returns:
             版本字符串，如果未安装则返回None
         """
-        try:
-            import sglang
-            version = getattr(sglang, "__version__", "unknown")
+        version = get_package_version("sglang")
+        if version:
             logger.debug(f"SGLang version: {version}")
             return version
-        except ImportError:
-            logger.warning("SGLang not installed")
-            return None
-        except Exception as e:
-            logger.warning(f"Failed to detect SGLang version: {e}")
-            return None
+        logger.warning("SGLang not installed")
+        return None
     
     def _get_config_path(self) -> Optional[str]:
         """获取配置文件路径
