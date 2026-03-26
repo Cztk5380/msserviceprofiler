@@ -25,7 +25,7 @@ class ExecMindIEServer(CommandExecutor):
     def __init__(self, workspace_path):
         super().__init__()
         self.index = str(uuid.uuid4())
-        self.mindie_path = "/usr/local/Ascend/mindie/mindie_llm/latest/"
+        self.mindie_path = "/usr/local/lib/python3.11/site-packages/mindie_llm/"
         self.service_config_path_ori = "conf/config.json"
         self.service_config_path = os.path.join(workspace_path, f"service_config.json")
         self.server_config_change_list = [

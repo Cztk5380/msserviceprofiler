@@ -107,7 +107,7 @@ def check_kvcache_table(conn, complete_req_cnt=0):
     with sqlite_cursor(conn) as cursor:
         with check(table_name):
             # 表头
-            expected_header = ["name", "start_datetime", "total_blocks", "kvcache_usage_rate"]
+            expected_header = ["name", "start_datetime", "kvcache_usage_rate"]
             check_and_get_df_from_table(conn, cursor, table_name, expected_header, complete_req_cnt == 0)
 
 

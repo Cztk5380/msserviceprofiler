@@ -27,7 +27,7 @@ pytest.assume = check_functions.is_true
 def pytest_addoption(parser):
     parser.addoption("--device", action="append", type=int, default=[], help="devices")
     parser.addoption(
-        "--mindie-path", action="store", default="/usr/local/Ascend/mindie/mindie_llm/latest/", help="mindie path"
+        "--mindie-path", action="store", default="/usr/local/lib/python3.11/site-packages/mindie_llm/", help="mindie path"
     )
     parser.addoption("--dataset-path", action="store", default="/dataset", help="dataset path")
     parser.addoption("--model-path", action="store", default="/model", help="model path")
