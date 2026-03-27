@@ -601,4 +601,8 @@ def get_metrics_manager() -> MetricsManager:
     return _metrics_manager_instance
 
 
-
+def reset_metrics_manager():
+    """Reset MetricsManager singleton, primarily for tests."""
+    global _metrics_manager_instance
+    _metrics_manager_instance = MetricsManager()
+    logger.debug("Reset global MetricsManager instance")

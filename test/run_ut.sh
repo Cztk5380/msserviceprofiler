@@ -205,6 +205,26 @@ function run_msservice_advisor_ut() {
 }
 
 
+function run_ms_service_metric_python_ut() {
+    local UT_DIR="${UT_PYTHON_DIR}/test_ms_service_metric"
+
+    # Install ms_service_metric once with development extras for test tooling.
+    if ! pip3 show ms_service_metric > /dev/null; then
+        pip3 install -e "${PROJECT_DIR}/ms_service_metric[dev]"
+    fi
+    # Omit vendor integration entrypoints / framework-specific handlers from line targets (~75% on core code).
+    python3 -m coverage run \
+        --branch \
+        --source "${PROJECT_DIR}/ms_service_metric/ms_service_metric" \
+        --omit="test/*,*/adapters/sglang/*,*/adapters/vllm/handlers/*,*/adapters/vllm/adapter.py,*__main__.py" \
+        -m pytest ${UT_DIR}
+
+    python3 -m coverage report -m --precision=2
+    python3 -m coverage xml -o ${COV_DIR}/coverage.xml
+    check_coverage "ms_service_metric"
+}
+
+
 function main() {
     clean
 
@@ -213,6 +233,7 @@ function main() {
         ["cpp"]="run_ms_service_profiler_cpp_ut"
         ["ms_serviceparam_optimizer"]="run_ms_serviceparam_optimizer_ut"
         ["msservice_advisor"]="run_msservice_advisor_ut"
+        ["ms_service_metric"]="run_ms_service_metric_python_ut"
         
     )
 
