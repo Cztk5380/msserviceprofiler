@@ -28,6 +28,7 @@ from msguard import GlobalConfig
 import ms_serviceparam_optimizer
 from ms_serviceparam_optimizer.config.config import get_settings, OptimizerConfigField, KubectlConfig, \
         MindieConfig
+from ms_serviceparam_optimizer.config.custom_command import MindieCommand
 from ms_serviceparam_optimizer.optimizer.simulator import enable_simulate_old
 from ms_serviceparam_optimizer.optimizer.plugins.simulate import Simulator, DisaggregationSimulator
 
@@ -102,6 +103,7 @@ def test_enable_simulate_with_simulator(tmpdir, monkeypatch):
 }""")
     get_settings().mindie.config_path = config_path
     get_settings().mindie.config_bak_path = Path(tmpdir).joinpath("config_bak.json")
+    monkeypatch.setattr(MindieCommand, 'command', property(lambda self: ["echo"]))
     simulator = Simulator(get_settings().mindie)
     monkeypatch.setattr(ms_serviceparam_optimizer.optimizer.simulator, "simulate_flag", True)
     with enable_simulate_old(simulator) as flag:
@@ -138,6 +140,7 @@ def test_enable_simulate_with_simulator_plugin_params_exists(tmpdir, monkeypatch
         json.dump(data, f)
     get_settings().mindie.config_path = config_path
     get_settings().mindie.config_bak_path = Path(tmpdir).joinpath("config_bak.json")
+    monkeypatch.setattr(MindieCommand, 'command', property(lambda self: ["echo"]))
     simulator = Simulator(get_settings().mindie)
     monkeypatch.setattr(ms_serviceparam_optimizer.optimizer.simulator, "simulate_flag", True)
     with enable_simulate_old(simulator) as flag:

@@ -107,6 +107,11 @@ class MindieCommand:
         mindie_service_default_path: str = "/usr/local/Ascend/mindie/latest/mindie-service"
         mindie_service_path: str = os.getenv("MIES_INSTALL_PATH", mindie_service_default_path)
         mindie_command_path: str = os.path.join(mindie_service_path, "bin", "mindieservice_daemon")
+        new_mindie_command: str = "mindie_llm_server"
+        if not os.path.isfile(mindie_command_path):
+            if shutil.which(new_mindie_command) is None:
+                raise FileNotFoundError(f"Command {new_mindie_command} is not available")
+            return [new_mindie_command]
         return [mindie_command_path]
  
 

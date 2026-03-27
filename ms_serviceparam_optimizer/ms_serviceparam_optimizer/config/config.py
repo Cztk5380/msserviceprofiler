@@ -374,13 +374,29 @@ class LatencyModel(BaseModel):
         return path
 
 
+def _get_mindie_config_paths():
+    """获取mindie配置文件路径"""
+    default_config_path = Path("/usr/local/Ascend/mindie/latest/mindie-service/conf/config.json")
+    default_config_bak_path = Path("/usr/local/Ascend/mindie/latest/mindie-service/conf/config_bak.json")
+    
+    if not default_config_path.is_file():
+        mies_install_path = os.getenv("MIES_INSTALL_PATH")
+        if mies_install_path:
+            new_config_path_parent = Path(mies_install_path).parent
+            return (
+                new_config_path_parent / "mindie_llm/conf/config.json",
+                new_config_path_parent / "mindie_llm/conf/config_bak.json"
+            )
+    return default_config_path, default_config_bak_path
+
+
 class MindieConfig(BaseModel):
     # 运行mindie时，要修改的mindie config
     process_name: str = "mindie, mindie-llm, mindieservice_daemon, mindie_llm"
     output: Path = Path("mindie")
     work_path: Path = Field(default_factory=lambda: Path(os.getcwd()).resolve())
-    config_path: Path = Path("/usr/local/Ascend/mindie/latest/mindie-service/conf/config.json")
-    config_bak_path: Path = Path("/usr/local/Ascend/mindie/latest/mindie-service/conf/config_bak.json")
+    config_path: Path = Field(default_factory=lambda: _get_mindie_config_paths()[0])
+    config_bak_path: Path = Field(default_factory=lambda: _get_mindie_config_paths()[1])
     command: MindieCommandConfig = MindieCommandConfig()
     target_field: List[OptimizerConfigField] = default_support_field
 

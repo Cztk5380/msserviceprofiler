@@ -385,6 +385,9 @@ io_error = ["file not found", "permission denied", "IO error"]
 ### PD分离寻优
 
 服务化自动寻优工具支持在MindIE的A2单机PD分离场景中进行参数寻优（仅支持轻量化模式），且需要k8s部署。需保证能正常使用k8s拉起MindIE服务。
+> [!Note]
+> 当前仅支持MindIE 2.2.RC1
+
 需要在`config.toml`中配置kubectl_default_path字段，将该字段配置为k8s安装脚本解压后的单机执行目录，目录结构需要为：
 
 ```ColdFusion
