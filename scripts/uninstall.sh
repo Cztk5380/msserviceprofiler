@@ -34,6 +34,8 @@ function delete_register_uninstall() {
  	  chmod ${script_right} "${install_path}/${CANN_UNINSTALL_SCRIPT}"
 }
 
+delete_register_uninstall
+
 rm -rf ${install_path%/}/python/site-packages/ms_service_profiler*
 rm -rf ${install_path%/}/share/info/msserviceprofiler
 
@@ -41,4 +43,3 @@ lib64_right=$(stat -c "%a" ${install_path%/}/${arch_name}/lib64 2>/dev/null)
 chmod -R ${right} ${install_path%/}/${arch_name}/lib64
 rm -rf ${install_path%/}/${arch_name}/lib64/${LIB_MS_SERVICE_PROFILER}
 chmod -R ${lib64_right} ${install_path%/}/${arch_name}/lib64
-delete_register_uninstall
