@@ -1,0 +1,46 @@
+# ArrayAttr<a name="ZH-CN_TOPIC_0000002149395906"></a>
+
+## Supported Products<a name="section8178181118225"></a>
+
+> [!note] 
+>
+>For details about Ascend product models, see [Ascend Product Models](<>).
+
+|Product Type|Supported (Yes/No)|
+|--|:-:|
+|Atlas A3 training products and Atlas A3 inference products|No|
+|Atlas A2 training products and Atlas A2 inference products|Yes|
+|Atlas 200I/500 A2 inference products|No|
+|Atlas inference products|Yes|
+|Atlas training products|No|
+
+> [!note] 
+>
+>For Atlas A2 training products/Atlas A2 inference products, only the Atlas 800I A2 inference server is supported.
+>For Atlas inference products, only the Atlas 300I Duo inference card and Atlas 800 inference server (model 3000) are supported.
+
+## Description <a name="section20806203412478"></a>
+
+Adds an array attribute through a callback function.
+
+## Function Prototype<a name="section1121883194711"></a>
+
+```CPP
+template <Level levelAttr = level, typename T>
+Profiler &ArrayAttr(const char *attrName, const T &startIter, const T &endIter, typename ArrayCollectorHelper<Profiler<level>, T>::AttrCollectCallback callback)
+```
+
+## Parameter Description<a name="section11506138144714"></a>
+
+**Table 1** Parameters
+
+|Parameter|Input/Output|Remarks|
+|--|--|--|
+|attrName|Input|Attribute name.|
+|startIter|Input|Start iterator (any iterator type).|
+|endIter|Input|End iterator (any iterator type).|
+|callback|Input|The callback function requires two input parameters: the first is the current object for adding attributes, and the second is the current iteration for retrieving the attribute content to record.|
+
+## Return Values<a name="section8800235121218"></a>
+
+Returns `Profiler&` (a reference to the current object), allowing multiple method calls to be chained together.

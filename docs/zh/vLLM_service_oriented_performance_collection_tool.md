@@ -15,7 +15,8 @@ vLLM Service Profiler 适用于在 vLLM-ascend 推理服务过程中进行性能
 
 ## 产品支持情况
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+> [!note] 说明
+>
 >昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》
 
 |产品类型| 是否支持 |
@@ -32,7 +33,7 @@ vLLM Service Profiler 适用于在 vLLM-ascend 推理服务过程中进行性能
 
 1. 在昇腾环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《[CANN 软件安装指南](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=netconda&OS=openEuler)》。
 2. 完成 vLLM 和 vLLM-ascend 的安装和配置并确认 vLLM-ascend 可以正常运行，具体请参见 [vLLM-Ascend installation](https://vllm-ascend.readthedocs.io/en/latest/installation.html)。
-3. 升级 msServiceProfiler 工具，请参见《[msServiceProfiler工具安装指南 - 升级](./msserviceprofiler_install_guide.md#升级)》章节，基于源码构建 run 包并完成升级。
+3. 升级 msServiceProfiler 工具，请参见《[msServiceProfiler工具安装指南 - 升级](./msserviceprofiler_install_guide.md#安装和升级)》章节，基于源码构建 run 包并完成升级。
 
 #### 约束
 
@@ -235,7 +236,8 @@ def custom_handler(original_func, this, *args, **kwargs):
     pass
 ```
 
->![](public_sys-resources/icon-note.gif) **说明：**
+> [!note] 说明
+>
 > 若自定义处理函数导入失败，系统会自动回退至默认计时器模式。
 
 ### 输出说明
@@ -280,8 +282,9 @@ def custom_handler(original_func, this, *args, **kwargs):
 | `service_summary.csv` | 服务化维度总体统计指标                                                                                                                                |
 |     `span_info/`      | 包含forward.csv, batchFrameworkProcessing.csv等关键span信息，详细介绍请参考[span_info 目录说明](./msserviceprofiler_serving_tuning_instruct.md#span_info目录) |
 
->![](public_sys-resources/icon-note.gif) **说明：**
-> 输出结果文件与domain域的采集有强关联关系，具体对照可以参照[domain域与解析结果对照表](./msserviceprofiler_serving_tuning_instruct.md#解析结果)。
+>[!note] 说明
+>
+>输出结果文件与domain域的采集有强关联关系，具体对照可以参照[domain域与解析结果对照表](./msserviceprofiler_serving_tuning_instruct.md#解析结果)。
 
 ## 附录
 
@@ -306,7 +309,7 @@ def custom_handler(original_func, this, *args, **kwargs):
 
 采集配置可以参考[数据采集](./msserviceprofiler_serving_tuning_instruct.md#数据采集)中的配置文件创建的说明以及注意事项的澄清。
 
->![](public_sys-resources/icon-note.gif) **须知：**
+>[!note] 说明
 >
 > - vLLM Service Profiler 在 `acl_task_time` 参数配置为1时，不支持同时配置vLLM原生 Torch Profiler 的 `VLLM_TORCH_PROFILER_DIR` 环境变量进行性能数据采集。
 > - 配置 Torch Profiler 采集时，`enable`参数取值初始须为0（表示关闭性能数据采集），之后在启动 vLLM-ascend 推理服务框架服务后再将配置`enable`参数配置为1（开启采集），为了避免采集过多的性能数据，可在完成相应数据采集过后关闭采集。如果`enable`参数取值初始为1，会采集大量框架层数据，很容易生成几个 GB 的跟踪文件。

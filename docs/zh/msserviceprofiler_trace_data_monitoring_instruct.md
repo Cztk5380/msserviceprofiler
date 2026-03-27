@@ -13,7 +13,8 @@ msServiceProfiler Trace采集MindIE Motor服务中的请求响应时间、响应
 
 ## 产品支持情况<a name="ZH-CN_TOPIC_0000002489576470"></a>
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+> [!note] 说明
+>
 >昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》
 
 |产品类型| 是否支持 |
@@ -24,7 +25,8 @@ msServiceProfiler Trace采集MindIE Motor服务中的请求响应时间、响应
 |Atlas 推理系列产品|  √   |
 |Atlas 训练系列产品|  x   |
 
->![](public_sys-resources/icon-notice.gif) **须知：** 
+> [!note] 说明
+> 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
 
@@ -98,7 +100,8 @@ export MS_PROFILER_SAMPLE_ERROR=1
 
 ### 配置目标采集服务器<a name="ZH-CN_TOPIC_0000002518641905"></a>
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+> [!note] 说明
+>
 >出于安全考虑，推荐用户使用安全模式，建议使用TLS认证。
 
 在[启动Trace转发进程](#启动trace转发进程)前，需要通过环境变量设置目标采集服务器。

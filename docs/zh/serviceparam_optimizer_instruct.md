@@ -12,7 +12,8 @@
 
 - **参数验证模块**：自动化启动服务化进程与测评工具进程，进行参数测试，获取性能结果。当前已支持的测评工具包括ais_bench，vllm_benchmark。
 
-> [](public_sys-resources/icon-note.gif) **注意：**
+> [!note] 说明
+>
 > 由于benchmark即将下线并由ais_bench代替，寻优工具当前已取消支持benchmark。
 
 服务化自动寻优工具能够基于以上功能模块，自动推荐吞吐较优的服务化参数组合，使用时有两种模式：
@@ -29,7 +30,8 @@
 
 ## 产品支持情况<a name="ZH-CN_TOPIC_0000002479925980"></a>
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+> [!note] 说明
+>
 >昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
 
 |产品类型| 是否支持 |
@@ -40,7 +42,8 @@
 |Atlas 推理系列产品|  √   |
 |Atlas 训练系列产品|  x   |
 
->![](public_sys-resources/icon-notice.gif) **须知：** 
+> [!note] 说明
+> 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
 

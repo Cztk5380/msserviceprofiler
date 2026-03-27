@@ -2,7 +2,8 @@
 
 ## 产品支持情况<a name="section13361171693320"></a>
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+> [!note] 说明
+>
 >昇腾昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》
 
 |产品类型|是否支持|
@@ -13,7 +14,8 @@
 |Atlas 推理系列产品|√|
 |Atlas 训练系列产品|×|
 
->![](public_sys-resources/icon-notice.gif) **须知：** 
+> [!note] 说明
+> 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
 
