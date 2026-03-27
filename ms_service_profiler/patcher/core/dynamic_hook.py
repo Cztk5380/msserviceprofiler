@@ -24,6 +24,7 @@ from .logger import logger
 from contextlib import contextmanager
 from typing import ContextManager
 from functools import partial
+from packaging.version import Version
 
 # Expose Profiler/Level at module scope so tests can patch them
 try:
@@ -58,19 +59,22 @@ global_mutil_handler_manager: Dict[str, "MultiHandlerDynamicHooker"] = dict()
 class ConfigHooker:
     """用于在运行时基于配置注册的 Hooker。
     
-    该类继承自 VLLMHookerBase，提供基于配置文件的动态 hook 功能。
+    该类提供基于配置文件的动态 hook 功能。
     支持版本范围限制和调用者过滤。
     
     Attributes:
-        vllm_version (Tuple[Optional[str], Optional[str]]): 支持的 vLLM 版本范围
+        min_version (Optional[str]): 支持的最小版本
+        max_version (Optional[str]): 支持的最大版本
         hook_list (List[Tuple[str, str]]): hook 点列表
         caller_filter (Optional[str]): 调用者过滤条件
         hook_func (Callable): hook 处理函数
+        framework_version (Optional[str]): 框架版本号，用于版本检查
     """
     
     def __init__(self, hook_list: List[Tuple[str, str]], hook_func: Callable, symbol_path: str,
-                 min_version: Optional[str], max_version: Optional[str], caller_filter: Optional[str], need_locals: bool = False):
-        """初始化 DynamicHooker。
+                 min_version: Optional[str], max_version: Optional[str], caller_filter: Optional[str], 
+                 need_locals: bool = False, framework_version: Optional[str] = None):
+        """初始化 ConfigHooker。
         
         Args:
             hook_list: hook 点列表，格式为 [(import_path, func_path), ...]
@@ -78,8 +82,9 @@ class ConfigHooker:
             min_version: 支持的最小版本
             max_version: 支持的最大版本
             caller_filter: 调用者过滤条件
+            need_locals: 是否需要局部变量
+            framework_version: 框架版本号，用于版本检查
         """
-        super().__init__()
         self.min_version = min_version
         self.max_version = max_version
         self.applied_hook_func_name = getattr(hook_func, "__name__", str(hook_func))
@@ -87,6 +92,7 @@ class ConfigHooker:
         self.symbol_path = symbol_path
         self.caller_filter = caller_filter
         self.need_locals = need_locals
+        self.framework_version = framework_version
         
         # hook_func 改为支持多个，一个hook点位支持多个hook函数
         hook_funcs = hook_func if isinstance(hook_func, list) else [hook_func]
@@ -114,7 +120,37 @@ class ConfigHooker:
         self.wrap_hook_func = wrap_hook_funcs[0] if wrap_hook_funcs else VLLMHookerBase.default_hook_func
         self.context_hook_funcs = context_hook_funcs
         
+    def support_version(self) -> bool:
+        """检查当前框架版本是否在支持范围内。
+        
+        Returns:
+            bool: 如果版本在支持范围内返回 True，否则返回 False
+        """
+        min_version = self.min_version
+        max_version = self.max_version
+        
+        if min_version is None and max_version is None:
+            return True
+        
+        version = self.framework_version
+        if version is None:
+            logger.debug(f"Framework version not set for {self.applied_hook_func_name}, allowing hook")
+            return True
+        
+        if min_version is not None and Version(min_version) > Version(version):
+            logger.debug(f"min_version={min_version} > current_version={version}, skip hook {self.applied_hook_func_name}")
+            return False
+        if max_version is not None and Version(max_version) < Version(version):
+            logger.debug(f"max_version={max_version} < current_version={version}, skip hook {self.applied_hook_func_name}")
+            return False
+        return True
+        
     def init(self):
+        # 版本检查：如果版本不支持，不添加 handler
+        if not self.support_version():
+            logger.debug(f"Skip init for {self.applied_hook_func_name} due to version mismatch")
+            return
+            
         global global_mutil_handler_manager
         mulit_handler_manager = global_mutil_handler_manager.get(self.symbol_path)
         if mulit_handler_manager is None:

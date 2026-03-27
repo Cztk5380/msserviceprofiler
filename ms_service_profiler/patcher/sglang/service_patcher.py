@@ -18,7 +18,7 @@ import os
 import sys
 from typing import Callable, Optional, Tuple
 
-from ..core.utils import check_profiling_enabled, install_symbol_watcher
+from ..core.utils import check_profiling_enabled, install_symbol_watcher, get_package_version
 from ..core.config_loader import ConfigLoader, ProfilingConfig
 from ..core.symbol_watcher import SymbolWatchFinder
 from ..core.hook_controller import HookController
@@ -30,8 +30,14 @@ class SGLangPatcher:
     
     def __init__(self):
         """初始化SGLang Patcher"""
+        self._sglang_version = SGLangPatcher._get_sglang_version()
         self._controller: Optional[HookController] = None
         self._initialized = False
+
+    @staticmethod
+    def _get_sglang_version() -> Optional[str]:
+        """获取 SGLang 版本号。"""
+        return get_package_version("sglang")
 
     @staticmethod
     def _find_config_path() -> Optional[str]:
@@ -74,7 +80,7 @@ class SGLangPatcher:
             logger.warning("No SGLang profiling config found.")
             return None
         logger.info("Loading SGLang profiling symbols from: %s", config_path)
-        loader = ConfigLoader(config_path)
+        loader = ConfigLoader(config_path, self._sglang_version)
         return loader.load_profiling()
     
     def _import_handlers(self):

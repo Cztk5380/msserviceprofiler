@@ -30,10 +30,9 @@ vLLM 框架适配器。
 
 import os
 import sys
-import importlib_metadata
 from typing import Dict, List, Optional, Tuple, Callable
 
-from ..core.utils import parse_version_tuple, check_profiling_enabled, install_symbol_watcher
+from ..core.utils import parse_version_tuple, check_profiling_enabled, install_symbol_watcher, get_package_version
 from ..core.config_loader import ConfigLoader, ProfilingConfig, MetricsConfig
 from ..core.symbol_watcher import SymbolWatchFinder
 from ..core.hook_controller import HookController
@@ -64,6 +63,7 @@ class VLLMProfiler:
     def __init__(self):
         """初始化 vLLM Profiler。"""
         self._vllm_use_v1 = VLLMProfiler._detect_version()
+        self._vllm_version = VLLMProfiler._get_vllm_version()
         self._controller: Optional[HookController] = None
         self._initialized = False
     
@@ -75,7 +75,9 @@ class VLLMProfiler:
     def _auto_detect_v1_default() -> str:
         """根据已安装的 vLLM 版本自动决定默认 V1 使用情况。"""
         try:
-            vllm_version = importlib_metadata.version("vllm")
+            vllm_version = get_package_version("vllm")
+            if vllm_version is None:
+                raise ValueError("Could not get vllm version")
             major, minor, patch = parse_version_tuple(vllm_version)
             use_v1 = (major, minor, patch) >= (0, 9, 2)
             logger.info(
@@ -91,6 +93,11 @@ class VLLMProfiler:
         """检测 vLLM 版本。"""
         env_v1 = os.environ.get('VLLM_USE_V1')
         return env_v1 if env_v1 is not None else VLLMProfiler._auto_detect_v1_default()
+    
+    @staticmethod
+    def _get_vllm_version() -> Optional[str]:
+        """获取 vLLM 版本号。"""
+        return get_package_version("vllm")
     
     # -------------------------------------------------------------------------
     # 配置加载
@@ -159,7 +166,7 @@ class VLLMProfiler:
         default_path = self._get_default_metrics_config_path()
         if os.path.isfile(default_path):
             try:
-                default_cfg = ConfigLoader(default_path).load_metrics()
+                default_cfg = ConfigLoader(default_path, self._vllm_version).load_metrics()
                 if default_cfg.concrete or default_cfg.patterns:
                     logger.info("Loaded default metrics config from: %s", default_path)
             except Exception as e:
@@ -170,7 +177,7 @@ class VLLMProfiler:
         user_cfg: Optional[MetricsConfig] = None
         if user_path:
             try:
-                user_cfg = ConfigLoader(user_path).load_metrics()
+                user_cfg = ConfigLoader(user_path, self._vllm_version).load_metrics()
             except Exception as e:
                 logger.warning("Failed to load metrics config from %s: %s", user_path, e)
         merged = MetricsConfig.merge(default_cfg, user_cfg)
@@ -187,7 +194,7 @@ class VLLMProfiler:
                     dst.write(src.read())
                 logger.debug(f"Wrote profiling symbols to env path: {env_path}")
                 logger.info("Loading vLLM profiling symbols from: %s", env_path)
-                return ConfigLoader(env_path).load_profiling()
+                return ConfigLoader(env_path, self._vllm_version).load_profiling()
             except Exception as e:
                 logger.warning(f"Failed to write profiling symbols to env path {env_path}: {e}")
                 return None
@@ -197,7 +204,7 @@ class VLLMProfiler:
         if env_path and str(env_path).lower().endswith(('.yaml', '.yml')):
             if os.path.isfile(env_path):
                 logger.info("Loading vLLM profiling symbols from: %s", env_path)
-                return ConfigLoader(env_path).load_profiling()
+                return ConfigLoader(env_path, self._vllm_version).load_profiling()
             if default_cfg:
                 return _write_profiling_symbols(env_path, default_cfg)
             logger.warning("No default config file found to populate PROFILING_SYMBOLS_PATH")
@@ -206,7 +213,7 @@ class VLLMProfiler:
 
         if default_cfg:
             logger.info("Loading vLLM profiling symbols from: %s", default_cfg)
-            return ConfigLoader(default_cfg).load_profiling()
+            return ConfigLoader(default_cfg, self._vllm_version).load_profiling()
         logger.warning("No config file found")
         return None
 

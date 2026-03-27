@@ -63,6 +63,7 @@
 
 - symbol: vllm_ascend.utils:ProfileExecuteDuration.capture_async
   min_version: "0.9.1"
+  max_version: "0.13.0rc1"
   handler: ms_service_profiler.patcher.vllm.handlers.v1.model_handlers:capture_async
 
 # ===== MTP / 投机推理（NPUModelRunner） =====
@@ -81,6 +82,7 @@
 
 - symbol: vllm.engine.async_llm_engine:AsyncLLMEngine.add_request
   min_version: "0.9.1"
+  max_version: "0.11.0"
   handler: ms_service_profiler.patcher.vllm.handlers.v1.request_handlers:add_request_async
 
 - symbol: vllm.v1.engine.output_processor:OutputProcessor.process_outputs

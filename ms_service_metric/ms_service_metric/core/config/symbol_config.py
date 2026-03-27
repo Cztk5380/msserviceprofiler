@@ -51,6 +51,7 @@ import yaml
 
 from ms_service_metric.utils.exceptions import ConfigError
 from ms_service_metric.utils.logger import get_logger
+from ms_service_metric.utils.version import check_version_match
 
 logger = get_logger("symbol_config")
 
@@ -66,21 +67,24 @@ class SymbolConfig:
     
     def __init__(self, 
                  user_config_path: Optional[str] = None,
-                 default_config_path: Optional[str] = None):
+                 default_config_path: Optional[str] = None,
+                 current_version: Optional[str] = None):
         """
         初始化配置管理器
         
         Args:
             user_config_path: 用户配置文件路径
             default_config_path: 默认配置文件路径
+            current_version: 当前框架版本，用于版本控制
         """
         self._user_config_path = user_config_path
         self._default_config_path = default_config_path or os.path.join(os.path.dirname(__file__), "config.yaml")
         self._config: Dict[str, List[dict]] = {}
+        self._current_version = current_version
         
-        logger.debug(f"SymbolConfig initialized: user={user_config_path}, default={default_config_path}")
+        logger.debug(f"SymbolConfig initialized: user={user_config_path}, default={default_config_path}, version={current_version}")
         
-    def load(self, config_path: Optional[str] = None, default_config_path: Optional[str] = None) -> Dict[str, List[dict]]:
+    def load(self, config_path: Optional[str] = None, default_config_path: Optional[str] = None, current_version: Optional[str] = None) -> Dict[str, List[dict]]:
         """
         加载并合并配置
         
@@ -88,15 +92,21 @@ class SymbolConfig:
         1. 加载默认配置
         2. 加载用户配置（优先使用传入的config_path，其次使用构造函数传入的路径）
         3. 合并配置（用户配置覆盖默认配置）
-        4. 填充默认值
+        4. 根据版本过滤配置
+        5. 填充默认值
         
         Args:
             config_path: 可选的配置文件路径，如果提供则作为用户配置加载
+            current_version: 当前框架版本，如果提供则覆盖构造函数传入的版本
             
         Returns:
             合并后的配置字典，key为symbol_path，value为handler配置列表
         """
         logger.info("Loading configuration...")
+        
+        # 更新当前版本（如果提供了）
+        if current_version is not None:
+            self._current_version = current_version
         
         # 如果提供了config_path，临时设置为用户配置路径
         if default_config_path:
@@ -120,7 +130,11 @@ class SymbolConfig:
         self._config = self._merge_configs(default_config, user_config)
         logger.debug(f"Configs merged: {len(self._config)} symbols")
         
-        # 4. 填充默认值
+        # 4. 根据版本过滤配置
+        self._filter_by_version()
+        logger.debug(f"Configs filtered by version: {len(self._config)} symbols")
+        
+        # 5. 填充默认值
         self._fill_defaults()
         
         logger.info(f"Configuration loaded successfully: {len(self._config)} symbols")
@@ -302,6 +316,50 @@ class SymbolConfig:
                 logger.debug(f"Added new symbol: {symbol_path}")
                 
         return merged
+        
+    def _filter_by_version(self):
+        """根据版本过滤配置
+        
+        检查每个handler的min_version和max_version，
+        如果当前版本不符合要求，则过滤掉该handler。
+        """
+        if not self._current_version:
+            logger.debug("No current version specified, skipping version filter")
+            return
+            
+        logger.info(f"Filtering configs by version: {self._current_version}")
+        
+        filtered_config: Dict[str, List[dict]] = {}
+        
+        for symbol_path, handlers in self._config.items():
+            if not isinstance(handlers, list):
+                handlers = [handlers]
+                
+            filtered_handlers = []
+            for handler in handlers:
+                if not isinstance(handler, dict):
+                    continue
+                    
+                min_version = handler.get('min_version')
+                max_version = handler.get('max_version')
+                
+                # 检查版本是否匹配
+                if check_version_match(self._current_version, min_version, max_version):
+                    filtered_handlers.append(handler)
+                    logger.debug(f"Handler for {symbol_path} matches version requirements")
+                else:
+                    logger.info(
+                        f"Handler for {symbol_path} filtered out: "
+                        f"current={self._current_version}, min={min_version}, max={max_version}"
+                    )
+            
+            # 只保留有handler的symbol
+            if filtered_handlers:
+                filtered_config[symbol_path] = filtered_handlers
+            else:
+                logger.debug(f"Symbol {symbol_path} has no handlers after version filter")
+        
+        self._config = filtered_config
         
     def _fill_defaults(self):
         """

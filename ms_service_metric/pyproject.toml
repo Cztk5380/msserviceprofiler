@@ -20,7 +20,8 @@ dependencies = [
     'pyyaml',
     'prometheus-client',
     'posix_ipc; sys_platform == "linux"',
-    'bytecode',
+    "bytecode>=0.17.0",
+    "packaging",
 ]
 
 [project.optional-dependencies]
