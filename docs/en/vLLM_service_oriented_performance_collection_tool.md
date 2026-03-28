@@ -2,14 +2,14 @@
 
 ## Overview
 
-vLLM Service Profiler monitors and collects performance data of the internal execution process of the vLLM-ascend inference service framework. It helps users quickly identify performance bottlenecks by tracing the execution flow. Specifically, it captures critical timing information (start/end timestamps), identifies key functions or iterations, records critical events, and captures diverse types of information throughout the inference pipeline.
+vLLM Service Profiler monitors and collects performance data of the internal execution process of the vLLM-Ascend inference service framework. It helps users quickly identify performance bottlenecks by tracing the execution flow. Specifically, it captures critical timing information (start/end timestamps), identifies key functions or iterations, records critical events, and captures diverse types of information throughout the inference pipeline.
 
-vLLM Service Profiler is used for performance profiling analysis when deploying vLLM-ascend inference services. It covers the end-to-end workflow, from preparation, data collection, data parsing, to result visualization.
+vLLM Service Profiler is used for performance profiling analysis when deploying vLLM-Ascend inference services. It covers the end-to-end workflow, from preparation, data collection, data parsing, to result visualization.
 
 ### Basic Concepts
 
 - **Profile data collection**: records critical time points and events in serving scenarios through event tracking to generate profile data.
-- **Event tracking/Symbol**: specifies a target for profile data collection. This is defined by an executable function in the vLLM or vLLM-ascend source code.
+- **Event tracking/Symbol**: specifies a target for profile data collection. This is defined by an executable function in the vLLM or vLLM-Ascend source code.
 - **Domain**: specifies functional categories for profile data collection, such as Request, KVCache, and ModelExecute.
 - **Symbol configuration**: configuration file, which defines the functions/methods to be collected and their attributes.
 
@@ -32,7 +32,7 @@ vLLM Service Profiler is used for performance profiling analysis when deploying 
 #### Environment Setup
 
 1. In the Ascend environment, install the matching CANN Toolkit and ops operator packages, and configure CANN environment variables. For details, see [CANN Installation Guide](<>).
-2. Install vLLM and vLLM-Ascend. Verify that vLLM-ascend can run properly. For details, see [vLLM-Ascend installation](https://vllm-ascend.readthedocs.io/en/latest/installation.html).
+2. Install vLLM and vLLM-Ascend. Verify that vLLM-Ascend can run properly. For details, see [vLLM-Ascend installation](https://vllm-ascend.readthedocs.io/en/latest/installation.html).
 3. Upgrade msServiceProfiler. Build the `.run` file from the source code and upgrade the tool. For details, see the section *Upgrade* in [msServiceProfiler Installation Guide](./msserviceprofiler_install_guide.md#upgrade).
 
 #### Constraints
@@ -110,9 +110,9 @@ The symbol configuration file defines the functions/methods to be monitored, and
 
 #### Built-in/Customized Symbol Configuration File
 
-The symbol configuration file has been built in vLLM-ascend and the tool.
+The symbol configuration file has been built in vLLM-Ascend and the tool.
 
-- Default loading path: `~/.config/vllm_ascend/service_profiling_symbols.MAJOR.MINOR.PATCH.yaml` (applicable to the vLLM-ascend framework and the file name varies with the installed vllm version)
+- Default loading path: `~/.config/vllm_ascend/service_profiling_symbols.MAJOR.MINOR.PATCH.yaml` (applicable to the vLLM-Ascend framework and the file name varies with the installed vllm version)
 - Backup loading path: `*tool installation path*/ms_service_profiler/patcher/vllm/config/service_profiling_symbols.yaml`
 
 To customize profiling symbols, you are advised to set the environment variable PROFILING_SYMBOLS_PATH and copy a symbol configuration file to the working directory for modification.
@@ -290,7 +290,7 @@ After parsing is complete, the deliverables listed in the following table are ge
 
 ### vLLM versions and supported frameworks
 
-| CANN| vLLM-ascend V0 | vLLM-ascend V1 |
+| CANN| vLLM-Ascend V0 | vLLM-Ascend V1 |
 |:--------:|:--------------:|:--------------:|
 | 8.3.RC1  |       /        |  v0.11.0.RC3   |
 | 8.3.RC1  |       /        |  v0.11.0.RC2   |
@@ -312,4 +312,4 @@ For details about the profiling configuration, see the instructions for creating
 > [!note] 
 >
 > - When `acl_task_time` is set to `1`, vLLM Service Profiler does not support the configuration of the `VLLM_TORCH_PROFILER_DIR` environment variable of the native vLLM Torch Profiler for profile data collection.
-> - When configuring the Torch Profiler, set `enable` to `0` (disabling profiling) first. After the vLLM-ascend inference service framework starts, set `enable` to `1` (enabling profiling). To avoid collecting too much profile data, you can disable profiling after the corresponding data is collected. If the initial value of `enable` is `1`, a large amount of framework data is collected, which can easily generate trace files of several gigabytes.
+> - When configuring the Torch Profiler, set `enable` to `0` (disabling profiling) first. After the vLLM-Ascend inference service framework starts, set `enable` to `1` (enabling profiling). To avoid collecting too much profile data, you can disable profiling after the corresponding data is collected. If the initial value of `enable` is `1`, a large amount of framework data is collected, which can easily generate trace files of several gigabytes.

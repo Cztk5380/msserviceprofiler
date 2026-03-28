@@ -10,11 +10,11 @@ The tool supports simulation and lightweight modes and consists of three core fu
 
 - **Simulation module**: accurately predicts the inference duration of LLMs based on the XGBoost model. It accelerates the verification of serving parameters using the virtual timeline technology.
 
-- **Parameter verification module**: automatically starts the serving process and benchmark tool to test parameters and obtain performance results. Currently, the supported benchmark tools include `ais_bench` and `vllm_benchmark`.
+- **Parameter verification module**: automatically starts the serving process and benchmark tool to test parameters and obtain performance results. Currently, the supported benchmark tools include `AISBench` and `vllm_benchmark`.
 
 > [!note] 
 >
-> The benchmark tool is about to be replaced by ais_bench and is no longer supported by Serviceparam Optimizer.
+> The benchmark tool is about to be replaced by AISBench and is no longer supported by Serviceparam Optimizer.
 
 Based on the modules above, Serviceparam Optimizer can automatically recommend serving parameter combinations that deliver high throughput. It can be used in the following modes:
 
@@ -26,7 +26,7 @@ The tool has been validated on LLaMA3-8B and Qwen3-8B. In principle, it does not
 **Concepts**
 
 - `MindIE` and `vLLM`: serving frameworks, which support model deployment in serving scenarios.
-- `Ais_Bench` and `vLLM_Benchmark`: inference performance benchmark tools for serving frameworks.
+- `AISBench` and `vLLM_Benchmark`: inference performance benchmark tools for serving frameworks.
 
 ## Supported Products<a name="ZH-CN_TOPIC_0000002479925980"></a>
 
@@ -50,7 +50,7 @@ The tool has been validated on LLaMA3-8B and Qwen3-8B. In principle, it does not
 ## Preparations
 
 **Environment Setup**
-Set up an environment where serving tools (such as [MindIE Service](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/quick_start.md)/[vLLM Server](https://docs.vllm.ai/projects/ascend/en/latest/quick_start.html)) and benchmark tools (such as `vllm_benchmark`/`ais_bench`, see [Benchmark Tool Deployment](https://gitee.com/aisbench/benchmark/blob/master/README.md)) can run properly.
+Set up an environment where serving tools (such as [MindIE Service](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/quick_start.md)/[vLLM Server](https://docs.vllm.ai/projects/ascend/en/latest/quick_start.html)) and benchmark tools (such as `vllm_benchmark`/`AISBench`, see [Benchmark Tool Deployment](https://gitee.com/aisbench/benchmark/blob/master/README.md)) can run properly.
 
 ## Tool Installation
 
@@ -104,7 +104,7 @@ The tool uses MindIE images and must follow their startup instructions. In Prefi
     msserviceprofiler optimizer
     ```
 
-    By default, the tool optimizes `MindIE` serving parameters with `Ais_Bench` as the benchmark tool.
+    By default, the tool optimizes `MindIE` serving parameters with `AISBench` as the benchmark tool.
 
 4. View the results. The optimization time depends on the model size and dataset size, typically taking 4 to 8 hours. Upon completion, the `data_storage_*.csv` file is generated and saved in the `result/store` subdirectory under the current directory. The file records the performance of each parameter set. For details, see [Output File Description](#output-file-description).
 
@@ -131,7 +131,7 @@ msserviceprofiler optimizer [options]
 |-lb or --load_breakpoint|No|Specifies whether to resume optimization from a breakpoint. Including this parameter enables breakpoint resumption; omitting it disables this feature.|
 |-d or --deploy_policy|No|Specifies a deployment policy. The options are as follows:<br>&#8226;`single`: single-node deployment<br>&#8226;`multiple`: multi-node deployment<br>The default value is `single`.|
 |--backup|No|Specifies whether to back up data during optimization. The options are as follows:<br>&#8226; `True`: enables backup.<br>&#8226; `False`: disables backup.<br>The default value is `False`.|
-|-b or --benchmark_policy|No|Specifies a benchmark tool. The options are as follows:<br>&#8226;`vllm_benchmark`: vllm_benchmark is used as the benchmark tool.<br>&#8226;`ais_bench`: ais_bench is used as as the benchmark tool.<br>The default value is `ais_bench`.<br>You need to select a benchmark tool compatible with your inference framework.|
+|-b or --benchmark_policy|No|Specifies a benchmark tool. The options are as follows:<br>&#8226;`vllm_benchmark`: vllm_benchmark is used as the benchmark tool.<br>&#8226;`ais_bench`: AISBench is used as as the benchmark tool.<br>The default value is `ais_bench`.<br>You need to select a benchmark tool compatible with your inference framework.|
 |-e or --engine|No|Specifies an inference framework. The options are as follows:<br>&#8226;`mindie`: MindIE is used as the inference framework.<br>&#8226;`vllm`: vLLM is used as the inference framework.<br>The default value is `mindie`.|
 |--pd|No|Specifies an inference framework mode. The options are as follows:<br>&#8226;`competition`: PD competition mode<br>&#8226;`disaggregation`: PD disaggregation mode<br>The default value is `competition`.|
 
@@ -219,7 +219,7 @@ The simulation mode requires training on collected serving data. Run the MindIE 
 |-lb or --load_breakpoint|No|Specifies whether to resume optimization from a breakpoint. Including this parameter enables breakpoint resumption; omitting it disables this feature.|
 |-d or --deploy_policy|No|Specifies a deployment policy. The options are as follows:<br>&#8226;`single`: single-node deployment<br>&#8226;`multiple`: multi-node deployment<br>The default value is `single`.|
 |--backup|No|Specifies whether to back up data during optimization. The options are as follows:<br>&#8226; `True`: enables backup.<br>&#8226; `False`: disables backup.<br>The default value is `False`.|
-|-b or --benchmark_policy|No|Specifies a benchmark tool. The options are as follows:<br>&#8226;`vllm_benchmark`: vllm_benchmark is used as the benchmark tool.<br>&#8226;`ais_bench`: ais_bench is used as as the benchmark tool.<br>The default value is `ais_bench`.<br>You need to select a benchmark tool compatible with your inference framework.|
+|-b or --benchmark_policy|No|Specifies a benchmark tool. The options are as follows:<br>&#8226;`vllm_benchmark`: vllm_benchmark is used as the benchmark tool.<br>&#8226;`ais_bench`: AISBench is used as as the benchmark tool.<br>The default value is `ais_bench`.<br>You need to select a benchmark tool compatible with your inference framework.|
 |-e or --engine|No|Specifies an inference framework. The options are as follows:<br>&#8226;`mindie`: MindIE is used as the inference framework.<br>&#8226;`vllm`: vLLM is used as the inference framework.<br>The default value is `mindie`.|
 |--pd|No|Specifies an inference framework mode. The options are as follows:<br>&#8226;`competition`: PD competition mode<br>&#8226;`disaggregation`: PD disaggregation mode<br>The default value is `competition`.|
 
@@ -253,7 +253,7 @@ After automatic optimization is complete, a result file in CSV format is generat
 
 ## Output File Description
 
-Each row in the output CSV corresponds to a parameter set, with the first four columns representing performance metrics. You can filter rows that meet your requirements and update MindIE and ais_bench/vllm_benchmark parameters with the corresponding values from the CSV.
+Each row in the output CSV corresponds to a parameter set, with the first four columns representing performance metrics. You can filter rows that meet your requirements and update MindIE and AISBench/vllm_benchmark parameters with the corresponding values from the CSV.
 
 | Field| Description|
 | --- | --- |
@@ -292,7 +292,7 @@ You can configure the number of particles and iterations based on the estimated 
 |sample_size|No|Dataset sampling size for improved efficiency. The value is an integer ranging from 1000 to 10000. The recommended value is 1/3 of original dataset size.|
 
 **Benchmark tool parameters**:
-If `ais_bench` is used for the test, modify the following parameters. For details, see [ais_bench Usage Description] (<https://gitee.com/aisbench/benchmark/blob/master/README.md>).
+If `AISBench` is used for the test, modify the following parameters. For details, see [AISBench Usage Description] (<https://gitee.com/aisbench/benchmark/blob/master/README.md>).
 
 |Parameter|Description|
 |---|---|

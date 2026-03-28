@@ -68,7 +68,7 @@ msServiceProfiler服务化调优工具的快速入门，包括必要的操作步
 
 3. **Trace 数据链路监测（MindIE 场景）**：需要将服务端请求链路打通到 Jaeger 等 OTLP 生态时，参见[Trace数据监测工具](docs/zh/msserviceprofiler_trace_data_monitoring_instruct.md)。
 
-4. **Prometheus 在线监测（vLLM 场景）**：如需在 vLLM-ascend 上结合 Prometheus 做在线监控，参见[vLLM 服务化 Prometheus 数据监测工具使用指南](docs/zh/vLLM_metrics_tool_instruct.md)。
+4. **Prometheus 在线监测（vLLM 场景）**：如需在 vLLM-Ascend 上结合 Prometheus 做在线监控，参见[vLLM 服务化 Prometheus 数据监测工具使用指南](docs/zh/vLLM_metrics_tool_instruct.md)。
 
 5. **采集数据的比对与多维分析**：对不同版本/配置的性能结果做对比或从多维度深入分析时，参见：
     - [服务化性能数据比对工具](docs/zh/ms_service_profiler_compare_tool_instruct.md)

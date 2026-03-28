@@ -2,14 +2,14 @@
 
 ## 简介
 
-vLLM 服务化性能采集工具（vLLM Service Profiler）是用于监测和采集 vLLM-ascend 推理服务框架内部执行流程性能数据的工具。该工具通过采集关键流程的起止时间、识别关键函数或迭代、记录关键事件并捕获多种类型的信息，帮助用户快速定位性能瓶颈。
+vLLM 服务化性能采集工具（vLLM Service Profiler）是用于监测和采集 vLLM-Ascend 推理服务框架内部执行流程性能数据的工具。该工具通过采集关键流程的起止时间、识别关键函数或迭代、记录关键事件并捕获多种类型的信息，帮助用户快速定位性能瓶颈。
 
-vLLM Service Profiler 适用于在 vLLM-ascend 推理服务过程中进行性能监测和优化分析，覆盖从准备、采集、解析到结果展示的完整流程。
+vLLM Service Profiler 适用于在 vLLM-Ascend 推理服务过程中进行性能监测和优化分析，覆盖从准备、采集、解析到结果展示的完整流程。
 
 ### 基本概念
 
 - **性能采集**：通过埋点技术记录服务运行时的关键时间点和事件，生成性能分析数据。
-- **埋点/采集点位（Symbol）**：性能数据采集的具体目标，通过指定 vLLM 或者 vLLM-ascend 源码中具体的可执行函数定义。
+- **埋点/采集点位（Symbol）**：性能数据采集的具体目标，通过指定 vLLM 或者 vLLM-Ascend 源码中具体的可执行函数定义。
 - **埋点域（Domain）**：性能数据采集的功能分类，如 Request、KVCache、ModelExecute 等。
 - **点位配置**：定义需要采集的函数/方法及其属性的配置文件。
 
@@ -32,14 +32,14 @@ vLLM Service Profiler 适用于在 vLLM-ascend 推理服务过程中进行性能
 #### 环境准备
 
 1. 在昇腾环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《[CANN 软件安装指南](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=netconda&OS=openEuler)》。
-2. 完成 vLLM 和 vLLM-ascend 的安装和配置并确认 vLLM-ascend 可以正常运行，具体请参见 [vLLM-Ascend installation](https://vllm-ascend.readthedocs.io/en/latest/installation.html)。
+2. 完成 vLLM 和 vLLM-Ascend 的安装和配置并确认 vLLM-Ascend 可以正常运行，具体请参见 [vLLM-Ascend installation](https://vllm-ascend.readthedocs.io/en/latest/installation.html)。
 3. 升级 msServiceProfiler 工具，请参见《[msServiceProfiler工具安装指南 - 升级](./msserviceprofiler_install_guide.md#安装和升级)》章节，基于源码构建 run 包并完成升级。
 
 #### 约束
 
-- **版本配套**：请确保 vLLM-ascend、CANN 和采集工具的版本配套关系符合附录中的要求。
+- **版本配套**：请确保 vLLM-Ascend、CANN 和采集工具的版本配套关系符合附录中的要求。
 - **资源占用**：采集过程中可能占用较大内存，建议根据实际需求调整采集频率参数。
-- **功能限制**：部分高级功能需要特定版本的 vLLM-ascend 框架支持。
+- **功能限制**：部分高级功能需要特定版本的 vLLM-Ascend 框架支持。
 
 ## 快速入门
 
@@ -110,9 +110,9 @@ msserviceprofiler parse --input-path=./ --output-path output
 
 #### 内置/自定义点位配置文件
 
-点位配置文件已在 vLLM-ascend 以及工具中内置：
+点位配置文件已在 vLLM-Ascend 以及工具中内置：
 
-- 默认加载路径：`~/.config/vllm_ascend/service_profiling_symbols.MAJOR.MINOR.PATCH.yaml`（适用于 vLLM-ascend 框架且文件名随已安装的 vllm 版本变化）
+- 默认加载路径：`~/.config/vllm_ascend/service_profiling_symbols.MAJOR.MINOR.PATCH.yaml`（适用于 vLLM-Ascend 框架且文件名随已安装的 vllm 版本变化）
 - 备用加载路径：`工具安装路径/ms_service_profiler/patcher/vllm/config/service_profiling_symbols.yaml`
 
 如需自定义采集点，推荐通过设置环境变量`PROFILING_SYMBOLS_PATH`，将一份点位配置文件复制到工作目录进行修改使用。
@@ -290,7 +290,7 @@ def custom_handler(original_func, this, *args, **kwargs):
 
 ### vLLM各版本及框架支持情况
 
-| 配套CANN版本 | vLLM-ascend V0 | vLLM-ascend V1 |
+| 配套CANN版本 | vLLM-Ascend V0 | vLLM-Ascend V1 |
 |:--------:|:--------------:|:--------------:|
 | 8.3.RC1  |       /        |  v0.11.0.RC3   |
 | 8.3.RC1  |       /        |  v0.11.0.RC2   |
@@ -312,4 +312,4 @@ def custom_handler(original_func, this, *args, **kwargs):
 >[!note] 说明
 >
 > - vLLM Service Profiler 在 `acl_task_time` 参数配置为1时，不支持同时配置vLLM原生 Torch Profiler 的 `VLLM_TORCH_PROFILER_DIR` 环境变量进行性能数据采集。
-> - 配置 Torch Profiler 采集时，`enable`参数取值初始须为0（表示关闭性能数据采集），之后在启动 vLLM-ascend 推理服务框架服务后再将配置`enable`参数配置为1（开启采集），为了避免采集过多的性能数据，可在完成相应数据采集过后关闭采集。如果`enable`参数取值初始为1，会采集大量框架层数据，很容易生成几个 GB 的跟踪文件。
+> - 配置 Torch Profiler 采集时，`enable`参数取值初始须为0（表示关闭性能数据采集），之后在启动 vLLM-Ascend 推理服务框架服务后再将配置`enable`参数配置为1（开启采集），为了避免采集过多的性能数据，可在完成相应数据采集过后关闭采集。如果`enable`参数取值初始为1，会采集大量框架层数据，很容易生成几个 GB 的跟踪文件。
