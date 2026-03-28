@@ -59,7 +59,7 @@ def check_req_csv(output_path, complete_req_cnt=0):
             check_df_col_has_no_nan_value(df, "queue_wait_time(ms)")
 
 
-def check_batch_csv(output_path):
+def check_batch_csv(output_path, framework='mindie'):
     csv_file_path = f"{output_path}/batch.csv"
     with check(f"check[{csv_file_path}]"):
         # 是否存在
@@ -87,7 +87,8 @@ def check_batch_csv(output_path):
         check_df_col_has_no_nan_value(df, "name")
         check_df_col_has_no_nan_value(df, "res_list")
         check_df_col_has_no_nan_value(df, "batch_size")
-        check_df_col_has_no_nan_value(df[df['name'] != 'Execute'], "batch_type")
+        if framework == 'mindie':
+            check_df_col_has_no_nan_value(df[df['name'] != 'Execute'], "batch_type")
         check_df_col_has_no_nan_value(df, "during_time(ms)")
 
 

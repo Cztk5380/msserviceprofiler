@@ -48,6 +48,14 @@ CURVE_VIEW_NAME_LIST_COMPETITION = {
     'request_status': 'Request_Status_curve'
 }
 
+CURVE_VIEW_NAME_LIST_COMPETITION_VLLM = {
+    # 折线图原始表名: 视图名称
+    'batch': 'Batch_Size_curve',
+    'kvcache': 'Kvcache_Usage_Percent_curve',
+    'req_latency': 'Request_Latency_curve',
+    'first_token_latency': 'First_Token_Latency_curve',
+}
+
 
 INSIGHT_TABLE_OPERATIONS = {
     'data_table': {

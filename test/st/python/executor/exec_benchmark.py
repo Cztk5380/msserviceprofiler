@@ -14,6 +14,7 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 
+import json
 from executor.exec_command import CommandExecutor
 
 
@@ -51,6 +52,15 @@ class ExecBenchmark(CommandExecutor):
              "-X", "POST",
              "-d", '{"inputs":"Please introduce yourself.","parameters":{"max_new_tokens":250, "temperature":0.3, "top_p":0.3, "top_k":5, "do_sample":true, "repetition_penalty":1.05, "seed":128}}'
              ])
+
+        exit_code, _ = self.wait()
+        return exit_code == 0
+
+
+    def curl_vllm_test(self, server_ip="0.0.0.0", server_port=8000):
+        self.execute(["curl", f"http://{server_ip}:{server_port}/v1/completions", "-H", "Content-Type: application/json",
+                      "-d", '{"model": "/data/Qwen2.5-0.5B-Instruct", "prompt": "Beijing is a", "max_tokens": 5, "temperature": 0}'
+                      ])
 
         exit_code, _ = self.wait()
         return exit_code == 0

@@ -20,7 +20,7 @@ import sqlite3
 from contextlib import contextmanager, ExitStack
 
 import pandas as pd
-from ms_service_profiler.exporters.utils import CURVE_VIEW_NAME_LIST_COMPETITION
+from ms_service_profiler.exporters.utils import CURVE_VIEW_NAME_LIST_COMPETITION, CURVE_VIEW_NAME_LIST_COMPETITION_VLLM
 from checker.checker_utils import check_df_has_no_empty_line, check_df_expected_column
 
 
@@ -89,15 +89,17 @@ def check_and_get_df_from_table(conn, cursor, table_name, col_names, allow_empty
     return df
 
 
-def check_latency_tables(conn, complete_req_cnt=0):
+def check_latency_tables(conn, complete_req_cnt=0, framework='mindie'):
     with sqlite_cursor(conn) as cursor:
         expected_header = ["p50", "p90", "p99", "timestamp", "p50_alltime"]
-        with check("check table decode_gen_speed"):
-            check_and_get_df_from_table(conn, cursor, "decode_gen_speed", expected_header, complete_req_cnt == 0)
+        if framework=='mindie':
+            with check("check table decode_gen_speed"):
+                check_and_get_df_from_table(conn, cursor, "decode_gen_speed", expected_header, complete_req_cnt == 0)
         with check("check table:first_token_latency"):
             check_and_get_df_from_table(conn, cursor, "first_token_latency", expected_header, complete_req_cnt == 0)
-        with check("check table:prefill_gen_speed"):
-            check_and_get_df_from_table(conn, cursor, "prefill_gen_speed", expected_header, complete_req_cnt == 0)
+        if framework=='mindie':
+            with check("check table:prefill_gen_speed"):
+                check_and_get_df_from_table(conn, cursor, "prefill_gen_speed", expected_header, complete_req_cnt == 0)
         with check("check table:req_latency"):
             check_and_get_df_from_table(conn, cursor, "req_latency", expected_header, complete_req_cnt == 0)
 
@@ -154,7 +156,7 @@ def check_req_status_table(conn, complete_req_cnt=0):
             check_and_get_df_from_table(conn, cursor, table_name, expected_header, complete_req_cnt == 0)
 
 
-def check_insight_tables(conn, complete_req_cnt=0):
+def check_insight_tables(conn, complete_req_cnt=0, framework="mindie"):
     allow = complete_req_cnt == 0
     with sqlite_cursor(conn) as cursor:
         with check("counter"):
@@ -187,5 +189,9 @@ def check_insight_tables(conn, complete_req_cnt=0):
         with check("data_table"):
             check_and_get_df_from_table(conn, cursor, "data_table", ["id", "name", "view_name"], allow)
 
-        for view in CURVE_VIEW_NAME_LIST_COMPETITION.values():
-            check_view_exists(cursor, view)
+        if framework == "mindie":
+            for view in CURVE_VIEW_NAME_LIST_COMPETITION.values():
+                check_view_exists(cursor, view)
+        else:
+            for view in CURVE_VIEW_NAME_LIST_COMPETITION_VLLM.values():
+                check_view_exists(cursor, view)
