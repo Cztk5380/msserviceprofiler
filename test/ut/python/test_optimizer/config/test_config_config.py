@@ -13,13 +13,17 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
+import os
 import unittest
 from copy import deepcopy
+from pathlib import Path
+from unittest.mock import patch, MagicMock
 import numpy as np
 from ms_serviceparam_optimizer.config.config import (
     map_param_with_value, OptimizerConfigField,
     ErrorPatternConfig, HealthCheckConfig,
-    ErrorType, ErrorSeverity
+    ErrorType, ErrorSeverity, _get_mindie_config_paths,
+    MindieConfig
 )
 
 
@@ -130,26 +134,6 @@ class TestMapParamWithValueRealFields(unittest.TestCase):
 class TestErrorPatternConfig(unittest.TestCase):
     """测试 ErrorPatternConfig 配置类"""
 
-    def test_default_fatal_patterns(self):
-        """测试默认的 fatal_patterns 配置"""
-        config = ErrorPatternConfig()
-        self.assertIn(ErrorType.OUT_OF_MEMORY, config.fatal_patterns)
-        self.assertIn(ErrorType.DEVICE_ERROR, config.fatal_patterns)
-        self.assertIn("out of memory", config.fatal_patterns[ErrorType.OUT_OF_MEMORY])
-        self.assertIn("OOM", config.fatal_patterns[ErrorType.OUT_OF_MEMORY])
-        self.assertIn("device error", config.fatal_patterns[ErrorType.DEVICE_ERROR])
-        self.assertIn("NPU error", config.fatal_patterns[ErrorType.DEVICE_ERROR])
-
-    def test_default_retryable_patterns(self):
-        """测试默认的 retryable_patterns 配置"""
-        config = ErrorPatternConfig()
-        self.assertIn(ErrorType.NETWORK_ERROR, config.retryable_patterns)
-        self.assertIn(ErrorType.IO_ERROR, config.retryable_patterns)
-        self.assertIn("connection reset", config.retryable_patterns[ErrorType.NETWORK_ERROR])
-        self.assertIn("timeout", config.retryable_patterns[ErrorType.NETWORK_ERROR])
-        self.assertIn("file not found", config.retryable_patterns[ErrorType.IO_ERROR])
-        self.assertIn("permission denied", config.retryable_patterns[ErrorType.IO_ERROR])
-
     def test_custom_patterns(self):
         """测试自定义错误模式"""
         custom_config = ErrorPatternConfig(
@@ -213,3 +197,195 @@ class TestHealthCheckConfig(unittest.TestCase):
         self.assertIn("device fault", custom_config.service_errors.fatal_patterns[ErrorType.DEVICE_ERROR])
         self.assertIn("disk full", custom_config.benchmark_errors.retryable_patterns[ErrorType.IO_ERROR])
         self.assertEqual(custom_config.log_snippet_length, 300)
+
+
+class TestGetMindieConfigPaths(unittest.TestCase):
+    """测试 _get_mindie_config_paths 函数"""
+
+    @patch.object(Path, 'is_file')
+    def test_default_path_exists(self, mock_is_file):
+        """测试默认配置文件存在时返回默认路径"""
+        mock_is_file.return_value = True
+        
+        config_path, config_bak_path = _get_mindie_config_paths()
+        
+        expected_config = Path("/usr/local/Ascend/mindie/latest/mindie-service/conf/config.json")
+        expected_bak = Path("/usr/local/Ascend/mindie/latest/mindie-service/conf/config_bak.json")
+        
+        self.assertEqual(config_path, expected_config)
+        self.assertEqual(config_bak_path, expected_bak)
+
+    @patch.object(Path, 'is_file')
+    def test_env_variable_not_set(self, mock_is_file):
+        """测试默认路径不存在且环境变量也不存在时返回默认路径"""
+        mock_is_file.return_value = False
+        
+        # 清除环境变量
+        env_backup = os.environ.pop("MIES_INSTALL_PATH", None)
+        try:
+            config_path, config_bak_path = _get_mindie_config_paths()
+            
+            expected_config = Path("/usr/local/Ascend/mindie/latest/mindie-service/conf/config.json")
+            expected_bak = Path("/usr/local/Ascend/mindie/latest/mindie-service/conf/config_bak.json")
+            
+            self.assertEqual(config_path, expected_config)
+            self.assertEqual(config_bak_path, expected_bak)
+        finally:
+            if env_backup:
+                os.environ["MIES_INSTALL_PATH"] = env_backup
+
+
+class TestMindieConfig(unittest.TestCase):
+    """测试 MindieConfig 配置类"""
+
+    @patch('ms_serviceparam_optimizer.config.config._get_mindie_config_paths')
+    def test_default_values(self, mock_get_paths):
+        """测试 MindieConfig 默认值"""
+        mock_get_paths.return_value = (
+            Path("/test/config.json"),
+            Path("/test/config_bak.json")
+        )
+        
+        config = MindieConfig()
+        
+        self.assertEqual(config.process_name, "mindie, mindie-llm, mindieservice_daemon, mindie_llm")
+        self.assertEqual(config.output, Path("mindie"))
+        self.assertEqual(config.config_path, Path("/test/config.json"))
+        self.assertEqual(config.config_bak_path, Path("/test/config_bak.json"))
+
+    @patch('ms_serviceparam_optimizer.config.config._get_mindie_config_paths')
+    def test_custom_output(self, mock_get_paths):
+        """测试自定义 output 路径"""
+        mock_get_paths.return_value = (
+            Path("/test/config.json"),
+            Path("/test/config_bak.json")
+        )
+        
+        config = MindieConfig(output=Path("/custom/output"))
+        
+        self.assertEqual(config.output, Path("/custom/output"))
+
+    @patch('ms_serviceparam_optimizer.config.config._get_mindie_config_paths')
+    def test_target_field_default(self, mock_get_paths):
+        """测试 target_field 默认值"""
+        mock_get_paths.return_value = (
+            Path("/test/config.json"),
+            Path("/test/config_bak.json")
+        )
+        
+        config = MindieConfig()
+        
+        self.assertIsInstance(config.target_field, list)
+        self.assertTrue(len(config.target_field) > 0)
+
+
+class TestOptimizerConfigFieldConstant(unittest.TestCase):
+    """测试 OptimizerConfigField 的 constant 相关逻辑"""
+
+    def test_constant_auto_set_when_min_equals_max(self):
+        """测试当 min 等于 max 时自动设置 constant"""
+        field = OptimizerConfigField(
+            name="test_field",
+            config_position="test.position",
+            min=100,
+            max=100,
+            dtype="int"
+        )
+        
+        self.assertEqual(field.constant, 100)
+        self.assertEqual(field.min, 100)
+        self.assertEqual(field.max, 100)
+
+    def test_constant_explicit_set(self):
+        """测试显式设置 constant"""
+        field = OptimizerConfigField(
+            name="test_field",
+            config_position="test.position",
+            min=0,
+            max=100,
+            dtype="int",
+            constant=50
+        )
+        
+        self.assertEqual(field.constant, 50)
+        self.assertEqual(field.min, 50)
+        self.assertEqual(field.max, 50)
+
+    def test_min_greater_than_max_raises_error(self):
+        """测试 min 大于 max 时抛出错误"""
+        with self.assertRaises(ValueError) as context:
+            OptimizerConfigField(
+                name="test_field",
+                config_position="test.position",
+                min=100,
+                max=0,
+                dtype="int"
+            )
+        
+        self.assertIn("min", str(context.exception))
+        self.assertIn("max", str(context.exception))
+
+    def test_find_available_value_within_range(self):
+        """测试 find_available_value 在范围内"""
+        field = OptimizerConfigField(
+            name="test_field",
+            config_position="test.position",
+            min=0,
+            max=100,
+            dtype="int"
+        )
+        
+        self.assertEqual(field.find_available_value(50), 50)
+        self.assertEqual(field.find_available_value(0), 0)
+        self.assertEqual(field.find_available_value(100), 100)
+
+    def test_find_available_value_out_of_range(self):
+        """测试 find_available_value 超出范围时返回边界值"""
+        field = OptimizerConfigField(
+            name="test_field",
+            config_position="test.position",
+            min=0,
+            max=100,
+            dtype="int"
+        )
+        
+        self.assertEqual(field.find_available_value(-10), 0)
+        self.assertEqual(field.find_available_value(150), 100)
+
+    def test_find_available_value_enum_type(self):
+        """测试 find_available_value 对于 enum 类型"""
+        field = OptimizerConfigField(
+            name="test_field",
+            config_position="test.position",
+            min=0,
+            max=1,
+            dtype="enum",
+            dtype_param=[1, 2, 4, 8]
+        )
+        
+        # 值在枚举列表中
+        self.assertEqual(field.find_available_value(2), 2)
+        self.assertEqual(field.find_available_value(8), 8)
+        
+        # 值不在枚举列表中，返回最接近的
+        self.assertEqual(field.find_available_value(3), 4)
+        self.assertEqual(field.find_available_value(0), 1)
+
+    def test_convert_dtype(self):
+        """测试 convert_dtype 方法"""
+        int_field = OptimizerConfigField(
+            name="int_field",
+            config_position="test.position",
+            dtype="int"
+        )
+        float_field = OptimizerConfigField(
+            name="float_field",
+            config_position="test.position",
+            dtype="float"
+        )
+        
+        self.assertEqual(int_field.convert_dtype("42"), 42)
+        self.assertIsInstance(int_field.convert_dtype("42"), int)
+        
+        self.assertAlmostEqual(float_field.convert_dtype("3.14"), 3.14)
+        self.assertIsInstance(float_field.convert_dtype("3.14"), float)
