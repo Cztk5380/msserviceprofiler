@@ -122,6 +122,7 @@ function chmod_libmsserviceprofiler() {
 }
 
 function register_uninstall() {
+       local target_line='uninstall_package "share/info/msserviceprofiler"'
  	   if [ ! -f "${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${UNINSTALL_SCRIPT}" ]; then
  	       print_log "ERROR" "No such file: ${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${UNINSTALL_SCRIPT}"
  	   fi
@@ -132,6 +133,9 @@ function register_uninstall() {
  	   if [ ! -f "${install_path}/${CANN_UNINSTALL_SCRIPT}" ]; then
  	       print_log "ERROR" "Failed to register uninstall script, no such file: ${install_path}/${CANN_UNINSTALL_SCRIPT}"
  	       return 1
+ 	   fi
+ 	   if grep -qxF "${target_line}" "${install_path}/${CANN_UNINSTALL_SCRIPT}"; then
+ 	         return 0
  	   fi
  	   local script_right=$(stat -c '%a' "${install_path}/${CANN_UNINSTALL_SCRIPT}")
  	   chmod u+w "${install_path}/${CANN_UNINSTALL_SCRIPT}"
