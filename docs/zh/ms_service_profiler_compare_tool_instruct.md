@@ -29,13 +29,13 @@
 
 ## 使用前准备
 
-- 完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。  
-- 如需算子比对功能，则先完成[msprof-analyze工具](https://gitcode.com/Ascend/msprof-analyze)的安装。
+- 完成msServiceProfiler工具的安装，具体请参见《[msServiceProfiler工具安装指南](./msserviceprofiler_install_guide.md)》。  
+- 如需算子比对功能，则先完成msprof-analyze工具的安装，具体请参见《[msprof-analyze工具安装指南](https://gitcode.com/Ascend/msprof-analyze/blob/26.0.0/docs/zh/install_guide.md)》。
 
 **数据准备**
 
-- 完成服务化性能数据采集，获得两份待比对的性能数据，具体采集方式请参见[服务化调优工具](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/zh/msserviceprofiler_serving_tuning_instruct.md)。  
-- 算子比对场景要求使用[服务化调优工具](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/zh/msserviceprofiler_serving_tuning_instruct.md]采集性能数据时，配置acl_task_time参数值为3，确保采集的性能数据文件目录中包含以_ascend_pt为后缀的算子数据文件)。
+- 完成服务化性能数据采集，获得两份待比对的性能数据，具体采集方式请参见[服务化调优工具](./msserviceprofiler_serving_tuning_instruct.md)。  
+- 算子比对场景要求使用[服务化调优工具](./msserviceprofiler_serving_tuning_instruct.md)采集性能数据时，配置acl_task_time参数值为3，确保采集的性能数据文件目录中包含以_ascend_pt为后缀的算子数据文件。
 
 **约束**
 
@@ -57,12 +57,12 @@ msserviceprofiler compare <input_path> <golden_path> [--output-path <output_path
 
 **参数说明**
 
-| 参数            | 可选/必选 | 说明                                                                                                                                                                                                                                        |
-|-----------------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| input_path      | 必选      | 待分析数据目录（需包含msServiceProfiler解析后的数据）。                                                                                                                                                                                                      |
-| golden_path     | 必选      | 基准数据目录。                                                                                                                                                                                                                                   |
-| --output-path   | 可选      | 结果输出目录（默认：./compare_result）。                                                                                                                                                                                                              |
-| --log-level     | 可选      | 设置日志级别，取值为：<br>&#8226; debug：调试级别。该级别的日志记录了调试信息，便于开发人员或维护人员定位问题。<br>&#8226; info：正常级别。记录工具正常运行的信息。默认值。<br>&#8226; warning：警告级别。记录工具和预期的状态不一致，但不影响整个进程运行的信息。<br>&#8226; error：一般错误级别。<br>&#8226; fatal：严重错误级别。<br>&#8226; critical：致命错误级别。 |
+| 参数          | 可选/必选 | 说明                                                         |
+| ------------- | --------- | ------------------------------------------------------------ |
+| input_path    | 必选      | 待分析数据目录（需包含msServiceProfiler解析后的数据）。      |
+| golden_path   | 必选      | 基准数据目录。                                               |
+| --output-path | 可选      | 结果输出目录（默认：./compare_result）。                     |
+| --log-level   | 可选      | 设置日志级别，取值为：<br>&#8226; debug：调试级别。该级别的日志记录了调试信息，便于开发人员或维护人员定位问题。<br>&#8226; info：正常级别。记录工具正常运行的信息。默认值。<br>&#8226; warning：警告级别。记录工具和预期的状态不一致，但不影响整个进程运行的信息。<br>&#8226; error：一般错误级别。<br>&#8226; critical：严重错误级别。<br>&#8226; fatal：致命错误级别。 |
 
 **使用示例**
 

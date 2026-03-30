@@ -10,7 +10,7 @@
 
 - **仿真模块**：基于XGBoost模型对大模型推理时长进行精准预测，结合服务化调度的虚拟时间轴技术，加速服务化参数验证速度。
 
-- **参数验证模块**：自动化启动服务化进程与测评工具进程，进行参数测试，获取性能结果。当前已支持的测评工具包括ais_bench，vllm_benchmark。
+- **参数验证模块**：自动化启动服务化进程与测评工具进程，进行参数测试，获取性能结果。当前已支持的测评工具包括AISBench，vllm_benchmark。
 
 > [](public_sys-resources/icon-note.gif) **注意：**
 > 由于benchmark即将下线并由ais_bench代替，寻优工具当前已取消支持benchmark。
@@ -25,7 +25,7 @@
 **基本概念**
 
 - `MindIE`、`VLLM`：服务化框架，支持对模型进行服务化部署。
-- `Ais_Bench`、`VLLM_Benchmark`：推理性能评测工具，支持对服务化进行推理性能评测。
+- `AISBench`、`VLLM_Benchmark`：推理性能评测工具，支持对服务化进行推理性能评测。
 
 ## 产品支持情况<a name="ZH-CN_TOPIC_0000002479925980"></a>
 
@@ -47,7 +47,7 @@
 ## 使用前准备
 
 **环境准备**
-准备好能正常运行服务化（如[MindIE Service](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/quick_start.md)/[VLLM Server](https://docs.vllm.ai/projects/ascend/en/latest/quick_start.html)）和测评工具（如`vllm_benchmark/ais_bench`，参见[测评工具部署](https://gitee.com/aisbench/benchmark/blob/master/README.md)）的环境。
+准备好能正常运行服务化（如[MindIE Service](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/quick_start.md)/[VLLM Server](https://docs.vllm.ai/projects/ascend/en/latest/quick_start.html)）和测评工具（如`vllm_benchmark/AISBench`，参见[测评工具部署](https://gitee.com/aisbench/benchmark/blob/master/README.md)）的环境。
 
 ## 工具安装
 
@@ -101,7 +101,7 @@ pip uninstall ms_serviceparam_optimizer
     msserviceprofiler optimizer
     ```
 
-    默认执行的是基于`Ais_Bench`的`MindIE`服务化参数寻优。
+    默认执行的是基于`AISBench`的`MindIE`服务化参数寻优。
 
 4. 查看结果：寻优时间由模型大小和数据集大小决定，一般在4~8小时完成，结束后会生成`data_storage_*.csv`的文件并保存在当前目录的`result/store`子目录中，其中记录了各组参数的性能，详细介绍请参见[输出结果文件说明](#输出结果文件说明)。
 
@@ -128,7 +128,7 @@ msserviceprofiler optimizer [options]
 |-lb或--load_breakpoint|可选|控制是否从断点恢复寻优过程，配置本参数表示开启，默认未配置表示关闭。|
 |-d或--deploy_policy|可选|设置部署策略，即单机或多机部署，可取值：<br>&#8226;single：单机部署<br>&#8226;multiple：多机部署。<br/>默认值为`single`。|
 |--backup|可选|决定是否在寻优过程中备份数据，配置本参数表示开启备份，可取值：<br>&#8226;True：开启备份<br>&#8226;False：不开启备份。<br/>默认值为`False`。|
-|-b或--benchmark_policy|可选|指定测评工具，可取值：<br>&#8226;vllm_benchmark：使用vllm_benchmark作为测试工具 <br/>&#8226;ais_bench：使用ais_bench作为测试工具<br/>默认值为`ais_bench`。<br/>用户需自行选择适配的推理框架以及测试框架。|
+|-b或--benchmark_policy|可选|指定测评工具，可取值：<br>&#8226;vllm_benchmark：使用vllm_benchmark作为测试工具 <br/>&#8226;ais_bench：使用AISBench作为测试工具<br/>默认值为`ais_bench`。<br/>用户需自行选择适配的推理框架以及测试框架。|
 |-e或--engine|可选|指定推理框架，可取值：<br>&#8226;mindie：使用MindIE作为推理框架<br>&#8226;vllm：使用VLLM作为推理框架<br/>默认值为`mindie`。|
 |--pd|可选|指定推理框架模式pd竞争或pd分离，可取值：<br>&#8226;competition：pd竞争模式<br>&#8226;disaggregation：pd分离模式<br/>默认值为`competition`。|
 
@@ -185,7 +185,7 @@ msserviceprofiler optimizer [options]
 
 **注意事项**
 
-仿真模式需要先基于服务化采集数据进行训练，参照[服务化调优工具手册](https://www.hiascend.com/document/detail/zh/mindstudio/80RC1/T&ITools/Profiling/mindieprofiling_0001.html) 开启profiling实际跑一遍MindIE推理服务的测试脚本，将采集的profiling数据进行解析然后用于训练模型。profiling采集数据需要包括batch_type，batch_size，forward_time，batch_end_time(ms)，request_recv_token_size，request_reply_token_size，need_blocks，request_execution_time(ms)，first_token_latency(ms)。
+仿真模式需要先基于服务化采集数据进行训练，参照[服务化调优工具](./msserviceprofiler_serving_tuning_instruct.md) 开启profiling实际跑一遍MindIE推理服务的测试脚本，将采集的profiling数据进行解析然后用于训练模型。profiling采集数据需要包括batch_type，batch_size，forward_time，batch_end_time(ms)，request_recv_token_size，request_reply_token_size，need_blocks，request_execution_time(ms)，first_token_latency(ms)。
 
 **命令格式**
 
@@ -216,7 +216,7 @@ msserviceprofiler optimizer [options]
 |-lb或--load_breakpoint|可选|控制是否从断点恢复寻优过程，配置本参数表示开启，默认未配置表示关闭。|
 |-d或--deploy_policy|可选|设置部署策略，即单机或多机部署，可取值：<br>&#8226;single：单机部署<br>&#8226;multiple：多机部署。<br/>默认值为`single`。|
 |--backup|可选|决定是否在寻优过程中备份数据，配置本参数表示开启备份，可取值：<br>&#8226;True：开启备份<br>&#8226;False：不开启备份。<br/>默认值为`False`。|
-|-b或--benchmark_policy|可选|指定测评工具，可取值：<br>&#8226;vllm_benchmark：使用vllm_benchmark作为测试工具 <br/>&#8226;ais_bench：使用ais_bench作为测试工具<br/>默认值为`ais_bench`。<br/>用户需自行选择适配的推理框架以及测试框架。|
+|-b或--benchmark_policy|可选|指定测评工具，可取值：<br>&#8226;vllm_benchmark：使用vllm_benchmark作为测试工具 <br/>&#8226;ais_bench：使用AISBench作为测试工具<br/>默认值为`ais_bench`。<br/>用户需自行选择适配的推理框架以及测试框架。|
 |-e或--engine|可选|指定推理框架，可取值：<br>&#8226;mindie：使用MindIE作为推理框架<br>&#8226;vllm：使用VLLM作为推理框架<br/>默认值为`mindie`。|
 |--pd|可选|指定推理框架模式pd竞争或pd分离，可取值：<br>&#8226;competition：pd竞争模式<br>&#8226;disaggregation：pd分离模式<br/>默认值为`competition`。|
 
@@ -250,7 +250,7 @@ msserviceprofiler optimizer [options]
 
 ## 输出结果文件说明
 
-输出csv中的每一行对应一组参数，前四列为性能指标。用户可以根据需求筛选满足要求的性能行，将MindIE参数以及ais_bench/vllm_benchmark的参数改为csv中的数据即可。
+输出csv中的每一行对应一组参数，前四列为性能指标。用户可以根据需求筛选满足要求的性能行，将MindIE参数以及AISBench/vllm_benchmark的参数改为csv中的数据即可。
 
 | 字段 | 说明 |
 | --- | --- |
@@ -289,7 +289,7 @@ msserviceprofiler optimizer [options]
 |sample_size|可选|对原始数据集采样大小，用采样后的数据进行调优，可增加寻优效率，取值范围为：1000-10000的整数，建议设为原数据集请求的1 / 3。|
 
 **测评工具参数**：
-若使用`ais_bench`测评，需修改以下参数，可以参照[ais_bench 使用说明](https://gitee.com/aisbench/benchmark/blob/master/README.md)进行修改。
+若使用`AISBench`测评，需修改以下参数，可以参照[AISBench 使用说明](https://gitee.com/aisbench/benchmark/blob/master/README.md)进行修改。
 
 |参数|说明|
 |---|---|

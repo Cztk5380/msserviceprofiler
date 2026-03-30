@@ -78,12 +78,12 @@ msServiceProfiler服务化调优工具的快速入门，包括必要的操作步
     - [服务化自动寻优插件模式](docs/zh/serviceparam_optimizer_plugin_instruct.md)
     - [服务化专家建议工具](docs/zh/service_profiling_advisor_instruct.md)
 
-6. **Prometheus 在线监测（vLLM 场景）**：如需在 vLLM-ascend 上结合 Prometheus 做在线监控，参见[vLLM 服务化 Prometheus 数据监测工具使用指南](docs/zh/vLLM_metrics_tool_instruct.md)。
+6. **Prometheus 在线监测（vLLM 场景）**：如需在 vLLM-Ascend 上结合 Prometheus 做在线监控，参见[vLLM 服务化 Prometheus 数据监测工具使用指南](docs/zh/vLLM_metrics_tool_instruct.md)。
 
 ## 📝 相关说明
 
-- [<<贡献指南>>](CONTRIBUTING.md)
-- [<<免责声明>>](./docs/zh/legal/disclaimer.md)
+- [《贡献指南》](CONTRIBUTING.md)
+- [《免责声明》](./docs/zh/legal/disclaimer.md)
 - [《License声明》](./docs/zh/legal/license_notice.md)
 
 ## 💬 建议与交流

@@ -68,7 +68,7 @@ pip install <package>.whl
 > **说明：**
 >
 > - `<expected_md5>` 请以 release 页面同版本安装包对应的 MD5 值为准。
-> - 各版本安装包 MD5 清单请参见[版本说明](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/zh/release_notes.md#安装包-md5-校验值)。
+> - 各版本安装包 MD5 清单请参见[版本说明](./release_notes.md#安装包-md5-校验值)。
 > - 若需要升级到指定版本，请先执行 `pip uninstall ms_service_profiler -y`，再安装目标版本 wheel 包。
 >
 > **MD5sum 校验不一致处理建议：**

@@ -1,6 +1,6 @@
 # 项目目录
 
-msServiceprofiler详细项目目录介绍如下
+msServiceProfiler详细项目目录介绍如下
 
 ```text
 3rdparty/                                                    # 第三方依赖目录
