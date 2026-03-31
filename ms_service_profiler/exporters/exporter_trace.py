@@ -368,6 +368,8 @@ def save_trace_data_into_json(trace_data, output):
 
 
 def add_flow_event(flow_event_df):
+    flow_event_df = flow_event_df.copy()
+    flow_event_df['rid'] = flow_event_df['rid'].astype(object)
     flow_event_df.loc[:, 'rid'] = flow_event_df['rid'].str.split(',')
     exploded_df = flow_event_df.explode('rid')
     exploded_df['tid'] = exploded_df['domain']

@@ -133,7 +133,7 @@ def safe_merge_ttft_que(req_base_info: pd.DataFrame,
         .infer_objects()
     )
 
-
+ 
 class ExporterReqData(ExporterBase):
     name = "req_data"
 
@@ -156,7 +156,7 @@ class ExporterReqData(ExporterBase):
             logger.warning("Exporter request will skip, the columns rid is missing")
             return
 
-        if check_domain_valid(df, ['Request'], 'request') is False:
+        if check_domain_valid(df, ['Request', 'Engine'], 'request') is False:
             return
 
         output = cls.args.output_path

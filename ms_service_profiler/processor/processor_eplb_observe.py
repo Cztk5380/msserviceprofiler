@@ -46,7 +46,7 @@ class ProcessorEplbObserve(ProcessorBase):
         # 从tx_data_df中筛选出专家负载对应domain域的数据
         moe_hot_df = tx_data_df[tx_data_df["domain"] == MOE_HOT_DOMAIN_NAME]
         if moe_hot_df.empty:
-            logger.warning("No eplb_observe data found in profiling data, skip eplb_observe analysis.")
+            logger.info("No eplb_observe data found in profiling data, skip eplb_observe analysis.")
             return None
 
         logger.info("Find eplb_observe data in profiling data, launch eplb observe analysis.")

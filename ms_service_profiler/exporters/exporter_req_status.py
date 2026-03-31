@@ -45,21 +45,38 @@ class ExporterReqStatus(ExporterBase):
 
         if 'csv' in cls.args.format and cls.valid_for_csv_output(data):
             df = data.get('tx_data_df')
-            need_columns = [ColumnConst.HOSTUID_COLUMN, ColumnConst.PID_COLUMN, ColumnConst.START_TIME_COLUMN, \
-                ColumnConst.DOMAIN_COLUMN, ColumnConst.NAME_COLUMN, ColumnConst.STATUS_COLUMN, \
-                    ColumnConst.QUEUESIZE_COLUMN, ColumnConst.START_DATETIME_COLUMN]
+            if ColumnConst.STATUS_COLUMN in df.columns:
+                state_col = ColumnConst.STATUS_COLUMN
+                state_values = ['waiting', 'running', 'swapped']
+            else:
+                state_col = ColumnConst.SCOPE_QUEUE_NAME_COLUMN
+                state_values = ['WAITING', 'RUNNING', 'SWAPPED']
 
-            mask = (
+            queue_name_mask = (
+                df[ColumnConst.SCOPE_QUEUE_NAME_COLUMN].isin(['WAITING', 'RUNNING', 'SWAPPED', 'PENDING'])
+                if ColumnConst.SCOPE_QUEUE_NAME_COLUMN in df.columns
+                else False
+            )
+            queue_mask = (
                 (df[ColumnConst.DOMAIN_COLUMN] == 'Schedule') &
-                (df[ColumnConst.NAME_COLUMN] == 'Queue') &
-                (df[ColumnConst.STATUS_COLUMN].isin(['waiting', 'running', 'swapped']))
+                (
+                    (df[ColumnConst.NAME_COLUMN] == 'Queue') |
+                    queue_name_mask
+                )
+            )
+            need_columns = [ColumnConst.HOSTUID_COLUMN, ColumnConst.PID_COLUMN, ColumnConst.START_TIME_COLUMN, \
+                ColumnConst.DOMAIN_COLUMN, ColumnConst.NAME_COLUMN, state_col, \
+                    ColumnConst.QUEUESIZE_COLUMN, ColumnConst.START_DATETIME_COLUMN]
+            mask = (
+                queue_mask &
+                (df[state_col].isin(state_values))
             )
             df = df.loc[mask, need_columns]
-            df['waiting'] = np.where(df[ColumnConst.STATUS_COLUMN] == 'waiting', \
+            df['waiting'] = np.where(df[state_col] == state_values[0], \
                 df[ColumnConst.QUEUESIZE_COLUMN], None)
-            df['running'] = np.where(df[ColumnConst.STATUS_COLUMN] == 'running', \
+            df['running'] = np.where(df[state_col] == state_values[1], \
                 df[ColumnConst.QUEUESIZE_COLUMN], None)
-            df['swapped'] = np.where(df[ColumnConst.STATUS_COLUMN] == 'swapped', \
+            df['swapped'] = np.where(df[state_col] == state_values[2], \
                 df[ColumnConst.QUEUESIZE_COLUMN], None)
 
             # 增加timestamp(ms)列
@@ -88,7 +105,14 @@ class ExporterReqStatus(ExporterBase):
             metrics = data.get('metric_data_df')
 
             # 处理 status 列的映射和编码
+            tx_columns = df.columns.tolist() if isinstance(df, pd.DataFrame) else []
+            metric_columns = metrics.columns.tolist() if isinstance(metrics, pd.DataFrame) else []
             df = cls._process_status_columns(df, metrics)
+            if df.empty:
+                logger.warning(
+                    "request_status db output is empty after _process_status_columns, tx_columns=%s, metric_columns=%s",
+                    tx_columns, metric_columns
+                )
 
             if 'QueueSize=' not in df.columns and ColumnConst.QUEUESIZE_COLUMN in df.columns:
                 df['QueueSize='] = df[ColumnConst.QUEUESIZE_COLUMN]
@@ -103,9 +127,11 @@ class ExporterReqStatus(ExporterBase):
             return False
 
         need_columns = [ColumnConst.HOSTUID_COLUMN, ColumnConst.PID_COLUMN, ColumnConst.START_TIME_COLUMN, \
-            ColumnConst.DOMAIN_COLUMN, ColumnConst.NAME_COLUMN, ColumnConst.STATUS_COLUMN, \
-                ColumnConst.QUEUESIZE_COLUMN, ColumnConst.START_DATETIME_COLUMN]
+            ColumnConst.DOMAIN_COLUMN, ColumnConst.NAME_COLUMN, ColumnConst.QUEUESIZE_COLUMN, \
+                ColumnConst.START_DATETIME_COLUMN]
         if not check_columns_valid(df, need_columns, cls.name):
+            return False
+        if ColumnConst.STATUS_COLUMN not in df.columns and ColumnConst.SCOPE_QUEUE_NAME_COLUMN not in df.columns:
             return False
         if not check_domain_valid(df, ['Schedule'], cls.name):
             return False
@@ -171,7 +197,14 @@ class ExporterReqStatus(ExporterBase):
         if not check_columns_valid(df, need_columns, cls.name):
             return pd.DataFrame()
 
-        queue_df = df[df['name'] == "Queue"]
+        queue_mask = (
+            (df[ColumnConst.DOMAIN_COLUMN] == 'Schedule') &
+            (
+                (df[ColumnConst.NAME_COLUMN] == 'Queue') |
+                (df[ColumnConst.SCOPE_QUEUE_NAME_COLUMN].isin(['WAITING', 'RUNNING', 'SWAPPED', 'PENDING']))
+            )
+        )
+        queue_df = df[queue_mask]
         df = queue_df.pivot_table(
             index='start_datetime',
             columns='scope#QueueName',
@@ -186,7 +219,8 @@ class ExporterReqStatus(ExporterBase):
                 df[col] = 0
 
         df = df[required_columns].rename(columns={'start_datetime': 'timestamp'})
-        df = df.ffill().fillna(0).infer_objects()  # 平滑填充nan值，避免 FutureWarning
+        value_columns = ['WAITING', 'RUNNING', 'PENDING']
+        df[value_columns] = df[value_columns].apply(pd.to_numeric, errors='coerce')
         return df
 
     @classmethod
@@ -194,15 +228,19 @@ class ExporterReqStatus(ExporterBase):
         # 首先尝试使用新的队列状态处理逻辑
         queue_status_df = cls._process_queue_status(df, metrics)
         if not queue_status_df.empty:
+            logger.debug("request_status db path: using queue_status schema")
             return queue_status_df
 
         # 如果新的逻辑没有返回数据，回退到原有逻辑
         if ColumnConst.STATUS_COLUMN in df.columns:
+            logger.debug("request_status db path: using status column schema")
             df = cls._map_and_encode_status(df, metrics)
         elif check_columns_valid(df, [ColumnConst.SCOPE_QUEUE_NAME_COLUMN, ColumnConst.QUEUESIZE_COLUMN], cls.name):
             # vllm 数据解析特有处理逻辑，当前只有vllm数据会走到
+            logger.debug("request_status db path: using scope#QueueName + QueueSize= schema")
             df = cls._process_queue_columns(df)
         else:
+            logger.debug("request_status db path: falling back to metric_data_df schema")
             df = cls._prepare_metrics_df(df, metrics)
         return df
 

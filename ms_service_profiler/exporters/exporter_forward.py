@@ -72,6 +72,12 @@ class ExporterForwardData(ExporterBase):
         forward_df = get_batch_info(forward_df, batch_name)
         
         # 计算 relative_time, bubble_time
+        if forward_df.empty:
+            logger.warning(
+                "Skip forward export because no rows remain after batch/rid matching. "
+                "This is currently an expected/known limitation in vllm scenarios and can be ignored."
+            )
+            return
         forward_df = get_relative_and_bubble(forward_df)
         
         forward_df = forward_df.drop(columns=DELETE_COLUMNS)

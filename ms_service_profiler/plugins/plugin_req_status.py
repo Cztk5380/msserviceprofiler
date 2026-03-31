@@ -72,9 +72,15 @@ class PluginReqStatus(PluginBase):
             # 筛选出tx_data_df中真实存在的列
             valid_cols = [col for col in vllm_req_status if col in tx_data_df.columns]
 
+            if not valid_cols and 'QueueSize=' in tx_data_df.columns and 'scope#QueueName' in tx_data_df.columns:
+                logger.debug(
+                    "Skip request status normalization because queue-based status schema is used"
+                )
+                return data
+
             if not valid_cols and not cls._warned_no_request_status:
-                logger.warning(
-                    "No 'request status' is found in prof data, if this is unexpected, please check"
+                logger.info(
+                    "Skip request status normalization because no request-status fields were found in current process data"
                 )
                 cls._warned_no_request_status = True
                 return data

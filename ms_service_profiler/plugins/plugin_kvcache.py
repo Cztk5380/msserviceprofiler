@@ -34,8 +34,11 @@ class PluginKVCacheMetrics(PluginBase):
         处理KVCache数据并计算指标，直接添加到原始DataFrame中
         """
         tx_data_df = data.get('tx_data_df')
-        if tx_data_df is None or tx_data_df.empty:
-            logger.warning("No transaction data found for KVCache metrics calculation")
+        if tx_data_df is None:
+            logger.debug("Skip KVCache metrics calculation because tx_data_df is unavailable for current input")
+            return data
+        if tx_data_df.empty:
+            logger.debug("Skip KVCache metrics calculation because tx_data_df is empty")
             return data
 
         # 筛选KVCache相关事件

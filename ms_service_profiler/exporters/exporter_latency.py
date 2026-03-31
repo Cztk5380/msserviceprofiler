@@ -296,7 +296,7 @@ class ExporterLatency(ExporterBase):
         df_copy = df_copy.dropna(subset=['time_bin'])
 
         # 按时间窗口分组并计算统计值
-        grouped = df_copy.groupby('time_bin')[value_col]
+        grouped = df_copy.groupby('time_bin', observed=False)[value_col]
 
         result_data = []
 
@@ -472,7 +472,11 @@ class ExporterLatency(ExporterBase):
 
         all_data_df = data['tx_data_df']
 
-        if check_domain_valid(all_data_df, ['ModelExecute', 'BatchSchedule', 'Request'], 'latency') is False:
+        if check_domain_valid(
+            all_data_df,
+            ['ModelExecute', 'BatchSchedule', 'Request', 'Schedule', 'Execute', 'Engine'],
+            'latency'
+        ) is False:
             return
 
         first_token_latency_views = ExporterLatency.gen_exporter_first_token_latency_views(

@@ -67,7 +67,7 @@ class PluginProcessName(PluginBase):
         处理 dpRankId 逻辑，将结果更新到 pid_label_map 中
         """
         if 'dpRankId' not in tx_data_df.columns:
-            logger.warning("dpRankId column not found in dataframe")
+            logger.info("Skip dpRankId-based pid labeling because current process data has no dpRankId column")
             return pid_label_map
 
         # 筛选有效的 dpRankId 数据
