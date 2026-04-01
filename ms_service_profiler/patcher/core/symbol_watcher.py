@@ -355,11 +355,6 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
                 handler_list = self._get_handlers_for_symbol(symbol_path)
                 if handler_list:
                     module_handlers.append((symbol_path, handler_list))
-            elif module_path.startswith(fullname + "."):
-                try:
-                    importlib.import_module(module_path)
-                except Exception as e:
-                    logger.debug(f"Failed to import {module_path}: {e}")
 
         module_obj = sys.modules.get(fullname)
         matching_data = self._module_matching_pattern_cache.pop(fullname, [])

@@ -63,8 +63,12 @@
 
 - symbol: vllm_ascend.utils:ProfileExecuteDuration.capture_async
   min_version: "0.9.1"
-  max_version: "0.13.0rc1"
+  max_version: "0.14.0rc1"
   handler: ms_service_profiler.patcher.vllm.handlers.v1.model_handlers:capture_async
+
+- symbol: vllm.v1.utils:record_function_or_nullcontext
+  min_version: "0.15.0rc1"
+  handler: ms_service_profiler.patcher.vllm.handlers.v1.model_handlers:record_function_or_nullcontext
 
 # ===== MTP / 投机推理（NPUModelRunner） =====
 - symbol: vllm_ascend.worker.model_runner_v1:NPUModelRunner.propose_draft_token_ids

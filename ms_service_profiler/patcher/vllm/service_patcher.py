@@ -250,9 +250,10 @@ class VLLMProfiler:
         
         执行完整的初始化流程：
         1. 检查环境变量
-        2. 初始化metrics模块
+        2. 初始化 metrics 模块
         3. 导入内置 handlers
         4. 创建 SymbolWatchFinder 和 HookController
+        5. 非 registry 子进程内：与 enable_hooks() 相同流程（load_handlers + 对已有模块 apply + 打开 auto_apply）
         
         Returns:
             bool: 初始化是否成功
@@ -274,8 +275,9 @@ class VLLMProfiler:
                     logger.debug("Symbol watcher installed")
             else:
                 logger.debug("Skipping symbol watcher install (registry subprocess)")
-            # 创建 HookController；首次 enable() 时再加载配置并 load_handlers
             self._controller = HookController(watcher)
+            if not _is_registry_subprocess():
+                self.enable_hooks()
             self._initialized = True
             logger.debug("VLLM Service Profiler initialized successfully")
             return True

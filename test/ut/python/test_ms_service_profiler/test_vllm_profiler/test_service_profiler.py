@@ -260,8 +260,7 @@ class TestOnSymbolModuleLoaded:
 
     @staticmethod
     @patch.object(SymbolWatchFinder, '_prepare_handlers_for_module')
-    @patch('ms_service_profiler.patcher.core.symbol_watcher.importlib.import_module')
-    def test_on_symbol_module_loaded_direct_match(mock_import_module, mock_prepare_handlers,
+    def test_on_symbol_module_loaded_direct_match(mock_prepare_handlers,
                                                  symbol_watch_finder, sample_handlers):
         """测试模块加载回调 - 直接匹配"""
         symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
@@ -276,38 +275,31 @@ class TestOnSymbolModuleLoaded:
 
     @staticmethod
     @patch.object(SymbolWatchFinder, '_prepare_handlers_for_module')
-    @patch('ms_service_profiler.patcher.core.symbol_watcher.importlib.import_module')
-    def test_on_symbol_module_loaded_parent_match_success(mock_import_module, mock_prepare_handlers,
+    def test_on_symbol_module_loaded_parent_match_success(mock_prepare_handlers,
                                                         symbol_watch_finder, sample_handlers):
-        """测试模块加载回调 - 父包匹配且子模块导入成功"""
+        """测试模块加载回调 - 父包加载时不主动 import 子模块（子符号在子模块自然 import 时再 prepare）"""
         symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         symbol_watch_finder.on_symbol_module_loaded('parent.child')
         
-        mock_import_module.assert_called_once_with('parent.child.grandchild')
         mock_prepare_handlers.assert_not_called()
 
     @staticmethod
     @patch.object(SymbolWatchFinder, '_prepare_handlers_for_module')
-    @patch('ms_service_profiler.patcher.core.symbol_watcher.importlib.import_module')
-    def test_on_symbol_module_loaded_parent_match_failure(mock_import_module, mock_prepare_handlers,
+    def test_on_symbol_module_loaded_parent_match_failure(mock_prepare_handlers,
                                                          symbol_watch_finder, sample_handlers):
-        """测试模块加载回调 - 父包匹配但子模块导入失败"""
-        mock_import_module.side_effect = ImportError("Module not found")
-        
+        """测试模块加载回调 - 父包加载时不尝试 import 子模块，故无 ImportError 路径"""
         symbol_watch_finder.load_handlers(profiling_handlers=sample_handlers, metrics_handlers=None)
         
         symbol_watch_finder.on_symbol_module_loaded('parent.child')
         
-        mock_import_module.assert_called_once_with('parent.child.grandchild')
         mock_prepare_handlers.assert_not_called()
 
     @staticmethod
     @patch.object(SymbolWatchFinder, '_prepare_handlers_for_module')
-    @patch('ms_service_profiler.patcher.core.symbol_watcher.importlib.import_module')
-    def test_on_symbol_module_loaded_mixed_matches(mock_import_module, mock_prepare_handlers,
+    def test_on_symbol_module_loaded_mixed_matches(mock_prepare_handlers,
                                                   symbol_watch_finder):
-        """测试模块加载回调 - 混合匹配"""
+        """测试模块加载回调 - 混合匹配：仅 exact 命中的 symbol 会 prepare，不主动 import 子模块"""
         handlers = {
             'target.module:direct_func': [MagicMock()],
             'target.module.child:child_func': [MagicMock()],
@@ -321,7 +313,6 @@ class TestOnSymbolModuleLoaded:
         mock_prepare_handlers.assert_called_once_with('target.module', [
             ('target.module:direct_func', handlers['target.module:direct_func'])
         ])
-        mock_import_module.assert_called_once_with('target.module.child')
 
 
 class TestLoaderWrapper:

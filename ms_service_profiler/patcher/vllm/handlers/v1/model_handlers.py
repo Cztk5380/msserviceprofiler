@@ -189,7 +189,7 @@ def set_forward_context(original_func, *args, **kwargs):
         state.forward_profiler = None
 
 
-@patcher(("vllm_ascend.utils", "ProfileExecuteDuration.capture_async"), min_version="0.9.1")
+@patcher(("vllm_ascend.utils", "ProfileExecuteDuration.capture_async"), min_version="0.9.1", max_version="0.14.0rc1")
 @contextmanager
 def capture_async(original_func, this, duration_tag, *args, **kwargs):
     """前向上下文钩子"""
@@ -201,4 +201,33 @@ def capture_async(original_func, this, duration_tag, *args, **kwargs):
     with original_func(this, duration_tag, *args, **kwargs) as ret:
         yield ret
     synchronize(duration_tag == "forward")
+    prof.span_end()
+
+@patcher(("vllm.v1.utils", "record_function_or_nullcontext"), min_version="0.15.0rc1")
+@contextmanager
+def record_function_or_nullcontext(original_func, name, *args, **kwargs):
+    profiled_duration_tags = (
+        "prepare input",
+        "EPLB weight D2D",
+        "forward",
+        "post process",
+        "sample_token",
+        "draft_token",
+        "EPLB update",
+        "async_state_update",
+    )
+    # 不在上述列表中的 name 不进行 profiling
+    if name not in profiled_duration_tags:
+        with original_func(name, *args, **kwargs) as ret:
+            yield ret
+        return
+
+    prof = Profiler(Level.INFO).domain("Execute").span_start(name)
+    if name == "forward":
+        state = _get_state()
+        prof.res(state.request_id_list)
+    synchronize(name == "forward")
+    with original_func(name, *args, **kwargs) as ret:
+        yield ret
+    synchronize(name == "forward")
     prof.span_end()

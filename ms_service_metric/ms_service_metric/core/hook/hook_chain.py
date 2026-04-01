@@ -124,26 +124,44 @@ class HookChain:
             
             self._nodes.remove(node)
             
-            # 如果链表中没有节点了，恢复原函数
-            if self.tail is None and self._helper:
-                self._helper.recover()
-                self._helper = None
-            
             # 打印删除后的 chain 信息
             self.print_chain_info("Remove")
             
             return True
     
+    def replace_chain(self) -> None:
+        """对入口函数执行 replace：链非空时确保 HookHelper 存在并替换为 chain closure。"""
+        with self._lock:
+            if self.tail is None:
+                return
+            if self._helper is None:
+                from ms_service_metric.core.hook.hook_helper import HookHelper
+                excute = self.exec_chain_closure()
+                setattr(excute, '_hook_chain', self)
+                self._helper = HookHelper(self.ori_func, excute)
+            helper = self._helper
+            if helper.is_replaced:
+                return
+        try:
+            helper.replace()
+        except Exception as e:
+            logger.error(
+                f"Failed to replace hook for {self.ori_func.__name__}: {e}. "
+                f"This is an internal error. Please report this issue to "
+                f"https://gitcode.com/Ascend/msserviceprofiler/discussions"
+            )
+            raise
+    
     def add_chain_node(self, insert_at_head: bool = False) -> HookNode:
         """添加节点，返回 HookNode
-        
+
         Args:
             insert_at_head: 如果为 True，插入到链表头部；否则插入到尾部（默认）
         """
-        need_replace = False
+        is_empty = False
         with self._lock:
             is_empty = self.tail is None
-            
+
             if insert_at_head and self.head:
                 # 插入到头部
                 new_node = HookNode(self, None)
@@ -158,32 +176,16 @@ class HookChain:
                     self.tail = new_node
                 else:
                     self.head = self.tail = new_node
-            
+
             self._nodes.add(new_node)
-            
-            # 如果之前没有节点，现在有了，需要 replace
-            if is_empty:
-                from ms_service_metric.core.hook.hook_helper import HookHelper
-                excute = self.exec_chain_closure()
-                setattr(excute, '_hook_chain', self)
-                self._helper = HookHelper(self.ori_func, excute)
-                need_replace = True
-            
+
         # 打印添加后的 chain 信息
         self.print_chain_info("Add")
-            
+
         # 在锁外执行 replace，避免阻塞其他线程
-        if need_replace:
-            try:
-                self._helper.replace()
-            except Exception as e:
-                logger.error(
-                    f"Failed to replace hook for {self.ori_func.__name__}: {e}. "
-                    f"This is an internal error. Please report this issue to "
-                    f"https://gitcode.com/Ascend/msserviceprofiler/discussions"
-                )
-                raise
-        
+        if is_empty:
+            self.replace_chain()
+
         return new_node
     
     def get_chain_info(self) -> dict[str, Any]:
