@@ -31,7 +31,7 @@ vLLM Service Profiler 适用于在 vLLM-Ascend 推理服务过程中进行性能
 #### 环境准备
 
 1. 在昇腾环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《[CANN 软件安装指南](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=netconda&OS=openEuler)》。
-2. 完成 vLLM 和 vLLM-Ascend 的安装和配置并确认 vLLM-Ascend 可以正常运行，具体请参见 [vLLM-Ascend installation](https://vllm-ascend.readthedocs.io/en/latest/installation.html)。
+2. 完成 vLLM 和 vLLM-Ascend 的安装和配置并确认 vLLM-Ascend 可以正常运行，具体请参见 [vLLM-Ascend安装指南](https://docs.vllm.ai/projects/ascend/zh-cn/v0.13.0/installation.html)。
 3. 升级 msServiceProfiler 工具，请参见《[msServiceProfiler工具安装指南 - 升级](./msserviceprofiler_install_guide.md#安装和升级)》章节，基于源码构建 run 包并完成升级。
 
 - **资源占用**：采集过程中可能占用较大内存，建议根据实际需求调整采集频率参数。
