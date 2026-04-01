@@ -29,15 +29,16 @@ ENABLE_CACHE="${ENABLE_CACHE:-0}"
 
 LINE_COV_TARGET=80
 BRANCH_COV_TARGET=60
-TARGET_DATE="${TARGET_DATE:-2026/2/28}"
+TARGET_DATE="${TARGET_DATE:-2026/04/01}"
 
 declare -A BASELINE_LINE_COV=(
     ["ms_service_profiler"]=73
     ["ms_serviceparam_optimizer"]=75
     ["msservice_advisor"]=80
+    ["ms_service_metric"]=80
 )
 
-BASELINE_DATE="${BASELINE_DATE:-2026/2/4}"
+BASELINE_DATE="${BASELINE_DATE:-2026/02/04}"
 
 
 function clean() {
