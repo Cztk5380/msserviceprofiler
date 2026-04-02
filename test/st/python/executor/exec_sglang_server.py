@@ -90,48 +90,14 @@ class ExecSGLangServer(CommandExecutor):
             "--mem-fraction-static", "0.8",
             "--port", str(self.port)
         ]
-        card_list = detect_free_npu_card()
-        if not card_list:
-            print(
-                "[WARN] detect_free_npu_card 失败，未配置 ASCEND_RT_VISIBLE_DEVICES，"
-                "运行时可能使用默认设备 0，多人并发时易发生显存冲突"
-            )
-            warnings.warn(
-                "detect_free_npu_card failed, skip ASCEND_RT_VISIBLE_DEVICES config",
-                UserWarning,
-                stacklevel=2,
-            )
-            env = base_env.copy()
-            self.execute(cmd, env=env)
-            exit_code, has_output = self._wait_server_ready()
-            return exit_code is None and has_output == 0
-        for i, device_id in enumerate(card_list[:2]):  # 最多尝试两张卡
-            if i > 0:
-                # 换卡重试前清空上次失败时的采集数据，避免 warmup 等残留导致 request 数量不符
-                prof_data = os.path.join(self.workspace_path, "prof_data")
-                prof_data_out = os.path.join(self.workspace_path, "prof_data_out")
-                for d in (prof_data, prof_data_out):
-                    if os.path.isdir(d):
-                        shutil.rmtree(d, ignore_errors=True)
-                os.makedirs(prof_data, exist_ok=True)
-            env = base_env.copy()
-            env["ASCEND_RT_VISIBLE_DEVICES"] = str(device_id)
-            print(f"[INFO] 使用第 {device_id} 张卡 (ASCEND_RT_VISIBLE_DEVICES={device_id})")
-            self.execute(cmd, env=env)
-            exit_code, has_output = self._wait_server_ready()
-            if exit_code is None and has_output == 0:
-                return True
-            self._reset()
-            if i < 1:
-                print(f"[WARN] 第 {device_id} 张卡启动失败，尝试下一张卡...")
-            else:
-                print(f"[WARN] 第 {device_id} 张卡启动失败，已达最大重试次数(2)")
+        env = base_env.copy()
+        self.execute(cmd, env=env)
+        exit_code, has_output = self._wait_server_ready()
+        if exit_code is None and has_output == 0:
+            return True
         return False
 
     def _wait_server_ready(self):
         """等待 SGLang 服务就绪"""
-        exit_code, has_output = self.wait("The server is fired up and ready to roll!", timeout=600)
-        if exit_code is None and has_output == 0:
-            return None, 0
-        exit_code, has_output = self.wait("Uvicorn running", timeout=60)
+        exit_code, has_output = self.wait("Uvicorn running on", timeout=600)
         return exit_code, has_output
