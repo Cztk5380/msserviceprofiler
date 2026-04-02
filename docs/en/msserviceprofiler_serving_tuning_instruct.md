@@ -99,7 +99,7 @@ Collects serving profile data.
         export SERVICE_PROF_CONFIG_PATH="./ms_service_profiler_config.json"
         ```
 
-        - If the JSON file does not exist: A default configuration file is automatically created with `enable` set to `0` (collection disabled). After starting MindIE Motor, follow [2.c](#li58961338154210) to set `enable` to `1` and start collection.
+        - If the JSON file does not exist: A default configuration file is automatically created with `enable` set to `0` (collection disabled). After starting MindIE Motor, set `enable` to `1` and start collection.
         - If the file already exists: No file is created—the existing configuration is used.
 
     2. Run MindIE Motor.

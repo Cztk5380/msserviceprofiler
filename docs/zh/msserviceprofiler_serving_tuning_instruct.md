@@ -98,7 +98,7 @@
         export SERVICE_PROF_CONFIG_PATH="./ms_service_profiler_config.json"
         ```
 
-        - 若环境变量配置路径下不存在json配置文件，会在路径下自动创建默认配置的json文件，且enable开关为0关闭状态，需要在运行MindIE Motor服务后执行[2.c](#li58961338154210)，配置enable开关为1，开启采集任务。
+        - 若环境变量配置路径下不存在json配置文件，会在路径下自动创建默认配置的json文件，且enable开关为0关闭状态，需要在运行MindIE Motor服务后，配置enable开关为1，开启采集任务。
         - 若环境变量配置路径下已存在同名的json文件，则不会创建json文件。
 
     2. 运行MindIE Motor服务。

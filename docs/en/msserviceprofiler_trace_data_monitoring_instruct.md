@@ -38,16 +38,9 @@ It collects data from the MindIE Motor service, including request response time,
 
 2. Install [msServiceProfiler](msserviceprofiler_install_guide.md).
 
-3. Install the environment dependencies.
+3. Install and configure MindIE and ensure that MindIE Motor can run properly. For details, see [MindIE Installation Guide](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/install/installing_mindie.md).
 
-   ```bash
-   pip install opentelemetry-exporter-otlp-proto-grpc==1.33.1
-   pip install opentelemetry-exporter-otlp-proto-http==1.33.1
-   ```
-
-4. Install and configure MindIE and ensure that MindIE Motor can run properly. For details, see [MindIE Installation Guide](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/install/installing_mindie.md).
-
-5. Establish a stable network connection between the Ascend environment hosting the MindIE Motor service and the OTLP collector (such as Jaeger).
+4. Establish a stable network connection between the Ascend environment hosting the MindIE Motor service and the OTLP collector (such as Jaeger).
 
 **Constraint<a name="section12833144412392"></a>.**
 

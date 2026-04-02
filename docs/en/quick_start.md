@@ -89,10 +89,6 @@ python -m sglang.launch_server \
     --device npu
 ```
 
-In the preceding command,
-
-- `SERVICE_PROF_CONFIG_PATH`: specifies the path to the profiling configuration file. If the file does not exist, it is automatically generated.
-
 ### 3. Collect Data<a name="li10670349115211"></a>
 
 Once the service is successfully deployed, you can precisely control the profiling behavior by modifying the fields in the configuration file specified by `SERVICE_PROF_CONFIG_PATH`. (Only three fields are used as examples here):
