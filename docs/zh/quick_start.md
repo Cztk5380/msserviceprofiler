@@ -87,10 +87,6 @@ python -m sglang.launch_server \
     --device npu
 ```
 
-其中：
-
-- `SERVICE_PROF_CONFIG_PATH`：采集配置文件路径，若文件不存在会自动生成；
-
 ### 3. 数据采集<a name="li10670349115211"></a>
 
 服务部署成功之后，可以通过修改 `SERVICE_PROF_CONFIG_PATH` 对应配置文件中的字段来进行精准控制采集行为（此处仅以以下三个字段为例）：
