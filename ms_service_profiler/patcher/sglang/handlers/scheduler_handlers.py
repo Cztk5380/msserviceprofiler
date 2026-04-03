@@ -46,7 +46,9 @@ def get_batch_type(batch):
 
 
 def prof_kvcache_info(scheduler, name="allocate"):
-    if scheduler.is_hybrid:
+    # 兼容 0.5.4 (is_hybrid) 和 0.5.6+ (is_hybrid_swa)
+    is_hybrid = getattr(scheduler, 'is_hybrid_swa', None) or getattr(scheduler, 'is_hybrid', False)
+    if is_hybrid:
         (
             _,
             _,

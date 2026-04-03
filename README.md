@@ -1,9 +1,7 @@
 
-<h1 align="center">MindStudio Service Profiler</h1>
-<div align="center">
+# MindStudio Service Profiler
 
-[![Docs](https://badgen.net/badge/Docs/readthedocs/green)](https://msserviceprofiler.readthedocs.io/zh-cn/latest/) [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/) [![License](https://badgen.net/badge/License/MulanPSL-2.0/blue)](https://raw.gitcode.com/Ascend/msprobe/raw/master/LICENSE) [![Version](https://badgen.net/badge/Version/26.0.0-alpha.1/orange)](https://gitcode.com/Ascend/msserviceprofiler/releases/tag_MindStudio_26.0.0-alpha.1) 
-</div>
+[![DeepWiki](https://badgen.net/badge/DeepWiki/DeepWiki-blue)](https://deepwiki.com/Cztk5380/msserviceprofiler) [![Docs](https://badgen.net/badge/Docs/readthedocs/green)](https://msserviceprofiler.readthedocs.io/zh-cn/latest/) [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/) [![License](https://badgen.net/badge/License/MulanPSL-2.0/blue)](https://raw.gitcode.com/Ascend/msprobe/raw/master/LICENSE) [![Version](https://badgen.net/badge/Version/26.0.0-alpha.1/orange)](https://gitcode.com/Ascend/msserviceprofiler/releases/tag_MindStudio_26.0.0-alpha.1)
 
 ## 📢 最新消息
 
