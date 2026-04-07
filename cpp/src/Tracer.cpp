@@ -131,13 +131,6 @@ void SpanSetStatus(TRACE_SPAN_DATA spanData, const bool isSuccess, const std::st
     }
     SpanPtr spanPb = (SpanPtr)spanData;
     spanPb->mutable_status()->set_code(code);
-    if (!isSuccess) {
-        try {
-            spanPb->mutable_status()->set_message(msg);
-        } catch (const std::exception &e) {
-            PROF_LOGE("cannot set status message. %s", e.what());  // LCOV_EXCL_LINE
-        }
-    }
 }
 
 struct TraceEnvConfig {

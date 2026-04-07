@@ -147,7 +147,6 @@ TEST_F(TracerTest, TestSpanSetStatus)
 
     SpanSetStatus(spanData, false, "Error message");
     EXPECT_EQ(span_pb->status().code(), opentelemetry::proto::trace::v1::Status::STATUS_CODE_ERROR);
-    EXPECT_EQ(span_pb->status().message(), "Error message");
 
     delete span_pb;
 }
