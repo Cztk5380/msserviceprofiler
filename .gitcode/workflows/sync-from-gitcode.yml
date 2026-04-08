@@ -1,0 +1,28 @@
+name: Sync from GitCode
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # 每小时整点执行一次
+  workflow_dispatch:       # 保留手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout GitHub repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 获取完整历史
+
+      - name: Pull and push from GitCode
+        run: |
+          # 添加上游 GitCode 仓库为远程源
+          git remote add upstream https://oauth2:${GITCODE_TOKEN}@gitcode.com/ChenHuiwen/MindStudio-Service-Profiler_github.git
+          
+          # 拉取上游所有分支和标签（等同于 git pull --mirror）
+          git fetch upstream --prune
+          
+          # 将拉取到的所有更新强制推送到 GitHub 的 origin
+          git push origin --mirror --force
+        env:
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
