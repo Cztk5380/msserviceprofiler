@@ -51,29 +51,33 @@ apt-get install lcov
 
 - [msserviceprofiler releases](https://gitcode.com/Ascend/msserviceprofiler/releases/)
 
-下载后建议先进行完整性校验（MD5），再执行 `pip install` 安装。示例如下：
+下载后建议先进行完整性校验（MD5），再执行安装。示例如下：
 
 ```shell
-# 1. 点击页面下载或者使用wget下载 release 安装包（以实际发布文件名为准）
-wget https://gitcode.com/Ascend/msserviceprofiler/releases/download/<tag>/<package>.whl
+# 1. 在页面单击软件包下载或在Linux环境使用wget命令下载（以下文件名以实际发布文件名为准；将 <arch> 替换为 aarch64 或 x86_64）
+wget https://gitcode.com/Ascend/msserviceprofiler/releases/download/<tag>/mindstudio-service-profiler_<version>_<arch>.run
 
-# 2. MD5 完整性校验（将 <expected_md5> 替换为 release 页面提供的 MD5）
-md5sum <package>.whl
-echo "<expected_md5>  <package>.whl" | md5sum -c -
+# 2. MD5 完整性校验（将 <expected_md5> 替换为 release 页面或版本说明中的 MD5）
+md5sum mindstudio-service-profiler_<version>_<arch>.run
+echo "<expected_md5>  mindstudio-service-profiler_<version>_<arch>.run" | md5sum -c -
 
-# 3. 安装
-pip install <package>.whl
+# 3. 赋予可执行权限，并用 run 包自检（校验归档完整性与版本依赖）
+chmod u+x mindstudio-service-profiler_<version>_<arch>.run
+./mindstudio-service-profiler_<version>_<arch>.run --check
+
+# 4. 安装
+./mindstudio-service-profiler_<version>_<arch>.run --install
 ```
 
 > **说明：**
 >
-> - `<expected_md5>` 请以 release 页面同版本安装包对应的 MD5 值为准。
-> - 各版本安装包 MD5 清单请参见[版本说明](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/zh/release_notes.md#安装包-md5-校验值)。
-> - 若需要升级到指定版本，请先执行 `pip uninstall ms_service_profiler -y`，再安装目标版本 wheel 包。
+> - `<expected_md5>` 请以 release 页面或[版本说明](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/zh/release_notes.md#安装包-md5-校验值)中，与同版本 **run 包**文件名对应的 MD5 为准。
+> - 若此前通过 pip 安装过 `ms_service_profiler`，升级到 run 包安装前建议先执行 `pip uninstall ms_service_profiler -y`，避免环境不一致。
+> - 若需要升级到指定版本，请下载对应版本的 run 包后执行 `./mindstudio-service-profiler_<version>_<arch>.run --upgrade`
 >
 > **MD5sum 校验不一致处理建议：**
 >
-> - 若 `md5sum -c -` 输出 `FAILED`或者`失败`，请勿继续执行 `pip install`。
+> - 若 `md5sum -c -` 输出 `FAILED` 或 `失败`，请勿继续执行 run 包安装。
 > - 请先删除当前下载文件并重新下载，再次执行 MD5 校验。
 > - 仍无法通过校验时，请在 release 页面核对文件名与版本是否一致，并通过 Issues 反馈问题。
 
