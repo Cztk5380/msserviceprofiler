@@ -16,8 +16,8 @@
 
 import os
 import glob
-from executor.exec_mindie_server import ExecMindIEServer
-from msguard.security import mkdir_s, open_s
+from pathlib import Path
+from msguard.security import open_s
 from test.st.python.executor.exec_command import CommandExecutor
 
 
@@ -35,17 +35,24 @@ def check_csv_no_empty_start(csv_file):
         return True
     
 
-def test_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
+def test_example():
     '''
     基础采集测试，不带算子采集
     校验内容包括：
         1、数据是否正常
     '''
+    workspace_path = Path("/data/optimizer_presmoke")
     try:
-        workspace_path = tmp_workspace
+        # 切换到workspace_path目录下执行命令
+        os.chdir(workspace_path)
+        # 设置环境变量
+        os.environ["MODEL_EVAL_STATE_CONFIG_PATH"] = "/data/optimizer_presmoke/config.toml"
         cmd = "msserviceprofiler optimizer"
         exec_cmd = CommandExecutor()
         exec_cmd.execute(cmd)
+        # 等待命令执行完成，target=None 表示等待进程退出
+        exit_code, _ = exec_cmd.wait(target=None)
+        assert exit_code == 0, f"msserviceprofiler optimizer 命令执行失败，退出码: {exit_code}"
         pattern = os.path.join(workspace_path, "result", "store", "data_storage_*.csv")
         matched_files = glob.glob(pattern)
 
@@ -60,4 +67,3 @@ def test_example(devices, mindie_path, dataset_path, model_path, tmp_workspace):
         if os.path.exists(result_path):
             import shutil
             shutil.rmtree(result_path)
-        print("workspace:", workspace_path)
