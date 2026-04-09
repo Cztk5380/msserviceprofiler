@@ -134,6 +134,19 @@ class TestBenchMarkGetPerformanceIndex(unittest.TestCase):
         # 创建一个模拟的 benchmark_config 对象
         self.mock_benchmark_config = MagicMock()
         mock_which.return_value = "/usr/local/bin/vllm"
+        # 配置 command 属性，确保 others 是字符串而不是 MagicMock
+        self.mock_benchmark_config.command = MagicMock()
+        self.mock_benchmark_config.command.serving = ""
+        self.mock_benchmark_config.command.backend = "vllm"
+        self.mock_benchmark_config.command.host = ""
+        self.mock_benchmark_config.command.port = ""
+        self.mock_benchmark_config.command.model = ""
+        self.mock_benchmark_config.command.served_model_name = ""
+        self.mock_benchmark_config.command.dataset_name = ""
+        self.mock_benchmark_config.command.dataset_path = ""
+        self.mock_benchmark_config.command.num_prompts = 0
+        self.mock_benchmark_config.command.result_dir = ""
+        self.mock_benchmark_config.command.others = ""  # 关键：设置为字符串而不是 MagicMock
         # 创建测试对象并传递 benchmark_config
         self.benchmark = VllmBenchMark(self.mock_benchmark_config)
         

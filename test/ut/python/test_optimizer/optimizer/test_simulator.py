@@ -153,6 +153,187 @@ def test_enable_simulate_with_simulator_plugin_params_exists(tmpdir, monkeypatch
         assert data["BackendConfig"]["ModelDeployConfig"]["ModelConfig"][0]["plugin_params"] == '{"plugin_type":"tp"}'
 
 
+class TestVllmSimulator(unittest.TestCase):
+    """测试 VllmSimulator 类"""
+
+    def setUp(self):
+        # 创建模拟的 VllmConfig
+        self.mock_config = MagicMock()
+        self.mock_config.process_name = "vllm"
+        self.mock_config.command = MagicMock()
+        self.mock_config.command.host = "localhost"
+        self.mock_config.command.port = "8000"
+        self.mock_config.command.model = "gpt2"
+        self.mock_config.command.served_model_name = "gpt2"
+        self.mock_config.command.others = ""
+
+    @patch('ms_serviceparam_optimizer.config.custom_command.shutil.which')
+    def test_init(self, mock_which):
+        """测试 VllmSimulator 初始化"""
+        mock_which.return_value = "/usr/local/bin/vllm"
+        from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
+        simulator = VllmSimulator(self.mock_config)
+        self.assertEqual(simulator.config, self.mock_config)
+
+    @patch('ms_serviceparam_optimizer.config.custom_command.shutil.which')
+    def test_base_url_property(self, mock_which):
+        """测试 base_url 属性"""
+        mock_which.return_value = "/usr/local/bin/vllm"
+        from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
+        simulator = VllmSimulator(self.mock_config)
+        expected_url = "http://localhost:8000/health"
+        self.assertEqual(simulator.base_url, expected_url)
+
+    @patch('ms_serviceparam_optimizer.config.custom_command.shutil.which')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.subprocess.run')
+    @patch('ms_serviceparam_optimizer.optimizer.interfaces.custom_process.CustomProcess.stop')
+    def test_stop(self, mock_super_stop, mock_run, mock_which):
+        """测试 stop 方法"""
+        mock_which.return_value = "/usr/local/bin/vllm"
+        from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
+        simulator = VllmSimulator(self.mock_config)
+        # mock _is_vllm_running 返回 False，表示没有进程需要停止
+        with patch.object(simulator, '_is_vllm_running', return_value=False):
+            simulator.stop()
+        mock_super_stop.assert_called_once()
+
+    @patch('ms_serviceparam_optimizer.config.custom_command.shutil.which')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.subprocess.run')
+    def test_stop_vllm_process_success(self, mock_run, mock_which):
+        """测试 _stop_vllm_process 成功停止进程"""
+        mock_which.return_value = "/usr/local/bin/vllm"
+        mock_run.return_value = MagicMock(returncode=0)
+        from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
+        simulator = VllmSimulator(self.mock_config)
+        
+        # 模拟进程检查 - 第一次运行，进程存在；之后不存在
+        with patch.object(simulator, '_is_vllm_running', side_effect=[True, False]):
+            result = simulator._stop_vllm_process(max_attempts=1, timeout=1)
+            self.assertTrue(result)
+
+    @patch('ms_serviceparam_optimizer.config.custom_command.shutil.which')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.subprocess.run')
+    def test_stop_vllm_process_already_stopped(self, mock_run, mock_which):
+        """测试 _stop_vllm_process 进程已经停止"""
+        mock_which.return_value = "/usr/local/bin/vllm"
+        from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
+        simulator = VllmSimulator(self.mock_config)
+        
+        # 模拟进程已经不存在
+        with patch.object(simulator, '_is_vllm_running', return_value=False):
+            result = simulator._stop_vllm_process(max_attempts=1, timeout=1)
+            self.assertTrue(result)
+
+    @patch('ms_serviceparam_optimizer.config.custom_command.shutil.which')
+    def test_stop_vllm_process_no_pkill(self, mock_which):
+        """测试 _stop_vllm_process 找不到 pkill 命令"""
+        mock_which.return_value = "/usr/local/bin/vllm"
+        from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
+        simulator = VllmSimulator(self.mock_config)
+        # 模拟进程存在但找不到 pkill
+        with patch.object(simulator, '_is_vllm_running', return_value=True):
+            # 需要额外 mock simulate 模块中的 shutil.which
+            with patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.shutil.which', return_value=None):
+                result = simulator._stop_vllm_process()
+                self.assertFalse(result)
+
+    @patch('ms_serviceparam_optimizer.config.custom_command.shutil.which')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.shutil.which')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.subprocess.run')
+    def test_is_vllm_running_true(self, mock_run, mock_simulate_which, mock_config_which):
+        """测试 _is_vllm_running 返回 True"""
+        mock_config_which.return_value = "/usr/local/bin/vllm"
+        mock_simulate_which.return_value = "/usr/bin/pgrep"  # _is_vllm_running 使用的是 simulate 模块的 shutil.which
+        mock_run.return_value = MagicMock(stdout="5\n", returncode=0)
+        from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
+        simulator = VllmSimulator(self.mock_config)
+        result = simulator._is_vllm_running()
+        self.assertTrue(result)
+
+    @patch('ms_serviceparam_optimizer.config.custom_command.shutil.which')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.shutil.which')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.subprocess.run')
+    def test_is_vllm_running_false(self, mock_run, mock_simulate_which, mock_config_which):
+        """测试 _is_vllm_running 返回 False"""
+        mock_config_which.return_value = "/usr/local/bin/vllm"
+        mock_simulate_which.return_value = "/usr/bin/pgrep"
+        mock_run.return_value = MagicMock(stdout="0\n", returncode=0)
+        from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
+        simulator = VllmSimulator(self.mock_config)
+        result = simulator._is_vllm_running()
+        self.assertFalse(result)
+
+    @patch('ms_serviceparam_optimizer.config.custom_command.shutil.which')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.shutil.which')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.subprocess.run')
+    def test_is_vllm_running_exception(self, mock_run, mock_simulate_which, mock_config_which):
+        """测试 _is_vllm_running 异常处理"""
+        mock_config_which.return_value = "/usr/local/bin/vllm"
+        mock_simulate_which.return_value = "/usr/bin/pgrep"
+        mock_run.side_effect = subprocess.SubprocessError("Command failed")
+        from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
+        simulator = VllmSimulator(self.mock_config)
+        result = simulator._is_vllm_running()
+        self.assertFalse(result)
+
+    @patch('ms_serviceparam_optimizer.config.custom_command.shutil.which')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.time.time')
+    def test_wait_for_process_exit_success(self, mock_time, mock_which):
+        """测试 _wait_for_process_exit 成功退出"""
+        mock_which.return_value = "/usr/local/bin/vllm"
+        mock_time.side_effect = [0, 0.3, 0.6]  # 模拟时间流逝
+        from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
+        simulator = VllmSimulator(self.mock_config)
+        
+        with patch.object(simulator, '_is_vllm_running', side_effect=[True, False]):
+            result = simulator._wait_for_process_exit(timeout=1)
+            self.assertTrue(result)
+
+    @patch('ms_serviceparam_optimizer.config.custom_command.shutil.which')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.time.time')
+    def test_wait_for_process_exit_timeout(self, mock_time, mock_which):
+        """测试 _wait_for_process_exit 超时"""
+        mock_which.return_value = "/usr/local/bin/vllm"
+        mock_time.side_effect = [0, 1, 2, 3]  # 模拟超时
+        from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
+        simulator = VllmSimulator(self.mock_config)
+        
+        with patch.object(simulator, '_is_vllm_running', return_value=True):
+            result = simulator._wait_for_process_exit(timeout=1)
+            self.assertFalse(result)
+
+    @patch('ms_serviceparam_optimizer.config.custom_command.shutil.which')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.subprocess.run')
+    def test_log_residual_processes(self, mock_run, mock_which):
+        """测试 _log_residual_processes 方法"""
+        mock_which.return_value = "/usr/local/bin/vllm"
+        mock_run.return_value = MagicMock(stdout="1234 /usr/bin/vllm\n5678 /usr/bin/vllm\n")
+        from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
+        simulator = VllmSimulator(self.mock_config)
+        simulator._log_residual_processes()
+        mock_run.assert_called_once()
+
+    @patch('ms_serviceparam_optimizer.config.custom_command.shutil.which')
+    @patch('ms_serviceparam_optimizer.optimizer.plugins.simulate.subprocess.run')
+    def test_log_residual_processes_exception(self, mock_run, mock_which):
+        """测试 _log_residual_processes 异常处理"""
+        mock_which.return_value = "/usr/local/bin/vllm"
+        mock_run.side_effect = subprocess.SubprocessError("Command failed")
+        from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
+        simulator = VllmSimulator(self.mock_config)
+        simulator._log_residual_processes()  # 不应抛出异常
+
+    @patch('ms_serviceparam_optimizer.config.custom_command.shutil.which')
+    def test_update_command(self, mock_which):
+        """测试 update_command 方法"""
+        mock_which.return_value = "/usr/local/bin/vllm"
+        from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
+        simulator = VllmSimulator(self.mock_config)
+        original_command = simulator.command
+        simulator.update_command()
+        self.assertIsNotNone(simulator.command)
+
+
 class TestDisaggregationSimulator(unittest.TestCase):
     def setUp(self):
         # 创建临时测试环境

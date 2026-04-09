@@ -35,7 +35,8 @@ from ...config.config import (
     get_settings, OptimizerConfigField, VllmConfig,
     MindieConfig, KubectlConfig
 )
-from ...config.constant import Stage, ProcessState
+from ...config.constant import ProcessState, Stage
+
 
 @dataclass
 class ConfigContextdict:
@@ -261,16 +262,150 @@ class VllmSimulator(SimulatorInterface):
 
     def stop(self, del_log: bool = True):
         """
-        运行时，其他的准备工作。
-        Returns:
-
+        停止 vllm 服务，包含多次尝试和递进式杀死机制
+        
+        Args:
+            del_log: 是否删除日志文件
         """
-        pkill_path = shutil.which("pkill")
-        try:
-            subprocess.run([pkill_path, "-15", "vllm"], stderr=subprocess.STDOUT, text=True)
-        except subprocess.SubprocessError:
-            logger.warning(f"Failed to stop vllm process with pkill.")
+        self._stop_vllm_process()
         super().stop(del_log)
+
+    def _stop_vllm_process(self, max_attempts: int = 3, timeout: int = 5) -> bool:
+        """
+        停止 vllm 进程，优先基于 pid 精准回收，失败后回退到 pkill
+        
+        Args:
+            max_attempts: 最大尝试次数（仅用于 pkill 回退策略）
+            timeout: 每次尝试后的等待超时（秒）
+            
+        Returns:
+            True 表示成功停止所有进程，False 表示仍有残留
+        """
+        # 优先策略：基于 self.process.pid 精准回收进程树
+        if self.process and self.process.poll() is None:
+            try:
+                import psutil
+                parent = psutil.Process(self.process.pid)
+                children = parent.children(recursive=True)
+                
+                # 先终止所有子进程
+                for child in children:
+                    try:
+                        child.terminate()
+                    except psutil.NoSuchProcess:
+                        pass
+                
+                # 再终止父进程
+                parent.terminate()
+                
+                # 等待进程退出
+                gone, alive = psutil.wait_procs([parent] + children, timeout=timeout)
+                
+                # 对存活的进程发送 SIGKILL
+                for p in alive:
+                    try:
+                        p.kill()
+                    except psutil.NoSuchProcess:
+                        pass
+                
+                # 再次等待
+                psutil.wait_procs(alive, timeout=timeout)
+                
+                if not self._is_vllm_running():
+                    logger.info(f"vllm process (pid={self.process.pid}) terminated via targeted stop")
+                    return True
+                    
+            except (psutil.NoSuchProcess, psutil.AccessDenied, OSError) as e:
+                logger.warning(f"Targeted stop failed, fallback to pkill: {e}")
+            except Exception as e:
+                logger.warning(f"Unexpected error in targeted stop, fallback to pkill: {e}")
+        
+        # 回退策略：pkill 按名字全局匹配
+        pkill_path = shutil.which("pkill")
+        if not pkill_path:
+            logger.error("pkill command not found in PATH")
+            return False
+        
+        # 递进式杀死策略：SIGTERM -> SIGKILL
+        signals = ["-15", "-9"]  # SIGTERM, SIGKILL
+        
+        for attempt in range(1, max_attempts + 1):
+            for signal in signals:
+                if not self._is_vllm_running():
+                    logger.info("vllm process has been terminated")
+                    return True
+                
+                logger.debug(f"Attempt {attempt}/{max_attempts}: sending signal {signal} to vllm")
+                try:
+                    result = subprocess.run(
+                        [pkill_path, signal, "vllm"],
+                        stderr=subprocess.STDOUT,
+                        stdout=subprocess.PIPE,
+                        text=True,
+                        timeout=10
+                    )
+                    if result.returncode == 0 or result.returncode == 1:  # 0=成功, 1=无匹配进程
+                        logger.debug(f"Signal {signal} sent successfully (rc={result.returncode})")
+                except subprocess.SubprocessError as e:
+                    logger.warning(f"Failed to send signal {signal} to vllm: {e}")
+                
+                # 等待进程响应
+                if self._wait_for_process_exit(timeout):
+                    logger.info(f"vllm process terminated after signal {signal}")
+                    return True
+        
+        # 最终校验
+        if self._is_vllm_running():
+            logger.error(f"Failed to stop vllm process after {max_attempts} attempts")
+            # 尝试获取残留进程信息
+            self._log_residual_processes()
+            return False
+        
+        return True
+
+    def _is_vllm_running(self) -> bool:
+        """检查是否有 vllm 进程在运行"""
+        pgrep_path = shutil.which("pgrep")
+        if not pgrep_path:
+            logger.warning("pgrep command not found in PATH")
+            return False
+        try:
+            result = subprocess.run(
+                [pgrep_path, "-c", "vllm"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                timeout=5,
+            )
+            count = int((result.stdout or "0").strip() or "0")
+            return count > 0
+        except (OSError, subprocess.SubprocessError, ValueError):
+            return False
+
+    def _wait_for_process_exit(self, timeout: int) -> bool:
+        """等待进程退出，返回是否成功退出"""
+        import time
+        start = time.time()
+        while time.time() - start < timeout:
+            if not self._is_vllm_running():
+                return True
+            time.sleep(0.5)
+        return False
+
+    def _log_residual_processes(self):
+        """记录残留进程信息用于诊断"""
+        try:
+            result = subprocess.run(
+                ["pgrep", "-a", "vllm"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                timeout=5
+            )
+            if result.stdout:
+                logger.warning(f"Residual vllm processes:\n{result.stdout}")
+        except subprocess.SubprocessError:
+            pass
 
     def update_command(self):
         self.command = VllmCommand(self.config.command).command

@@ -15,6 +15,7 @@
 # -------------------------------------------------------------------------
 
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -30,7 +31,6 @@ from ...config.base_config import CUSTOM_OUTPUT, MODEL_EVAL_STATE_CONFIG_PATH, \
     ms_serviceparam_optimizer_config_path
 from ..utils import close_file_fp, remove_file, kill_children, \
     backup, kill_process
-from ...config.constant import ProcessState, Stage
 
 class CustomProcess:
     from ...config.config import OptimizerConfigField
@@ -48,6 +48,7 @@ class CustomProcess:
         self.print_log = print_log
         self.process_name = process_name
         self.env = os.environ.copy()
+        from ...config.constant import ProcessState, Stage
         self._process_stage = ProcessState(stage=Stage.stop)
 
     @property
@@ -90,6 +91,113 @@ class CustomProcess:
         time.sleep(1)
 
 
+    def _split_merged_args(self):
+        """
+        将合并的参数拆分成独立的部分。
+        例如：'--compilation-config \'{"cudagraph_mode": "FULL_DECODE_ONLY"}\'' 
+        拆分为：'--compilation-config' 和 '{"cudagraph_mode": "FULL_DECODE_ONLY"}'
+        
+        这解决了 vllm 参数解析器将 JSON 键名中的下划线转换为短横线的问题。
+        兼容所有 JSON 类参数输入形式：裸 JSON/引号包裹 JSON/转义 JSON/全角符号 JSON。
+        不依赖硬编码的 JSON 参数列表，基于参数值的格式自动判断是否需要拆分处理。
+        """
+        import re
+        import json
+        
+        def clean_json_string(json_str):
+            """
+            通用JSON字符串清理：仅基于语法清理，不耦合任何参数名
+            处理：转义符、外层引号（单/双/全角）、全角符号、多余空格
+            """
+            # 1. 还原转义字符（\\" → "，\\\\ → \）
+            json_str = json_str.replace('\\"', '"').replace('\\\\', '\\')
+            # 2. 移除首尾的各类引号和多余空格
+            json_str = json_str.strip().strip("'").strip('"').strip("\u2018").strip("\u2019").strip("\u201c").strip("\u201d")
+            # 3. 全角符号转半角（中文标点→英文标点）
+            json_str = json_str.replace("\uff0c", ",").replace("\uff1a", ":").replace("\uff08", "(").replace("\uff09", ")")
+            return json_str
+        
+        def is_json_like(value):
+            """
+            判断字符串是否为JSON格式（仅基于语法特征，无参数耦合）
+            特征：包含 {} 且能通过JSON解析（或清理后能解析）
+            """
+            cleaned = clean_json_string(value)
+            try:
+                parsed = json.loads(cleaned)
+                return isinstance(parsed, (dict, list))
+            except (json.JSONDecodeError, ValueError, TypeError):
+                return False
+        
+        new_command = []
+        i = 0
+        while i < len(self.command):
+            cmd_element = self.command[i]
+            if not isinstance(cmd_element, str):
+                new_command.append(cmd_element)
+                i += 1
+                continue
+            
+            # 匹配模式：--参数名 空格 引号...引号
+            # 使用 \S+ 来匹配参数名（包括点和其他字符）
+            match = re.match(r'^(-\S+)\s+', cmd_element)
+            if not match:
+                new_command.append(cmd_element)
+                i += 1
+                continue
+            
+            param_name = match.group(1)
+            rest = cmd_element[match.end():]
+            
+            if not rest:
+                new_command.append(cmd_element)
+                i += 1
+                continue
+            
+            # 判断是否为 JSON 格式（不依赖硬编码的参数列表）
+            if not is_json_like(rest):
+                # 非 JSON 格式，保持原样
+                new_command.append(cmd_element)
+                i += 1
+                continue
+            
+            # 查找第一个引号
+            first_char = rest[0]
+            if first_char not in ('"', "'"):
+                # 没有引号，直接尝试拆分
+                cleaned_value = clean_json_string(rest)
+                if is_json_like(rest):
+                    new_command.append(param_name)
+                    new_command.append(cleaned_value)
+                    logger.debug(f"[FIX] Split merged arg (no quotes, valid JSON): {param_name} + {cleaned_value}")
+                else:
+                    new_command.append(cmd_element)
+                i += 1
+                continue
+            
+            # 查找最后一个匹配的引号
+            last_idx = rest.rfind(first_char)
+            if last_idx <= 0:
+                new_command.append(cmd_element)
+                i += 1
+                continue
+            
+            json_value = rest[1:last_idx]
+            
+            # 清理JSON字符串
+            cleaned_value = clean_json_string(json_value)
+            
+            # 尝试拆分，即使不是标准 JSON 也让 vllm 自行处理
+            new_command.append(param_name)
+            new_command.append(cleaned_value)
+            if is_json_like(json_value):
+                logger.debug(f"[FIX] Split merged arg (valid JSON): {param_name} + {cleaned_value}")
+            else:
+                logger.warning(f"[FIX] Non-standard JSON param (vllm may parse it): {param_name} = {cleaned_value}")
+            i += 1
+        
+        self.command = new_command
+
     def backup(self):
         # 备份操作，默认备份日志
         backup(self.run_log, self.bak_path, self.__class__.__name__)
@@ -113,13 +221,42 @@ class CustomProcess:
                 if _var_name not in self.command:
                     continue
                 _i = self.command.index(_var_name)
-                value_flag = k.value is None or isnan(k.value) or isinf(k.value)
+                # Handle string values - don't call isnan/isinf on strings
+                if isinstance(k.value, str):
+                    value_flag = k.value is None or not k.value.strip()
+                else:
+                    value_flag = k.value is None or isnan(k.value) or isinf(k.value)
                 if value_flag or not str(k).strip():
                     self.command.pop(_i)
-                    if _i > 0:
-                        self.command.pop(_i - 1)
                 else:
                     self.command[_i] = str(k.value)
+        
+        # 对 others 字段中的自定义变量进行替换
+        # 支持在 others 参数中使用 $VAR_NAME 格式的自定义变量
+        # 例如: --speculative-config '{"num_speculative_tokens": $NUM_VAR,"method":"deepseek_mtp"}'
+        # 注意：这里处理所有参数（包括 config_position="env" 的变量），因为原始代码的精确匹配替换
+        # 无法处理嵌套在字符串内部的变量（如 JSON 格式参数中的变量）
+        for k in run_params:
+            _var_name = f"${k.name.upper().strip()}"
+            # 检查变量值是否有效 - Handle string values, don't call isnan/isinf on strings
+            if isinstance(k.value, str):
+                value_flag = k.value is None or not k.value.strip()
+            else:
+                value_flag = k.value is None or isnan(k.value) or isinf(k.value)
+            if value_flag or not str(k).strip():
+                continue
+            # 在命令的每个元素中替换变量（包括 others 字段中的变量）
+            # 使用 while 循环确保替换所有出现的变量（一个元素中可能出现多次）
+            pattern = re.compile(rf'(?<![A-Z0-9_]){re.escape(_var_name)}(?![A-Z0-9_])')
+            for i, cmd_element in enumerate(self.command):
+                if isinstance(cmd_element, str):
+                    self.command[i] = pattern.sub(str(k.value), cmd_element)
+        
+        # 修复：将合并的参数拆分成独立的部分
+        # 例如：'--compilation-config \'{"cudagraph_mode": "FULL_DECODE_ONLY"}\'' 
+        # 拆分为：'--compilation-config' 和 '{"cudagraph_mode": "FULL_DECODE_ONLY"}'
+        self._split_merged_args()
+        
         if CUSTOM_OUTPUT not in self.env:
             # 设置输出目录
             self.env[CUSTOM_OUTPUT] = str(get_settings().output)
@@ -136,10 +273,11 @@ class CustomProcess:
             except Exception as e:
                 logger.error(f"Failed to kill residual process. {e}")
         self.before_run(run_params)
+        
         for i, v in enumerate(self.command):
             if not v.strip():
                 continue
-            if '-' or '--' not in v:
+            if '-' not in v and '--' not in v:
                 continue
             if v in self.command[:i]:
                 logger.warning("{} field appears multiple times in the command. please confirm.", v)
@@ -149,6 +287,7 @@ class CustomProcess:
             else:
                 logger.error(f"Possible Problem with Environment Variable Type. "
                              f"env: {k}={v}, k type: {type(k)}, v type: {type(v)}")
+        from ...config.constant import ProcessState, Stage
         try:
             self.process = subprocess.Popen(self.command, env=self.env, stdout=self.run_log_fp,
                                             stderr=subprocess.STDOUT, cwd=self.work_path)
@@ -174,6 +313,7 @@ class CustomProcess:
         return output
 
     def health(self):
+        from ...config.constant import ProcessState, Stage
         """
         检查任务是否运行成功
         Returns: 返回bool值，检查程序是否成功启动
@@ -190,6 +330,7 @@ class CustomProcess:
                                         return code: {self.process.returncode}. log: {self.run_log}")
 
     def stop(self, del_log: bool = True):
+        from ...config.constant import ProcessState, Stage
         self.run_log_offset = 0
         close_file_fp(self.run_log_fp)
         if del_log and self.run_log:
@@ -225,11 +366,17 @@ class CustomProcess:
         run_log_path = Path(self.run_log)
         if run_log_path.exists():
             file_lines = []
-            try:
-                with open_s(run_log_path, "r", encoding="utf-8") as f:
-                    file_lines = f.readlines()
-            except (UnicodeError, OSError) as e:
-                logger.error(f"Failed read {self.command} log. error {e}")
+            encodings_to_try = ["utf-8", "latin-1", "gbk", "cp1252"]
+            
+            for encoding in encodings_to_try:
+                try:
+                    with open_s(run_log_path, "r", encoding=encoding, errors="replace") as f:
+                        file_lines = f.readlines()
+                    break
+                except (UnicodeError, OSError) as e:
+                    if encoding == encodings_to_try[-1]:
+                        logger.error(f"Failed read {self.command} log after trying all encodings. error {e}")
+                    continue
             number = min(number, len(file_lines))
             output = '\n'.join(file_lines[-number:])
         return output

@@ -15,6 +15,7 @@
 # -------------------------------------------------------------------------
 import os
 import shutil
+import shlex
 from pathlib import Path
 from typing import Optional
 from loguru import logger
@@ -90,7 +91,7 @@ class VllmBenchmarkCommand:
                 "--result-dir", self.benchmark_command_config.result_dir,
                 "--save-result"]
         if self.benchmark_command_config.others:
-            cmd.extend(self.benchmark_command_config.others.split())
+            cmd.extend(shlex.split(self.benchmark_command_config.others))
         return cmd
  
  
@@ -174,5 +175,5 @@ class VllmCommand:
                 "--max-num-batched-tokens", "$MAX_NUM_BATCHED_TOKENS",
                 "--max-num-seqs", "$MAX_NUM_SEQS"]
         if self.command_config.others:
-            cmd.extend(self.command_config.others.split())
+            cmd.extend(shlex.split(self.command_config.others))
         return cmd

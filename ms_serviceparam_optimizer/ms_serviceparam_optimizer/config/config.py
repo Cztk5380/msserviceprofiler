@@ -51,7 +51,7 @@ class PerformanceConfig(BaseModel):
                                                              algorithm="average")
 
 
-dtype_func = {"int": int, "float": float}
+dtype_func = {"int": int, "float": float, "str": str}
 
 
 class ErrorSeverity(Enum):
@@ -75,7 +75,7 @@ class OptimizerConfigField(BaseModel):
     min: float = 0.0
     max: float = 100.0
     dtype: str = "float"
-    value: Union[int, float, bool] = 0.0
+    value: Union[int, float, bool, str] = 0.0
     dtype_param: Any = None
     constant: Optional[float] = None  # 识别是否是常量
 
@@ -92,11 +92,25 @@ class OptimizerConfigField(BaseModel):
         return self
 
     def convert_dtype(self, value):
+        if self.dtype == "str":
+            return str(value)
         return dtype_func.get(self.dtype, float)(value)
 
     def find_available_value(self, value):
+        if self.dtype == "str":
+            # For string type, just return the string value
+            return str(value)
         _new_value = dtype_func.get(self.dtype, float)(value)
         if self.dtype == "enum":
+            # Check if dtype_param contains string values
+            if self.dtype_param and len(self.dtype_param) > 0 and isinstance(self.dtype_param[0], str):
+                # String enum: check if value is in the enum list
+                if value in self.dtype_param:
+                    return value
+                else:
+                    # For string enum, return the first value as default
+                    return self.dtype_param[0]
+            # Numeric enum: use bisect
             if value in self.dtype_param:
                 return value
             else:
@@ -199,6 +213,13 @@ def update_optimizer_value(params_field: Tuple[OptimizerConfigField, ...],
             _t_op = [_op for _op in simulate_run_info if _op.name == v.dtype_param["target_name"]][0]
             if _t_op.value != 0:
                 _field.value = dtype_func.get(v.dtype_param["dtype"], int)(v.dtype_param["product"] / _t_op.value)
+        elif v.dtype == "times":
+            _field = simulate_run_info[i]
+            _t_op = [_op for _op in simulate_run_info if _op.name == v.dtype_param["target_name"]][0]
+            if _t_op.value is not None and not (isnan(_t_op.value) if isinstance(_t_op.value, float) else False):
+                _field.value = dtype_func.get(v.dtype_param["dtype"], int)(v.dtype_param["product"] * _t_op.value)
+            else:
+                logger.warning(f"Target value for {v.name} is invalid, skipping times calculation")
         if "maxPrefillBatchSize" in v.config_position:
             _field = simulate_run_info[i]
             if _field.value == 0:
@@ -240,14 +261,29 @@ def map_param_with_value(params: np.ndarray, params_field: Tuple[OptimizerConfig
             else:
                 _field.value = False
         elif v.dtype == "enum":
-            segment = np.linspace(v.min, v.max, len(v.dtype_param) + 1)
-            if params[i] <= v.min:
-                _field.value = v.dtype_param[0]
-            elif params[i] >= v.max:
-                _field.value = v.dtype_param[-1]
+            # Check if dtype_param contains string values
+            if v.dtype_param and len(v.dtype_param) > 0 and isinstance(v.dtype_param[0], str):
+                # String enum: use simple indexing based on value position
+                num_options = len(v.dtype_param)
+                # Map param value to enum index
+                if num_options == 1:
+                    _field.value = v.dtype_param[0]
+                else:
+                    # Normalize param to [0, 1] range then scale to enum index
+                    normalized = (params[i] - v.min) / (v.max - v.min) if v.max > v.min else 0
+                    _enum_index = int(normalized * (num_options - 1) + 0.5)
+                    _enum_index = max(0, min(_enum_index, num_options - 1))
+                    _field.value = v.dtype_param[_enum_index]
             else:
-                _enum_index = np.searchsorted(segment, params[i]) - 1
-                _field.value = v.dtype_param[_enum_index]
+                # Numeric enum: use existing logic with linspace
+                segment = np.linspace(v.min, v.max, len(v.dtype_param) + 1)
+                if params[i] <= v.min:
+                    _field.value = v.dtype_param[0]
+                elif params[i] >= v.max:
+                    _field.value = v.dtype_param[-1]
+                else:
+                    _enum_index = np.searchsorted(segment, params[i]) - 1
+                    _field.value = v.dtype_param[_enum_index]
         elif v.dtype == "share":
             for _op in _simulate_run_info:
                 if _op.name == v.dtype_param:

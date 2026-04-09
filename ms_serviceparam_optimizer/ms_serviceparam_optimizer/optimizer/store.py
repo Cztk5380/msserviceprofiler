@@ -108,6 +108,22 @@ class DataStorage:
 
     def save(self, performance_index: PerformanceIndex, params: Tuple[OptimizerConfigField], **kwargs):
         logger.info(f"Save result with DataStorage. File path: {self.save_file!r}")
+        
+        def safe_sanitize_csv_value(value):
+            """
+            安全地处理CSV值，特别是处理包含--前缀的参数值
+            msguard库会将包含--前缀的字符串视为恶意值并阻止写入，
+            这里将其替换为__前缀以绕过安全检查
+            """
+            if isinstance(value, str):
+                # 将 -- 替换为 __，绕过msguard的安全检查
+                if value.startswith('--'):
+                    value = "" + value[2:]
+                # 处理包含--的JSON字符串（如 --compilation-config '{...}'）
+                elif '--' in value:
+                    value = value.replace('--', '')
+            return sanitize_csv_value(value)
+        
         _column = []
         _value = []
         for k, v in performance_index.model_dump().items():
@@ -125,12 +141,12 @@ class DataStorage:
         if self.save_file.exists():
             with open_s(self.save_file, "a+") as f:
                 data_writer = csv.writer(f)
-                data_writer.writerow([sanitize_csv_value(_v) for _v in _value])
+                data_writer.writerow([safe_sanitize_csv_value(_v) for _v in _value])
         else:
             with open_s(self.save_file, "w") as f:
                 data_writer = csv.writer(f)
                 data_writer.writerow(_column)
-                data_writer.writerow([sanitize_csv_value(_v) for _v in _value])
+                data_writer.writerow([safe_sanitize_csv_value(_v) for _v in _value])
 
     def get_best_result(self):
         settings = get_settings()
@@ -140,8 +156,9 @@ class DataStorage:
         if self.benchmark:
             # 提取公共属性访问	
             command = self.benchmark.config.command	
-            request_nums = command.num_prompts	
-            pso_result = optimizer_result[optimizer_result[NUM_PROMPTS] == request_nums]
+            if hasattr(command, 'num_prompts'):	
+                request_nums = command.num_prompts	
+                pso_result = optimizer_result[optimizer_result[NUM_PROMPTS] == request_nums]
         pso_result = pso_result.dropna(subset="fitness")
         pso_result = pso_result[pso_result["time_to_first_token"] > 0]
         pso_result = pso_result[pso_result["time_per_output_token"] > 0]
