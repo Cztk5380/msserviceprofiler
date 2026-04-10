@@ -60,6 +60,8 @@ namespace {
 constexpr int MAX_TX_MSG_LEN = 128;
 constexpr int MAX_DEVICE_NUM = 128;
 constexpr int SPAN_CACHE_LEN = 64;
+// 与 libprofapi ProfilerCallbackType 中 PROFILE_DEVICE_STATE_C_CALLBACK 一致（C 风格设备状态回调）
+constexpr int32_t kProfileDeviceStateCCallback = 16;
 struct DlCloser {
     void operator()(void* handle) const noexcept
     {
@@ -415,14 +417,14 @@ void AddMetaInfo(const char *key, const char *value)
     msServiceProfiler::InsertExecutor2Writer<msServiceProfiler::DBFile::SERVICE>(std::move(executor));
 }
 
-void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
+int32_t MsprofSetDeviceCallbackImpl(void *data, uint32_t len)
 {
     // 不知道什么线程来的，一切皆有可能
     if (len != sizeof(::ProfSetDevParaDevice)) {
-        return;
+        return -1;
     }
     if (data == nullptr) {
-        return;
+        return -1;
     }
     DATA_PTR setCfg = static_cast<DATA_PTR>(data);
     static uint32_t sdeviceID = msServiceProfiler::INVALID_DEVICE_ID;
@@ -431,7 +433,21 @@ void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len)
         sdeviceID = setCfg->deviceId;
         msServiceProfiler::ServiceProfilerManager::GetInstance().NotifyDeviceID(sdeviceID);
     }
-    return;
+    return 0;
+}
+
+static void UnregisterDeviceStateCallback(void *profApiHandle)
+{
+    if (profApiHandle == nullptr) {
+        return;
+    }
+    using MsprofRegisterProfileCallbackFunc = int32_t (*)(int32_t callbackType, void *callback, uint32_t len);
+    auto registerFn = reinterpret_cast<MsprofRegisterProfileCallbackFunc>(
+        dlsym(profApiHandle, "MsprofRegisterProfileCallback"));
+    if (registerFn == nullptr) {
+        return;
+    }
+    (void)registerFn(kProfileDeviceStateCCallback, nullptr, sizeof(void *));
 }
 
 static LibraryHandle RegisterSetDeviceCallback()
@@ -444,18 +460,23 @@ static LibraryHandle RegisterSetDeviceCallback()
         return LibraryHandle(nullptr);
     }
 
-    using ProfSetDeviceHandle = void (*)(DATA_PTR, uint32_t);
-    using ProfRegDeviceStateCallbackFunc = int32_t (*)(ProfSetDeviceHandle);
-    ProfRegDeviceStateCallbackFunc profRegDeviceStateCallback =
-        (ProfRegDeviceStateCallbackFunc)(dlsym(handle, "profRegDeviceStateCallback"));
-    if (profRegDeviceStateCallback == nullptr) {
-        PROF_LOGW("Failed to get profRegDeviceStateCallback from libprofapi.so."  // LCOV_EXCL_LINE
-                  "Will be not able to get device profiling data."                // LCOV_EXCL_LINE
-                  " Check whether a NPU server or if cann toolkit installed.");   // LCOV_EXCL_LINE
-        
+    using MsprofRegisterProfileCallbackFunc = int32_t (*)(int32_t callbackType, void *callback, uint32_t len);
+    auto registerFn = reinterpret_cast<MsprofRegisterProfileCallbackFunc>(
+        dlsym(handle, "MsprofRegisterProfileCallback"));
+    if (registerFn == nullptr) {
+        PROF_LOGW("Failed to get MsprofRegisterProfileCallback from libprofapi.so."  // LCOV_EXCL_LINE
+                  "Will be not able to get device profiling data."                   // LCOV_EXCL_LINE
+                  " Check whether a NPU server or if cann toolkit installed.");      // LCOV_EXCL_LINE
+        dlclose(handle);
         return LibraryHandle(nullptr);
     }
-    profRegDeviceStateCallback(MsprofSetDeviceCallbackImpl);
+    int32_t ret = registerFn(kProfileDeviceStateCCallback,
+        reinterpret_cast<void *>(MsprofSetDeviceCallbackImpl), sizeof(void *));
+    if (ret != 0) {
+        PROF_LOGW("MsprofRegisterProfileCallback(PROFILE_DEVICE_STATE_C_CALLBACK) failed: %d", ret);  // LCOV_EXCL_LINE
+        dlclose(handle);
+        return LibraryHandle(nullptr);
+    }
     return LibraryHandle(handle);
 }
 
@@ -688,6 +709,7 @@ void ServiceProfilerManager::ThreadFunction()
             FlushBufferByTime();
         }
     }
+    UnregisterDeviceStateCallback(profApiHandle.get());
     PROF_LOGD("profiler thread stop loop");  // LCOV_EXCL_LINE
     StopProfiler();
 }

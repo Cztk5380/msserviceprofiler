@@ -255,7 +255,7 @@ TEST(ProfilerTest, TestRegisterSetDeviceCallbackDlopenNull)
         // Clean up
 }
 
-void MsprofSetDeviceCallbackImpl(DATA_PTR data, uint32_t len);
+int32_t MsprofSetDeviceCallbackImpl(void *data, uint32_t len);
 
 TEST(ProfilerTest, MsprofSetDeviceCallbackImplLen0)
 {
