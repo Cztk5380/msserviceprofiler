@@ -13,12 +13,13 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
+import inspect
 from contextlib import contextmanager
 from ms_service_profiler import Profiler, Level
 from ms_service_profiler.patcher.core.module_hook import patcher
 from ms_service_profiler.profiler import prof_step
 from ms_service_profiler.mstx import service_profiler
-from .utils import classify_requests, SharedHookState, create_state_getter
+from .utils import classify_requests, collect_request_ids, SharedHookState, create_state_getter
 try:
     import torch_npu
     
@@ -87,10 +88,34 @@ def sampler_forward(original_func, this, *args, **kwargs):
     return ret
 
 
+def _finalize_execute_model_span(ret, prof):
+    if prof is None:
+        return ret
+
+    add_done_callback = getattr(ret, "add_done_callback", None)
+    if callable(add_done_callback):
+        def _done_callback(_):
+            prof.span_end()
+        add_done_callback(_done_callback)
+        return ret
+
+    if inspect.isawaitable(ret):
+        async def _await_and_finalize():
+            try:
+                return await ret
+            finally:
+                prof.span_end()
+        return _await_and_finalize()
+
+    prof.span_end()
+    return ret
+
+
 @patcher(
     hook_points=[
         ("vllm.v1.executor.abstract", "Executor.execute_model"),
-        ("vllm.v1.executor.multiproc_executor", "MultiprocExecutor.execute_model")
+        ("vllm.v1.executor.multiproc_executor", "MultiprocExecutor.execute_model"),
+        ("vllm.v1.executor.uniproc_executor", "UniProcExecutor.execute_model"),
     ],
     min_version="0.9.1",
 )
@@ -98,6 +123,7 @@ def execute_model(original_func, this, scheduler_output, *args, **kwargs):
     """处理执行模型钩子"""
     state = _get_state()
     request_id_list, request_id_with_iter_list, batch_type = classify_requests(state, scheduler_output)
+    prof = None
 
     if request_id_list:
         prof = Profiler(Level.INFO).domain("Execute")
@@ -108,12 +134,14 @@ def execute_model(original_func, this, scheduler_output, *args, **kwargs):
 
         state.forward_profiler = Profiler(Level.INFO).domain("Execute").res(request_id_list)
 
-    ret = original_func(this, scheduler_output, *args, **kwargs)
+    try:
+        ret = original_func(this, scheduler_output, *args, **kwargs)
+    except Exception:
+        if prof is not None:
+            prof.span_end()
+        raise
 
-    if request_id_list:
-        prof.span_end()
-
-    return ret
+    return _finalize_execute_model_span(ret, prof)
 
 
 @patcher(
@@ -126,7 +154,7 @@ def execute_model_runner(original_func, this, scheduler_output, *args, **kwargs)
     """处理执行模型运行钩子"""
     global prof_current_step
     state = _get_state()
-    request_id_list, _, _ = classify_requests(state, scheduler_output)
+    request_id_list = collect_request_ids(scheduler_output)
     if request_id_list:
         prof = Profiler(Level.INFO).domain("Execute")
         prof.res(request_id_list)

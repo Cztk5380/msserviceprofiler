@@ -44,6 +44,11 @@
   handler: ms_service_profiler.patcher.vllm.handlers.v1.model_handlers:execute_model
   name: modelExec
 
+- symbol: vllm.v1.executor.uniproc_executor:UniProcExecutor.execute_model
+  min_version: "0.9.1"
+  handler: ms_service_profiler.patcher.vllm.handlers.v1.model_handlers:execute_model
+  name: modelExec
+
 - symbol: vllm_ascend.worker.model_runner_v1:NPUModelRunner.execute_model
   name: modelRunnerExec
   handler: ms_service_profiler.patcher.vllm.handlers.v1.model_handlers:execute_model_runner
