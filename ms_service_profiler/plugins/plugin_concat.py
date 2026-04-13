@@ -319,7 +319,7 @@ class PluginConcat(PluginBase):
             try:
                 hash_rid_map = cls._build_rid_hash_mapping(tx_data_df)
                 if hash_rid_map:
-                    logger.warning(
+                    logger.info(
                         f"[RidMapping] PluginConcat: Built hash rid mapping for {len(hash_rid_map)} rids after merge"
                     )
                     merged_data['tx_data_df'] = cls._apply_rid_mapping(tx_data_df, hash_rid_map)

@@ -26,12 +26,48 @@ from packaging.version import Version
 from .logger import logger
 from .registry import add_to_hook_registry
 from .utils import FunctionContext
-try:
-    from ms_service_metric.core.hook.hook_chain import get_chain
-except ImportError:
-    get_chain = None
 
 MAX_HOOK_FAILURES = 5
+
+_GET_CHAIN_FUNC = None
+
+
+def _get_metric_hook_chain_getter():
+    """Lazily import ms_service_metric HookChain getter to avoid import-order races."""
+    global _GET_CHAIN_FUNC
+    if _GET_CHAIN_FUNC is not None:
+        return _GET_CHAIN_FUNC
+
+    try:
+        from ms_service_metric.core.hook.hook_chain import get_chain as imported_get_chain
+        _GET_CHAIN_FUNC = imported_get_chain
+        return _GET_CHAIN_FUNC
+    except Exception as e:
+        return None
+
+
+def _unwrap_callable_for_location(function_ins: Any) -> Any:
+    """Resolve framework wrapper callables back to the real hook target when possible."""
+    current = function_ins
+    visited = set()
+
+    while current is not None and id(current) not in visited:
+        visited.add(id(current))
+
+        hook_chain = getattr(current, "_hook_chain", None)
+        ori_func = getattr(hook_chain, "ori_func", None) if hook_chain is not None else None
+        if callable(ori_func) and ori_func is not current:
+            current = ori_func
+            continue
+
+        wrapped = getattr(current, "__wrapped__", None)
+        if callable(wrapped) and wrapped is not current:
+            current = wrapped
+            continue
+
+        break
+
+    return current
 
 
 def import_object_from_string(import_path: str, module_path: str) -> Any:
@@ -125,13 +161,14 @@ class HookHelper:
         Raises:
             ValueError: 当无法获取位置信息时抛出
         """
-        if not hasattr(function_ins, "__module__"):
-            warning_msg = f"function {str(function_ins)} has no __module__."
+        resolved_func = _unwrap_callable_for_location(function_ins)
+        if not hasattr(resolved_func, "__module__"):
+            warning_msg = f"function {str(resolved_func)} has no __module__."
             logger.error(warning_msg)
             raise ValueError(warning_msg)
 
-        module = importlib.import_module(function_ins.__module__)
-        qualified_name = function_ins.__qualname__.split(".")
+        module = importlib.import_module(resolved_func.__module__)
+        qualified_name = [part for part in resolved_func.__qualname__.split(".") if part != "<locals>"]
         classes = qualified_name[:-1]
         attr_name = qualified_name[-1]
         location = module
@@ -545,10 +582,12 @@ class VLLMHookerBase(ABC):
             profiler_func_maker: profiler 函数生成器
             pname: 调用者过滤名称，可选
         """
+        get_chain = _get_metric_hook_chain_getter()
         for ori_func in hook_points:
             if ori_func is None:
                 continue
-            
+
+
             hook_node = get_chain(ori_func).add_chain_node() if get_chain is not None else None
             if hook_node is not None:
                 ori_func = hook_node.ori_wrap

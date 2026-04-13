@@ -108,6 +108,25 @@ def test_hookhelper_get_location_given_class_method_when_getting_location_then_r
     assert location.__name__ == "SampleClass"
 
 
+def test_hookhelper_get_location_given_hook_chain_closure_when_getting_location_then_unwraps_original():
+    """Test resolving ms_service_metric HookChain closure back to the original function."""
+
+    def execute_hook_chain():
+        return "wrapped"
+
+    execute_hook_chain.__module__ = sample_function.__module__
+    execute_hook_chain.__qualname__ = "HookChain.exec_chain_closure.<locals>.execute_hook_chain"
+
+    class FakeChain:
+        ori_func = sample_function
+
+    execute_hook_chain._hook_chain = FakeChain()
+
+    location, attr_name = HookHelper.get_location(execute_hook_chain)
+    assert attr_name == "sample_function"
+    assert location.__name__.split(".")[-1] == "test_module_hook"
+
+
 def test_hookhelper_replace_given_function_when_replacing_then_successful():
     """Test function replacement"""
     original = sample_function

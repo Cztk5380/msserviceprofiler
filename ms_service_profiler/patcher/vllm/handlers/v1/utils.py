@@ -127,6 +127,14 @@ def classify_requests(state: Any, scheduler_output: Any) -> Tuple[List[Dict], Li
     return request_id_list, request_id_with_iter_list, batch_type
 
 
+def collect_request_ids(scheduler_output: Any) -> List[Dict]:
+    """仅收集请求 ID，不推进 iter 状态。"""
+    request_id_list: List[Dict] = []
+    for request_id in getattr(scheduler_output, "num_scheduled_tokens", {}).keys():
+        request_id_list.append({"rid": request_id})
+    return request_id_list
+
+
 class SharedHookState:
     """共享的 hook 状态类。
     

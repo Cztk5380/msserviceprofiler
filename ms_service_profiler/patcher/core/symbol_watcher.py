@@ -414,7 +414,7 @@ class SymbolWatchFinder(importlib.abc.MetaPathFinder):
                 applied_now += 1
                 logger.debug(f"Applied hooker: {hooker.applied_hook_func_name}")
             except Exception as e:
-                logger.error(f"Failed to apply hooker {hooker}: {e}")
+                logger.error(f"Failed to apply hooker {hooker.applied_hook_func_name}: {e}")
         logger.info(f"Successfully applied {applied_now} hooks")
         return self.get_applied_hookers()
 
