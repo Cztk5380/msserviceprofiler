@@ -417,6 +417,26 @@ void AddMetaInfo(const char *key, const char *value)
     msServiceProfiler::InsertExecutor2Writer<msServiceProfiler::DBFile::SERVICE>(std::move(executor));
 }
 
+static bool g_usedNewDeviceStateApi = false;
+
+void MsprofSetDeviceCallbackLegacy(DATA_PTR data, uint32_t len)
+{
+    if (len != sizeof(::ProfSetDevParaDevice)) {
+        return;
+    }
+    if (data == nullptr) {
+        return;
+    }
+    DATA_PTR setCfg = static_cast<DATA_PTR>(data);
+    static uint32_t sdeviceID = msServiceProfiler::INVALID_DEVICE_ID;
+
+    if (setCfg->deviceId != sdeviceID) {
+        sdeviceID = setCfg->deviceId;
+        msServiceProfiler::ServiceProfilerManager::GetInstance().NotifyDeviceID(sdeviceID);
+    }
+    return;
+}
+
 int32_t MsprofSetDeviceCallbackImpl(void *data, uint32_t len)
 {
     // 不知道什么线程来的，一切皆有可能
@@ -438,7 +458,7 @@ int32_t MsprofSetDeviceCallbackImpl(void *data, uint32_t len)
 
 static void UnregisterDeviceStateCallback(void *profApiHandle)
 {
-    if (profApiHandle == nullptr) {
+    if (!g_usedNewDeviceStateApi || profApiHandle == nullptr) {
         return;
     }
     using MsprofRegisterProfileCallbackFunc = int32_t (*)(int32_t callbackType, void *callback, uint32_t len);
@@ -448,6 +468,7 @@ static void UnregisterDeviceStateCallback(void *profApiHandle)
         return;
     }
     (void)registerFn(kProfileDeviceStateCCallback, nullptr, sizeof(void *));
+    g_usedNewDeviceStateApi = false;
 }
 
 static LibraryHandle RegisterSetDeviceCallback()
@@ -460,13 +481,26 @@ static LibraryHandle RegisterSetDeviceCallback()
         return LibraryHandle(nullptr);
     }
 
+    // 优先尝试旧接口 profRegDeviceStateCallback
+    using ProfSetDeviceHandle = void (*)(DATA_PTR, uint32_t);
+    using ProfRegDeviceStateCallbackFunc = int32_t (*)(ProfSetDeviceHandle);
+    auto legacyFn = reinterpret_cast<ProfRegDeviceStateCallbackFunc>(
+        dlsym(handle, "profRegDeviceStateCallback"));
+    if (legacyFn != nullptr) {
+        PROF_LOGD("Using legacy profRegDeviceStateCallback API");  // LCOV_EXCL_LINE
+        legacyFn(MsprofSetDeviceCallbackLegacy);
+        g_usedNewDeviceStateApi = false;
+        return LibraryHandle(handle);
+    }
+
+    // 旧接口不存在，回退到新接口 MsprofRegisterProfileCallback
     using MsprofRegisterProfileCallbackFunc = int32_t (*)(int32_t callbackType, void *callback, uint32_t len);
     auto registerFn = reinterpret_cast<MsprofRegisterProfileCallbackFunc>(
         dlsym(handle, "MsprofRegisterProfileCallback"));
     if (registerFn == nullptr) {
-        PROF_LOGW("Failed to get MsprofRegisterProfileCallback from libprofapi.so."  // LCOV_EXCL_LINE
-                  "Will be not able to get device profiling data."                   // LCOV_EXCL_LINE
-                  " Check whether a NPU server or if cann toolkit installed.");      // LCOV_EXCL_LINE
+        PROF_LOGW("Failed to get profRegDeviceStateCallback or MsprofRegisterProfileCallback "  // LCOV_EXCL_LINE
+                  "from libprofapi.so. Will be not able to get device profiling data. "          // LCOV_EXCL_LINE
+                  "Check whether a NPU server or if cann toolkit installed.");                   // LCOV_EXCL_LINE
         dlclose(handle);
         return LibraryHandle(nullptr);
     }
@@ -477,6 +511,7 @@ static LibraryHandle RegisterSetDeviceCallback()
         dlclose(handle);
         return LibraryHandle(nullptr);
     }
+    g_usedNewDeviceStateApi = true;
     return LibraryHandle(handle);
 }
 
