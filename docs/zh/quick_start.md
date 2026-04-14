@@ -82,7 +82,7 @@ from ms_service_profiler.patcher.sglang import register_service_profiler
 register_service_profiler()
 
 # 启动 SGLang 服务（示例）
-python -m sglang.launch_server \
+python3 -m sglang.launch_server \
     --model-path=/Qwen2.5-0.5B-Instruct \
     --device npu
 ```
@@ -157,7 +157,7 @@ python -m sglang.launch_server \
 > 或等价的：
 >
 > ```bash
-> python -m ms_service_profiler.parse --input-path=$PWD
+> python3 -m ms_service_profiler.parse --input-path=$PWD
 > ```
 
 #### 4.2 调优分析
