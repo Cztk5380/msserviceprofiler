@@ -16,7 +16,8 @@
 
 |产品类型| 是否支持 |
 |--|:----:|
-|Atlas A3 训练系列产品/Atlas A3 推理系列产品|  √   |
+|Atlas 350 加速卡|    x     |
+|Atlas A3 训练系列产品/Atlas A3 推理系列产品|    √     |
 |Atlas A2 训练系列产品/Atlas A2 推理系列产品|  √   |
 |Atlas 200I/500 A2 推理产品|  √   |
 |Atlas 推理系列产品|  √   |
@@ -87,14 +88,14 @@ msserviceprofiler split
   - 如拆解100个`batch_size`为1的`prefill batch`数据，可执行：
 
     ```sh
-    msserviceprofiler split --input-path=/path/to/input --output-path=/path/to/output/ --prefill-batch-size=1 --prefill-number=100
+    msserviceprofiler split --input-path /path/to/input --output-path /path/to/output/ --prefill-batch-size 1 --prefill-number 100
     ```
 
     执行完毕在结果路径下生成输出文件`prefill.csv`。
   - 拆解50个`batch_size`为10的`decode batch`数据，可执行：
 
     ```sh
-    msserviceprofiler split --input-path=/path/to/input --output-path=/path/to/output/ --decode-batch-size=10 --decode-number=50
+    msserviceprofiler split --input-path /path/to/input --output-path /path/to/output/ --decode-batch-size 10 --decode-number 50
     ```
 
     执行完毕在结果路径下生成输出文件`decode.csv`。
@@ -102,14 +103,14 @@ msserviceprofiler split
   - 拆解prefill数据:
 
     ```sh
-    msserviceprofiler split --input-path=/path/to/input --output-path=/path/to/output/ --prefill-rid=efcas2d
+    msserviceprofiler split --input-path /path/to/input --output-path /path/to/output/ --prefill-rid efcas2d
     ```
 
     执行完毕在结果路径下生成输出文件`prefill.csv`。
   - 拆解decode数据:
 
     ```sh
-    msserviceprofiler split --input-path=/path/to/input --output-path=/path/to/output/ --decode-rid=efcas2d
+    msserviceprofiler split --input-path /path/to/input --output-path /path/to/output/ --decode-rid efcas2d
     ```
 
     执行完毕在结果路径下生成输出文件`decode.csv`。

@@ -86,7 +86,7 @@
     class ms_serviceparam_optimizer.optimizer.benchmark.BenchmarkInterface():
         Bases: ABC
         property num_prompts: Tuple[OptimizerConfigField] | None
-            #获取获取数据的请求数
+            #获取数据的请求数
             Returns: Optional[Tuple[OptimizerConfigField]]
             
         property setter num_prompts: Tuple[OptimizerConfigField] | None

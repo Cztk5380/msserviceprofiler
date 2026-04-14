@@ -37,7 +37,7 @@ body:
       - PD混部
       - 单级PD分离
       - 多机PD分离
-      - 大EP
+      - 大规模专家并行方案
   validations:
     required: false
 - type: textarea
@@ -51,7 +51,7 @@ body:
   attributes:
     label: 问题描述
     description: >
-      如工具使用过程中报错，请给出文字描述操作步骤 + 报错截图（如有），例：MindIE框架大EP场景下使用服务化工具采集没有算子相关信息，报错如下：xxxxxx
+      如工具使用过程中报错，请给出文字描述操作步骤 + 报错截图（如有），例：MindIE框架大规模专家并行方案场景下使用服务化工具采集没有算子相关信息，报错如下：xxxxxx
       如果是调优类诉求，请给出现状和目标，如：xxx框架不同版本间，某个具体性能case的TTFT劣化3s，需要协助分析
   validations:
     required: true

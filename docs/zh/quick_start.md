@@ -9,7 +9,7 @@ msServiceProfiler（服务化调优工具）提供全链路性能剖析，清晰
 
 ## 前提条件<a name="section1605203618349"></a>
 
-- 在使用性能调优工具前，请先阅读《[msServiceProfiler工具安装指南](msserviceprofiler_install_guide.md)》中的“[约束](msserviceprofiler_install_guide.md#约束)”章节的使用约束，了解相关约束条件。
+- 在使用性能调优工具前请先完成msServiceProfiler工具安装，具体请参见《[msServiceProfiler工具安装指南](msserviceprofiler_install_guide.md)》。
 - 已完成对应服务框架的安装，并通过可用性验证（服务能够正常启动，且可通过官方示例脚本或 API 成功发起一次推理请求）：
   - **MindIE Motor**：请参见《[MindIE安装指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/README.md)》完成 MindIE 的安装和配置，并确认 MindIE Motor 服务可以正常启动且能完成一次示例推理请求。
   - **vLLM-Ascend**：请参见《[vLLM 服务化性能采集工具使用指南](vLLM_service_oriented_performance_collection_tool.md)》以及 vLLM-Ascend 官方安装文档，完成环境准备并验证 vLLM 服务可正常对外提供推理接口。

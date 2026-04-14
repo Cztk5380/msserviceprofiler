@@ -25,7 +25,7 @@ ms_service_metric 是从 ms_service_profiler/patcher 中提取出来的独立 me
 
 ## 2. 项目结构
 
-```
+```text
 ms_service_metric/                           # 项目根目录
 ├── pyproject.toml                           # 项目配置
 ├── README.md                                # 项目说明
@@ -109,11 +109,13 @@ ms_service_metric/                           # 项目根目录
 ### 3.1 SymbolHandlerManager（核心管理类）
 
 **职责：**
+
 - 管理所有的handler和Symbol
 - 根据配置动态加载和卸载handler和symbol
 - 将所有其他类串联起来的核心类
 
 **关键设计：**
+
 1. 基于handler的增删，自动处理symbol对象
 2. 简化锁的使用（仅保护_enabled和批量操作的原子性）
 3. 批量apply_hook，而不是每个handler变化都reapply
@@ -176,7 +178,7 @@ class SymbolHandlerManager:
 
 **控制状态处理逻辑：**
 
-```
+```text
 关闭命令 (is_start=False):
   - 如果当前已启用，根据lock_patch属性决定是否保留handler
   - 如果当前已禁用，无操作
@@ -190,6 +192,7 @@ class SymbolHandlerManager:
 ### 3.2 Symbol（Symbol类）
 
 **职责：**
+
 - 代表一个需要hook的符号
 - 管理其handlers（不允许重复）
 - 直接监听模块加载事件（不通过SymbolHandlerManager中转）
@@ -296,7 +299,7 @@ class Symbol:
 
 **Handler合并策略：**
 
-```
+```text
 1. 分离wrap handlers和context handlers
 2. 执行顺序：
    a. context handlers（需要locals）-> 字节码注入
@@ -309,7 +312,7 @@ class Symbol:
 
 **洋葱模型示例：**
 
-```
+```text
 配置顺序: handler1, handler2, handler3
 执行顺序: handler1 -> handler2 -> handler3 -> 原函数 -> handler3 -> handler2 -> handler1
 
@@ -322,6 +325,7 @@ wrap_chain构建:
 ### 3.3 Handler（Handler抽象基类）
 
 **职责：**
+
 - 定义Handler的基础接口（抽象基类）
 - 所有自定义Handler都应该继承此类
 
@@ -361,6 +365,7 @@ class Handler(ABC):
 ### 3.4 MetricHandler（Handler的具体实现）
 
 **职责：**
+
 - 负责加载内置的handler或者用户自定义的handler
 - 将hook_func分类为wrap_func和context_funcs
 - 自动检测handler类型（通过函数签名）
@@ -451,7 +456,7 @@ class MetricHandler(Handler):
 
 **Handler分类规则：**
 
-```
+```text
 - 生成器函数 -> context_func, 返回 HandlerType.CONTEXT
   - 1个参数(ctx): 不需要locals
   - 2个参数(ctx, local_values): 需要locals
@@ -488,6 +493,7 @@ def advanced_context_handler(ctx, local_values):
 ### 3.5 FunctionContext（函数上下文类）
 
 **职责：**
+
 - 存储函数执行上下文（local_values、return_value）
 - 提供便捷方法访问local_values
 
@@ -539,6 +545,7 @@ def my_handler(ctx, local_values):
 ### 3.6 HookChain（Hook链管理类）
 
 **职责：**
+
 - 使用双向链表管理多个 hook 函数
 - 支持动态添加、删除和调用 hook
 - 支持在链表头部或尾部插入节点
@@ -680,6 +687,7 @@ def execute_hook_chain(*args, **kwargs):
 ### 3.7 HookHelper（Hook辅助类）
 
 **职责：**
+
 - 负责具体的函数替换和恢复
 - 保存原始函数，支持恢复
 - 解析目标对象（支持函数、方法、类属性）
@@ -722,6 +730,7 @@ class HookHelper:
 ### 3.8 MetricsManager（Prometheus指标管理器）
 
 **职责：**
+
 - 管理所有Prometheus指标的注册、记录和查询
 - 支持多种指标类型：Histogram、Counter、Gauge、Summary
 - 提供标签管理和表达式求值功能
@@ -835,6 +844,7 @@ def get_metrics_manager() -> MetricsManager:
 ### 3.9 SymbolWatcher（模块加载监视器，单例）
 
 **职责：**
+
 - 监听Python模块的导入事件
 - 当模块加载时通知注册的回调
 - 按模块管理回调，确保回调时就是确认的模块被加载
@@ -928,6 +938,7 @@ class SymbolWatcher:
 ### 3.10 SymbolConfig（配置管理类）
 
 **职责：**
+
 - 读取YAML配置文件
 - 读取用户配置、默认配置
 - 配置合并、自动赋默认值
@@ -979,6 +990,7 @@ class SymbolConfig:
 ### 3.11 MetricConfigWatch（Metric配置动态监视器）
 
 **职责：**
+
 - 使用posix_ipc共享内存和SIGUSR1信号实现进程间通信
 - 支持环境变量配置共享内存和信号量名称前缀
 - 简化设计：只需要start标志和时间戳
@@ -1036,6 +1048,7 @@ class MetricConfigWatch:
 ### 3.12 SharedMemoryManager（共享内存管理器）
 
 **职责：**
+
 - 统一管理ms_service_metric的共享内存操作
 - 内存布局定义（支持版本兼容）
 - 共享内存创建/连接/断开/释放
@@ -1049,11 +1062,12 @@ class MetricConfigWatch:
 
 所有偏移量都相对于共享内存起始位置，采用版本兼容设计：
 
-```
+```text
 [魔数:4][版本:4][头部长度:4][状态:4][时间戳:4][进程列表偏移:4][头部结束标记:4][进程列表长度:4][进程列表游标:4][PID1:4][PID2:4]...[PIDn:4]
 ```
 
 **字段说明（每个都是int32）：**
+
 - 魔数 (0x4D534D54 = "MSMT")
 - 版本号
 - 头部长度（从开始到结束标记的总字节数）
@@ -1066,6 +1080,7 @@ class MetricConfigWatch:
 - 进程ID数组...
 
 **版本兼容策略：**
+
 - 使用魔数和头部结束标记验证内存格式
 - 版本不匹配时标记 `_version_mismatch`，但尽量读取可用字段
 - 通过 `_is_field_available(offset)` 检查字段是否在有效头部长度范围内
@@ -1194,6 +1209,7 @@ class SharedMemoryManager:
 ### 3.13 Inject（字节码注入模块）
 
 **职责：**
+
 - 通过字节码注入在函数入口和返回点插入hook代码
 - 支持访问函数locals变量
 - 支持context manager类型的handler（需要locals的handler）
@@ -1224,6 +1240,7 @@ def inject_function(
 ### 3.14 MetaState（进程元数据状态管理）
 
 **职责：**
+
 - 提供每个进程独立的元数据存储
 - 用于在metrics中提供额外的标签信息
 - 支持动态更新和获取，供handlers使用
@@ -1300,6 +1317,7 @@ def set_model_name(name: str):
 ### 3.15 ExprEval（表达式求值器）
 
 **职责：**
+
 - 支持安全的数学表达式求值
 - 可用于配置中的表达式计算
 - 支持变量、函数调用、属性访问、下标访问等操作
@@ -1355,6 +1373,7 @@ def evaluate_expression(expression: str, params: Dict[str, Any]) -> Any:
 ### 3.16 内置Handlers（builtin.py）
 
 **职责：**
+
 - 提供常用的内置handler函数
 - 可用于配置中直接使用
 
@@ -1375,6 +1394,7 @@ def default_handler(metrics_config: List[MetricConfig], is_async: bool = False, 
 ### 3.17 CLI控制工具（cli.py）
 
 **职责：**
+
 - 提供命令行接口，用于控制目标进程中metric收集的开关
 - 通过共享内存和SIGUSR1信号与目标进程通信
 
@@ -1388,6 +1408,7 @@ ms-service-metric status  # 查看状态
 ```
 
 **环境变量：**
+
 - `MS_SERVICE_METRIC_SHM_PREFIX`: 共享内存和信号量名称前缀（默认: /ms_service_metric）
 - `MS_SERVICE_METRIC_MAX_PROCS`: 最大进程数（默认: 1000）
 
@@ -1430,7 +1451,7 @@ module.path:ClassName.method_name:
 
 ### 5.1 初始化流程
 
-```
+```text
 SymbolHandlerManager.initialize()
   ├── 加载配置 (SymbolConfig.load)
   ├── 注册控制回调 (_on_control_state_change)
@@ -1440,7 +1461,7 @@ SymbolHandlerManager.initialize()
 
 ### 5.2 模块加载流程
 
-```
+```text
 模块导入
   └── SymbolWatchFinder.find_spec
        └── LoaderWrapper.exec_module
@@ -1455,7 +1476,7 @@ SymbolHandlerManager.initialize()
 
 ### 5.3 控制命令处理流程
 
-```
+```text
 收到SIGUSR1信号
   └── MetricConfigWatch._signal_handler
        └── MetricConfigWatch._check_control_state
@@ -1469,7 +1490,7 @@ SymbolHandlerManager.initialize()
 
 ### 5.4 Hook执行流程
 
-```
+```text
 被hook函数被调用
   └── HookChain.__call__
        └── HookChain.exec_chain_closure
@@ -1497,6 +1518,7 @@ SymbolHandlerManager.initialize()
 ### 6.2 单例模式
 
 以下类使用单例模式：
+
 - `SymbolWatcher`: 通过`__new__`确保全局唯一实例
 - `MetricsManager`: 通过模块级变量`_metrics_manager_instance`实现
 - `MetaState`: 通过模块级变量`_meta_state_instance`实现

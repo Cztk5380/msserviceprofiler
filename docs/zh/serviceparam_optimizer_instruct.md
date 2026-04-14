@@ -34,7 +34,8 @@
 
 |产品类型| 是否支持 |
 |--|:----:|
-|Atlas A3 训练系列产品/Atlas A3 推理系列产品|  √   |
+|Atlas 350 加速卡|    x     |
+|Atlas A3 训练系列产品/Atlas A3 推理系列产品|    √     |
 |Atlas A2 训练系列产品/Atlas A2 推理系列产品|  √   |
 |Atlas 200I/500 A2 推理产品|  √   |
 |Atlas 推理系列产品|  √   |
@@ -428,7 +429,7 @@ dtype_param = "default_p_rate"
 
 ### 插件模式
 
-现在寻优工具支持用户自定义推理框架以及测试工具，用户可以根据自己的需求配置。只需适配我们的插件模式，注册对应的插件即可,详情请参考[插件开发操作步骤](serviceparam_optimizer_plugin_instruct.md)。
+现在寻优工具支持用户自定义推理框架以及测试工具，用户可以根据自己的需求配置。只需适配我们的插件模式，注册对应的插件即可，详情请参见[插件开发操作步骤](serviceparam_optimizer_plugin_instruct.md)。
 
 ### 日志说明
 
@@ -438,4 +439,4 @@ dtype_param = "default_p_rate"
 export MODELEVALSTATE_LEVEL=DEBUG
 ```
 
-对于每一轮的运行状态会进行输出，我们将具体的MindIE/VLLM日志重定向在/tmp目录下，可以根据打屏信息获取具体文件路径查看MindIE/VLLM运行状态。
+对于每一轮的运行状态会进行输出，我们将具体的MindIE/VLLM日志重定向在/tmp目录下，可以根据打印信息获取具体文件路径查看MindIE/VLLM运行状态。

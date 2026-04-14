@@ -82,9 +82,9 @@ msServiceProfiler服务化调优工具的快速入门，包括必要的操作步
 
 ## 📝 相关说明
 
-- [《贡献指南》](CONTRIBUTING.md)
-- [《免责声明》](./docs/zh/legal/disclaimer.md)
-- [《License声明》](./docs/zh/legal/license_notice.md)
+- 《[贡献指南](CONTRIBUTING.md)》
+- 《[免责声明](./docs/zh/legal/disclaimer.md)》
+- 《[License声明](./docs/zh/legal/license_notice.md)》
 
 ## 💬 建议与交流
 
