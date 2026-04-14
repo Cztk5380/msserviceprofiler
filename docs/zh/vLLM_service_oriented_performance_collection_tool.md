@@ -21,6 +21,7 @@ vLLM Service Profiler 适用于在 vLLM-Ascend 推理服务过程中进行性能
 
 |产品类型| 是否支持 |
 |--|:----:|
+|Atlas 350 加速卡|  x   |
 |Atlas A3 训练系列产品/Atlas A3 推理系列产品|  √   |
 |Atlas A2 训练系列产品/Atlas A2 推理系列产品|  √   |
 |Atlas 200I/500 A2 推理产品|  √   |

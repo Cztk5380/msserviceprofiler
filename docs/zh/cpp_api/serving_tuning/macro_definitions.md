@@ -13,6 +13,6 @@
 
         PROF\(INFO, Attr\("req", 1\).Event\("recv"\)\);
 
-- ENABLE\_PROF：与PROF协同使用，当没有定义该环境变量，说明不开启采集能力，会自动将PROF定义为空实现。通常定义在CMakeLists.txt中。
+- ENABLE\_PROF：与PROF协同使用，当没有定义该宏，说明不开启采集能力，会自动将PROF定义为空实现。通常定义在CMakeLists.txt中。
 
     add\_definitions\(-DENABLE\_PROF\)

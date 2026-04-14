@@ -80,20 +80,17 @@ msServiceProfiler服务化调优工具的快速入门，包括必要的操作步
 
 ## 📝 相关说明
 
-- [《贡献指南》](CONTRIBUTING.md)
-- [《免责声明》](./docs/zh/legal/disclaimer.md)
-- [《License声明》](./docs/zh/legal/license_notice.md)
+- 《[贡献指南](CONTRIBUTING.md)》
+- 《[免责声明](./docs/zh/legal/disclaimer.md)》
+- 《[License声明](./docs/zh/legal/license_notice.md)》
 
 ## 💬 建议与交流
 
 欢迎大家为社区做贡献。如果有任何疑问或建议，请提交[Issues](https://gitcode.com/Ascend/msserviceprofiler/issues)，我们会尽快回复。感谢您的支持。
 
-- 联系我们
-
-<div>
-  <a href="https://raw.gitcode.com/kali20gakki1/Imageshack/raw/main/CDC0BEE2-8F11-477D-BD55-77A15417D7D1_4_5005_c.jpeg">
-    <img src="https://img.shields.io/badge/WeChat-07C160?style=for-the-badge&logo=wechat&logoColor=white"></a>
-</div>
+|                   📱 关注 MindStudio 公众号                   | 💬 更多交流与支持                                             |
+| :----------------------------------------------------------: | :----------------------------------------------------------- |
+| <img src="https://raw.gitcode.com/Ascend/msot/files/master/docs/zh/figures/readme/officialAccount.png" width="120"><br><sub>*扫码关注获取最新动态*</sub> | 💡 **加入微信交流群**：<br>关注公众号，回复“交流群”即可获取入群二维码。<br><br>🛠️ **其他渠道**：<br>👉 昇腾助手：[![WeChat](https://img.shields.io/badge/WeChat-07C160?style=flat-square&logo=wechat&logoColor=white)](https://gitcode.com/Ascend/msot/blob/master/docs/zh/figures/readme/xiaozhushou.png)<br>👉 昇腾论坛：[![Website](https://img.shields.io/badge/Website-%231e37ff?style=flat-square&logo=RSS&logoColor=white)](https://www.hiascend.com/forum/) |
 
 ## 🤝 致谢
 
@@ -105,19 +102,4 @@ msServiceProfiler由华为公司的下列部门联合贡献：
 
 ## 关于MindStudio团队
 
-华为MindStudio全流程开发工具链团队致力于提供端到端的昇腾AI应用开发解决方案，使能开发者高效完成训练开发、推理开发和算子开发。您可以通过以下渠道更深入了解华为MindStudio团队：
-
-<div style="display: flex; align-items: center; gap: 10px;">
-    <span>昇腾论坛：</span>
-    <a href="https://www.hiascend.com/forum/" rel="nofollow">
-        <img src="https://img.shields.io/badge/Website-%231e37ff?style=for-the-badge&logo=bytedance&logoColor=white">
-    </a>
-    <span style="margin-left: 20px;">昇腾小助手：</span>
-    <a href="https://gitcode.com/Ascend/msinsight/blob/master/docs/zh/user_guide/figures/readme/xiaozhushou.png" rel="nofollow noopener">
-        <img src="https://img.shields.io/badge/WeChat-07C160?style=for-the-badge&logo=wechat&logoColor=white">
-    </a>
-    <span style="margin-left: 20px;">MindStudio公众号：</span>
-    <img width="100" src="./docs/assets/gongzhonghao.jpg" />
-</div>
-
-在公众号中私信【交流群】，可以获取技术交流群二维码
+华为MindStudio全流程开发工具链团队致力于提供端到端的昇腾AI应用开发解决方案，使能开发者高效完成训练开发、更多信息请访问 [昇腾社区](https://www.hiascend.com/developer/software/mindstudio) 和 [昇腾论坛](https://www.hiascend.com/forum/)。
