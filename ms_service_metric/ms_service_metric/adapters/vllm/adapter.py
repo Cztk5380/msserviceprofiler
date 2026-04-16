@@ -112,23 +112,31 @@ class VLLMMetricAdapter:
         
         # 尝试从环境变量获取
         env_dp_rank = os.getenv("VLLM_DP_RANK")
+        logger.debug("Raw env VLLM_DP_RANK=%r", env_dp_rank)
         if env_dp_rank:
             try:
                 dp_rank = int(env_dp_rank)
                 logger.debug(f"Got dp_rank from environment: {dp_rank}")
-            except ValueError:
-                pass
+            except ValueError as e:
+                logger.debug(f"Invalid VLLM_DP_RANK value {env_dp_rank!r}: {e}")
         
         # 尝试从vLLM内部获取
         if dp_rank < 0:
             try:
                 from vllm.distributed.parallel_state import get_data_parallel_rank
-                dp_rank = get_data_parallel_rank()
+                raw_dp_rank = get_data_parallel_rank()
+                logger.debug(
+                    "Raw get_data_parallel_rank() return value=%r, type=%s",
+                    raw_dp_rank,
+                    type(raw_dp_rank).__name__,
+                )
+                dp_rank = raw_dp_rank
                 logger.debug(f"Got dp_rank from vLLM: {dp_rank}")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to get dp_rank from vLLM distributed state: {e}", exc_info=True)
         
         # 设置到meta_state
+        logger.debug("Final dp_rank before set_dp_rank: %r", dp_rank)
         set_dp_rank(dp_rank)
         logger.debug(f"Set dp_rank to meta_state: {dp_rank}")
         

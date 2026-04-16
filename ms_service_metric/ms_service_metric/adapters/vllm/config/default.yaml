@@ -3,6 +3,9 @@
 - symbol: vllm.v1.engine.core:DPEngineCoreProc.add_request
   handler: ms_service_metric.adapters.vllm.handlers.meta_handlers:init_data_parallel
 
+- symbol: vllm_ascend.worker.model_runner_v1:NPUModelRunner.execute_model
+  handler: ms_service_metric.adapters.vllm.handlers.meta_handlers:init_data_parallel_worker
+
 - symbol: vllm.v1.metrics.loggers:StatLoggerManager.record
   handler: ms_service_metric.adapters.vllm.handlers.meta_handlers:record
 

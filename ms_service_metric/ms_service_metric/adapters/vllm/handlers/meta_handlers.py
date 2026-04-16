@@ -65,9 +65,9 @@ def init_data_parallel_worker(original_func, this, *args, **kwargs):
 TOTAL_KVCACHE_BLOCKS = "total_kvcache_blocks"
 FREE_KVCACHE_BLOCKS = "free_kvcache_blocks"
 ALLOCATED_KVCACHE_BLOCKS = "allocated_kvcache_blocks"
-metrics_client.get_or_create_metric(TOTAL_KVCACHE_BLOCKS)
-metrics_client.get_or_create_metric(FREE_KVCACHE_BLOCKS)
-metrics_client.get_or_create_metric(ALLOCATED_KVCACHE_BLOCKS)
+metrics_client.get_or_create_metric(TOTAL_KVCACHE_BLOCKS, metric_type=MetricType.GAUGE)
+metrics_client.get_or_create_metric(FREE_KVCACHE_BLOCKS, metric_type=MetricType.GAUGE)
+metrics_client.get_or_create_metric(ALLOCATED_KVCACHE_BLOCKS, metric_type=MetricType.GAUGE)
 
 
 def make_stats(original_func, this, *args, **kwargs):

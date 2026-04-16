@@ -60,7 +60,7 @@ TIMER_BUCKETS = [
 
 # 尺寸分桶配置
 SIZE_BUCKETS = [
-    0, 1, 10, 20, 30, 40, 50, 75, 100, 125, 150, 175, 200,
+    0, 1, 5, 10, 20, 30, 40, 50, 75, 100, 125, 150, 175, 200,
     300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000,
     2500, 3000, 4000, 5000, 6000, 7000, 8000, 10000,
     262144, float('inf')
@@ -288,13 +288,20 @@ class MetricsManager:
         labels = labels.copy() if labels is not None else {}
         
         meta_state = self._get_meta_state()
+
+        def _normalize_dp_label_value(dp_value: Any) -> int:
+            if dp_value is None or dp_value == -1:
+                return 0
+            return dp_value
+
         # 尝试从meta_state获取dp_rank
         try:
-            if "dp" not in labels:
-                labels["dp"] = meta_state.dp_rank
+            labels["dp"] = _normalize_dp_label_value(
+                labels.get("dp", meta_state.dp_rank)
+            )
         except Exception as e:
             logger.warning(f"Failed to get dp_rank from meta_state: {e}")
-            labels["dp"] = "-1"
+            labels["dp"] = 0
         
         labels["role"] = meta_state.get("role", "mixed")
         return labels
