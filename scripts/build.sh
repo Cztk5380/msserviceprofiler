@@ -13,7 +13,7 @@ RUN_SCRIPT_DIR=${TOP_DIR}/scripts
 chmod -R 755 ${RUN_SCRIPT_DIR}
 FILTER_PARAM_SCRIPT=${RUN_SCRIPT_DIR}/help.conf
 mkdir -p "${OUTPUT_DIR}"
-VERSION="26.0.0"
+VERSION="none"
 MAKESELF_DIR=${TOP_DIR}/opensource/makeself
 CREATE_RUN_SCRIPT=${MAKESELF_DIR}/makeself.sh
 CONTROL_PARAM_SCRIPT=${MAKESELF_DIR}/makeself-header.sh
@@ -79,37 +79,31 @@ function copy_script() {
     chmod 500 "${temp_dir}/${script_name}"
 }
 
+ function update_version_info() {
+    local version_file="${RUN_SCRIPT_DIR}/version.info"
+    [ "$VERSION" = "none" ] && return 0
+    [ -f "$version_file" ] || { echo "ERROR: $version_file not found"; return 1; }
+
+    # Compatible with both cases with and without spaces
+    sed -i "s/^[[:space:]]*Version=.*/Version=$VERSION/" "$version_file"
+    echo "INFO: Updated Version to $VERSION in $version_file"
+ 	 }
+
 function get_version() {
-    # 如果 VERSION 不是 "none"，直接返回 VERSION
-    if [ "${VERSION}" != "none" ]; then
+    if [[ "$VERSION" != "none" ]]; then
         echo "${VERSION}"
-        return
-    fi
-
-    # 定义配置文件路径
-    local path="${TOP_DIR}/../manifest/dependency/config.ini"
-
-    # 检查配置文件是否存在
-    if [ ! -f "${path}" ]; then
-        echo "none"
-        return
-    fi
-
-    # 从配置文件中读取 version
-    local version=$(grep -m 1 "^version=" "${path}" | cut -d"=" -f2)
-
-    # 检查读取到的 version 是否为空
-    if [ -z "${version}" ]; then
-        echo "none"
+    elif [ -f "${RUN_SCRIPT_DIR}/version.info" ]; then
+        # Compatible with both cases with and without spaces
+        grep "Version=" "${RUN_SCRIPT_DIR}/version.info" | sed 's/^[[:space:]]*Version=//'
     else
-        echo "${version}"
+        echo "${VERSION}"
     fi
 }
 
 function get_package_name() {
     local name=${MSSERVICE_RUN_NAME}
 
-    local version=$(echo $(get_version) | cut -d '.' -f 1,2,3)
+    local version=$(get_version)
     local os_arch=$(arch)
     echo "${name}_${version}_${os_arch}.run"
 }
@@ -185,5 +179,6 @@ cleanup() {
 }
 
 parse_script_args $*
+update_version_info
 main ${MAIN_SCRIPT} ${FILTER_PARAM_SCRIPT}
 trap cleanup EXIT INT TERM
