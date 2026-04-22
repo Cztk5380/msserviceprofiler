@@ -32,6 +32,15 @@ from ...config.base_config import CUSTOM_OUTPUT, MODEL_EVAL_STATE_CONFIG_PATH, \
 from ..utils import close_file_fp, remove_file, kill_children, \
     backup, kill_process
 
+# 字段名到 CLI 参数名的映射，用于在移除无效值时同步移除对应的 CLI flag
+FIELD_TO_CLI_FLAG = {
+    "REQUESTRATE": "--request-rate",
+}
+
+# 值为非正数（≤0）时应视为无效、移除 CLI 参数的字段集合
+# 注意：非正数过滤是特定字段的语义约束，并非通用行为
+NON_POSITIVE_INVALID_FIELDS = frozenset(FIELD_TO_CLI_FLAG.keys())
+
 class CustomProcess:
     from ...config.config import OptimizerConfigField
 
@@ -216,18 +225,37 @@ class CustomProcess:
         for k in run_params:
             if k.config_position == "env":
                 # env 类型的数据，设置环境变量和更新命令中包含的变量,设置时全部为大写
-                self.env[k.name.upper().strip()] = str(k.value)
-                _var_name = f"${k.name.upper().strip()}"
-                if _var_name not in self.command:
-                    continue
-                _i = self.command.index(_var_name)
-                # Handle string values - don't call isnan/isinf on strings
+                _env_name = k.name.upper().strip()
+                _var_name = f"${_env_name}"
+                
+                # 检查值是否为空/无效
                 if isinstance(k.value, str):
                     value_flag = k.value is None or not k.value.strip()
                 else:
                     value_flag = k.value is None or isnan(k.value) or isinf(k.value)
-                if value_flag or not str(k).strip():
+                
+                if value_flag:
+                    # 值为空时，从环境变量中删除，不设置空值
+                    if _env_name in self.env:
+                        del self.env[_env_name]
+                        logger.debug(f"Removed empty env var: {_env_name}")
+                else:
+                    # 值有效时，设置环境变量
+                    self.env[_env_name] = str(k.value)
+                
+                # 处理命令行中的变量引用
+                if _var_name not in self.command:
+                    continue
+                _i = self.command.index(_var_name)
+                _cli_flag = FIELD_TO_CLI_FLAG.get(_env_name)
+                # 特定字段（如 REQUESTRATE）值为非正数时视为无效，避免传入 benchmark 导致断言错误
+                if not value_flag and isinstance(k.value, (int, float)) and k.value <= 0:
+                    if _env_name in NON_POSITIVE_INVALID_FIELDS:
+                        value_flag = True
+                if value_flag:
                     self.command.pop(_i)
+                    if _cli_flag and _i > 0 and self.command[_i - 1] == _cli_flag:
+                        self.command.pop(_i - 1)
                 else:
                     self.command[_i] = str(k.value)
         
@@ -243,7 +271,7 @@ class CustomProcess:
                 value_flag = k.value is None or not k.value.strip()
             else:
                 value_flag = k.value is None or isnan(k.value) or isinf(k.value)
-            if value_flag or not str(k).strip():
+            if value_flag:
                 continue
             # 在命令的每个元素中替换变量（包括 others 字段中的变量）
             # 使用 while 循环确保替换所有出现的变量（一个元素中可能出现多次）

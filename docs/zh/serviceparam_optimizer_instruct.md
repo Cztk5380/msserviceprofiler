@@ -358,6 +358,58 @@ others = ""
 |served_model_name|必选| 模型名称，需与`[vllm_benchmark.command]`中的`served_model_name`保持一致。|
 |others|可选| 拼接其他参数，注意参数间使用空格分隔，参数内部不能留有空格。如：`--tensor-parallel-size 2 --no-enable-prefix-caching`。默认为空。| 
 
+### 自定义参数寻优
+
+寻优工具支持通过 `[[vllm.target_field]]` 添加任意 vllm 启动参数参与寻优。配置方式分为两步：**声明寻优字段** + **在 `others` 中引用变量**。
+
+> **变量引用规则**：在 `others` 中使用 `$字段名大写` 的格式引用寻优字段，工具运行时会自动将其替换为当前迭代的实际值。
+
+#### 示例一：枚举数值参数（以 `gpu_memory_utilization` 为例）
+
+**第一步**：声明寻优字段。
+
+```toml
+[[vllm.target_field]]
+name = "GPU_MEMORY_UTILIZATION"
+config_position = "env"
+dtype = "enum"
+dtype_param = [0.9, 0.91, 0.92]
+value = 0.9
+```
+
+**第二步**：在 `[vllm.command]` 的 `others` 中引用变量。
+
+```toml
+[vllm.command]
+# ... 其他必填参数 ...
+others = "--gpu-memory-utilization $GPU_MEMORY_UTILIZATION"
+```
+
+#### 示例二：开关型/复合字符串参数（以编译配置 `--compilation-config` 为例）
+
+当参数本身是一段完整的 CLI 字符串时，可将“不启用”（空字符串 `""`）和“启用”两种形态作为枚举候选值。工具遇到空字符串时会自动跳过，不向启动命令追加任何内容。
+
+**第一步**：声明寻优字段。
+
+> **注意**：TOML 字符串使用双引号 `"` 作为边界符，若字符串内容中包含双引号，需使用 `\"` 转义，否则会解析报错。
+
+```toml
+[[vllm.target_field]]
+name = "COMPILATION_CONFIG"
+config_position = "env"
+dtype = "enum"
+dtype_param = ["", "--compilation-config '{\"cudagraph_mode\": \"FULL_DECODE_ONLY\"}'"]  
+value = "--compilation-config '{\"cudagraph_mode\": \"FULL_DECODE_ONLY\"}'"
+```
+
+**第二步**：在 `[vllm.command]` 的 `others` 中引用变量。
+
+```toml
+[vllm.command]
+# ... 其他必填参数 ...
+others = "$COMPILATION_CONFIG"
+```
+
 **日志检测**：检查日志中出现的异常信息，区分致命错误和可重试错误，实现智能错误处理和重试机制。可检测的错误类型包括内存溢出（OOM）、设备故障（NPU）、网络错误和IO错误等。致命错误（如OOM、NPU故障）会立即停止调度器，可重试错误（如网络抖动、IO失败）会触发自动重试（最多3次）。
 
 |参数|可选/必选|说明|

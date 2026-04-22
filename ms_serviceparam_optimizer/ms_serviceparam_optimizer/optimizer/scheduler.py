@@ -290,29 +290,34 @@ class Scheduler:
             time.sleep(1)
             self.performance_index = self.benchmark.get_performance_index()
             self.benchmark.stop()
+            need_second_run = False
             for _field in self.simulate_run_info:
                 if _field.name in REQUESTRATES:
                     if not isclose(_field.min, _field.max):
                         _field.value = _field.find_available_value(self.performance_index.throughput * 1.05)
-            logger.info("second run param info {}", {v.name: v.value for v in self.simulate_run_info})
-            if hasattr(self.benchmark, "data_field"):
-                self.benchmark.data_field = params_field
-            self.benchmark.update_command()
-            try:
-                if hasattr(self.benchmark, "prepare"):
-                    self.benchmark.prepare()
-                self.benchmark.run(tuple(self.simulate_run_info))
-            except Exception as e:
-                logger.error(f"Failed in Benchmark Running. error: {e}, benchmark log {self.benchmark.run_log}")
-                raise e
-            try:
-                self.monitoring_status()
-            except Exception as e:
-                logger.error(f"Failed in monitoring status. error: {e}, simulator log {self.simulator.run_log}, "
-                             f"benchmark log {self.benchmark.run_log}")
-                raise e
-            time.sleep(1)
-            self.performance_index = self.benchmark.get_performance_index()
+                        need_second_run = True
+            if not need_second_run:
+                logger.info("REQUESTRATE is fixed (min == max), skipping second run.")
+            else:
+                logger.info("second run param info {}", {v.name: v.value for v in self.simulate_run_info})
+                if hasattr(self.benchmark, "data_field"):
+                    self.benchmark.data_field = params_field
+                self.benchmark.update_command()
+                try:
+                    if hasattr(self.benchmark, "prepare"):
+                        self.benchmark.prepare()
+                    self.benchmark.run(tuple(self.simulate_run_info))
+                except Exception as e:
+                    logger.error(f"Failed in Benchmark Running. error: {e}, benchmark log {self.benchmark.run_log}")
+                    raise e
+                try:
+                    self.monitoring_status()
+                except Exception as e:
+                    logger.error(f"Failed in monitoring status. error: {e}, simulator log {self.simulator.run_log}, "
+                                 f"benchmark log {self.benchmark.run_log}")
+                    raise e
+                time.sleep(1)
+                self.performance_index = self.benchmark.get_performance_index()
         except Exception as e:
             logger.error(f"Failed running. bak path: {self.simulator.bak_path}. error {e}"
                          f"simulator log {self.simulator.run_log}, benchmark log {self.benchmark.run_log}")
