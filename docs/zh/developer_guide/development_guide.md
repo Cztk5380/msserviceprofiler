@@ -76,7 +76,7 @@ pytest-asyncio
 
 #### 2.2.4 CANN环境
 
-需要安装配套版本的CANN Toolkit开发套件包并配置CANN环境变量，具体请参见《[CANN 软件安装指南](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html)》。
+需要安装配套版本的CANN Toolkit开发套件包并配置CANN环境变量，具体请参见[CANN快速安装](https://www.hiascend.com/cann/download)。
 
 ## 3. 代码下载与项目结构
 

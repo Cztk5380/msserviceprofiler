@@ -33,24 +33,24 @@ msServiceProfiler Trace采集MindIE Motor服务中的请求响应时间、响应
 
 **环境准备<a name="section151144214396"></a>**
 
-1. 在昇腾环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见《[CANN 软件安装指南](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=netconda&OS=openEuler)》。
+1. 在昇腾环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见[CANN快速安装](https://www.hiascend.com/cann/download)。
 
 2. 完成[msServiceProfiler工具](msserviceprofiler_install_guide.md)的安装。
 
-3. 完成MindIE的安装和配置并确认MindIE Motor可以正常运行，具体请参见《[MindIE安装指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/install/installing_mindie.md)》。
+3. 完成MindIE的安装和配置并确认MindIE Motor可以正常运行，具体请参见《[MindIE 安装指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/install/environment_preparation.md)》。
 
 4. MindIE Motor服务所在的昇腾环境与OTLP采集器（Jaeger等）需建立稳定网络连接。
 
 **约束<a name="section12833144412392"></a>**
 
-msServiceProfiler Trace转发数据最大支持400并发，超过400并发可能出现请求积压，请求积压超过100W，将出现数据丢失。
+msServiceProfiler Trace转发数据最大支持400并发，超过400并发可能出现请求积压，请求积压超过1000000，将出现数据丢失。
 
 相关日志提示（下述日志每小时只上报1次）：
 
 ```ColdFusion
-# 积压请求数量超过10w出现请求积压告警
+# 积压请求数量超过100000出现请求积压告警
 2025-11-26 15:45:59,038 - 4059906 - msServiceProfiler - WARNING - Trace data is being stacked: {积压数量}
-# 积压请求数量超过100w出现数据丢失告警
+# 积压请求数量超过1000000出现数据丢失告警
 2025-11-26 15:45:59,522 - 4059906 - msServiceProfiler - WARNING - Trace data queue is full, discarding the oldest data.
 ```
 
@@ -148,7 +148,7 @@ export MS_PROFILER_SAMPLE_ERROR=1
 
 **注意事项<a name="section20819721134913"></a>**
 
-重试机制：单条请求发送失败（默认重发6次），Trace转发进程不再接受后续的Trace数据，直到该请求发送成功才恢复数据转发功能。
+重试机制：单条请求发送失败（默认重发6次），Trace转发进程不再接收后续的Trace数据，直到该请求发送成功才恢复数据转发功能。
 
 **命令格式<a name="section10872103414491"></a>**
 
@@ -159,8 +159,6 @@ python -m ms_service_profiler.trace [--log-level]
 options参数说明请参见[参数说明](#section379581401015)。
 
 **参数说明<a name="section379581401015"></a>**
-
-**表 1**  参数说明
 
 |**参数**|说明|**是否必选**|
 |--|--|--|

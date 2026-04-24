@@ -5,7 +5,7 @@
 
         当定义ENABLE\_PROF会正常执行打印，当没有定义则不会打印。
 
-        PROF\(std::cout**<<**  "enable prof"  **<<**  std::endl\);
+        PROF\(std::cout<<  "enable prof"  <<  std::endl\);
 
     - 两个参数：采集级别，采集语句。自动初始化采集类以及定义采集级别。
 

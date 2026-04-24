@@ -80,16 +80,16 @@ msserviceprofiler advisor -i /your/path/instance/
 
 ### 参数说明
 
-  | 参数                 | 可选/必选 | 说明                                                            |
-  | -------------------- | --------- | --------------------------------------------------------------- |
-  | -i 或 --instance_path  | 可选        | benchmark 输出的 instance 路径，不输入则默认不读取其中相关信息用于分析。  |
-  | -s 或 --service_config_path  | 可选        | MindIE Service 路径或 config json 文件路径，默认值为 MindIE Service 的环境变量 `MIES_INSTALL_PATH`，如果均未配置则使用 /usr/local/Ascend/mindie/latest/mindie-service。 |
-  | -t 或 --target         | 可选        | 调参指标。可选值：<br> • ttft: 首token时延。<br> • firsttokentime: 首token时延。<br> • throughput：吞吐。<br> 默认值为ttft。       |
-  | -m 或 --target_metrics | 可选        | 调参指标的具体项。可选值：<br> • average：平均值。<br> • max：最大值。<br> • min：最小值。<br> • P75：百分之75分位值。<br> • P90：百分之90分位值。<br> • SLO_P90：满足特定SLO约束条件下百分之90的分位值。<br> • P99：百分之99分位值。<br> • N：百分之N分位值。<br>默认值为average。 |
-  | -l 或 --log_level  | 可选        | 日志级别。可选值：<br> • debug：调试级别日志。<br> • info：执行信息级别日志。<br> • warning：告警级别日志。<br> • error：错误级别日志。<br> • fatal：致命级别日志。<br> • critical：关键级别日志。<br>默认值为info。  |
-  | -in 或 --input_token_num  | 可选        | 请求输入长度，需为正整数。不输入则默认从benchmark的instance结果中获取。 |
-  | -out 或 --output_token_num  | 可选        | 请求输出长度，需为正整数。不输入则默认为 MindIE Service config.json的maxIterTimes值。 |
-  | -tp 或 --tp  | 可选        | tp域大小，需为正整数。不输入则默认从 MindIE Service config.json文件中获取，未取到则默认为1。 |
+| 参数                 | 可选/必选 | 说明                                                            |
+| -------------------- | --------- | --------------------------------------------------------------- |
+| -i 或 --instance_path  | 可选        | benchmark 输出的 instance 路径，不输入则默认不读取其中相关信息用于分析。  |
+| -s 或 --service_config_path  | 可选        | MindIE Service 路径或 config.json 文件路径，默认值为 MindIE Service 的环境变量 `MIES_INSTALL_PATH`，如果均未配置则使用 /usr/local/Ascend/mindie/latest/mindie-service。 |
+| -t 或 --target         | 可选        | 调参指标。可选值：<br> • ttft: 首token时延。<br> • firsttokentime: 首token时延。<br> • throughput：吞吐。<br> 默认值为ttft。       |
+| -m 或 --target_metrics | 可选        | 调参指标的具体项。可选值：<br> • average：平均值。<br> • max：最大值。<br> • min：最小值。<br> • P75：百分之75分位值。<br> • P90：百分之90分位值。<br> • SLO_P90：满足特定SLO约束条件下百分之90的分位值。<br> • P99：百分之99分位值。<br> • N：百分之N分位值。<br>默认值为average。 |
+| -l 或 --log_level  | 可选        | 日志级别。可选值：<br> • debug：调试级别日志。<br> • info：执行信息级别日志。<br> • warning：告警级别日志。<br> • error：错误级别日志。<br> • fatal：致命级别日志。<br> • critical：关键级别日志。<br>默认值为info。  |
+| -in 或 --input_token_num  | 可选        | 请求输入长度，需为正整数。不输入则默认从benchmark的instance结果中获取。 |
+| -out 或 --output_token_num  | 可选        | 请求输出长度，需为正整数。不输入则默认为 MindIE Service config.json的maxIterTimes值。 |
+| -tp 或 --tp  | 可选        | tp域大小，需为正整数。不输入则默认从 MindIE Service config.json文件中获取，未取到则默认为1。 |
 
 ### 使用示例
 
