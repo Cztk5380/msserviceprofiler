@@ -12,17 +12,17 @@
 
 - **CANN 环境**：安装配套版本的 CANN Toolkit 开发套件包和 ops 算子包，并配置 CANN 环境变量，具体请参见[CANN快速安装](https://www.hiascend.com/cann/download)。
 
-- **pandas 依赖**：需 pandas 2.2 版本。可通过以下命令查询或安装：
+- **pandas 依赖**：需 pandas 2.2 及以上版本。可通过以下命令查询或安装：
 
   ```bash
-  pip show pandas      # 查询当前版本
-  pip install pandas==2.2   # 若版本不符，执行此命令安装
+  pip show pandas    # 查询当前版本
+  pip install pandas==2.2    # 若版本不符，执行此命令安装
   ```
 
 - **sqlite3**：构建依赖 sqlite3，请先安装。示例命令如下：
 
   ```bash
-  apt-get install libsqlite3-dev  # RHEL/CentOS/Fedora 等使用 yum 的系统请执行：yum install sqlite sqlite-devel
+  apt-get install libsqlite3-dev    # RHEL/CentOS/Fedora 等使用 yum 的系统请执行：yum install sqlite sqlite-devel
   ```
 
 - **lcov**（可选）：如需运行单元测试并统计覆盖率，需额外安装。示例命令如下：

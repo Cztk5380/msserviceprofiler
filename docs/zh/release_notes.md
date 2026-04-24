@@ -14,7 +14,6 @@
 | `mindstudio-service-profiler_26.0.0_aarch64.run` | `bae649cdb94c376d8aa2ebb83adef18f` |
 | `mindstudio-service-profiler_26.0.0_x86_64.run` | `8e71fb58717c79b34b9591411eb41078` |
 
-
 ### 26.0.0-alpha.1
 
 | 文件名 | MD5 |
