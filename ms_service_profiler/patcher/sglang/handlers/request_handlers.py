@@ -87,12 +87,22 @@ def send_one_request(original_func, this, obj, *args, **kwargs):
     ("sglang.srt.managers.tokenizer_manager", "TokenizerManager._send_batch_request"),
     min_version="0.5.4"
 )
-def send_batch_request(original_func, this, obj, tokenized_objs, *args, **kwargs):
+def send_batch_request(original_func, this, *args, **kwargs):
+    # 新签名: (self, tokenized_objs)
+    # 部分旧版: (self, obj, tokenized_objs) —— 多一个 obj，以 args 个数区分
+    if len(args) == 1:
+        tokenized_objs = args[0]
+    elif len(args) >= 2:
+        # 旧版 (self, obj, tokenized_objs, ...)：第二项为列表；其后还可有额外位置参数
+        tokenized_objs = args[1]
+    else:
+        return original_func(this, *args, **kwargs)
+
     prof_rid_list = [tokenized_obj.rid for tokenized_obj in tokenized_objs]
     prof = Profiler(Level.INFO).domain("Request").\
         res(prof_rid_list).span_start("send_to_scheduler.dispatch")
 
-    ret = original_func(this, obj, tokenized_objs, *args, **kwargs)
+    ret = original_func(this, *args, **kwargs)
 
     prof.span_end()
 
@@ -104,7 +114,8 @@ def send_batch_request(original_func, this, obj, tokenized_objs, *args, **kwargs
     min_version="0.5.4"
 )
 async def wait_one_response(original_func, this, obj, *args, **kwargs):
-    is_stream = obj.stream
+    # EmbeddingReqInput 没有 stream 字段，用 getattr 兼容
+    is_stream = getattr(obj, "stream", False)
 
     async for response in original_func(this, obj, *args, **kwargs):
         Profiler(Level.INFO).domain("Request").attr("stream", is_stream)\
