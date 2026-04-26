@@ -46,7 +46,9 @@ def get_batch_type(batch):
 
 
 def prof_kvcache_info(scheduler, name="allocate"):
-    # 兼容 0.5.4 (is_hybrid) 和 0.5.6+ (is_hybrid_swa)
+    # 与 sglang `SchedulerRuntimeCheckerMixin` 中 tuple 返回约定一致：
+    # _get_token_info -> (num_used, token_usage, available, evictable)
+    # _get_swa_token_info -> 8 元组，下标 4~7 为各池 available/evictable
     is_hybrid = getattr(scheduler, 'is_hybrid_swa', None) or getattr(scheduler, 'is_hybrid', False)
     if is_hybrid:
         (
@@ -59,16 +61,17 @@ def prof_kvcache_info(scheduler, name="allocate"):
             swa_available_size,
             swa_evictable_size,
         ) = scheduler._get_swa_token_info()
-        Profiler(Level.INFO).domain("KVCache")\
-            .metric("FreeBlocks", full_available_size)\
-            .metric("fullEvictableSize", full_evictable_size)\
-            .metric("swaAvailableSize", swa_available_size)\
-            .metric("swaEvictableSize", swa_evictable_size)\
+        Profiler(Level.INFO).domain("KVCache") \
+            .metric("FreeBlocks", full_available_size) \
+            .metric("fullEvictableSize", full_evictable_size) \
+            .metric("swaAvailableSize", swa_available_size) \
+            .metric("swaEvictableSize", swa_evictable_size) \
             .event(name)
     else:
         _, _, available_size, evictable_size = scheduler._get_token_info()
-        Profiler(Level.INFO).domain("KVCache").metric("FreeBlocks", available_size)\
-            .metric("fullEvictableSize", evictable_size)\
+        Profiler(Level.INFO).domain("KVCache") \
+            .metric("FreeBlocks", available_size) \
+            .metric("fullEvictableSize", evictable_size) \
             .event(name)
 
 
@@ -167,13 +170,15 @@ def add_request_to_queue(original_func, this, req, is_retracted: bool = False, *
     elif this.disaggregation_mode == DisaggregationMode.PREFILL:
         Profiler(Level.INFO).domain("Schedule").res(str(req.rid)).\
             metric_scope("QueueName", "PrefillBootstrap").event("Enqueue")
-        Profiler(Level.INFO).domain("Schedule").metric("QueueSize", len(this.disagg_prefill_bootstrap_queue)).\
+        # disagg_prefill_bootstrap_queue 未实现 __len__，需取 .queue 列表
+        Profiler(Level.INFO).domain("Schedule").metric("QueueSize", len(this.disagg_prefill_bootstrap_queue.queue)).\
             metric_scope("QueueName", "PrefillBootstrap").event("Queue")
     elif this.disaggregation_mode == DisaggregationMode.DECODE:
         if not is_retracted:
             Profiler(Level.INFO).domain("Schedule").res(str(req.rid)).\
                 metric_scope("QueueName", "DecodePrealloc").event("Enqueue")
-            Profiler(Level.INFO).domain("Schedule").metric("QueueSize", len(this.disagg_decode_prealloc_queue)).\
+            # disagg_decode_prealloc_queue 未实现 __len__，需取 .queue 列表
+            Profiler(Level.INFO).domain("Schedule").metric("QueueSize", len(this.disagg_decode_prealloc_queue.queue)).\
                 metric_scope("QueueName", "DecodePrealloc").event("Queue")
 
     result = original_func(this, req, is_retracted, *args, **kwargs)
@@ -207,7 +212,8 @@ def get_new_batch_prefill(original_func, this, *args, **kwargs):
 def init_next_round_input(original_func, this, *args, **kwargs):
     ret = original_func(this, *args, **kwargs)
 
-    if this.origin_input_ids != 0:
+    # origin_input_ids 当前版本为 List[int]，用 bool() 兼容 list/int 两种类型
+    if this.origin_input_ids:
         Profiler(Level.INFO).domain("HitCache").\
             metric("hitRate", str(len(this.prefix_indices) / len(this.origin_input_ids))).\
             res(str(this.rid)).event("HitCache")

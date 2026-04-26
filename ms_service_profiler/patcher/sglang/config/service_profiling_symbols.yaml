@@ -1,4 +1,4 @@
-# ===== Scheduler =====
+﻿# ===== Scheduler =====
 - symbol: sglang.srt.managers.scheduler:Scheduler.recv_requests
   min_version: "0.5.4"
   handler: ms_service_profiler.patcher.sglang.handlers.scheduler_handlers:recv_requests
