@@ -8,6 +8,7 @@ MSSERVICE_RUN_NAME="mindstudio-msserviceprofiler"
 PATH_LENGTH=4096
 package_arch=$(uname -m)
 install_for_all_flag=0
+check_flag=0
 uninstall_flag=0
 
 function print_log() {
@@ -126,6 +127,11 @@ function parse_script_args() {
             shift
             continue
             ;;
+        --check)
+            check_flag=1
+            shift
+            continue
+            ;;
         --uninstall)
  	             uninstall_flag=1
  	             shift
@@ -146,6 +152,9 @@ function parse_script_args() {
 
 function check_args() {
     local op_count=0
+    if [ ${check_flag} -eq 1 ]; then
+ 	         return 0
+ 	  fi
     [ ${install_args_num} -gt 0 ] && op_count=$((op_count + 1))
     [ ${upgrade_flag} -eq 1 ] && op_count=$((op_count + 1))
     [ ${uninstall_flag} -eq 1 ] && op_count=$((op_count + 1))

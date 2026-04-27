@@ -12,11 +12,10 @@
 
 - **CANN 环境**：安装配套版本的 CANN Toolkit 开发套件包和 ops 算子包，并配置 CANN 环境变量，具体请参见[CANN快速安装](https://www.hiascend.com/cann/download)。
 
-- **pandas 依赖**：需 pandas 2.2 及以上版本。可通过以下命令查询或安装：
+- **python 依赖**：可通过以下命令安装：
 
   ```bash
-  pip show pandas    # 查询当前版本
-  pip install pandas==2.2    # 若版本不符，执行此命令安装
+  pip install -r requirements.txt    # requirements.txt在项目主路径下
   ```
 
 - **sqlite3**：构建依赖 sqlite3，请先安装。示例命令如下：

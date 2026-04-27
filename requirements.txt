@@ -1,0 +1,13 @@
+pandas~=2.2
+openpyxl
+numpy
+pydantic
+psutil
+scipy
+pyyaml
+matplotlib
+msguard
+loguru
+opentelemetry-exporter-otlp-proto-grpc==1.33.1
+opentelemetry-exporter-otlp-proto-http==1.33.1
+packaging

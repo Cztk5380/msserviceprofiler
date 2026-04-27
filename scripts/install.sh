@@ -57,6 +57,7 @@ function implement_install() {
     copy_file ${VERSION_INFO} ${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${VERSION_INFO}
 	  # install whl
     install_whl_package $pylocal ms_service_profiler-*.whl ${install_path%/}/python/site-packages
+    print_log "INFO" "${install_path%/}/python/site-packages/ms_service_profiler is created or replaced."
     # libms_service_profiler.so
     lib64_right=$(stat -c "%a" ${install_path}/${arch_name}/lib64 2>/dev/null)
     chmod -R ${right} ${install_path}/${arch_name}/lib64
@@ -91,7 +92,7 @@ function copy_file() {
     cp -r ${filename} ${target_file}
     chmod -R ${right} ${target_file}
   fi
-  print_log "INFO" "$filename is replaced."
+  print_log "INFO" "$target_file is created or replaced."
 }
 
 function create_directory() {
