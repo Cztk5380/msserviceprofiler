@@ -790,7 +790,7 @@ nlohmann::ordered_json Config::GetConfigData() const
         {"prof_dir", GetDefaultProfPath()},
         {"profiler_level", "INFO"},
         {"acl_task_time", enableAclTaskTime_ ? 1 : 0},
-        {"acl_prof_task_time_level", ""},
+        {"acl_prof_task_time_level", "L0"},
         {"timelimit", 0},
         {"domain", ""},
     };

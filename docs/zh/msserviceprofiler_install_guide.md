@@ -12,14 +12,13 @@
 
 - **CANN 环境**：安装配套版本的 CANN Toolkit 开发套件包和 ops 算子包，并配置 CANN 环境变量，具体请参见[CANN快速安装](https://www.hiascend.com/cann/download)。
 
-- **pandas 依赖**：需 pandas 2.2 及以上版本。可通过以下命令查询或安装：
+- **python 依赖**：可通过以下命令安装：
 
   ```bash
-  pip show pandas    # 查询当前版本
-  pip install pandas==2.2    # 若版本不符，执行此命令安装
+  pip install -r requirements.txt    # requirements.txt在项目主路径下
   ```
 
-- **sqlite3**：构建依赖 sqlite3，请先安装。示例命令如下：
+- **sqlite3**（可选）：如需构建，需安装 sqlite3，请先安装。示例命令如下：
 
   ```bash
   apt-get install libsqlite3-dev    # RHEL/CentOS/Fedora 等使用 yum 的系统请执行：yum install sqlite sqlite-devel
@@ -58,7 +57,7 @@ echo "<expected_md5>  mindstudio-service-profiler_<version>_<arch>.run" | md5sum
 chmod u+x mindstudio-service-profiler_<version>_<arch>.run
 ./mindstudio-service-profiler_<version>_<arch>.run --check
 
-# 4. 安装
+# 4. 安装或升级
 ./mindstudio-service-profiler_<version>_<arch>.run --install
 ```
 
@@ -66,7 +65,6 @@ chmod u+x mindstudio-service-profiler_<version>_<arch>.run
 >
 > - `<expected_md5>` 请以 release 页面或[版本说明](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/zh/release_notes.md#安装包-md5-校验值)中，与同版本 **run 包**文件名对应的 MD5 为准。
 > - 若此前通过 pip 安装过 `ms_service_profiler`，升级到 run 包安装前建议先执行 `pip uninstall ms_service_profiler -y`，避免环境不一致。
-> - 若需要升级到指定版本，请下载对应版本的 run 包后执行 `./mindstudio-service-profiler_<version>_<arch>.run --upgrade`
 >
 > **MD5sum 校验不一致处理建议：**
 >
