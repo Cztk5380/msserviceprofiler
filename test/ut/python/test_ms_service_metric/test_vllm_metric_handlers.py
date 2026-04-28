@@ -17,6 +17,7 @@
 from types import SimpleNamespace
 
 import ms_service_metric.adapters.vllm.handlers.metric_handlers as mh
+import ms_service_metric.adapters.vllm.handlers.utils as hu
 
 
 def test_given_timeline_start_and_trigger_points_when_record_then_duration_metric_emitted(monkeypatch):
@@ -111,7 +112,7 @@ def test_given_runner_get_output_when_hook_called_then_records_duration_and_time
 def test_given_scheduler_result_when_scheduler_hook_called_then_records_core_metrics(monkeypatch):
     calls = []
     monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
-    times = iter([1.0, 1.2])
+    times = iter([1.0, 1.2, 1.2])
     monkeypatch.setattr(mh.time, "time", lambda: next(times))
 
     ret = SimpleNamespace(
@@ -125,6 +126,35 @@ def test_given_scheduler_result_when_scheduler_hook_called_then_records_core_met
     out = mh.scheduler_scheduler_hooker(lambda *_a, **_k: ret, scheduler)
     assert out is ret
     assert len(calls) >= 5
+    metric_names = [a[0] for a, _k in calls]
+    assert "scheduler:seqlen:sum" in metric_names
+
+
+def test_given_scheduled_tokens_without_request_ids_when_scheduler_hook_called_then_records_unknown_phase(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+    times = iter([1.0, 1.2, 1.2])
+    monkeypatch.setattr(mh.time, "time", lambda: next(times))
+
+    ret = SimpleNamespace(
+        num_scheduled_tokens=[1, 2],
+        scheduled_new_reqs=[],
+        scheduled_cached_reqs=SimpleNamespace(num_computed_tokens=[]),
+        total_num_scheduled_tokens=3,
+        finished_req_ids=[],
+    )
+    scheduler = SimpleNamespace(running=[])
+
+    mh.scheduler_scheduler_hooker(lambda *_a, **_k: ret, scheduler)
+
+    phase_values = {
+        (args[0], args[2]["req_phase"]): args[1]
+        for args, _kwargs in calls
+        if len(args) >= 3 and isinstance(args[2], dict) and "req_phase" in args[2]
+    }
+    assert phase_values[("scheduler:phase_batch_size", "unknown")] == 2
+    assert phase_values[("scheduler:phase_scheduled_tokens", "unknown")] == 3
+    assert phase_values[("scheduler:phase_scheduled_token_counter", "unknown")] == 3
 
 
 def test_given_scheduler_result_without_tokens_when_scheduler_hook_called_then_avg_sum_not_recorded(monkeypatch):
@@ -144,3 +174,66 @@ def test_given_scheduler_result_without_tokens_when_scheduler_hook_called_then_a
     metric_names = [a[0] for a, _k in calls]
     assert "scheduler:seqlen:avg" not in metric_names
     assert "scheduler:seqlen:sum" not in metric_names
+    assert "scheduler:phase_scheduled_token_counter" not in metric_names
+    assert "scheduler:phase_scheduled_tokens" not in metric_names
+
+
+def test_given_mixed_phase_batch_when_scheduler_hook_called_then_prefill_decode_metrics_split(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+    monkeypatch.setattr(
+        mh,
+        "_get_scheduler_phase_state",
+        lambda: SimpleNamespace(request_id_to_prompt_token_len={"cached_prefill": 10}),
+    )
+    times = iter([3.0, 3.2])
+    monkeypatch.setattr(mh.time, "time", lambda: next(times))
+
+    ret = SimpleNamespace(
+        num_scheduled_tokens={
+            "new_prefill": 5,
+            "new_decode": 2,
+            "cached_prefill": 7,
+        },
+        scheduled_new_reqs=[
+            SimpleNamespace(req_id="new_prefill", prompt_token_ids=list(range(8)), num_computed_tokens=3),
+            SimpleNamespace(req_id="new_decode", prompt_token_ids=list(range(6)), num_computed_tokens=6),
+        ],
+        scheduled_cached_reqs=SimpleNamespace(
+            req_ids=["cached_prefill"],
+            num_computed_tokens=[4],
+        ),
+        total_num_scheduled_tokens=14,
+        finished_req_ids=[],
+    )
+    scheduler = SimpleNamespace(running=[1, 2])
+
+    out = mh.scheduler_scheduler_hooker(lambda *_a, **_k: ret, scheduler)
+    assert out is ret
+
+    phase_values = {
+        (args[0], args[2]["req_phase"]): args[1]
+        for args, _kwargs in calls
+        if len(args) >= 3 and isinstance(args[2], dict) and "req_phase" in args[2]
+    }
+
+    assert phase_values[("scheduler:phase_batch_size", "prefill")] == 2
+    assert phase_values[("scheduler:phase_batch_size", "decode")] == 1
+    assert phase_values[("scheduler:phase_scheduled_token_counter", "prefill")] == 12
+    assert phase_values[("scheduler:phase_scheduled_token_counter", "decode")] == 2
+    assert phase_values[("scheduler:phase_scheduled_tokens", "prefill")] == 12
+    assert phase_values[("scheduler:phase_scheduled_tokens", "decode")] == 2
+
+
+def test_given_v1_preempt_request_when_hook_called_then_records_exact_recompute_event(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+    phase_state = hu.SchedulerPhaseState()
+    phase_state.request_id_to_prompt_token_len["r1"] = 8
+    monkeypatch.setattr(mh, "_get_scheduler_phase_state", lambda: phase_state)
+
+    out = mh.scheduler_preempt_request_hooker(lambda *_a, **_k: "ok", object(), SimpleNamespace(request_id="r1"))
+
+    assert out == "ok"
+    assert "r1" not in phase_state.request_id_to_prompt_token_len
+    assert calls == [(("scheduler:recompute_events", 1), {})]

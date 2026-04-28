@@ -25,6 +25,11 @@ from typing import Any
 
 from ms_service_metric.utils.logger import get_logger
 from ms_service_metric.metrics.metrics_manager import get_metrics_manager, MetricType, SIZE_BUCKETS
+from ms_service_metric.adapters.vllm.handlers.utils import (
+    clear_request_phase_state as _clear_request_phase_state,
+    collect_phase_metrics as _collect_phase_metrics,
+    get_scheduler_phase_state as _get_scheduler_phase_state,
+)
 
 logger = get_logger(__name__)
 metrics_client = get_metrics_manager()
@@ -177,6 +182,15 @@ metrics_client.get_or_create_metric("scheduler:batch_size", buckets=SIZE_BUCKETS
 metrics_client.get_or_create_metric("scheduler:running_queue_size", buckets=SIZE_BUCKETS)
 metrics_client.get_or_create_metric("scheduler:seqlen:avg", metric_type=MetricType.GAUGE, buckets=SIZE_BUCKETS)
 metrics_client.get_or_create_metric("scheduler:seqlen:sum", metric_type=MetricType.GAUGE, buckets=SIZE_BUCKETS)
+metrics_client.get_or_create_metric("scheduler:phase_batch_size", ["req_phase"], buckets=SIZE_BUCKETS)
+metrics_client.get_or_create_metric("scheduler:recompute_events", metric_type=MetricType.COUNTER)
+metrics_client.get_or_create_metric("scheduler:phase_scheduled_token_counter", ["req_phase"], metric_type=MetricType.COUNTER)
+metrics_client.get_or_create_metric(
+    "scheduler:phase_scheduled_tokens",
+    ["req_phase"],
+    metric_type=MetricType.HISTOGRAM,
+    buckets=SIZE_BUCKETS,
+)
 
 
 def scheduler_scheduler_hooker(original_func, self, *args, **kwargs):
@@ -194,6 +208,7 @@ def scheduler_scheduler_hooker(original_func, self, *args, **kwargs):
     start_time = time.time()
     ret = original_func(self, *args, **kwargs)
     duration = time.time() - start_time
+    phase_metrics = _collect_phase_metrics(_get_scheduler_phase_state(), ret)
 
     metrics_client.record_metric("scheduler:duration", duration)
     metrics_client.record_metric("scheduler:batch_size", len(ret.num_scheduled_tokens))
@@ -214,5 +229,29 @@ def scheduler_scheduler_hooker(original_func, self, *args, **kwargs):
     if seqlen_sum > 0:
         metrics_client.record_metric("scheduler:seqlen:sum", seqlen_sum)
 
+    for req_phase, phase_values in phase_metrics.items():
+        labels = {"req_phase": req_phase}
+        batch_size = phase_values["batch_size"]
+        scheduled_tokens_sum = phase_values["scheduled_tokens_sum"]
+        if batch_size <= 0:
+            continue
+        metrics_client.record_metric("scheduler:phase_batch_size", batch_size, labels)
+        metrics_client.record_metric("scheduler:phase_scheduled_tokens", scheduled_tokens_sum, labels)
+        if scheduled_tokens_sum > 0:
+            metrics_client.record_metric("scheduler:phase_scheduled_token_counter", scheduled_tokens_sum, labels)
+
+    return ret
+
+
+def scheduler_preempt_request_hooker(original_func, self, *args, **kwargs):
+    """Record exact v1 recompute events.
+
+    In current vLLM v1, Scheduler._preempt_request is the path that
+    preempts a running request, frees its KV cache, and resets computed
+    tokens so the request will recompute when scheduled again.
+    """
+    ret = original_func(self, *args, **kwargs)
+    _clear_request_phase_state(_get_scheduler_phase_state(), *args, *kwargs.values(), ret)
+    metrics_client.record_metric("scheduler:recompute_events", 1)
     return ret
 

@@ -15,6 +15,11 @@
 # -------------------------------------------------------------------------
 
 from typing import Dict
+from ms_service_metric.adapters.vllm.handlers.utils import (
+    QUEUE_PHASES,
+    collect_queue_phase_metrics,
+    get_scheduler_phase_state,
+)
 from ms_service_metric.utils.logger import get_logger
 from ms_service_metric.metrics.meta_state import get_meta_state
 from ms_service_metric.metrics.metrics_manager import get_metrics_manager, MetricType, SIZE_BUCKETS
@@ -22,6 +27,7 @@ from ms_service_metric.metrics.metrics_manager import get_metrics_manager, Metri
 metrics_client = get_metrics_manager()
 
 logger = get_logger(__name__)
+_MISSING_QUEUE_ATTRS_WARNED = set()
 
 
 def init_data_parallel(original_func, this, vllm_config, *args, **kwargs):
@@ -65,9 +71,27 @@ def init_data_parallel_worker(original_func, this, *args, **kwargs):
 TOTAL_KVCACHE_BLOCKS = "total_kvcache_blocks"
 FREE_KVCACHE_BLOCKS = "free_kvcache_blocks"
 ALLOCATED_KVCACHE_BLOCKS = "allocated_kvcache_blocks"
+RUNNING_PHASE_BATCH_SIZE = "running_phase_batch_size"
+WAITING_PHASE_BATCH_SIZE = "waiting_phase_batch_size"
 metrics_client.get_or_create_metric(TOTAL_KVCACHE_BLOCKS, metric_type=MetricType.GAUGE)
 metrics_client.get_or_create_metric(FREE_KVCACHE_BLOCKS, metric_type=MetricType.GAUGE)
 metrics_client.get_or_create_metric(ALLOCATED_KVCACHE_BLOCKS, metric_type=MetricType.GAUGE)
+metrics_client.get_or_create_metric(RUNNING_PHASE_BATCH_SIZE, buckets=SIZE_BUCKETS, label_names=["req_phase"])
+metrics_client.get_or_create_metric(WAITING_PHASE_BATCH_SIZE, buckets=SIZE_BUCKETS, label_names=["req_phase"])
+
+
+def _record_queue_phase_metrics(metric_name: str, phase_counts: Dict[str, int]):
+    for phase in QUEUE_PHASES:
+        metrics_client.record_metric(metric_name, labels={"req_phase": phase}, value=phase_counts.get(phase, 0))
+
+
+def _get_scheduler_queue(scheduler, attr_name: str):
+    if hasattr(scheduler, attr_name):
+        return getattr(scheduler, attr_name)
+    if attr_name not in _MISSING_QUEUE_ATTRS_WARNED:
+        logger.warning("Scheduler has no %s queue attribute, phase queue metrics will be recorded as zero", attr_name)
+        _MISSING_QUEUE_ATTRS_WARNED.add(attr_name)
+    return []
 
 
 def make_stats(original_func, this, *args, **kwargs):
@@ -96,8 +120,12 @@ def make_stats(original_func, this, *args, **kwargs):
     labels = {"dp": state.dp_rank}
     for kv_metric_name, values in kvcache_values_list.items():
         metrics_client.record_metric(kv_metric_name, labels=labels, value=values)
-
     ret = original_func(this, *args, **kwargs)
+    phase_state = get_scheduler_phase_state()
+    running_phase_counts = collect_queue_phase_metrics(phase_state, _get_scheduler_queue(this, "running"))
+    waiting_phase_counts = collect_queue_phase_metrics(phase_state, _get_scheduler_queue(this, "waiting"))
+    _record_queue_phase_metrics(RUNNING_PHASE_BATCH_SIZE, running_phase_counts)
+    _record_queue_phase_metrics(WAITING_PHASE_BATCH_SIZE, waiting_phase_counts)
 
     # 传递dp域值，在record函数中捕获
     if ret.kv_connector_stats is None:

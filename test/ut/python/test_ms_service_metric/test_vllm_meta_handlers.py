@@ -17,6 +17,7 @@
 from types import SimpleNamespace
 
 import ms_service_metric.adapters.vllm.handlers.meta_handlers as mh
+import ms_service_metric.adapters.vllm.handlers.utils as hu
 
 
 class _FakeState:
@@ -64,13 +65,19 @@ def test_given_make_stats_when_called_then_records_kv_metrics_and_injects_dp(mon
     monkeypatch.setattr(mh, "metrics_client", mock_client)
 
     pool = SimpleNamespace(num_gpu_blocks=100, get_num_free_blocks=lambda: 40)
-    this = SimpleNamespace(kv_cache_manager=SimpleNamespace(block_pool=pool))
+    phase_state = SimpleNamespace(request_id_to_prompt_token_len={})
+    monkeypatch.setattr(mh, "get_scheduler_phase_state", lambda: phase_state)
+    this = SimpleNamespace(
+        kv_cache_manager=SimpleNamespace(block_pool=pool),
+        running=[],
+        waiting=[],
+    )
     ret_obj = SimpleNamespace(kv_connector_stats=None)
 
     out = mh.make_stats(lambda *_a, **_k: ret_obj, this)
 
     assert out is ret_obj
-    assert len(mock_client.calls) == 3
+    assert len(mock_client.calls) == 9
     assert ret_obj.kv_connector_stats["dp"] == 5
 
 
@@ -81,12 +88,132 @@ def test_given_existing_kv_connector_stats_when_make_stats_then_dp_is_merged(mon
     monkeypatch.setattr(mh, "metrics_client", mock_client)
 
     pool = SimpleNamespace(num_gpu_blocks=8, get_num_free_blocks=lambda: 3)
-    this = SimpleNamespace(kv_cache_manager=SimpleNamespace(block_pool=pool))
+    phase_state = SimpleNamespace(request_id_to_prompt_token_len={})
+    monkeypatch.setattr(mh, "get_scheduler_phase_state", lambda: phase_state)
+    this = SimpleNamespace(
+        kv_cache_manager=SimpleNamespace(block_pool=pool),
+        running=[],
+        waiting=[],
+    )
     ret_obj = SimpleNamespace(kv_connector_stats={"x": 1})
 
     mh.make_stats(lambda *_a, **_k: ret_obj, this)
     assert ret_obj.kv_connector_stats["x"] == 1
     assert ret_obj.kv_connector_stats["dp"] == 2
+
+
+def test_given_queue_phase_counts_when_make_stats_then_records_running_and_waiting_phase_metrics(monkeypatch):
+    state = _FakeState(dp_rank=4, has_dp=True)
+    monkeypatch.setattr(mh, "get_meta_state", lambda: state)
+    recorded = []
+    mock_client = SimpleNamespace(record_metric=lambda *a, **k: recorded.append((a, k)))
+    monkeypatch.setattr(mh, "metrics_client", mock_client)
+
+    phase_state = hu.SchedulerPhaseState()
+    monkeypatch.setattr(mh, "get_scheduler_phase_state", lambda: phase_state)
+
+    running_prefill = SimpleNamespace(request_id="run_prefill", prompt_token_ids=[1, 2, 3], num_computed_tokens=1)
+    running_decode = SimpleNamespace(request_id="run_decode", prompt_token_ids=[1, 2], num_computed_tokens=2)
+    waiting_decode = SimpleNamespace(request_id="wait_decode")
+    waiting_decode.request = SimpleNamespace(num_computed_tokens=4)
+    waiting_unknown = SimpleNamespace(request_id="wait_unknown", prompt_token_ids=[1, 2, 3])
+    phase_state.request_id_to_prompt_token_len["wait_decode"] = 4
+
+    pool = SimpleNamespace(num_gpu_blocks=10, get_num_free_blocks=lambda: 2)
+    this = SimpleNamespace(
+        kv_cache_manager=SimpleNamespace(block_pool=pool),
+        running=[running_prefill, running_decode],
+        waiting=[waiting_decode, waiting_unknown],
+    )
+    ret_obj = SimpleNamespace(kv_connector_stats=None)
+
+    mh.make_stats(lambda *_a, **_k: ret_obj, this)
+
+    phase_values = {
+        (args[0], kwargs["labels"]["req_phase"]): kwargs["value"]
+        for args, kwargs in recorded
+        if len(args) >= 1 and isinstance(kwargs.get("labels"), dict) and "req_phase" in kwargs["labels"]
+    }
+
+    assert phase_values[(mh.RUNNING_PHASE_BATCH_SIZE, "prefill")] == 1
+    assert phase_values[(mh.RUNNING_PHASE_BATCH_SIZE, "decode")] == 1
+    assert phase_values[(mh.RUNNING_PHASE_BATCH_SIZE, "unknown")] == 0
+    assert phase_values[(mh.WAITING_PHASE_BATCH_SIZE, "prefill")] == 0
+    assert phase_values[(mh.WAITING_PHASE_BATCH_SIZE, "decode")] == 1
+    assert phase_values[(mh.WAITING_PHASE_BATCH_SIZE, "unknown")] == 1
+
+
+def test_given_missing_queue_when_collect_queue_phase_metrics_then_returns_zero_counts():
+    phase_state = hu.SchedulerPhaseState()
+
+    phase_values = hu.collect_queue_phase_metrics(phase_state, None)
+
+    assert phase_values == {"prefill": 0, "decode": 0, "unknown": 0}
+
+
+def test_given_scheduler_missing_queue_attr_when_get_scheduler_queue_then_warns_once(monkeypatch):
+    warnings = []
+    monkeypatch.setattr(mh.logger, "warning", lambda *a, **k: warnings.append((a, k)))
+    mh._MISSING_QUEUE_ATTRS_WARNED.clear()
+
+    scheduler = SimpleNamespace()
+
+    assert mh._get_scheduler_queue(scheduler, "running") == []
+    assert mh._get_scheduler_queue(scheduler, "running") == []
+    assert len(warnings) == 1
+    assert "running" in warnings[0][0]
+
+
+def test_given_pid_changes_when_get_scheduler_phase_state_then_state_is_reinitialized(monkeypatch):
+    pids = iter([100, 100, 200, 200])
+    monkeypatch.setattr(hu.os, "getpid", lambda: next(pids))
+
+    first = hu.get_scheduler_phase_state()
+    first.request_id_to_prompt_token_len["stale"] = 1
+    same = hu.get_scheduler_phase_state()
+    changed = hu.get_scheduler_phase_state()
+
+    assert same is first
+    assert changed is not first
+    assert changed.request_id_to_prompt_token_len == {}
+
+
+def test_given_num_prompt_tokens_without_prompt_token_ids_when_make_stats_then_prefill_is_classified(monkeypatch):
+    state = _FakeState(dp_rank=1, has_dp=True)
+    monkeypatch.setattr(mh, "get_meta_state", lambda: state)
+    recorded = []
+    mock_client = SimpleNamespace(record_metric=lambda *a, **k: recorded.append((a, k)))
+    monkeypatch.setattr(mh, "metrics_client", mock_client)
+
+    phase_state = hu.SchedulerPhaseState()
+    monkeypatch.setattr(mh, "get_scheduler_phase_state", lambda: phase_state)
+
+    running_prefill = SimpleNamespace(
+        request_id="run_prefill_num_prompt_only",
+        num_prompt_tokens=6,
+        prompt_token_ids=None,
+        num_computed_tokens=2,
+    )
+
+    pool = SimpleNamespace(num_gpu_blocks=10, get_num_free_blocks=lambda: 2)
+    this = SimpleNamespace(
+        kv_cache_manager=SimpleNamespace(block_pool=pool),
+        running=[running_prefill],
+        waiting=[],
+    )
+    ret_obj = SimpleNamespace(kv_connector_stats=None)
+
+    mh.make_stats(lambda *_a, **_k: ret_obj, this)
+
+    phase_values = {
+        (args[0], kwargs["labels"]["req_phase"]): kwargs["value"]
+        for args, kwargs in recorded
+        if len(args) >= 1 and isinstance(kwargs.get("labels"), dict) and "req_phase" in kwargs["labels"]
+    }
+
+    assert phase_values[(mh.RUNNING_PHASE_BATCH_SIZE, "prefill")] == 1
+    assert phase_values[(mh.RUNNING_PHASE_BATCH_SIZE, "decode")] == 0
+    assert phase_values[(mh.RUNNING_PHASE_BATCH_SIZE, "unknown")] == 0
 
 
 def test_given_scheduler_stats_when_record_then_scheduler_and_iteration_metrics_recorded(monkeypatch):
