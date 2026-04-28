@@ -46,7 +46,7 @@
 下载后建议先进行完整性校验（MD5），再执行安装。示例如下：
 
 ```shell
-# 1. 在页面单击软件包下载或在Linux环境使用wget命令下载（以下文件名以实际发布文件名为准；将 <arch> 替换为 aarch64 或 x86_64）
+# 1. 在页面单击软件包下载或在Linux环境使用wget命令下载（以下文件名以实际发布文件名为准：将 <tag> 替换为发行页面`tag`开头的tag名称；将 <arch> 替换为 aarch64 或 x86_64）
 wget https://gitcode.com/Ascend/msserviceprofiler/releases/download/<tag>/mindstudio-service-profiler_<version>_<arch>.run
 
 # 2. MD5 完整性校验（将 <expected_md5> 替换为 release 页面或版本说明中的 MD5）

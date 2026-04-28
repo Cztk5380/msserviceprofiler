@@ -2,6 +2,8 @@
 # the params for checking
 install_args_num=0
 install_path_num=0
+upgrade_flag=0
+quiet_flag=0
 MSSERVICE_RUN_NAME="mindstudio-msserviceprofiler"
 PATH_LENGTH=4096
 package_arch=$(uname -m)
@@ -111,6 +113,7 @@ function parse_script_args() {
             continue
             ;;
         --quiet)
+            quiet_flag=1
             shift
             continue
             ;;
@@ -119,11 +122,16 @@ function parse_script_args() {
             shift
             continue
             ;;
+        --upgrade)
+            upgrade_flag=1
+            shift
+            continue
+            ;;
         --check)
- 	             check_flag=1
- 	             shift
- 	             continue
- 	             ;;
+            check_flag=1
+            shift
+            continue
+            ;;
         --uninstall)
  	             uninstall_flag=1
  	             shift
@@ -145,9 +153,10 @@ function parse_script_args() {
 function check_args() {
     local op_count=0
     if [ ${check_flag} -eq 1 ]; then
- 	  	         return 0
+ 	         return 0
  	  fi
     [ ${install_args_num} -gt 0 ] && op_count=$((op_count + 1))
+    [ ${upgrade_flag} -eq 1 ] && op_count=$((op_count + 1))
     [ ${uninstall_flag} -eq 1 ] && op_count=$((op_count + 1))
     if [ ${op_count} -ne 1 ]; then
         print_log "ERROR" "Must specify exactly one of --install, or --uninstall. Please try --help."
@@ -174,6 +183,13 @@ function execute_run() {
             exit 1
         fi
         print_log "INFO" "${MSSERVICE_RUN_NAME} package install success, the path is: '${install_path}'."
+    elif [ ${upgrade_flag} -eq 1 ]; then
+        bash upgrade.sh ${upgrade_path} ${quiet_flag}
+        if [ $? -ne 0 ]; then
+            print_log "ERROR" "${MSSERVICE_RUN_NAME} package upgrade failed."
+            exit 1
+        fi
+        print_log "INFO" "${MSSERVICE_RUN_NAME} upgrade completed, the path is: '${upgrade_path}'."
     fi
 }
 
@@ -197,5 +213,24 @@ check_args
 # Create install path when --install (default path may not exist)
 if [ ${install_args_num} -gt 0 ]; then
     [ ! -d "${install_path}" ] && mkdir -p "${install_path}"
+fi
+# Set upgrade path when --upgrade: use --install-path if specified, else ASCEND_TOOLKIT_HOME (must be set)
+if [ ${upgrade_flag} -eq 1 ]; then
+    if [ ${install_path_num} -gt 0 ]; then
+        upgrade_path="${install_path}"
+    else
+        if [ -z "${ASCEND_TOOLKIT_HOME}" ]; then
+            print_log "ERROR" "ASCEND_TOOLKIT_HOME is not set. Please specify --install-path to set the upgrade path."
+            exit 1
+        fi
+        upgrade_path="${ASCEND_TOOLKIT_HOME}"
+    fi
+    upgrade_path="${upgrade_path%/}"
+    if [ ! -e "${upgrade_path}" ]; then
+        print_log "WARN" "Upgrade path does not exist: ${upgrade_path}."
+        exit 1
+    fi
+    check_path "${upgrade_path}"
+    upgrade_path=$(readlink -f "${upgrade_path}")
 fi
 execute_run

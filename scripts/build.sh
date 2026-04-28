@@ -21,6 +21,7 @@ MSSERVICE_RUN_NAME="mindstudio-service-profiler"
 MAIN_SCRIPT=main.sh
 INSTALL_SCRIPT=install.sh
 UN_INSTALL_SCRIPT=uninstall.sh
+UPGRADE_SCRIPT=upgrade.sh
 VERSION_INFO=version.info
 
 PKG_LIMIT_SIZE=524288000 # 500M
@@ -45,10 +46,24 @@ function create_temp_dir() {
     # cp whl包
     cp ${TOP_DIR}/build/output_whl_dir/ms_service_profiler-*.whl ${temp_dir}
 
+    # cp libms_service_profiler.so (from cmake build output)
+    local so_file
+    so_file=$(find ${TOP_DIR}/build -name "libms_service_profiler.so" -type f 2>/dev/null | head -1)
+    if [ -n "$so_file" ] && [ -f "$so_file" ]; then
+        cp "$so_file" ${temp_dir}/
+    fi
+
+    # cp include/msServiceProfiler (header files for upgrade)
+    if [ -d "${TOP_DIR}/cpp/include/msServiceProfiler" ]; then
+        mkdir -p ${temp_dir}/include
+        cp -r ${TOP_DIR}/cpp/include/msServiceProfiler ${temp_dir}/include/
+    fi
+
     cd ${TOP_DIR}/
     copy_script ${MAIN_SCRIPT} ${temp_dir}
     copy_script ${INSTALL_SCRIPT} ${temp_dir}
     copy_script ${UN_INSTALL_SCRIPT} ${temp_dir}
+    copy_script ${UPGRADE_SCRIPT} ${temp_dir}
     copy_script ${VERSION_INFO} ${temp_dir}
 }
 
@@ -122,6 +137,7 @@ function check_file_exist() {
     check_package ${temp_dir}/${MAIN_SCRIPT} ${PKG_LIMIT_SIZE}
     check_package ${temp_dir}/${INSTALL_SCRIPT} ${PKG_LIMIT_SIZE}
     check_package ${temp_dir}/${UN_INSTALL_SCRIPT} ${PKG_LIMIT_SIZE}
+    check_package ${temp_dir}/${UPGRADE_SCRIPT} ${PKG_LIMIT_SIZE}
     check_package ${temp_dir}/${VERSION_INFO} ${PKG_LIMIT_SIZE}
 }
 
