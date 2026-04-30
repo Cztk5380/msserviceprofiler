@@ -338,7 +338,7 @@ class VllmSimulator(SimulatorInterface):
                 logger.debug(f"Attempt {attempt}/{max_attempts}: sending signal {signal} to vllm")
                 try:
                     result = subprocess.run(
-                        [pkill_path, signal, "vllm"],
+                        [pkill_path, signal, "-f", "vllm serve"],
                         stderr=subprocess.STDOUT,
                         stdout=subprocess.PIPE,
                         text=True,
@@ -371,7 +371,7 @@ class VllmSimulator(SimulatorInterface):
             return False
         try:
             result = subprocess.run(
-                [pgrep_path, "-c", "vllm"],
+                ["pgrep", "-c", "-f", "vllm serve"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True,
@@ -396,7 +396,7 @@ class VllmSimulator(SimulatorInterface):
         """记录残留进程信息用于诊断"""
         try:
             result = subprocess.run(
-                ["pgrep", "-a", "vllm"],
+                ["pgrep", "-a", "-f", "vllm serve"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True,

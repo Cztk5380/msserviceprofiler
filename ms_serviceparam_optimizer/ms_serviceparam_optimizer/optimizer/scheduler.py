@@ -173,7 +173,7 @@ class Scheduler:
             if self.run_start_timestamp and self.first_duration:
                 _duration = time.time() - self.run_start_timestamp
                 if _duration > 2 * self.first_duration:
-                    raise TimeoutError("The current runtime is more than twice the duration of the first run.")
+                    logger.warning("The current runtime is more than twice the duration of the first run.")
             time.sleep(1)
 
         raise TimeoutError(f"{get_settings().particles_time_out}")
