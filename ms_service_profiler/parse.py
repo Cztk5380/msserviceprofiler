@@ -14,6 +14,7 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 import os
+import sys
 import argparse
 from pathlib import Path
 import re
@@ -38,6 +39,49 @@ from ms_service_profiler.utils.constants import DATA_SIZE_WARNING_THRESHOLD, KIL
 from ms_service_profiler.task.task_register import get_dag
 from ms_service_profiler.task.task_manager import tasks_run
 from ms_service_profiler.task.task import register
+
+class CliLogo:
+    """MindStudio CLI logo printer."""
+
+    RESET = "\033[0m"
+    DIM_GRAY = "\033[38;5;240m"
+    BOLD_WHITE = "\033[1;97m"
+    HIGHLIGHT = "\033[48;5;21;38;5;46m"  # green on blue
+
+    def _should_use_color_logo(self) -> bool:
+        """Check if we should use colored logo with ANSI escape codes."""
+        if not sys.stderr.isatty():
+            return False
+        term = os.environ.get("TERM")
+        return term is not None and term not in ("dumb", "unknown")
+
+    def _render_simple(self) -> str:
+        """Return the plain ASCII logo."""
+        return (
+            "=================================================================" "\n"
+            "                   >>>>>   MindStudio   <<<<<" "\n"
+            "    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE" "\n"
+            "=================================================================" "\n\n"
+        )
+
+    def _render_colored(self) -> str:
+        """Return the colored logo with ANSI escape codes."""
+        return (
+            f"{self.DIM_GRAY}================================================================="
+            f"{self.RESET}\n"
+            f"{self.BOLD_WHITE}                   >>>>>  "
+            f"{self.HIGHLIGHT} MindStudio {self.RESET}{self.BOLD_WHITE}  <<<<<{self.RESET}\n"
+            f"{self.BOLD_WHITE}    THE END-TO-END TOOLCHAIN TO UNLEASH HUAWEI ASCEND COMPUTE"
+            f"{self.RESET}\n"
+            f"{self.DIM_GRAY}================================================================="
+            f"{self.RESET}\n\n"
+        )
+
+    def print_logo(self) -> None:
+        """Print the MindStudio logo to stderr."""
+        content = self._render_colored() if self._should_use_color_logo() else self._render_simple()
+        sys.stderr.write(content)
+        sys.stderr.flush()
 
 
 def parse(input_path, plugins, exporters, **kwargs):
@@ -112,6 +156,8 @@ def arg_parse(subparsers):
 
 
 def main(args=None):
+    logo = CliLogo()
+    logo.print_logo()
     if args is None:
         parser = argparse.ArgumentParser(description='MS Server Profiler')
         _setup_parser_arguments(parser)
