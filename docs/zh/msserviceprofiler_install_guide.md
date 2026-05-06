@@ -1,6 +1,13 @@
 # msServiceProfiler 工具安装指南
 
+## 安装说明
+
 本文介绍 msServiceProfiler 工具的安装、升级和卸载。
+
+支持如下安装方式：
+
+- 使用 run 包安装（推荐）
+- 源码编译安装
 
 ## 安装前准备
 
@@ -10,7 +17,7 @@
   python --version
   ```
 
-- **CANN 环境**：安装配套版本的 CANN Toolkit 开发套件包和 ops 算子包，并配置 CANN 环境变量，具体请参见[CANN快速安装](https://www.hiascend.com/cann/download)。
+- **CANN 环境**：请参考《[CANN 快速安装](https://www.hiascend.com/cann/download)》安装昇腾NPU启动和CANN软件（包含Toolkit和ops包）并配置环境变量。
 
 - **python 依赖**：可通过以下命令安装：
 
@@ -30,49 +37,52 @@
   apt-get install lcov
   ```
 
-## 安装和升级
+## 使用 run 包安装
 
-支持两种方式安装/升级：
+1. 请参考[msServiceProfiler Release](https://gitcode.com/Ascend/msserviceprofiler/releases/)下载msServiceProfiler的run包和对应数字签名文件（.sha256）。
 
-- 方式一：从 release 页面下载整包并安装（推荐）。
-- 方式二：基于源码构建 run 包并安装。
+   下载本软件即表示您同意《[华为企业业务最终用户许可协议（EULA）](https://www.hiascend.com/cann/download)》的条款和条件。
 
-### 方式一：release 整包下载安装（推荐）
+2. 验证run包的完整性。
 
-软件安装包发布地址：
+   1. 在run包所在目录执行如下命令获取run包的sha256校验码。
 
-- [msserviceprofiler releases](https://gitcode.com/Ascend/msserviceprofiler/releases/)
+      ```bash
+      sha256sum {name}.run
+      ```
 
-下载后建议先进行完整性校验（MD5），再执行安装。示例如下：
+      打印如下示例信息。
 
-```shell
-# 1. 在页面单击软件包下载或在Linux环境使用wget命令下载（以下文件名以实际发布文件名为准：将 <tag> 替换为发行页面`tag`开头的tag名称；将 <arch> 替换为 aarch64 或 x86_64）
-wget https://gitcode.com/Ascend/msserviceprofiler/releases/download/<tag>/mindstudio-service-profiler_<version>_<arch>.run
+      ```ColdFusion
+      {sha256} {name}.run
+      ```
 
-# 2. MD5 完整性校验（将 <expected_md5> 替换为 release 页面或版本说明中的 MD5）
-md5sum mindstudio-service-profiler_<version>_<arch>.run
-echo "<expected_md5>  mindstudio-service-profiler_<version>_<arch>.run" | md5sum -c -
+   2. 用记事本打开数字签名文件查看sha256校验码。
 
-# 3. 赋予可执行权限，并用 run 包自检（校验归档完整性与版本依赖）
-chmod u+x mindstudio-service-profiler_<version>_<arch>.run
-./mindstudio-service-profiler_<version>_<arch>.run --check
+   3. 比对两个文件的sha256校验码是否一致。
 
-# 4. 安装或升级
-./mindstudio-service-profiler_<version>_<arch>.run --install
-```
+      若两个校验码一致，则表示下载了正确的软件包；若不一致，请不要使用该软件包，需要支持与服务请在论坛求助或提交技术工单。
+
+3. 赋予可执行权限，并用 run 包自检（校验归档完整性与版本依赖）。
+
+   ```bash
+   chmod u+x ms-service-profiler-{version}-py3-none-linux_{arch}.run
+   ./ms-service-profiler-{version}-py3-none-linux_{arch}.run --check
+   ```
+
+4. 安装run包。
+
+   ```bash
+   ./ms-service-profiler-{version}-py3-none-linux_{arch}.run --install
+   ```
 
 > **说明：**
 >
-> - `<expected_md5>` 请以 release 页面或[版本说明](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/zh/release_notes.md#安装包-md5-校验值)中，与同版本 **run 包**文件名对应的 MD5 为准。
 > - 若此前通过 pip 安装过 `ms_service_profiler`，升级到 run 包安装前建议先执行 `pip uninstall ms_service_profiler -y`，避免环境不一致。
->
-> **MD5sum 校验不一致处理建议：**
->
-> - 若 `md5sum -c -` 输出 `FAILED` 或 `失败`，请勿继续执行 run 包安装。
-> - 请先删除当前下载文件并重新下载，再次执行 MD5 校验。
-> - 仍无法通过校验时，请在 release 页面核对文件名与版本是否一致，并通过 Issues 反馈问题。
+> - 若需要升级到指定版本，请下载对应版本的 run 包后执行 `./ms-service-profiler-{version}-py3-none-linux_{arch}.run --upgrade`
+> 
 
-### 方式二：源码构建 run 包并安装/升级
+## 源码编译安装
 
 ```shell
 # 1. 安装构建依赖
@@ -119,6 +129,10 @@ Successfully installed ... ms_service_profiler-x.x.x
 > - 安装或升级将自动覆盖 CANN 安装路径下的 `ms_service_profiler`、`libms_service_profiler.so`、`include/msServiceProfiler` 等目标文件。如需保留原文件，请根据执行时列出的文件清单提前手动备份。
 > - 若未设置 `ASCEND_TOOLKIT_HOME` 且未指定 `--install-path`，将执行失败并提示需手动指定 CANN 安装路径。
 > - 若安装中途终止或因依赖缺失等异常终止，请先删除 `msserviceprofiler/build` 目录后再重新执行，命令：`rm -r msserviceprofiler/build`。
+
+## 升级
+
+msServiceProfiler 工具升级可参照[使用run包安装](#使用-run-包安装)或[源码编译安装](#源码编译安装)中的步骤直接安装 msServiceProfiler 最新的run包即可，新的run包会自动覆盖原有的run包。
 
 ## 卸载
 
