@@ -91,7 +91,7 @@ ms-service-metric status
    .\prometheus.exe --config.file=prometheus.yml
    ```
    
-   Prometheus 默认访问地址: http://localhost:9090
+   Prometheus 默认访问地址: `http://localhost:9090`
 
 #### 安装 Grafana
 
@@ -111,13 +111,13 @@ ms-service-metric status
    .\grafana-server.exe
    ```
 
-   Grafana 默认访问地址: http://localhost:3000
+   Grafana 默认访问地址: `http://localhost:3000`
    - 默认用户名: `admin`
    - 默认密码: `admin`
 
 #### 导入 Dashboard
 
-1. 登录 Grafana Web 界面 (http://localhost:3000)
+1. 登录 Grafana Web 界面 (`http://localhost:3000`)
 
 2. 创建 Prometheus 数据源:
    - 左侧菜单: **Configuration** → **Data sources**
