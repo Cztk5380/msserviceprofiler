@@ -256,6 +256,83 @@ def test_given_none_stats_when_record_helpers_then_return_without_recording(monk
     assert recorded == []
 
 
+def test_given_second_decode_output_when_update_from_output_then_records_second_token_latency(monkeypatch):
+    recorded = []
+    mock_client = SimpleNamespace(record_metric=lambda *a, **k: recorded.append((a, k)))
+    monkeypatch.setattr(mh, "metrics_client", mock_client)
+    monkeypatch.setattr(mh, "get_meta_state", lambda: _FakeState(dp_rank=8, has_dp=True))
+
+    req_stats = SimpleNamespace(num_generation_tokens=1, last_token_ts=10.0)
+
+    out = mh.iteration_stats_update_from_output_hooker(
+        lambda *_a, **_k: "ok",
+        object(),
+        SimpleNamespace(request_id="rid"),
+        10.25,
+        False,
+        8,
+        req_stats,
+        None,
+        None,
+    )
+    assert out == "ok"
+
+    assert ((mh.SECOND_TOKEN_LATENCY,), {"labels": {"dp": 8}, "value": 0.25}) in recorded
+
+
+def test_given_master_style_args_when_update_from_output_then_records_second_token_latency(monkeypatch):
+    recorded = []
+    mock_client = SimpleNamespace(record_metric=lambda *a, **k: recorded.append((a, k)))
+    monkeypatch.setattr(mh, "metrics_client", mock_client)
+    monkeypatch.setattr(mh, "get_meta_state", lambda: _FakeState(dp_rank=6, has_dp=True))
+
+    req_stats = SimpleNamespace(num_generation_tokens=1, last_token_ts=20.0)
+
+    out = mh.iteration_stats_update_from_output_hooker(
+        lambda *_a, **_k: "ok-master",
+        object(),
+        SimpleNamespace(request_id="rid-master"),
+        20.5,
+        False,
+        req_stats,
+        None,
+        None,
+    )
+    assert out == "ok-master"
+    assert ((mh.SECOND_TOKEN_LATENCY,), {"labels": {"dp": 6}, "value": 0.5}) in recorded
+
+
+def test_given_prefill_or_later_decode_when_update_from_output_then_skip_second_token_latency(monkeypatch):
+    recorded = []
+    mock_client = SimpleNamespace(record_metric=lambda *a, **k: recorded.append((a, k)))
+    monkeypatch.setattr(mh, "metrics_client", mock_client)
+
+    mh.iteration_stats_update_from_output_hooker(
+        lambda *_a, **_k: "prefill",
+        object(),
+        SimpleNamespace(request_id="prefill"),
+        10.25,
+        True,
+        8,
+        SimpleNamespace(num_generation_tokens=1, last_token_ts=10.0),
+        None,
+        None,
+    )
+    mh.iteration_stats_update_from_output_hooker(
+        lambda *_a, **_k: "later",
+        object(),
+        SimpleNamespace(request_id="later"),
+        10.25,
+        False,
+        8,
+        SimpleNamespace(num_generation_tokens=2, last_token_ts=10.0),
+        None,
+        None,
+    )
+
+    assert all(call[0][0] != mh.SECOND_TOKEN_LATENCY for call in recorded)
+
+
 def test_given_kv_connector_stats_with_dp_when_record_dp_rank_then_meta_updated_and_temp_key_removed(monkeypatch):
     state = _FakeState(dp_rank=-1, has_dp=False)
     monkeypatch.setattr(mh, "get_meta_state", lambda: state)

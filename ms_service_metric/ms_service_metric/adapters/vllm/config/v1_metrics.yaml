@@ -8,6 +8,9 @@
 - symbol: vllm.v1.core.sched.scheduler:Scheduler.schedule
   handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:scheduler_scheduler_hooker
 
+- symbol: vllm.v1.metrics.stats:IterationStats.update_from_output
+  handler: ms_service_metric.adapters.vllm.handlers.meta_handlers:iteration_stats_update_from_output_hooker
+
 - symbol: vllm.v1.core.sched.scheduler:Scheduler._preempt_request
   min_version: "0.9.1"
   handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:scheduler_preempt_request_hooker

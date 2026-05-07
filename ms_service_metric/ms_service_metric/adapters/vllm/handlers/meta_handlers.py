@@ -165,11 +165,66 @@ FINE_GRAINED_TPOT = "fine_grained_tpot"
 
 
 metrics_client.get_or_create_metric(TOTAL_TOKENS, buckets=SIZE_BUCKETS, label_names=["engine"])
-metrics_client.get_or_create_metric(SECOND_TOKEN_LATENCY, buckets=SIZE_BUCKETS, label_names=["engine"])
+metrics_client.get_or_create_metric(SECOND_TOKEN_LATENCY, buckets=SIZE_BUCKETS)
 metrics_client.get_or_create_metric(INPUT_METRICS, buckets=SIZE_BUCKETS, label_names=["engine"])
 metrics_client.get_or_create_metric(OUTPUT_METRICS, buckets=SIZE_BUCKETS, label_names=["engine"])
 metrics_client.get_or_create_metric(FINE_GRAINED_TTFT, buckets=SIZE_BUCKETS, label_names=["engine"])
 metrics_client.get_or_create_metric(FINE_GRAINED_TPOT, buckets=SIZE_BUCKETS, label_names=["engine"])
+
+
+def iteration_stats_update_from_output_hooker(
+    original_func,
+    this,
+    output,
+    engine_core_timestamp,
+    is_prefilling,
+    *args,
+    **kwargs,
+):
+    """Capture true second-token latency before vLLM flattens ITL samples.
+
+    Compatible with both:
+    - vLLM/vllm-ascend 0.14.0 style:
+      (output, ts, is_prefilling, prompt_len, req_stats, lora_states, lora_name)
+    - current upstream master style:
+      (output, ts, is_prefilling, req_stats, lora_states, lora_name)
+    """
+    # 不同 vLLM 版本中 req_stats 的参数位置不同：
+    # - v0.19.x 及以前（含 vllm-ascend 0.14.0 对应形态）：
+    #   args[0] 是 prompt_len，args[1] 才是 req_stats
+    # - v0.20.0 及以后：
+    #   args[0] 直接就是 req_stats
+    # 因此这里不写死位置，而是根据对象是否具备关键字段来识别真正的 req_stats。
+    req_stats = kwargs.get("req_stats")
+    if req_stats is None and args:
+        first_arg = args[0]
+        # v0.20.0 及以后：第一个额外位置参数就是 req_stats
+        if hasattr(first_arg, "num_generation_tokens") and hasattr(first_arg, "last_token_ts"):
+            req_stats = first_arg
+        elif len(args) >= 2:
+            second_arg = args[1]
+            # v0.19.x 及以前：第一个额外位置参数是 prompt_len，第二个才是 req_stats
+            if hasattr(second_arg, "num_generation_tokens") and hasattr(second_arg, "last_token_ts"):
+                req_stats = second_arg
+
+    previous_generation_tokens = getattr(req_stats, "num_generation_tokens", None)
+    previous_token_ts = getattr(req_stats, "last_token_ts", None)
+    ret = original_func(this, output, engine_core_timestamp, is_prefilling, *args, **kwargs)
+
+    if is_prefilling or previous_generation_tokens != 1 or previous_token_ts is None:
+        return ret
+    if engine_core_timestamp is None:
+        return ret
+
+    second_token_latency = engine_core_timestamp - previous_token_ts
+    if second_token_latency >= 0:
+        metrics_client.record_metric(
+            SECOND_TOKEN_LATENCY,
+            labels={"dp": get_meta_state().dp_rank},
+            value=second_token_latency,
+        )
+
+    return ret
 
 
 def _record_iteration_metrics(iteration_stats, labels: Dict[str, str]):
@@ -181,10 +236,6 @@ def _record_iteration_metrics(iteration_stats, labels: Dict[str, str]):
     if iteration_stats.num_prompt_tokens is not None and iteration_stats.num_generation_tokens is not None:
         total_tokens = iteration_stats.num_prompt_tokens + iteration_stats.num_generation_tokens
         metrics_client.record_metric(TOTAL_TOKENS, labels=labels, value=total_tokens)
-
-    # Second token latency
-    if iteration_stats.inter_token_latencies_iter and len(iteration_stats.inter_token_latencies_iter) > 0:
-        metrics_client.record_metric(SECOND_TOKEN_LATENCY, labels=labels, value=iteration_stats.inter_token_latencies_iter[0])
 
     # Input metrics
     if iteration_stats.num_prompt_tokens is not None:

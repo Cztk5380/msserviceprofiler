@@ -26,7 +26,9 @@ VLLM Metric Adapter - vLLM框架适配器
     >>> initialize_vllm_metric()
 """
 
+import multiprocessing
 import os
+import re
 from typing import Optional, Tuple
 
 from ms_service_metric.utils.logger import get_logger
@@ -108,37 +110,63 @@ class VLLMMetricAdapter:
         
         尝试从vLLM的各种配置中获取dp_rank。
         """
-        dp_rank = -1
+        dp_rank = self._get_dp_rank_from_env()
         
-        # 尝试从环境变量获取
-        env_dp_rank = os.getenv("VLLM_DP_RANK")
-        logger.debug("Raw env VLLM_DP_RANK=%r", env_dp_rank)
-        if env_dp_rank:
-            try:
-                dp_rank = int(env_dp_rank)
-                logger.debug(f"Got dp_rank from environment: {dp_rank}")
-            except ValueError as e:
-                logger.debug(f"Invalid VLLM_DP_RANK value {env_dp_rank!r}: {e}")
-        
-        # 尝试从vLLM内部获取
+        # Resolve dp_rank from explicit sources first, then fall back to vLLM's process name.
         if dp_rank < 0:
-            try:
-                from vllm.distributed.parallel_state import get_data_parallel_rank
-                raw_dp_rank = get_data_parallel_rank()
-                logger.debug(
-                    "Raw get_data_parallel_rank() return value=%r, type=%s",
-                    raw_dp_rank,
-                    type(raw_dp_rank).__name__,
-                )
-                dp_rank = raw_dp_rank
-                logger.debug(f"Got dp_rank from vLLM: {dp_rank}")
-            except Exception as e:
-                logger.debug(f"Failed to get dp_rank from vLLM distributed state: {e}", exc_info=True)
+            dp_rank = self._get_dp_rank_from_vllm()
+        if dp_rank < 0:
+            dp_rank = self._get_dp_rank_from_process_name()
         
         # 设置到meta_state
         logger.debug("Final dp_rank before set_dp_rank: %r", dp_rank)
         set_dp_rank(dp_rank)
         logger.debug(f"Set dp_rank to meta_state: {dp_rank}")
+
+    def _get_dp_rank_from_env(self) -> int:
+        env_dp_rank = os.getenv("VLLM_DP_RANK")
+        logger.debug("Raw env VLLM_DP_RANK=%r", env_dp_rank)
+        if not env_dp_rank:
+            return -1
+
+        try:
+            dp_rank = int(env_dp_rank)
+            logger.debug(f"Got dp_rank from environment: {dp_rank}")
+            return dp_rank
+        except ValueError as e:
+            logger.debug(f"Invalid VLLM_DP_RANK value {env_dp_rank!r}: {e}")
+            return -1
+
+    def _get_dp_rank_from_vllm(self) -> int:
+        try:
+            from vllm.distributed.parallel_state import get_data_parallel_rank
+            raw_dp_rank = get_data_parallel_rank()
+            logger.debug(
+                "Raw get_data_parallel_rank() return value=%r, type=%s",
+                raw_dp_rank,
+                type(raw_dp_rank).__name__,
+            )
+            dp_rank = int(raw_dp_rank)
+            logger.debug(f"Got dp_rank from vLLM: {dp_rank}")
+            return dp_rank
+        except Exception as e:
+            logger.debug(f"Failed to get dp_rank from vLLM distributed state: {e}", exc_info=True)
+            return -1
+
+    def _get_dp_rank_from_process_name(self) -> int:
+        process_name = multiprocessing.current_process().name
+        logger.debug("Current process name for dp_rank fallback: %r", process_name)
+        dp_rank = self._parse_dp_rank_from_process_name(process_name)
+        if dp_rank >= 0:
+            logger.debug("Got dp_rank from process name: %s", dp_rank)
+        return dp_rank
+
+    @staticmethod
+    def _parse_dp_rank_from_process_name(process_name: str) -> int:
+        match = re.search(r"(?:^|[^A-Za-z0-9])DP(\d+)(?:$|[^A-Za-z0-9])", process_name)
+        if not match:
+            return -1
+        return int(match.group(1))
         
     def _setup_pd_role(self):
         """设置dp_rank到meta_state
