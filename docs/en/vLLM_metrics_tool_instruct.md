@@ -10,7 +10,7 @@ This metric monitoring tool enhances the native monitoring capability of the vLL
 
 ## Supported Products
 
-> [!note] 
+> [!NOTE] 
 >
 >For details about Ascend product models, see [Ascend Product Models](<>).
 
@@ -197,7 +197,7 @@ The following are metric symbols built into the tool. All metric names are autom
 | free_kvcache_blocks | Gauge | Number of idle KVCache blocks in the current DP domain.|
 | allocated_kvcache_blocks | Gauge | Number of blocks allocated to the KVCache in the current DP domain.|
 
->[!note]
+>[!NOTE]
 >
 >The KVCache usage can be approximately calculated as `(1 - free_kvcache_blocks / total_kvcache_blocks) * 100%`. This helps monitor memory usage and load balancing.
 

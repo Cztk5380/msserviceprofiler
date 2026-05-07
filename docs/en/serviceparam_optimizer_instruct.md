@@ -12,7 +12,7 @@ The tool supports simulation and lightweight modes and consists of three core fu
 
 - **Parameter verification module**: automatically starts the serving process and benchmark tool to test parameters and obtain performance results. Currently, the supported benchmark tools include `AISBench` and `vllm_benchmark`.
 
-> [!note] 
+> [!NOTE] 
 >
 > The benchmark tool is about to be replaced by AISBench and is no longer supported by Serviceparam Optimizer.
 
@@ -30,7 +30,7 @@ The tool has been validated on LLaMA3-8B and Qwen3-8B. In principle, it does not
 
 ## Supported Products<a name="ZH-CN_TOPIC_0000002479925980"></a>
 
-> [!note] 
+> [!NOTE] 
 >
 >For details about Ascend product models, see [Ascend Product Models](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html).
 
@@ -42,7 +42,7 @@ The tool has been validated on LLaMA3-8B and Qwen3-8B. In principle, it does not
 |Atlas inference products|  Yes  |
 |Atlas training products|  No  |
 
-> [!note] 
+> [!NOTE] 
 >
 >For Atlas A2 training products/Atlas A2 inference products, only the Atlas 800I A2 inference server is supported.
 >For Atlas inference products, only the Atlas 300I Duo inference card and Atlas 800 inference server (model 3000) are supported.

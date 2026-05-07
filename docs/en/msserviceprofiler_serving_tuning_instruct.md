@@ -16,7 +16,7 @@ The tool usage process is as follows:
 
 ## Supported Products<a name="ZH-CN_TOPIC_0000002479925980"></a>
 
-> [!note] 
+> [!NOTE] 
 >
 >For details about Ascend product models, see [Ascend Product Models](<>).
 
@@ -28,7 +28,7 @@ The tool usage process is as follows:
 |Atlas inference products|  Yes  |
 |Atlas training products|  No  |
 
-> [!note] 
+> [!NOTE] 
 >
 >For Atlas A2 training products/Atlas A2 inference products, only the Atlas 800I A2 inference server is supported.
 >For Atlas inference products, only the Atlas 300I Duo inference card and Atlas 800 inference server (model 3000) are supported.
@@ -109,7 +109,7 @@ Collects serving profile data.
 
         After the collection is complete, the profile data is saved to the path specified by the `prof\_dir` parameter in `ms\_service\_profiler\_config.json`.
 
-    > [!note] 
+    > [!NOTE] 
 >
     >You can use the Samba tool to share the configuration file for profiling across multiple nodes and devices. In multi-node multi-device setups, follow the same profiling steps mentioned earlier but launch MindIE Motor on every node. Samba is a third-party tool. Search for its usage guide online or try alternative tools for configuring shared directories.
     >Serving profiling supports dynamic start and stopped at runtime. The dynamic start and stop function allows you to start or stop profiling whenever needed.
@@ -245,7 +245,7 @@ The results of `ms\_service\_profiler.parse` are as follows:
 |{host_name}_eplb_{i}_summed_hot_map_by_model_expert.png|"eplb_observe"|
 |{host_name}_balance_ratio.png|"eplb_observe"|
 
-> [!note] 
+> [!NOTE] 
 >
 >The preceding table does not list the results parsed out from the data collected using the `acl\_prof\_task\_time\_level`, `aclDataTypeConfig`, and `aclprofAicoreMetrics` parameters. For details about the results, see [Data Collection Description](<>) and [op\_summary (Operator Details)](<>). Actual results may vary depending on your environment. The `op\_statistic\_\*.csv` and `op\_summary\_\*.csv` files are saved to the `PROF\_XXX` directory under the path specified by `--output-path`. The profile data files collected using the three parameters are saved in the `PROF\_XXX/mindstudio\_profiler\_output` directory under the path specified by `prof\_dir`.
 
@@ -322,7 +322,7 @@ Table 3 batch.csv
 |accepted_ratio|Speculative inference acceptance ratio for the current batch, calculated as `sum(accepted_tokens) / sum(spec_tokens)`. Valid only for `specDecoding` rows.|
 |accepted_ratio_per_pos|Acceptance ratio for each draft position in the current batch, in dictionary format, for example, `{"0": 0.95, "1": 0.88}`. Valid only for `specDecoding` rows.|
 
-> [!note] 
+> [!NOTE] 
 >
 >Parsed data for speculative inference scenarios is currently supported only with the vLLM framework. For data collection, see the [vLLM Service Profiler User Guide](./vLLM_service_oriented_performance_collection_tool.md).
 
@@ -345,7 +345,7 @@ It is automatically generated in the speculative inference scenario and records 
 |accepted_ratio|Token acceptance ratio for this request in this step.|
 |draft_model_time_ms|Total draft model time for this step (same for all requests in the same step).|
 
-> [!note] 
+> [!NOTE] 
 >
 >Parsed data for speculative inference scenarios is currently supported only with the vLLM framework. For data collection, see the [vLLM Service Profiler User Guide](./vLLM_service_oriented_performance_collection_tool.md).
 
@@ -592,7 +592,7 @@ Chrome tracing can visualize data from t`chrome_tracing.json` file collected and
 
 Enter `chrome://tracing` in the Chrome address bar, drag the .json file to the blank area to open it, and press the shortcut keys (`w`: zoom in; `s`: zoom out; `a`: move left; `d`: move right) to view the file.
 
-> [!note] 
+> [!NOTE] 
 >
 >If `chrome\_tracing.json` is greater than 500 MB, MindStudio Insight is recommended for visualization.
 
@@ -648,14 +648,14 @@ When configuring the Windows proxy, you need to add the Linux device IP prefix (
 
     The visualization file `profiler\_visualization.json` is located at /xxx/Ascend/cann-_\{version\}_/tools/msserviceprofiler/python/ms\_service\_profiler/views/. Modify the datasource uid in the JSON file to the uid recorded in the previous step.
 
-    > [!note] 
+    > [!NOTE] 
 >
     >{version} indicates the CANN software package version. CANN 8.1.RC1 and later versions are supported.
 
     **Figure 5** uid<a name="fig51134371917"></a> 
     ![] (figures/uid.png "uid")
     
-    > [!note] 
+    > [!NOTE] 
 >
     >The UID in the JSON file identifies the dashboard uniquely and remain unchanged here. The **title** field names the dashboard, which is defaulted to **Profiler Visualization**.
 
@@ -775,7 +775,7 @@ The MindIE Motor framework includes built-in profiling code. This operation is o
 
 To customize performance data collection, modify the serving framework's collection code following the examples below. For available APIs, see [API Reference (C++)](./cpp_api/serving_tuning/README.md) or [API Reference (Python)](./python_api/README.md).
 
-> [!note] 
+> [!NOTE] 
 >
 >The following example uses the C++ APIs.
 

@@ -15,7 +15,7 @@ vLLM Service Profiler 适用于在 vLLM-Ascend 推理服务过程中进行性能
 
 ## 产品支持情况
 
-> [!note] 说明
+> [!NOTE]
 >
 >昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》
 
@@ -237,7 +237,7 @@ def custom_handler(original_func, this, *args, **kwargs):
     pass
 ```
 
-> [!note] 说明
+> [!NOTE]
 >
 > 若自定义处理函数导入失败，系统会自动回退至默认计时器模式。
 
@@ -283,7 +283,7 @@ def custom_handler(original_func, this, *args, **kwargs):
 | `service_summary.csv` | 服务化维度总体统计指标                                                                                                                                |
 |     `span_info/`      | 包含forward.csv, batchFrameworkProcessing.csv等关键span信息，详细介绍请参考[span_info 目录说明](./msserviceprofiler_serving_tuning_instruct.md#span_info目录) |
 
->[!note] 说明
+>[!NOTE]
 >
 >输出结果文件与domain域的采集有强关联关系，具体对照可以参照[domain域与解析结果对照表](./msserviceprofiler_serving_tuning_instruct.md#解析结果)。
 
@@ -310,7 +310,7 @@ def custom_handler(original_func, this, *args, **kwargs):
 
 采集配置可以参考[数据采集](./msserviceprofiler_serving_tuning_instruct.md#数据采集)中的配置文件创建的说明以及注意事项的澄清。
 
->[!note] 说明
+>[!NOTE]
 >
 > - vLLM Service Profiler 在 `acl_task_time` 参数配置为1时，不支持同时配置vLLM原生 Torch Profiler 的 `VLLM_TORCH_PROFILER_DIR` 环境变量进行性能数据采集。
 > - 配置 Torch Profiler 采集时，`enable`参数取值初始须为0（表示关闭性能数据采集），之后在启动 vLLM-Ascend 推理服务框架服务后再将配置`enable`参数配置为1（开启采集），为了避免采集过多的性能数据，可在完成相应数据采集过后关闭采集。如果`enable`参数取值初始为1，会采集大量框架层数据，很容易生成几个 GB 的跟踪文件。

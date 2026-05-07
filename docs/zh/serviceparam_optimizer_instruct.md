@@ -12,7 +12,7 @@
 
 - **参数验证模块**：自动化启动服务化进程与测评工具进程，进行参数测试，获取性能结果。当前已支持的测评工具包括AISBench，vllm_benchmark。
 
-> [!note] 说明
+> [!NOTE]
 >
 > 由于benchmark即将下线并由AISBench代替，寻优工具当前已取消支持benchmark。
 
@@ -30,7 +30,7 @@
 
 ## 产品支持情况<a name="ZH-CN_TOPIC_0000002479925980"></a>
 
-> [!note] 说明
+> [!NOTE]
 >
 >昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
 
@@ -43,7 +43,7 @@
 |Atlas 推理系列产品|  √   |
 |Atlas 训练系列产品|  x   |
 
-> [!note] 说明
+> [!NOTE]
 > 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
@@ -438,7 +438,7 @@ io_error = ["file not found", "permission denied", "IO error"]
 ### PD分离寻优
 
 服务化自动寻优工具支持在MindIE的A2单机PD分离场景中进行参数寻优（仅支持轻量化模式），且需要k8s部署。需保证能正常使用k8s拉起MindIE服务。
-> [!Note]
+> [!NOTE]
 > 当前仅支持MindIE 2.2.RC1
 
 需要在`config.toml`中配置kubectl_default_path字段，将该字段配置为k8s安装脚本解压后的单机执行目录，目录结构需要为：

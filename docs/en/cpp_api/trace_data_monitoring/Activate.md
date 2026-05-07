@@ -2,7 +2,7 @@
 
 ## Supported Products<a name="section13361171693320"></a>
 
-> [!note] 
+> [!NOTE] 
 >
 >For details about Ascend product models, see [Ascend Product Models](<>).
 
@@ -14,7 +14,7 @@
 |Atlas Inference Products|Yes|
 |Atlas training products|No|
 
-> [!note] 
+> [!NOTE] 
 >
 >For Atlas A2 training products/Atlas A2 inference products, only the Atlas 800I A2 inference server is supported.
 >For Atlas inference products, only the Atlas 300I Duo inference card and Atlas 800 inference server (model 3000) are supported.

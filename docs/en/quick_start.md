@@ -4,7 +4,7 @@ Performance tuning for serving frameworks often feels like a "black box," making
 
 msServiceProfiler provides end-to-end performance profiling. It clearly displays the performance of framework scheduling and model inference, helping users quickly locate performance bottlenecks and effectively improve performance.
 
-> [!note] 
+> [!NOTE] 
 > 
 > The following provides only a quick start guide for msServiceProfiler. For details about the operations, APIs, parameters, and fields, see the msServiceProfiler documentation.
 
@@ -36,7 +36,7 @@ To enable msServiceProfiler's profiling capability, set the environment variable
 
 The value of `SERVICE_PROF_CONFIG_PATH` must include the JSON file name. The JSON file is the configuration file for controlling profile data collection. For example, it specifies the path for storing profile metadata and enables or disables operator collection. For details about the fields, see [3. Collect Data](#3-collect-data). If no configuration file exists at the specified path, the tool automatically generates a default configuration (with the profiling feature disabled by default).
 
-> [!note] 
+> [!NOTE] 
 > 
 > In multi-node deployments, it is advised not to place the configuration file or its specified data storage path in a shared directory (such as a network shared location). Because data writing may involve additional network or buffering steps rather than direct disk writing, such configurations may lead to unexpected system behavior or results in certain situations.
 

@@ -13,7 +13,7 @@ msServiceProfiler Trace采集MindIE Motor服务中的请求响应时间、响应
 
 ## 产品支持情况<a name="ZH-CN_TOPIC_0000002489576470"></a>
 
-> [!note] 说明
+> [!NOTE]
 >
 >昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》
 
@@ -26,7 +26,7 @@ msServiceProfiler Trace采集MindIE Motor服务中的请求响应时间、响应
 |Atlas 推理系列产品|  √   |
 |Atlas 训练系列产品|  x   |
 
-> [!note] 说明
+> [!NOTE]
 > 
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
@@ -94,7 +94,7 @@ export MS_PROFILER_SAMPLE_ERROR=1
 
 ### 配置目标采集服务器<a name="ZH-CN_TOPIC_0000002518641905"></a>
 
-> [!note] 说明
+> [!NOTE]
 >
 >出于安全考虑，推荐用户使用安全模式，建议使用TLS认证。
 
@@ -132,7 +132,7 @@ export MS_PROFILER_SAMPLE_ERROR=1
     export OTEL_EXPORTER_OTLP_CERTIFICATE=/home/certificates/ca/ca.crt    # 设置证书的绝对路径，该目录属主、文件属主和当前用户一致，目录权限700，文件权限600
     ```
 
->[!NOTE] 说明
+>[!NOTE]
 >
 >本工具依赖OpenTelemetry三方库实现。本文仅说明此工具使用的必备参数。更多功能接口请开发者深入其官方文档自行探索。
 >

@@ -12,7 +12,7 @@ msServiceProfiler Compare Tool is designed for comparative analysis of performan
 
 ## Supported Products
 >
-> [!note] 
+> [!NOTE] 
 >
 >For details about Ascend product models, see [Ascend Product Models](<>).
 
@@ -24,7 +24,7 @@ msServiceProfiler Compare Tool is designed for comparative analysis of performan
 |Atlas inference products|  Yes  |
 |Atlas training products|  No  |
 
-> [!note] 
+> [!NOTE] 
 >
 >For Atlas A2 training products/Atlas A2 inference products, only the Atlas 800I A2 inference server is supported.<br>
 >For Atlas inference products, only the Atlas 300I Duo inference card and Atlas 800 inference server (model 3000) are supported.

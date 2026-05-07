@@ -13,7 +13,7 @@ It collects data from the MindIE Motor service, including request response time,
 
 ## Supported Products<a name="ZH-CN_TOPIC_0000002489576470"></a>
 
-> [!note] 
+> [!NOTE] 
 >
 >For details about Ascend product models, see [Ascend Product Models](https://www.hiascend.com/document/detail/en/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html).
 
@@ -25,7 +25,7 @@ It collects data from the MindIE Motor service, including request response time,
 |Atlas Inference Products|  Yes  |
 |Atlas training products|  No  |
 
-> [!note] 
+> [!NOTE] 
 >
 >For Atlas A2 training products/Atlas A2 inference products, only the Atlas 800I A2 inference server is supported.
 >For Atlas inference products, only the Atlas 300I Duo inference card and Atlas 800 inference server (model 3000) are supported.
@@ -93,7 +93,7 @@ Related log messages (the following logs are reported only once per hour):
 
 ### Configuring a Target Server for Collection<a name="ZH-CN_TOPIC_0000002518641905"></a>
 
-> [!note] 
+> [!NOTE] 
 >
 >For security purposes, you are advised to usesecure mode with Transport Layer Security (TLS) authentication
 
@@ -131,7 +131,7 @@ Currently, the following four protocols are supported:
     export OTEL_EXPORTER_OTLP_CERTIFICATE=/home/certificates/ca/ca.crt # Set the absolute path to the certificate. The directory owner and file owner must match the current user. The directory permission is 700 and the file permission is 600.
     ```
 
->[!NOTE]NOTE
+>[!NOTE]
 >
 >This tool depends on the third-party OpenTelemetry library. This document describes only the mandatory parameters required by the tool. For additional features and APIs, see the official documents.
 >
