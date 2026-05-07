@@ -12,7 +12,8 @@
 
 - **参数验证模块**：自动化启动服务化进程与测评工具进程，进行参数测试，获取性能结果。当前已支持的测评工具包括AISBench，vllm_benchmark。
 
-> [](public_sys-resources/icon-note.gif) **注意：**
+> **注意**
+>
 > 由于benchmark即将下线并由ais_bench代替，寻优工具当前已取消支持benchmark。
 
 服务化自动寻优工具能够基于以上功能模块，自动推荐吞吐较优的服务化参数组合，使用时有两种模式：
@@ -29,7 +30,8 @@
 
 ## 产品支持情况<a name="ZH-CN_TOPIC_0000002479925980"></a>
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明**
+>
 >昇腾产品的具体型号，请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
 
 |产品类型| 是否支持 |
@@ -358,8 +360,9 @@ others = ""
 ### PD分离寻优
 
 服务化自动寻优工具支持在MindIE的A2单机PD分离场景中进行参数寻优（仅支持轻量化模式），且需要k8s部署。需保证能正常使用k8s拉起MindIE服务。
-> [!Note]
-> 当前仅支持MindIE 2.2.RC1
+> [!NOTE]
+>
+> 当前仅支持MindIE 2.2.RC1。
 
 需要在`config.toml`中配置kubectl_default_path字段，将该字段配置为k8s安装脚本解压后的单机执行目录，目录结构需要为：
 

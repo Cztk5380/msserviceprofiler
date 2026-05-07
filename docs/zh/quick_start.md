@@ -146,7 +146,7 @@ python3 -m sglang.launch_server \
 
    `--input-path` 指定为 [3. 数据采集](#li10670349115211) 中 **prof_dir** 参数指定的路径。解析完成后，默认在命令执行目录下生成解析后的性能数据文件。
 
-> [!note] 说明
+> [!NOTE]
 >
 > 对于 vLLM-Ascend / SGLang on NPU，`prof_dir` 默认位于 `${HOME}/.ms_server_profiler/xxxx-xxxx`，可以在该目录下执行：
 >

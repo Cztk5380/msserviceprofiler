@@ -129,7 +129,7 @@ export MS_PROFILER_SAMPLE_ERROR=1
     export OTEL_EXPORTER_OTLP_CERTIFICATE=/home/certificates/ca/ca.crt    # 设置证书的绝对路径，该目录属主、文件属主和当前用户一致，目录权限700，文件权限600
     ```
 
->[!NOTE] 说明
+>[!NOTE]
 >
 >本工具依赖OpenTelemetry三方库实现。本文仅说明此工具使用的必备参数。更多功能接口请开发者深入其官方文档自行探索。
 >
