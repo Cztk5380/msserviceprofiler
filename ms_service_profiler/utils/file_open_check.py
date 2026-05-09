@@ -332,9 +332,6 @@ def ms_open(file, mode="r", max_size=CONFIG_FILE_MAX_SIZE, softlink=False, write
         check_file_owner(file_stat, file)
         os.remove(file)
 
-    if not softlink and file_stat.is_softlink:
-        raise OpenException(f"Softlink is not allowed to be opened. {file}")
-
     if "a" in mode and file_stat.is_exists:
         check_file_owner(file_stat, file)
         if file_stat.permission != (file_stat.permission & write_permission):
@@ -355,7 +352,19 @@ def ms_open(file, mode="r", max_size=CONFIG_FILE_MAX_SIZE, softlink=False, write
         flags = flags | os.O_TRUNC | os.O_CREAT
     if "a" in mode:
         flags = flags | os.O_APPEND | os.O_CREAT
-    return os.fdopen(os.open(file, flags, mode=write_permission), mode, **kwargs)
+
+    if not softlink:
+        flags |= os.O_NOFOLLOW
+
+    try:
+        fd = os.open(file, flags, mode=write_permission)
+    except OSError as e:
+        # O_NOFOLLOW 遇到软链接时会抛出 ELOOP 错误
+        if not softlink and e.errno == errno.ELOOP:
+            raise OpenException(f"Softlink is not allowed to be opened. {file}")
+        raise
+
+    return os.fdopen(fd, mode, **kwargs)
 
 
 class UmaskWrapper:
