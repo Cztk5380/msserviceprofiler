@@ -236,4 +236,99 @@ def test_given_v1_preempt_request_when_hook_called_then_records_exact_recompute_
 
     assert out == "ok"
     assert "r1" not in phase_state.request_id_to_prompt_token_len
-    assert calls == [(("scheduler:recompute_events", 1), {})]
+    assert (("running_to_waiting_count", 1), {}) in calls
+    assert (("scheduler:recompute_events", 1), {}) in calls
+
+
+def test_given_block_allocate_failed_return_when_hook_called_then_records_failure(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    out = mh.block_allocate_failure_hooker(lambda *_a, **_k: None, object())
+
+    assert out is None
+    assert calls == [(("block_allocate_failures", 1), {})]
+
+
+def test_given_block_allocate_false_return_when_hook_called_then_records_failure(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    out = mh.block_allocate_failure_hooker(lambda *_a, **_k: False, object())
+
+    assert out is False
+    assert calls == [(("block_allocate_failures", 1), {})]
+
+
+def test_given_block_allocate_exception_when_hook_called_then_records_and_reraises(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    def raise_error(*_args, **_kwargs):
+        raise RuntimeError("allocator exploded")
+
+    try:
+        mh.block_allocate_failure_hooker(raise_error, object())
+    except RuntimeError as exc:
+        assert str(exc) == "allocator exploded"
+    else:
+        raise AssertionError("expected RuntimeError")
+
+    assert calls == [(("block_allocate_failures", 1), {})]
+
+
+def test_given_block_allocate_success_when_hook_called_then_does_not_record(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    out = mh.block_allocate_failure_hooker(lambda *_a, **_k: "allocated", object())
+
+    assert out == "allocated"
+    assert calls == []
+
+
+def test_given_rpc_timeout_when_hook_called_then_records_and_reraises(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    def raise_timeout(*_args, **_kwargs):
+        raise TimeoutError("request timed out")
+
+    try:
+        mh.rpc_error_hooker(raise_timeout)
+    except TimeoutError:
+        pass
+    else:
+        raise AssertionError("expected TimeoutError")
+
+    assert calls == [(("rpc_errors", 1, {"exception_type": "TimeoutError"}), {})]
+
+
+def test_given_rpc_connection_reset_when_hook_called_then_records_connection_reset(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    def raise_reset(*_args, **_kwargs):
+        raise ConnectionError("connection reset by peer")
+
+    try:
+        mh.rpc_error_hooker(raise_reset)
+    except ConnectionError:
+        pass
+
+    assert calls == [(("rpc_errors", 1, {"exception_type": "ConnectionError"}), {})]
+
+
+def test_given_rpc_runtime_error_when_hook_called_then_records_actual_exception_type(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    def raise_runtime_error(*_args, **_kwargs):
+        raise RuntimeError("worker failed with error")
+
+    try:
+        mh.rpc_error_hooker(raise_runtime_error)
+    except RuntimeError:
+        pass
+
+    assert calls == [(("rpc_errors", 1, {"exception_type": "RuntimeError"}), {})]

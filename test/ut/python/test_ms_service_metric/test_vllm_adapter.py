@@ -15,6 +15,7 @@
 # -------------------------------------------------------------------------
 
 import pytest
+import yaml
 
 import ms_service_metric.adapters.vllm.adapter as adapter_module
 from ms_service_metric.adapters.vllm.adapter import VLLMMetricAdapter
@@ -61,3 +62,27 @@ def test_setup_dp_rank_falls_back_to_process_name(monkeypatch):
     adapter._setup_dp_rank()
 
     assert captured == [1]
+
+
+def test_v1_metrics_config_contains_exception_status_hooks():
+    config_path = adapter_module.os.path.join(
+        adapter_module.os.path.dirname(adapter_module.__file__),
+        "config",
+        "v1_metrics.yaml",
+    )
+
+    with open(config_path, encoding="utf-8") as config_file:
+        config = yaml.safe_load(config_file)
+
+    handlers_by_symbol = {}
+    for item in config:
+        handlers_by_symbol.setdefault(item["symbol"], []).append(item.get("handler"))
+
+    assert (
+        "ms_service_metric.adapters.vllm.handlers.metric_handlers:block_allocate_failure_hooker"
+        in handlers_by_symbol["vllm.v1.core.kv_cache_manager:KVCacheManager.allocate_slots"]
+    )
+    assert (
+        "ms_service_metric.adapters.vllm.handlers.metric_handlers:rpc_error_hooker"
+        in handlers_by_symbol["vllm.v1.executor.multiproc_executor:MultiprocExecutor.collective_rpc"]
+    )

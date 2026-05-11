@@ -192,6 +192,30 @@ metrics_client.get_or_create_metric(
     buckets=SIZE_BUCKETS,
 )
 
+RUNNING_TO_WAITING_COUNT = "running_to_waiting_count"
+BLOCK_ALLOCATE_FAILURES = "block_allocate_failures"
+RPC_ERRORS = "rpc_errors"
+
+metrics_client.get_or_create_metric(RUNNING_TO_WAITING_COUNT, metric_type=MetricType.COUNTER)
+metrics_client.get_or_create_metric(BLOCK_ALLOCATE_FAILURES, metric_type=MetricType.COUNTER)
+metrics_client.get_or_create_metric(RPC_ERRORS, ["exception_type"], metric_type=MetricType.COUNTER)
+
+def _is_failed_allocation_result(ret: Any) -> bool:
+    if ret is None or ret is False:
+        return True
+    for attr_name in ("failed", "is_failed", "allocation_failed"):
+        attr = getattr(ret, attr_name, None)
+        try:
+            if attr() if callable(attr) else bool(attr):
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def _get_exception_type(exc: BaseException) -> str:
+    return type(exc).__name__
+
 
 def scheduler_scheduler_hooker(original_func, self, *args, **kwargs):
     """Scheduler.schedule 的 hook 处理函数。
@@ -252,6 +276,28 @@ def scheduler_preempt_request_hooker(original_func, self, *args, **kwargs):
     """
     ret = original_func(self, *args, **kwargs)
     _clear_request_phase_state(_get_scheduler_phase_state(), *args, *kwargs.values(), ret)
+    metrics_client.record_metric(RUNNING_TO_WAITING_COUNT, 1)
     metrics_client.record_metric("scheduler:recompute_events", 1)
     return ret
+
+
+def block_allocate_failure_hooker(original_func, self, *args, **kwargs):
+    try:
+        ret = original_func(self, *args, **kwargs)
+    except Exception:
+        metrics_client.record_metric(BLOCK_ALLOCATE_FAILURES, 1)
+        raise
+
+    if _is_failed_allocation_result(ret):
+        metrics_client.record_metric(BLOCK_ALLOCATE_FAILURES, 1)
+
+    return ret
+
+
+def rpc_error_hooker(original_func, *args, **kwargs):
+    try:
+        return original_func(*args, **kwargs)
+    except Exception as exc:
+        metrics_client.record_metric(RPC_ERRORS, 1, {"exception_type": _get_exception_type(exc)})
+        raise
 
