@@ -283,7 +283,7 @@ ms\_service\_profiler.parse解析生成的结果如下。
 |moe_analysis|记录DeepSeek专家模型服务化推理时，基于MSPTI采集的MoeDistributeCombine算子和MoeDistributeDispatch算子快慢卡分析结果。|
 |data_link|用于在trace图显示forward的时候支持单击rid显示请求输入长度信息。|
 
-PD分离部署场景及概念详细介绍请参见《[MindIE Motor开发指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/README.md)》中的“集群服务部署 > [PD分离服务部署](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md)”章节。此文件主要用于可视化阶段连接Grafana展示图像，不对各表项细节做具体解释说明。
+PD分离部署场景及概念详细介绍请参见《[MindIE Motor开发指南](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/README.md)》中的“集群服务部署 > [PD分离服务部署](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md)”章节。此文件主要用于可视化阶段连接Grafana等工具展示图像，不对各表项细节做具体解释说明。Grafana为第三方开源软件，不属于MindStudio产品发布包的组成部分，用户可根据实际环境选择其他兼容的可视化系统。
 
 ### **chrome\_tracing.json**
 
@@ -601,6 +601,10 @@ Chrome tracing工具支持对服务化调优工具采集并解析的chrome\_trac
 **功能说明<a name="section18743945144918"></a>**
 
 Grafana工具支持对服务化调优工具采集并解析的性能数据进行可视化展示。
+
+> [!NOTE]
+>
+> Grafana 为第三方开源软件，不属于 MindStudio Service Profiler 或 MindStudio 产品发布包的组成部分，也不是本工具强制要求用户使用的唯一可视化工具。用户可根据自身环境选择 Grafana 或其他兼容的可视化系统。
 
 **数据准备<a name="section081361822719"></a>**
 

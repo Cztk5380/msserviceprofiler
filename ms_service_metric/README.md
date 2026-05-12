@@ -61,6 +61,12 @@ ms-service-metric status
 
 ### 3. Prometheus + Grafana 可视化 (Windows)
 
+> [!NOTE]
+>
+> Grafana 与 Prometheus 为第三方开源软件，不属于 MindStudio Service Profiler 或 MindStudio 产品发布包的组成部分，也不是本工具强制要求用户使用的唯一可视化方案。用户可根据自身环境选择 Grafana、Prometheus 或其他兼容的监控、可视化系统。
+>
+> 如选择使用 Prometheus，请使用其官方维护的安全版本，并结合实际部署环境完成访问控制、网络隔离、权限配置等安全加固。
+
 #### 安装 Prometheus
 
 1. 下载 Prometheus Windows 版本:
@@ -380,7 +386,7 @@ flake8 ms_service_metric/
 
 ## 安全风险
 
-Metric 数据监测利用了 vllm 的 metric 功能，对外提供接口。[详细参考](https://github.com/vllm-project/vllm/tree/main/examples/observability/prometheus_grafana) ，需注意可能存在的安全风险
+Metric 数据监测利用了 vllm 的 metric 功能对外提供接口，[详细参考](https://github.com/vllm-project/vllm/tree/main/examples/observability/prometheus_grafana)。如接入 Prometheus 或 Grafana，请注意其均为第三方开源软件，不属于 MindStudio 产品发布包的组成部分，也不是本工具强制要求用户使用的唯一可视化方案。用户可根据自身环境选择兼容的监控、可视化系统；如使用 Prometheus，请使用其官方维护的安全版本，并结合实际部署环境完成访问控制、网络隔离、权限配置等安全加固。
 
 ## 许可证
 
