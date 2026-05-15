@@ -110,7 +110,7 @@
         采集完成后，Profiling性能数据落盘在ms\_service\_profiler\_config.json中prof\_dir参数指定的路径下。
 
     > [!NOTE]
->
+    >
     >多机多卡场景可使用Samba工具实现共享配置文件，以此实现对多机多卡场景的性能数据采集。其中多机多卡场景执行采集步骤与上文一致，但需要每个节点分别启动MindIE Motor服务。Samba为第三方工具，请用户自行查找对应使用指导，或使用其他支持配置共享目录的工具。
     >服务化性能数据采集支持运行时动态启停。动态启停指在启动采集任务后，执行采集操作过程中可以随时启动和暂停采集。
     >动态启停场景主要为以下三种：
@@ -653,14 +653,14 @@ cd grafana-v11.3.0/bin/
     在/xxx/Ascend/cann-_\{version\}_/tools/msserviceprofiler/python/ms\_service\_profiler/views/路径下包含可视化文件profiler\_visualization.json，修改json文件中datasource的uid为上述步骤中记录的uid。
 
     > [!NOTE]
->
+    >
     >{version}为CANN软件包版本，支持CANN 8.1.RC1及之后的版本。
 
     **图 5**  uid示意图<a name="fig51134371917"></a>  
     ![](figures/uid示意图.png "uid示意图")
     
     > [!NOTE]
->
+    >
     >json文件末尾的uid用于唯一标记此dashboard，这里不用修改；title用于给此dashboard命名，默认为Profiler Visualization。
 
     **图 6**  json示意图<a name="fig761123319212"></a>  

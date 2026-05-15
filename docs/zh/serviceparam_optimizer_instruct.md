@@ -312,7 +312,7 @@ msserviceprofiler optimizer [options]
 |served_model_name|必选| 模型名称，需与`[vllm.command]`中的`served_model_name`保持一致。|
 |dataset_name|必选| 数据集名称。|
 |dataset_path|必选| 数据集路径。|
-|num_prompts|必选| 控制运行数据集的条数。| 取值范围：1-10000的整数|
+|num_prompts|必选| 控制运行数据集的条数。<br>取值范围：1-10000的整数。|
 |others|可选| 拼接其他参数，注意参数间使用空格分隔，参数内部不能留有空格。如`--ignore-eos --custom-output-len 1500`。默认为空。| 
 
 **服务化参数**： 可以参考[MindIE server 配置参数说明](https://www.hiascend.com/document/detail/zh/mindie/20RC1/mindieservice/servicedev/mindie_service0285.html)进行修改。

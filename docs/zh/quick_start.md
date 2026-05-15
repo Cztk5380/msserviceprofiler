@@ -168,4 +168,4 @@ python3 -m sglang.launch_server \
 
 根据MindStudio Insight工具的可视化呈现性能数据，如下图所示：
 
-![](figures/image_0000002478067012.png)
+![](figures/zh-cn_image_0000002478067012.png)
