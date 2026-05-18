@@ -72,12 +72,12 @@
   | 字段                 | 说明                                            |
   | -------------------- | ----------------------------------------------- |
   | Metric | 指标项，包含列表头的指标项和行表头的指标数据。  |
-  | 指标项（列表头） |
+  | 指标项（列表头） |-|
   | prefill_batch_num  | 每个batch中所有batch_type为Prefill的记录数量。 |
   | decode_batch_num  | 每个batch中所有batch_type为Decode的记录数量。 |
   | prefill_exec_time(ms)  | 每个batch中所有batch_type为Prefill modelExec的记录的during_time，若无modelExec，则结果中不含此行，单位ms。 |
   | decode_exec_time(ms)  | 每个batch中所有batch_type为Decode modelExec的记录的during_time，若无modelExec，则结果中不含此行，单位ms。 |
-  | 指标数据（行表头）  |
+  | 指标数据（行表头）  |-|
   | Average  | 平均值。  |
   | Max  | 最大值。  |
   | Min  | 最小值。  |
@@ -90,7 +90,7 @@
   | 字段                 | 说明                                            |
   | -------------------- | ----------------------------------------------- |
   | Metric | 指标项，包含列表头的指标项和行表头的指标数据。  |
-  | 指标项（列表头） |
+  | 指标项（列表头） |-|
   | first_token_latency(ms)  | 首Token时延，单位ms。 |
   | subsequent_token_latency(ms)  | 非首Token时延，指模型生成第一个Token之后，生成后续每个Token所花费的平均时间，单位ms。 |
   | total_time(ms)  | HTTP请求到结束的总时长，单位ms。 |
@@ -98,7 +98,7 @@
   | waiting_time(ms)  | 请求的等待耗时，单位ms。 |
   | input_token_num  | 每个请求对应的输入Token数量。 |
   | generated_token_num  | 每个请求对应的输出Token数量。 |
-  | 指标数据（行表头）  |
+  | 指标数据（行表头）  |-|
   | Average  | 平均值。  |
   | Max  | 最大值。  |
   | Min  | 最小值。  |
@@ -111,12 +111,12 @@
   | 字段                 | 说明                                            |
   | -------------------- | ----------------------------------------------- |
   | Metric | 指标项，包含列表头的指标项和行表头的指标数据。  |
-  | 指标项（列表头） |
+  | 指标项（列表头） |-|
   | total_input_token_num  | 总输入Token数量。 |
   | total_generated_token_num  | 总输出Token数量。 |
   | generate_token_speed(token/s)  | 每秒输出Token数，单位token/s。 |
   | generate_all_token_speed(token/s) | 每秒处理Token数，单位token/s （输入输出总数）。 |
-  | 指标数据（行表头）  |
+  | 指标数据（行表头）  |-|
   | Value | 具体数值 |
 
 - 采集domain域与解析结果对照表
