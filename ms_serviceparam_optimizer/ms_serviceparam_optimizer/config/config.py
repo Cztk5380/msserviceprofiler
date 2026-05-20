@@ -13,6 +13,7 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
+# pylint: disable=too-many-lines,too-many-nested-blocks
 import bisect
 import json
 import os
@@ -20,7 +21,7 @@ from collections.abc import Callable
 from copy import deepcopy
 from enum import Enum
 from inspect import isfunction
-from math import isinf, isclose
+from math import isinf, isclose, isnan
 from pathlib import Path
 from typing import Any, List, Tuple, Type, Optional, Union, Dict
 
@@ -30,13 +31,21 @@ from pydantic import BaseModel, field_validator, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict, PydanticBaseSettingsSource, TomlConfigSettingsSource
 from msguard.security import open_s, mkdir_s
 from ..common import is_vllm, is_mindie, ais_bench_exists
-from ..config.custom_command import VllmBenchmarkCommandConfig, \
-    MindieCommandConfig, VllmCommandConfig, AisBenchCommandConfig, KubectlCommandConfig
-
-from .base_config import (
-    INSTALL_PATH, RUN_PATH, ServiceType, CUSTOM_OUTPUT, DeployPolicy, RUN_TIME,
-    ms_serviceparam_optimizer_config_path, MODEL_EVAL_STATE_CONFIG_PATH, AnalyzeTool, BenchMarkPolicy,
+from ..config.custom_command import (
+    VllmBenchmarkCommandConfig,
+    MindieCommandConfig,
+    VllmCommandConfig,
+    AisBenchCommandConfig,
+    KubectlCommandConfig,
 )
+
+from . import base_config
+from .base_config import INSTALL_PATH, RUN_PATH, ServiceType, ms_serviceparam_optimizer_config_path
+
+BenchMarkPolicy = base_config.BenchMarkPolicy
+CUSTOM_OUTPUT = base_config.CUSTOM_OUTPUT
+DeployPolicy = base_config.DeployPolicy
+MODEL_EVAL_STATE_CONFIG_PATH = base_config.MODEL_EVAL_STATE_CONFIG_PATH
 
 
 class MetricAlgorithm(BaseModel):
@@ -45,10 +54,8 @@ class MetricAlgorithm(BaseModel):
 
 
 class PerformanceConfig(BaseModel):
-    time_to_first_token: MetricAlgorithm = MetricAlgorithm(metric="TTFT",
-                                                           algorithm="average")
-    time_per_output_token: MetricAlgorithm = MetricAlgorithm(metric="TPOT",
-                                                             algorithm="average")
+    time_to_first_token: MetricAlgorithm = MetricAlgorithm(metric="TTFT", algorithm="average")
+    time_per_output_token: MetricAlgorithm = MetricAlgorithm(metric="TPOT", algorithm="average")
 
 
 dtype_func = {"int": int, "float": float, "str": str}
@@ -56,12 +63,14 @@ dtype_func = {"int": int, "float": float, "str": str}
 
 class ErrorSeverity(Enum):
     """错误严重程度"""
+
     FATAL = "fatal"
     RETRYABLE = "retryable"
 
 
 class ErrorType(Enum):
     """错误类型分类"""
+
     OUT_OF_MEMORY = "out_of_memory"
     DEVICE_ERROR = "device_error"
     NETWORK_ERROR = "network_error"
@@ -86,7 +95,7 @@ class OptimizerConfigField(BaseModel):
         # 如果min 等于max 但是 constant 没有设置，自动设置constant 为最大值。
         if self.constant and not isclose(self.min, self.max):
             self.min = self.max = self.constant
-        elif self.constant is None and isclose(self.min, self.max, rel_tol=1e-5) and self.dtype in dtype_func.keys():
+        elif self.constant is None and isclose(self.min, self.max, rel_tol=1e-5) and self.dtype in dtype_func:
             self.constant = dtype_func.get(self.dtype, float)(self.max)
 
         return self
@@ -102,82 +111,137 @@ class OptimizerConfigField(BaseModel):
             return str(value)
         _new_value = dtype_func.get(self.dtype, float)(value)
         if self.dtype == "enum":
+            enum_values = list(self.dtype_param) if isinstance(self.dtype_param, (list, tuple)) else []
+            if not enum_values:
+                return _new_value
             # Check if dtype_param contains string values
-            if self.dtype_param and len(self.dtype_param) > 0 and isinstance(self.dtype_param[0], str):
+            if isinstance(enum_values[0], str):
                 # String enum: check if value is in the enum list
-                if value in self.dtype_param:
+                if value in enum_values:
                     return value
-                else:
-                    # For string enum, return the first value as default
-                    return self.dtype_param[0]
+                # For string enum, return the first value as default
+                return enum_values[0]
             # Numeric enum: use bisect
-            if value in self.dtype_param:
+            if value in enum_values:
                 return value
+            _index = bisect.bisect_left(enum_values, value)
+            if _index == len(enum_values):
+                _new_value = enum_values[-1]
             else:
-                _index = bisect.bisect_left(self.dtype_param, value)
-                if _index == len(self.dtype_param):
-                    _new_value = self.dtype_param[-1]
-                else:
-                    _new_value = self.dtype_param[_index]
-                return _new_value
-        else:
-            if self.min <= _new_value <= self.max:
-                return _new_value
-            elif _new_value < self.min:
-                return dtype_func.get(self.dtype, float)(self.min)
-            else:
-                return dtype_func.get(self.dtype, float)(self.max)
+                _new_value = enum_values[_index]
+            return _new_value
+        if self.min <= _new_value <= self.max:
+            return _new_value
+        if _new_value < self.min:
+            return dtype_func.get(self.dtype, float)(self.min)
+        return dtype_func.get(self.dtype, float)(self.max)
 
 
 default_support_field = [
     # max batch size 最小值要大于max_prefill_batch_size的最大值。
-    OptimizerConfigField(name="max_batch_size", config_position="BackendConfig.ScheduleConfig.maxBatchSize", min=10,
-                         max=1000, dtype="int"),
-    OptimizerConfigField(name="max_prefill_batch_size",
-                         config_position="BackendConfig.ScheduleConfig.maxPrefillBatchSize", min=0.1, max=0.7,
-                         dtype="ratio", dtype_param="max_batch_size"),
-    OptimizerConfigField(name="prefill_time_ms_per_req",
-                         config_position="BackendConfig.ScheduleConfig.prefillTimeMsPerReq", max=1000, dtype="int"),
-    OptimizerConfigField(name="decode_time_ms_per_req",
-                         config_position="BackendConfig.ScheduleConfig.decodeTimeMsPerReq", max=1000, dtype="int"),
-    OptimizerConfigField(name="support_select_batch",
-                         config_position="BackendConfig.ScheduleConfig.supportSelectBatch", max=1,
-                         dtype="bool"),
-    OptimizerConfigField(name="max_prefill_token",
-                         config_position="BackendConfig.ScheduleConfig.maxPrefillTokens", min=4096, max=409600,
-                         dtype="int"),
-    OptimizerConfigField(name="max_queue_deloy_mircroseconds",
-                         config_position="BackendConfig.ScheduleConfig.maxQueueDelayMicroseconds", min=500, max=1000000,
-                         dtype="int"),
-    OptimizerConfigField(name="prefill_policy_type",
-                         config_position="BackendConfig.ScheduleConfig.prefillPolicyType", min=0, max=1,
-                         dtype="enum", dtype_param=[0, 1, 3]),
-    OptimizerConfigField(name="decode_policy_type",
-                         config_position="BackendConfig.ScheduleConfig.decodePolicyType", min=0, max=1,
-                         dtype="enum", dtype_param=[0, 1, 3]),
-    OptimizerConfigField(name="max_preempt_count",
-                         config_position="BackendConfig.ScheduleConfig.maxPreemptCount", min=0, max=1,
-                         dtype="ratio", dtype_param="max_batch_size"),
-    OptimizerConfigField(name="tp",
-                         config_position="BackendConfig.ModelDeployConfig.ModelConfig.0.tp", min=0, max=1,
-                         dtype="enum", dtype_param=[1, 2, 4, 8, 16]),
-    OptimizerConfigField(name="dp",
-                         config_position="BackendConfig.ModelDeployConfig.ModelConfig.0.dp", min=0, max=0,
-                         dtype="factories", dtype_param={
-            "target_name": "tp",
-            "product": 16,
-            "dtype": "int"
-        }),
-    OptimizerConfigField(name="moe_ep",
-                         config_position="BackendConfig.ModelDeployConfig.ModelConfig.0.moe_ep", min=0, max=1,
-                         dtype="enum", dtype_param=[1, 2, 4, 8, 16]),
-    OptimizerConfigField(name="moe_tp",
-                         config_position="BackendConfig.ModelDeployConfig.ModelConfig.0.moe_tp", min=0, max=0,
-                         dtype="factories", dtype_param={
-            "target_name": "moe_ep",
-            "product": 16,
-            "dtype": "int"
-        }),
+    OptimizerConfigField(
+        name="max_batch_size",
+        config_position="BackendConfig.ScheduleConfig.maxBatchSize",
+        min=10,
+        max=1000,
+        dtype="int",
+    ),
+    OptimizerConfigField(
+        name="max_prefill_batch_size",
+        config_position="BackendConfig.ScheduleConfig.maxPrefillBatchSize",
+        min=0.1,
+        max=0.7,
+        dtype="ratio",
+        dtype_param="max_batch_size",
+    ),
+    OptimizerConfigField(
+        name="prefill_time_ms_per_req",
+        config_position="BackendConfig.ScheduleConfig.prefillTimeMsPerReq",
+        max=1000,
+        dtype="int",
+    ),
+    OptimizerConfigField(
+        name="decode_time_ms_per_req",
+        config_position="BackendConfig.ScheduleConfig.decodeTimeMsPerReq",
+        max=1000,
+        dtype="int",
+    ),
+    OptimizerConfigField(
+        name="support_select_batch",
+        config_position="BackendConfig.ScheduleConfig.supportSelectBatch",
+        max=1,
+        dtype="bool",
+    ),
+    OptimizerConfigField(
+        name="max_prefill_token",
+        config_position="BackendConfig.ScheduleConfig.maxPrefillTokens",
+        min=4096,
+        max=409600,
+        dtype="int",
+    ),
+    OptimizerConfigField(
+        name="max_queue_deloy_mircroseconds",
+        config_position="BackendConfig.ScheduleConfig.maxQueueDelayMicroseconds",
+        min=500,
+        max=1000000,
+        dtype="int",
+    ),
+    OptimizerConfigField(
+        name="prefill_policy_type",
+        config_position="BackendConfig.ScheduleConfig.prefillPolicyType",
+        min=0,
+        max=1,
+        dtype="enum",
+        dtype_param=[0, 1, 3],
+    ),
+    OptimizerConfigField(
+        name="decode_policy_type",
+        config_position="BackendConfig.ScheduleConfig.decodePolicyType",
+        min=0,
+        max=1,
+        dtype="enum",
+        dtype_param=[0, 1, 3],
+    ),
+    OptimizerConfigField(
+        name="max_preempt_count",
+        config_position="BackendConfig.ScheduleConfig.maxPreemptCount",
+        min=0,
+        max=1,
+        dtype="ratio",
+        dtype_param="max_batch_size",
+    ),
+    OptimizerConfigField(
+        name="tp",
+        config_position="BackendConfig.ModelDeployConfig.ModelConfig.0.tp",
+        min=0,
+        max=1,
+        dtype="enum",
+        dtype_param=[1, 2, 4, 8, 16],
+    ),
+    OptimizerConfigField(
+        name="dp",
+        config_position="BackendConfig.ModelDeployConfig.ModelConfig.0.dp",
+        min=0,
+        max=0,
+        dtype="factories",
+        dtype_param={"target_name": "tp", "product": 16, "dtype": "int"},
+    ),
+    OptimizerConfigField(
+        name="moe_ep",
+        config_position="BackendConfig.ModelDeployConfig.ModelConfig.0.moe_ep",
+        min=0,
+        max=1,
+        dtype="enum",
+        dtype_param=[1, 2, 4, 8, 16],
+    ),
+    OptimizerConfigField(
+        name="moe_tp",
+        config_position="BackendConfig.ModelDeployConfig.ModelConfig.0.moe_tp",
+        min=0,
+        max=0,
+        dtype="factories",
+        dtype_param={"target_name": "moe_ep", "product": 16, "dtype": "int"},
+    ),
 ]
 
 
@@ -191,35 +255,402 @@ def range_to_enum(params_field: Tuple[OptimizerConfigField, ...]):
             _start = int(v.min)
             _end = int(v.max)
             _step = int(v.dtype_param)
-        except (ValueError, TypeError) as e:
+        except (ValueError, TypeError):
             logger.error(f"Failed convert to int data, data: {v.min, v.max, v.dtype_param}")
             continue
-        _enums = [j for j in range(_start, _end + _step, _step)]
+        _enums = list(range(_start, _end + _step, _step))
         v.min = 0
         v.max = 1
         v.dtype_param = _enums
         v.dtype = "enum"
 
 
-def update_optimizer_value(params_field: Tuple[OptimizerConfigField, ...],
-                           simulate_run_info: Tuple[OptimizerConfigField, ...], support_select_is_false):
+class DecodeContext(BaseModel):
+    """
+    粒子解码上下文，用于 balanced 策略在不同粒子和迭代轮次之间均衡分配修复优先级。
+
+    Attributes:
+        particle_index: 当前粒子索引（0-based）
+        n_particles:    种群总粒子数
+        iteration:      当前迭代轮次（0-based），用于 balanced 策略按轮次交替方向，
+                        避免同一粒子在整个优化过程中长期固定偏向同一修复顺序。
+                        为 None 时退化为纯粒子索引切分。
+    """
+
+    particle_index: Optional[int] = None
+    n_particles: Optional[int] = None
+    iteration: Optional[int] = None
+
+
+def resolve_priority(dtype_param: dict, context=None) -> list:
+    """
+    根据 priority_policy 和粒子上下文解析修复时的字段优先级顺序。
+
+    策略：
+    - fixed:    使用 dtype_param["priority"] 指定的显式顺序；未指定则退化为 target_names 顺序
+    - balanced: 按粒子索引均分两个方向，减少单一解码顺序引入的结构性偏置；
+                无上下文时退化为 target_names 顺序
+
+    Args:
+        dtype_param: ternary_factories 的 dtype_param 字典
+        context:     DecodeContext 实例，或 None（非 PSO 路径）
+    Returns:
+        [高优先级字段名, 低优先级字段名]
+    """
+    target_names = dtype_param.get("target_names", [])
+    if len(target_names) < 2:
+        return list(target_names)
+
+    policy = dtype_param.get("priority_policy", "balanced")
+
+    if policy == "fixed":
+        priority = list(dtype_param.get("priority", target_names))
+        if len(priority) != len(target_names) or set(priority) != set(target_names):
+            logger.warning(f"Invalid fixed priority {priority}; fallback to target_names {target_names}.")
+            return list(target_names)
+        return priority
+
+    # balanced（默认）：前半粒子用正序，后半粒子用反序，降低解码偏置。
+    # 同时在迭代间交替方向，避免同一粒子在整个优化过程中长期固定偏向同一种修复顺序。
+    if policy == "balanced":
+        if context is None or context.particle_index is None or context.n_particles is None:
+            return list(target_names)
+        reverse = context.particle_index >= context.n_particles / 2
+        # 奇数迭代轮次翻转方向，使每个粒子在相邻迭代中获得不同的优先级顺序
+        if context.iteration is not None and context.iteration % 2 == 1:
+            reverse = not reverse
+        return list(reversed(target_names)) if reverse else list(target_names)
+
+    return list(target_names)
+
+
+def _repair_ternary_factories_with_priority(
+    v, simulate_run_info, params_field, product, min_val, max_val, conv, context=None
+):
+    """
+    优先级感知约束修复（新版）：替代 _repair_ternary_factories 的全局最近距离策略。
+    修复分两阶段：
+    - 阶段一（优先保留高优先级字段）：固定 keep 字段当前值，搜索 adjust 字段候选值
+    - 阶段二（两字段均可调整）：按各自距离排序的候选值进行联合搜索
+    后退行为与旧版兼容：修复失败时调用方降级截断。
+    Args:
+        v:                当前派生字段的 OptimizerConfigField 定义
+        simulate_run_info:可变的字段副本列表（将被原地修改）
+        params_field:     原始字段定义元组（用于获取候选值范围）
+        product:          dtype_param 中的 product 值
+        min_val:          结果下界（None 表示不限）
+        max_val:          结果上界（None 表示不限）
+        conv:             类型转换函数（int / float）
+        context:          DecodeContext 实例，决定 balanced 策略方向（None 时退化）
+    Returns:
+        True  修复成功，simulate_run_info 已原地更新
+        False 无法修复，调用方应降级截断
+    """
+    target_names = v.dtype_param.get("target_names", [])
+    if len(target_names) < 2:
+        return False
+
+    priority = resolve_priority(v.dtype_param, context)
+    keep_name = priority[0]  # 高优先级：尽量不动
+    adjust_name = priority[1]  # 低优先级：优先调整
+
+    def_by_name = {f.name: f for f in params_field}
+    sim_by_name = {f.name: f for f in simulate_run_info}
+
+    def_keep = def_by_name.get(keep_name)
+    def_adjust = def_by_name.get(adjust_name)
+    if def_keep is None or def_adjust is None:
+        return False
+
+    cands_keep = _get_field_candidates(def_keep)
+    cands_adjust = _get_field_candidates(def_adjust)
+    if not cands_keep or not cands_adjust:
+        return False
+
+    cur_keep = sim_by_name[keep_name].value if keep_name in sim_by_name else 0
+    cur_adjust = sim_by_name[adjust_name].value if adjust_name in sim_by_name else 0
+
+    is_int_dtype = v.dtype_param.get("dtype", "int") == "int"
+    cands_keep_sorted = sorted(cands_keep, key=lambda c: abs(c - (cur_keep or 0)))
+    cands_adjust_sorted = sorted(cands_adjust, key=lambda c: abs(c - (cur_adjust or 0)))
+
+    def is_valid_combination(keep_val, adjust_val):
+        """(keep_val, adjust_val) 组合是否合法，返回 (ok, result)"""
+        if not keep_val or not adjust_val:
+            return False, None
+        divisor = keep_val * adjust_val
+        if divisor == 0:
+            return False, None
+        if is_int_dtype and product % divisor != 0:
+            return False, None
+        result = conv(product / divisor)
+        if min_val is not None and result < min_val:
+            return False, None
+        if max_val is not None and result > max_val:
+            return False, None
+        return True, result
+
+    def apply_result(keep_val, adjust_val, result, stage):
+        old_derived = sim_by_name[v.name].value if v.name in sim_by_name else None
+        sim_by_name[keep_name].value = keep_val
+        sim_by_name[adjust_name].value = adjust_val
+        sim_by_name[v.name].value = result
+        keep_part = f"{keep_name}={keep_val}(kept)" if keep_val == cur_keep else f"{keep_name}: {cur_keep}→{keep_val}"
+        adjust_part = (
+            f"{adjust_name}={adjust_val}(kept)"
+            if adjust_val == cur_adjust
+            else f"{adjust_name}: {cur_adjust}→{adjust_val}"
+        )
+        derived_part = f"{v.name}: {old_derived}→{result}"
+        logger.info(
+            f"ternary_factories repair [{stage}] '{v.name}' "
+            f"(policy={v.dtype_param.get('priority_policy', 'balanced')}): "
+            f"{keep_part}, {adjust_part}, {derived_part} "
+            f"(product={product})"
+        )
+
+    # 阶段一：固定高优先级字段当前值，仅调整低优先级字段
+    for adjust_val in cands_adjust_sorted:
+        ok, result = is_valid_combination(cur_keep, adjust_val)
+        if ok:
+            apply_result(cur_keep, adjust_val, result, "stage1-fix-keep")
+            return True
+
+    # 阶段二：两个字段均可调整，按各自距离排序进行联合搜索
+    for keep_val in cands_keep_sorted:
+        for adjust_val in cands_adjust_sorted:
+            ok, result = is_valid_combination(keep_val, adjust_val)
+            if ok:
+                apply_result(keep_val, adjust_val, result, "stage2-both-adjust")
+                return True
+
+    return False
+
+
+# 旧版修复函数（全局归一化曼哈顿距离策略），保留用于回退。
+# 当前主路已替换为 _repair_ternary_factories_with_priority。
+def _get_field_candidates(field_def):
+    """
+    获取字段的候选离散值列表，用于 ternary_factories 约束修复搜索。
+
+    - enum 类型：返回 dtype_param 中的数值候选列表
+    - int 类型（范围 ≤ 256）：返回整数区间 [min, max]
+    - 其他类型或范围过大：返回 None，表示无法枚举（降级截断）
+
+    Args:
+        field_def: OptimizerConfigField 字段定义对象
+    Returns:
+        候选值列表，或 None（无法枚举时）
+    """
+    if field_def.dtype == "enum":
+        params = field_def.dtype_param
+        return [p for p in params if isinstance(p, (int, float))] if params else []
+    if field_def.dtype == "int":
+        lo, hi = int(field_def.min), int(field_def.max)
+        if 0 <= hi - lo <= 256:
+            return list(range(lo, hi + 1))
+    return None
+
+
+def _update_ratio_field(field, i, params_field, simulate_run_info, decode_context=None):
+    """ratio 类型处理: value = int(self_ratio × target.value)"""
+    _field = simulate_run_info[i]
+    _t_op = [_op for _op in simulate_run_info if _op.name == field.dtype_param][0]
+    _field.value = int(_field.value * _t_op.value)
+
+
+def _update_factories_field(field, i, params_field, simulate_run_info, decode_context=None):
+    """factories 类型处理: value = product / target.value"""
+    _field = simulate_run_info[i]
+    _t_op = [_op for _op in simulate_run_info if _op.name == field.dtype_param["target_name"]][0]
+    if _t_op.value != 0:
+        _field.value = dtype_func.get(field.dtype_param["dtype"], int)(field.dtype_param["product"] / _t_op.value)
+
+
+def _update_times_field(field, i, params_field, simulate_run_info, decode_context=None):
+    """times 类型处理: value = product × target.value"""
+    _field = simulate_run_info[i]
+    _t_op = [_op for _op in simulate_run_info if _op.name == field.dtype_param["target_name"]][0]
+    if _t_op.value is not None and not (isnan(_t_op.value) if isinstance(_t_op.value, float) else False):
+        _field.value = dtype_func.get(field.dtype_param["dtype"], int)(field.dtype_param["product"] * _t_op.value)
+    else:
+        logger.warning(f"Target value for {field.name} is invalid, skipping times calculation")
+
+
+def _update_ternary_factories_field(field, i, params_field, simulate_run_info, decode_context=None):
+    """
+    ternary_factories 类型处理: value = product / (field_a × field_b)
+
+    dtype_param 结构: {"target_names": ["field_a", "field_b"], "product": 16, "dtype": "int",
+                      "min_value": 1,   # 可选，结果下界，int 类型默认为 1
+                      "max_value": 16}  # 可选，结果上界
+    当结果越界时：优先尝试约束修复（调整源字段找最近合法组合），
+                 修复失败时降级截断。
+    """
+    _field = simulate_run_info[i]
+    target_names = field.dtype_param.get("target_names", [])
+    target_ops = [_op for _op in simulate_run_info if _op.name in target_names]
+    # 检查是否找到所有依赖字段，找不到说明 target_names 配置有误（如大小写不匹配或字段名写错）
+    found_names = {op.name for op in target_ops}
+    missing = [n for n in target_names if n not in found_names]
+    if missing:
+        logger.warning(
+            f"ternary_factories '{field.name}': target_names {missing} not found in fields. "
+            f"Check for typos or case mismatch. Available fields: "
+            f"{[op.name for op in simulate_run_info]}"
+        )
+        return
+
+    divisor = 1
+    for _t_op in target_ops:
+        if _t_op.value != 0:
+            divisor *= _t_op.value
+        else:
+            logger.warning(f"Target value {_t_op.name} is 0, skipping ternary_factories calculation for {field.name}")
+            return
+
+    product = field.dtype_param.get("product", 1)
+    conv = dtype_func.get(field.dtype_param.get("dtype", "int"), int)
+    result_value = conv(product / divisor)
+    # 下界：int 类型默认 min=1（除法结果为 0 或负数必属非法），可通过 min_value 显式覆盖
+    min_value = field.dtype_param.get("min_value", 1 if field.dtype_param.get("dtype", "int") == "int" else None)
+    max_value = field.dtype_param.get("max_value", None)
+    is_int_dtype = field.dtype_param.get("dtype", "int") == "int"
+    needs_repair = (
+        (min_value is not None and result_value < min_value)
+        or (max_value is not None and result_value > max_value)
+        or
+        # 非整除：int 类型结果经 int() 截断后与原始除法不自洽，必须修复源字段
+        (is_int_dtype and product % divisor != 0)
+    )
+    if needs_repair:
+        # 优先尝试约束修复（priority-aware）：调整源字段，保证配置整体自洽
+        if not _repair_ternary_factories_with_priority(
+            field, simulate_run_info, params_field, product, min_value, max_value, conv, context=decode_context
+        ):
+            # 修复失败（源字段无法枚举或无合法组合）：优先降级截断，截断无效时中止
+            repaired = False
+            if min_value is not None and result_value < min_value:
+                logger.warning(
+                    f"ternary_factories priority repair failed for '{field.name}'; "
+                    f"fallback to clamp: {result_value} → min_value {min_value}."
+                )
+                _field.value = conv(min_value)
+                repaired = True
+            if max_value is not None and result_value > max_value:
+                logger.warning(
+                    f"ternary_factories priority repair failed for '{field.name}'; "
+                    f"fallback to clamp: {result_value} → max_value {max_value}."
+                )
+                _field.value = conv(max_value)
+                repaired = True
+            if not repaired:
+                if is_int_dtype and product % divisor != 0:
+                    # 无法修复且无法截断：派生字段与源字段不自洽，中止本轮粒子评估。
+                    # ValueError 将沿调用链向上传播，最终由 op_func 捕获并置 fitness=inf，
+                    # 确保 PSO 不会基于逻辑不一致的配置做出搜索决策。
+                    raise ValueError(
+                        f"ternary_factories constraint violated for '{field.name}': "
+                        f"product={product} not divisible by divisor={divisor} "
+                        f"(targets={target_names}), and repair could not find valid source values."
+                    )
+                _field.value = result_value
+        # 修复成功：_repair_ternary_factories_with_priority 已原地更新 simulate_run_info，无需再次赋值
+    else:
+        _field.value = result_value
+
+
+def _update_ternary_times_field(field, i, params_field, simulate_run_info, decode_context=None):
+    """
+    ternary_times 类型处理: value = product × field_a × field_b
+
+    dtype_param 结构: {"target_names": ["field_a", "field_b"], "product": 1, "dtype": "int"}
+    """
+    _field = simulate_run_info[i]
+    target_names = field.dtype_param.get("target_names", [])
+    target_ops = [_op for _op in simulate_run_info if _op.name in target_names]
+    found_names = {op.name for op in target_ops}
+    missing = [n for n in target_names if n not in found_names]
+    if missing:
+        logger.warning(
+            f"ternary_times '{field.name}': target_names {missing} not found in fields. "
+            f"Check for typos or case mismatch. Available fields: "
+            f"{[op.name for op in simulate_run_info]}"
+        )
+        return
+    result = field.dtype_param.get("product", 1)
+    for _t_op in target_ops:
+        if _t_op.value is not None and not (isnan(_t_op.value) if isinstance(_t_op.value, float) else False):
+            result *= _t_op.value
+        else:
+            logger.warning(f"Target value {_t_op.name} for {field.name} is invalid, skipping ternary_times calculation")
+            return
+    _field.value = dtype_func.get(field.dtype_param.get("dtype", "int"), int)(result)
+
+
+def _update_share_field(field, i, params_field, simulate_run_info, decode_context=None):
+    """share 类型处理: value = int(target.min + target.max - target.value)"""
+    _field = simulate_run_info[i]
+    for _op in simulate_run_info:
+        if _op.name == field.dtype_param:
+            _field.value = int(_op.min + _op.max - _op.value)
+            break
+
+
+# 派生字段 dtype → 处理函数分发表
+# 新增派生类型时只需在此注册 handler 即可，无需修改 update_optimizer_value 主循环
+DERIVED_FIELD_HANDLERS = {
+    "ratio": _update_ratio_field,
+    "share": _update_share_field,
+    "factories": _update_factories_field,
+    "times": _update_times_field,
+    "ternary_factories": _update_ternary_factories_field,
+    "ternary_times": _update_ternary_times_field,
+}
+
+
+def update_optimizer_value(
+    params_field: Tuple[OptimizerConfigField, ...],
+    simulate_run_info: Tuple[OptimizerConfigField, ...],
+    support_select_is_false,
+    decode_context: Optional['DecodeContext'] = None,
+):
+    """
+    根据字段间依赖关系对 simulate_run_info 中的派生字段进行后处理赋值。
+
+    本函数处理以下派生 dtype 的字段（这些字段通常 min=max，被标记为常量，值由本函数推导）：
+
+    二元关系（依赖单个字段）
+    -------------------------
+    - ``ratio``            : value = int(self_ratio × target.value)
+    - ``factories``        : value = product / target.value  （target.value 为 0 时跳过）
+    - ``times``            : value = product × target.value  （target.value 为 None/NaN 时跳过）
+
+    三元关系（依赖两个字段）
+    -------------------------
+    - ``ternary_factories``: value = product / (field_a.value × field_b.value)
+                             任一依赖字段值为 0 时跳过并输出警告。
+                             dtype_param 格式: {"target_names": [str, str], "product": number, "dtype": str}
+    - ``ternary_times``    : value = product × field_a.value × field_b.value
+                             任一依赖字段值为 None 或 NaN 时跳过并输出警告。
+                             dtype_param 格式: {"target_names": [str, str], "product": number, "dtype": str}
+
+    此外还处理以下业务约束：
+    - maxPrefillBatchSize 字段值为 0 时强制置 1。
+    - support_select_is_false 为 True 时，prefillTimeMsPerReq / decodeTimeMsPerReq 强制置 0。
+
+    Args:
+        params_field:          原始字段定义元组，用于判断每个字段的 dtype 及 dtype_param。
+        simulate_run_info:     与 params_field 等长的深拷贝列表，值将被本函数原地修改。
+        support_select_is_false: 当 supportSelectBatch 字段值为 False 时传入 True，
+                                  触发 prefill/decode 时间字段清零逻辑。
+    """
     for i, v in enumerate(params_field):
-        if v.dtype == "ratio":
-            _field = simulate_run_info[i]
-            _t_op = [_op for _op in simulate_run_info if _op.name == v.dtype_param][0]
-            _field.value = int(_field.value * _t_op.value)
-        if v.dtype == "factories":
-            _field = simulate_run_info[i]
-            _t_op = [_op for _op in simulate_run_info if _op.name == v.dtype_param["target_name"]][0]
-            if _t_op.value != 0:
-                _field.value = dtype_func.get(v.dtype_param["dtype"], int)(v.dtype_param["product"] / _t_op.value)
-        elif v.dtype == "times":
-            _field = simulate_run_info[i]
-            _t_op = [_op for _op in simulate_run_info if _op.name == v.dtype_param["target_name"]][0]
-            if _t_op.value is not None and not (isnan(_t_op.value) if isinstance(_t_op.value, float) else False):
-                _field.value = dtype_func.get(v.dtype_param["dtype"], int)(v.dtype_param["product"] * _t_op.value)
-            else:
-                logger.warning(f"Target value for {v.name} is invalid, skipping times calculation")
+        handler = DERIVED_FIELD_HANDLERS.get(v.dtype)
+        if handler:
+            handler(v, i, params_field, simulate_run_info, decode_context)
+
+        # ---- 以下为跨 dtype 的通用后处理 ----
         if "maxPrefillBatchSize" in v.config_position:
             _field = simulate_run_info[i]
             if _field.value == 0:
@@ -233,7 +664,9 @@ def update_optimizer_value(params_field: Tuple[OptimizerConfigField, ...],
                 _field.value = 0
 
 
-def map_param_with_value(params: np.ndarray, params_field: Tuple[OptimizerConfigField, ...]):
+def map_param_with_value(
+    params: np.ndarray, params_field: Tuple[OptimizerConfigField, ...], decode_context: Optional['DecodeContext'] = None
+):
     _simulate_run_info = []
     _support_select_is_false = False
     i = 0
@@ -250,7 +683,7 @@ def map_param_with_value(params: np.ndarray, params_field: Tuple[OptimizerConfig
         if v.dtype == "int":
             try:
                 _field.value = int(params[i])
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 logger.warning(f"Failed convert to int data, data: {params[i]}")
                 _field.value = params[i]
         elif v.dtype == "bool":
@@ -284,24 +717,19 @@ def map_param_with_value(params: np.ndarray, params_field: Tuple[OptimizerConfig
                 else:
                     _enum_index = np.searchsorted(segment, params[i]) - 1
                     _field.value = v.dtype_param[_enum_index]
-        elif v.dtype == "share":
-            for _op in _simulate_run_info:
-                if _op.name == v.dtype_param:
-                    _field.value = int(_op.min + _op.max - _op.value)
         else:
             try:
                 _field.value = float(params[i])
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 logger.warning(f"Failed convert to float data, data: {params[i]}")
                 _field.value = params[i]
         i += 1
         _simulate_run_info.append(_field)
-    update_optimizer_value(params_field, tuple(_simulate_run_info), _support_select_is_false)
+    update_optimizer_value(params_field, tuple(_simulate_run_info), _support_select_is_false, decode_context)
     return _simulate_run_info
 
 
-def reverse_special_field(params_field: Tuple[OptimizerConfigField, ...], params: np.ndarray,
-                          concurrency: int):
+def reverse_special_field(params_field: Tuple[OptimizerConfigField, ...], params: np.ndarray, concurrency: int):
     _params = params
     i = 0
     for v in params_field:
@@ -358,8 +786,10 @@ def field_to_param(params_field: Tuple[OptimizerConfigField, ...]):
             _params.append((segment[_index] + segment[_index + 1]) / 2)
         else:
             _params.append(v.value)
-        if v.config_position == "BackendConfig.ScheduleConfig.maxBatchSize" or v.name in ["MAX_NUM_SEQS",
-                                                                                          "max_batch_size"]:
+        if v.config_position == "BackendConfig.ScheduleConfig.maxBatchSize" or v.name in [
+            "MAX_NUM_SEQS",
+            "max_batch_size",
+        ]:
             concurrency = v.value
     _params = np.array(_params, dtype=float)
     return reverse_special_field(params_field, _params, concurrency)
@@ -375,10 +805,8 @@ class PerformanceIndex(BaseModel):
 
 class CommunicationConfig(BaseModel):
     base_path: Path = Path("communication")
-    cmd_file: Optional[Path] = Field(
-        default_factory=lambda data: data["base_path"].joinpath("cmd.txt").resolve())
-    res_file: Optional[Path] = Field(
-        default_factory=lambda data: data["base_path"].joinpath("res.txt").resolve())
+    cmd_file: Optional[Path] = Field(default_factory=lambda data: data["base_path"].joinpath("cmd.txt").resolve())
+    res_file: Optional[Path] = Field(default_factory=lambda data: data["base_path"].joinpath("res.txt").resolve())
 
 
 class DataStorageConfig(BaseModel):
@@ -395,13 +823,15 @@ class DataStorageConfig(BaseModel):
 class LatencyModel(BaseModel):
     base_path: Path = Path("latency_model")
     model_path: Optional[Path] = Field(
-        default_factory=lambda data: data["base_path"].joinpath("bak/base/xgb_model.ubj").resolve())
+        default_factory=lambda data: data["base_path"].joinpath("bak/base/xgb_model.ubj").resolve()
+    )
     static_file_dir: Optional[Path] = Field(
-        default_factory=lambda data: data["base_path"].joinpath("model_static_file").resolve(), validate_default=True)
+        default_factory=lambda data: data["base_path"].joinpath("model_static_file").resolve(), validate_default=True
+    )
     req_and_decode_file: Optional[Path] = Field(
-        default_factory=lambda data: data["base_path"].joinpath("req_id_and_decode_num.json").resolve())
-    cache_data: Optional[Path] = Field(
-        default_factory=lambda data: data["base_path"].joinpath("cache").resolve())
+        default_factory=lambda data: data["base_path"].joinpath("req_id_and_decode_num.json").resolve()
+    )
+    cache_data: Optional[Path] = Field(default_factory=lambda data: data["base_path"].joinpath("cache").resolve())
 
     @field_validator("base_path", "cache_data", "static_file_dir")
     @classmethod
@@ -414,14 +844,14 @@ def _get_mindie_config_paths():
     """获取mindie配置文件路径"""
     default_config_path = Path("/usr/local/Ascend/mindie/latest/mindie-service/conf/config.json")
     default_config_bak_path = Path("/usr/local/Ascend/mindie/latest/mindie-service/conf/config_bak.json")
-    
+
     if not default_config_path.is_file():
         mies_install_path = os.getenv("MIES_INSTALL_PATH")
         if mies_install_path:
             new_config_path_parent = Path(mies_install_path).parent
             return (
                 new_config_path_parent / "mindie_llm/conf/config.json",
-                new_config_path_parent / "mindie_llm/conf/config_bak.json"
+                new_config_path_parent / "mindie_llm/conf/config_bak.json",
             )
     return default_config_path, default_config_bak_path
 
@@ -441,20 +871,27 @@ class KubectlConfig(BaseModel):
     process_name: str = ""
     kubectl_default_path: Path = Path("")
     kubectl_single_path: Optional[Path] = Field(
-        default_factory=lambda data: data["kubectl_default_path"].joinpath("deploy.sh").resolve())
+        default_factory=lambda data: data["kubectl_default_path"].joinpath("deploy.sh").resolve()
+    )
     config_single_path: Optional[Path] = Field(
-        default_factory=lambda data: data["kubectl_default_path"].joinpath("conf/config.json").resolve())
+        default_factory=lambda data: data["kubectl_default_path"].joinpath("conf/config.json").resolve()
+    )
     config_single_pd_path: Optional[Path] = Field(
-        default_factory=lambda data: data["kubectl_default_path"].joinpath("conf/ms_controller.json").resolve())
+        default_factory=lambda data: data["kubectl_default_path"].joinpath("conf/ms_controller.json").resolve()
+    )
     config_single_pd_bak_path: Optional[Path] = Field(
-        default_factory=lambda data: data["kubectl_default_path"].joinpath("conf/ms_controller_bak.json").resolve())
+        default_factory=lambda data: data["kubectl_default_path"].joinpath("conf/ms_controller_bak.json").resolve()
+    )
     config_single_bak_path: Optional[Path] = Field(
-        default_factory=lambda data: data["kubectl_default_path"].joinpath("conf/config_bak.json").resolve())
+        default_factory=lambda data: data["kubectl_default_path"].joinpath("conf/config_bak.json").resolve()
+    )
     delete_path: Optional[Path] = Field(
-        default_factory=lambda data: data["kubectl_default_path"].joinpath("delete.sh").resolve())
+        default_factory=lambda data: data["kubectl_default_path"].joinpath("delete.sh").resolve()
+    )
     work_path: Path = Field(default_factory=lambda: Path(os.getcwd()).resolve())
     command: KubectlCommandConfig = Field(
-        default_factory=lambda data: KubectlCommandConfig(kubectl_default_path=data["kubectl_default_path"]))
+        default_factory=lambda data: KubectlCommandConfig(kubectl_default_path=data["kubectl_default_path"])
+    )
     target_field: List[OptimizerConfigField] = Field(default_factory=list)
 
 
@@ -505,30 +942,22 @@ class PsoStrategy(BaseModel):
 
 class ErrorPatternConfig(BaseModel):
     """错误模式配置 - 3层设计：ErrorType -> patterns -> severity"""
+
     fatal_patterns: Dict[ErrorType, List[str]] = Field(
-        default_factory=lambda: {
-            ErrorType.OUT_OF_MEMORY: [],
-            ErrorType.DEVICE_ERROR: []
-        }
+        default_factory=lambda: {ErrorType.OUT_OF_MEMORY: [], ErrorType.DEVICE_ERROR: []}
     )
     retryable_patterns: Dict[ErrorType, List[str]] = Field(
-        default_factory=lambda: {
-            ErrorType.NETWORK_ERROR: [],
-            ErrorType.IO_ERROR: []
-        }
+        default_factory=lambda: {ErrorType.NETWORK_ERROR: [], ErrorType.IO_ERROR: []}
     )
 
 
 class HealthCheckConfig(BaseModel):
     """健康检查配置"""
-    service_errors: ErrorPatternConfig = Field(default_factory=lambda: ErrorPatternConfig())
+
+    service_errors: ErrorPatternConfig = Field(default_factory=ErrorPatternConfig)
     benchmark_errors: ErrorPatternConfig = Field(
         default_factory=lambda: ErrorPatternConfig(
-            fatal_patterns={},
-            retryable_patterns={
-                ErrorType.NETWORK_ERROR: [],
-                ErrorType.IO_ERROR: []
-            }
+            fatal_patterns={}, retryable_patterns={ErrorType.NETWORK_ERROR: [], ErrorType.IO_ERROR: []}
         )
     )
     log_snippet_length: int = 50
@@ -538,16 +967,23 @@ class Settings(BaseSettings):
     """
     设置类的定义，通过读取配置文件初始化配置
     """
+
     model_config = SettingsConfigDict(
-        toml_file=[INSTALL_PATH.joinpath("model_eval_state.toml"), Path("~/model_eval_state.toml").expanduser(),
-                   RUN_PATH.joinpath("model_eval_state.toml"),
-                   INSTALL_PATH.joinpath("config.toml"), INSTALL_PATH.joinpath("ms_serviceparam_optimizer/config.toml"),
-                   Path("~/config.toml").expanduser(), RUN_PATH.joinpath("config.toml"), ms_serviceparam_optimizer_config_path],
-        env_prefix="model_eval_state_")
+        toml_file=[
+            INSTALL_PATH.joinpath("model_eval_state.toml"),
+            Path("~/model_eval_state.toml").expanduser(),
+            RUN_PATH.joinpath("model_eval_state.toml"),
+            INSTALL_PATH.joinpath("config.toml"),
+            INSTALL_PATH.joinpath("ms_serviceparam_optimizer/config.toml"),
+            Path("~/config.toml").expanduser(),
+            RUN_PATH.joinpath("config.toml"),
+            ms_serviceparam_optimizer_config_path,
+        ],
+        env_prefix="model_eval_state_",
+    )
 
     output: Path = Field(default_factory=lambda: Path(os.getcwd()).joinpath("result").resolve(), validate_default=True)
-    simulator_output: Path = Field(
-        default_factory=lambda data: data["output"].joinpath("simulator").resolve())
+    simulator_output: Path = Field(default_factory=lambda data: data["output"].joinpath("simulator").resolve())
     pso_options: PsoOptions = PsoOptions()
     pso_strategy: PsoStrategy = PsoStrategy()
     particles_time_out: int = 1 * 60 * 60
@@ -573,35 +1009,40 @@ class Settings(BaseSettings):
     service: str = ServiceType.master.value
     communication: CommunicationConfig = Field(
         default_factory=lambda data: CommunicationConfig(base_path=data["output"].joinpath("communication")),
-        validate_default=True)
+        validate_default=True,
+    )
     latency_model: LatencyModel = Field(
         default_factory=lambda data: LatencyModel(base_path=data["output"].joinpath("latency_model")),
-        validate_default=True)
-    vllm: VllmConfig = Field(default_factory=lambda data: VllmConfig(output=data["output"].joinpath("vllm")),
-                             validate_default=True)
-    mindie: MindieConfig = Field(default_factory=lambda data: MindieConfig(output=data["output"].joinpath("mindie")),
-                                 validate_default=True)
-    kubectl: KubectlConfig = Field(default_factory=lambda data: KubectlConfig(output=data["output"].joinpath("k8s")),
-                                   validate_default=True)
+        validate_default=True,
+    )
+    vllm: VllmConfig = Field(
+        default_factory=lambda data: VllmConfig(output=data["output"].joinpath("vllm")), validate_default=True
+    )
+    mindie: MindieConfig = Field(
+        default_factory=lambda data: MindieConfig(output=data["output"].joinpath("mindie")), validate_default=True
+    )
+    kubectl: KubectlConfig = Field(
+        default_factory=lambda data: KubectlConfig(output=data["output"].joinpath("k8s")), validate_default=True
+    )
     ais_bench: AisBenchConfig = AisBenchConfig()
 
     vllm_benchmark: VllmBenchmarkConfig = VllmBenchmarkConfig()
 
-
     data_storage: DataStorageConfig = Field(
         default_factory=lambda data: DataStorageConfig(store_dir=data["output"].joinpath("store")),
-        validate_default=True)
+        validate_default=True,
+    )
 
     health_check: HealthCheckConfig = Field(default_factory=HealthCheckConfig)
 
     @classmethod
     def settings_customise_sources(
-            cls,
-            settings_cls: Type[BaseSettings],
-            init_settings: PydanticBaseSettingsSource,
-            env_settings: PydanticBaseSettingsSource,
-            dotenv_settings: PydanticBaseSettingsSource,
-            file_secret_settings: PydanticBaseSettingsSource,
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
     ) -> Tuple[PydanticBaseSettingsSource, ...]:
         return (init_settings, env_settings, TomlConfigSettingsSource(settings_cls), file_secret_settings)
 

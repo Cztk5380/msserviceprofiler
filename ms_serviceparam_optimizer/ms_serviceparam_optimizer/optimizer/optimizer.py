@@ -18,32 +18,41 @@ import os
 from contextlib import contextmanager
 from copy import deepcopy
 from math import inf, isinf, isnan, isclose
+from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 import pandas as pd
 from loguru import logger
-
-from ..common import is_vllm, is_mindie
-from ..config.base_config import (
-    EnginePolicy, DeployPolicy, AnalyzeTool, REAL_EVALUATION, 
-    ServiceType, BenchMarkPolicy, PDPolicy, REQUESTRATES,
-    simulate_flag, CONCURRENCYS
-)
+from msguard import Rule
+from ..common import is_mindie
+from ..config.base_config import DeployPolicy, REAL_EVALUATION, PDPolicy, REQUESTRATES, simulate_flag, CONCURRENCYS
 from ..optimizer.register import benchmarks, simulates
 from ..optimizer.performance_tunner import PerformanceTuner
 from ..optimizer.utils import get_required_field_from_json, is_root
+from ..config.config import map_param_with_value, field_to_param, DecodeContext
 
 
 MAX_ITER_NUM = 200
 
 
 class PSOOptimizer(PerformanceTuner):
-    def __init__(self, scheduler, n_particles: int = 10, iters=100, pso_options=None,
-                 target_field: Optional[Tuple] = None, load_history_data: Optional[List] = None,
-                 load_breakpoint: bool = False, pso_init_kwargs: Optional[Dict] = None,
-                 fine_tune=None, max_fine_tune: int = 10, **kwargs):
+    def __init__(
+        self,
+        scheduler,
+        n_particles: int = 10,
+        iters=100,
+        pso_options=None,
+        target_field: Optional[Tuple] = None,
+        load_history_data: Optional[List] = None,
+        load_breakpoint: bool = False,
+        pso_init_kwargs: Optional[Dict] = None,
+        fine_tune=None,
+        max_fine_tune: int = 10,
+        **kwargs,
+    ):
         from ..config.config import PsoOptions, default_support_field
+
         super().__init__(**kwargs)
         self.scheduler = scheduler
         self.n_particles = min(n_particles, MAX_ITER_NUM)
@@ -64,6 +73,7 @@ class PSOOptimizer(PerformanceTuner):
         self.sample_data = None
         self.fine_tune = fine_tune
         self.max_fine_tune = min(max_fine_tune, MAX_ITER_NUM)
+        self._iteration = 0  # op_func 调用计数，用于 balanced 策略的迭代间方向交替
 
     @staticmethod
     def is_within_boundary(target_pos, min_bound, max_bound):
@@ -71,8 +81,7 @@ class PSOOptimizer(PerformanceTuner):
         for i, v in enumerate(target_pos):
             if min_bound[i] <= v <= max_bound[i]:
                 continue
-            else:
-                return False
+            return False
         return True
 
     @staticmethod
@@ -93,7 +102,8 @@ class PSOOptimizer(PerformanceTuner):
         return _target_field
 
     def computer_fitness(self) -> Tuple:
-        from ..config.config import PerformanceIndex, field_to_param
+        from ..config.config import PerformanceIndex
+
         all_position = []
         all_cost = []
         _min_bound, _max_bound = self.constructing_bounds()
@@ -125,15 +135,45 @@ class PSOOptimizer(PerformanceTuner):
             raise ValueError("Failed in computer_fitness.")
         return all_position, all_cost
 
+    def _normalize_particle_position(self, position: np.ndarray, particle_index: int, n_particles: int, iteration: int):
+        """
+        对单个粒子位置进行约束归一化：应用字段派生规则修复（如 ternary_factories 约束），
+        将修复后的实际参数转回连续空间位置向量。
+
+        返回值: (corrected_position, decode_context)
+        - corrected_position: 修复后的位置向量（与原位置可能不同）
+        - decode_context:    本次归一化使用的上下文，调用方可复用传给 scheduler
+        """
+        decode_context = DecodeContext(
+            particle_index=particle_index,
+            n_particles=n_particles,
+            iteration=iteration,
+        )
+        try:
+            actual_params = map_param_with_value(position, self.target_field, decode_context=decode_context)
+            true_x = field_to_param(tuple(actual_params))
+            if not np.allclose(position, true_x, atol=1e-9):
+                logger.debug(
+                    f"Particle {particle_index}: PSO position corrected {position} → {true_x} "
+                    f"(ternary_factories repair)"
+                )
+            return true_x, decode_context
+        except Exception as e:
+            logger.warning(f"Position correction failed for particle {particle_index}: {e}")
+            return position, decode_context
+
     def op_func(self, x) -> np.ndarray:
         n_particles = x.shape[0]
         logger.debug(f"Acquired n_particles: {n_particles}, value: {x}")
+        current_iteration = self._iteration
+        self._iteration += 1
         generate_speed = []
         for i in range(n_particles):
-            # 调用schedule， 获取采集的数据
+            # 阶段一：位置归一化（字段约束修复，反馈真实位置给 PSO）
+            x[i], decode_context = self._normalize_particle_position(x[i], i, n_particles, current_iteration)
+            # 阶段二：调度执行 + 适应度计算
             try:
-                _res = self.scheduler.run_with_request_rate(x[i], self.target_field)
-                # 根据采集的数据，计算最优化值
+                _res = self.scheduler.run_with_request_rate(x[i], self.target_field, decode_context=decode_context)
                 _fitness = self.minimum_algorithm(_res)
             except Exception as e:
                 logger.error(f"Failed. error: {e}, please check.")
@@ -152,9 +192,8 @@ class PSOOptimizer(PerformanceTuner):
         for _field in self.target_field:
             if _field.constant is not None or isclose(_field.min, _field.max, rel_tol=1e-5):
                 continue
-            else:
-                _min.append(_field.min)
-                _max.append(_field.max)
+            _min.append(_field.min)
+            _max.append(_field.max)
         return (tuple(_min), tuple(_max))
 
     def dimensions(self):
@@ -162,13 +201,12 @@ class PSOOptimizer(PerformanceTuner):
         for _field in self.target_field:
             if _field.constant is not None or isclose(_field.min, _field.max, rel_tol=1e-5):
                 continue
-            else:
-                d += 1
+            d += 1
         return d
 
     def refine_optimization_candidates(self, best_results: pd.DataFrame):
-        from ..config.config import field_to_param
         from ..optimizer.experience_fine_tunning import StopFineTune
+
         # 分别精调每组参数
         _record_params = [self.default_run_param]
         _record_res = [self.default_res]
@@ -197,7 +235,7 @@ class PSOOptimizer(PerformanceTuner):
             for _ in range(self.max_fine_tune):
                 try:
                     simulate_run_info = self.fine_tune.fine_tune_with_concurrency_and_request_rate(params, _res)
-                except ValueError as e:
+                except ValueError:
                     logger.error("Failed in fine-tuning parameter. error: {e}")
                     break
                 except StopFineTune:
@@ -220,7 +258,7 @@ class PSOOptimizer(PerformanceTuner):
                 _record_res.append(_res)
                 _record_fitness.append(_fitness)
         return _record_fitness, _record_params, _record_res
-    
+
     def get_max_generate_speed_index(self, performance_index_list, slo_index):
         _best_index = 0
         _max = 0
@@ -233,19 +271,22 @@ class PSOOptimizer(PerformanceTuner):
         return _best_index
 
     def best_params(self, fitnese_list, params_list, performance_index_list):
-        from ..config.config import get_settings
         # 分析最佳参数
         if not performance_index_list or not fitnese_list or not params_list:
-            logger.error(f"Input is empty."
-                             f"performance_index_list:{performance_index_list},"
-                             f"fitnese_list: {fitnese_list},"
-                             f"params_list: {params_list}")
+            logger.error(
+                f"Input is empty."
+                f"performance_index_list:{performance_index_list},"
+                f"fitnese_list: {fitnese_list},"
+                f"params_list: {params_list}"
+            )
             return None, None, None
         if len(fitnese_list) != len(params_list) != len(performance_index_list):
-            logger.error(f"The number of input elements does not match."
-                             f"performance_index_list:{len(performance_index_list)},"
-                             f"fitnese_list: {len(fitnese_list)},"
-                             f"params_list: {len(params_list)}")
+            logger.error(
+                f"The number of input elements does not match."
+                f"performance_index_list:{len(performance_index_list)},"
+                f"fitnese_list: {len(fitnese_list)},"
+                f"params_list: {len(params_list)}"
+            )
             return None, None, None
         for _p in performance_index_list:
             if _p.generate_speed is None:
@@ -277,11 +318,15 @@ class PSOOptimizer(PerformanceTuner):
             _ttft_threshold = self.fine_tune.ttft_upper_bound
             if _tpot_threshold == 0 or _ttft_threshold == 0:
                 return fitnese_list[0], params_list[0], performance_index_list[0]
-            _performance_diff = [((p.time_per_output_token - _tpot_threshold) / _tpot_threshold,
-                                  (p.time_to_first_token - _ttft_threshold) / _ttft_threshold) 
-                                  for p in performance_index_list]
+            _performance_diff = [
+                (
+                    (p.time_per_output_token - _tpot_threshold) / _tpot_threshold,
+                    (p.time_to_first_token - _ttft_threshold) / _ttft_threshold,
+                )
+                for p in performance_index_list
+            ]
             # ttft 和 tpot 都满足条件
-            _performance_lt_slo_index = [i for i, v in enumerate(_performance_diff) if all([kv < 0 for kv in v])]
+            _performance_lt_slo_index = [i for i, v in enumerate(_performance_diff) if all(kv < 0 for kv in v)]
             if _performance_lt_slo_index:
                 _best_index = self.get_max_generate_speed_index(performance_index_list, _performance_lt_slo_index)
                 return fitnese_list[_best_index], params_list[_best_index], performance_index_list[_best_index]
@@ -291,9 +336,10 @@ class PSOOptimizer(PerformanceTuner):
             return fitnese_list[_best_index], params_list[_best_index], performance_index_list[_best_index]
         # 未知场景，返回第一组作为最佳参数
         return fitnese_list[0], params_list[0], performance_index_list[0]
-    
+
     def mindie_prepare(self, mc):
         from ..config.config import get_settings
+
         settings = get_settings()
         if mc is None:
             return
@@ -302,23 +348,31 @@ class PSOOptimizer(PerformanceTuner):
         mc.avg_input_length = self.scheduler.benchmark.get_performance_metric("InputTokens")
         mc.max_input_length = self.scheduler.benchmark.get_performance_metric("InputTokens", algorithm="max")
         mc.max_output_length = self.scheduler.benchmark.get_performance_metric("OutputTokens", algorithm="max")
-        logger.debug(f"avg_input_length: {mc.avg_input_length}, max_input_length: {mc.max_input_length},"
-                     f"max_output_length: {mc.max_output_length}")
+        logger.debug(
+            f"avg_input_length: {mc.avg_input_length}, max_input_length: {mc.max_input_length},"
+            f"max_output_length: {mc.max_output_length}"
+        )
         max_batch_size_lb, max_batch_size_ub = mc.get_max_batch_size_bound()
         if not isinf(max_batch_size_ub):
             scale_max_batch_size_ub = int(max_batch_size_ub * settings.scaling_coefficient)
         else:
             scale_max_batch_size_ub = inf
-        logger.debug(f"avg_input_length: {mc.avg_input_length}, max_input_length: {mc.max_input_length},"
-                     f"max_output_length: {mc.max_output_length}")
+        logger.debug(
+            f"avg_input_length: {mc.avg_input_length}, max_input_length: {mc.max_input_length},"
+            f"max_output_length: {mc.max_output_length}"
+        )
         max_batch_size_lb, max_batch_size_ub = mc.get_max_batch_size_bound()
         scale_max_batch_size_ub = int(max_batch_size_ub * settings.scaling_coefficient)
         if max_batch_size_lb >= max_batch_size_ub or max_batch_size_lb <= 0 or max_batch_size_ub <= 0:
-            logger.warning(f"Theoretical derivation scope failure.max_batch_size_lb {max_batch_size_lb}, "
-                         f"max_batch_size_ub {max_batch_size_ub}, please check env")
+            logger.warning(
+                f"Theoretical derivation scope failure.max_batch_size_lb {max_batch_size_lb}, "
+                f"max_batch_size_ub {max_batch_size_ub}, please check env"
+            )
             return
-        logger.debug(f"max_batch_size_lb {max_batch_size_lb}, max_batch_size_ub {max_batch_size_ub}. "
-                     f"scale_max_batch_size_ub {scale_max_batch_size_ub}")
+        logger.debug(
+            f"max_batch_size_lb {max_batch_size_lb}, max_batch_size_ub {max_batch_size_ub}. "
+            f"scale_max_batch_size_ub {scale_max_batch_size_ub}"
+        )
 
         for _field in self.target_field:
             if _field.name == "max_batch_size":
@@ -332,12 +386,13 @@ class PSOOptimizer(PerformanceTuner):
                     _field.max = max_batch_size_ub
                 break
         logger.debug(f"target_field: {self.target_field}")
-    
+
     def prepare_plugin(self):
-        from ..config.config import get_settings, field_to_param
+        from ..config.config import get_settings
         from ..config.model_config import MindieModelConfig
         from ..optimizer.plugins.benchmark import AisBench
         from ..optimizer.plugins.simulate import Simulator, DisaggregationSimulator
+
         # 运行默认参数服务，获取理论推导需要的指标
         if isinstance(self.scheduler.simulator, (Simulator, DisaggregationSimulator)):
             settings = get_settings()
@@ -346,8 +401,9 @@ class PSOOptimizer(PerformanceTuner):
                 mc = MindieModelConfig(self.scheduler.simulator.config.config_path)
             for _, _field in enumerate(self.target_field):
                 if _field.config_position.startswith("BackendConfig"):
-                    _field.value = get_required_field_from_json(self.scheduler.simulator.default_config,
-                                                                _field.config_position)
+                    _field.value = get_required_field_from_json(
+                        self.scheduler.simulator.default_config, _field.config_position
+                    )
                 elif _field.config_position == "env":
                     _field.value = os.getenv(_field.name, _field.value)
             self.default_run_param = field_to_param(self.target_field)
@@ -359,7 +415,7 @@ class PSOOptimizer(PerformanceTuner):
             if is_mindie():
                 self.mindie_prepare(mc)
             if isinstance(self.scheduler.benchmark, AisBench):
-                #由于aisbench在过高的concurrency下可能会卡死，所以需要根据benchmark结果来设置concurrency的范围
+                # 由于aisbench在过高的concurrency下可能会卡死，所以需要根据benchmark结果来设置concurrency的范围
                 _concurrency = self.scheduler.benchmark.get_best_concurrency()
                 for _field in self.target_field:
                     if _field.name in CONCURRENCYS and _field.min != _field.max:
@@ -374,36 +430,48 @@ class PSOOptimizer(PerformanceTuner):
             self.default_res = self.scheduler.run(self.default_run_param, self.target_field)
             self.default_fitness = self.minimum_algorithm(self.default_res)
             self.scheduler.save_result(fitness=self.default_fitness)
-        
-        if self.scheduler.error_info:
-            raise ValueError(f"Failed to start the default service. "
-                             "Please check if the service and the request to start it are correct. error:{e}")
 
-        if (self.default_res.generate_speed is None or self.default_res.time_to_first_token is None or
-                self.default_res.time_per_output_token is None):
-            logger.warning(f"Failed to obtain benchmark metric data. metric {self.default_res}"
-                             "Please check if the benchmark is running successfully. ")
-        
-        self.target_field = [*self.scheduler.simulator.data_field,
-                             *self.scheduler.benchmark.data_field]
+        if self.scheduler.error_info:
+            raise ValueError(
+                "Failed to start the default service. "
+                "Please check if the service and the request to start it are correct. error:{e}"
+            )
+
+        if (
+            self.default_res.generate_speed is None
+            or self.default_res.time_to_first_token is None
+            or self.default_res.time_per_output_token is None
+        ):
+            logger.warning(
+                f"Failed to obtain benchmark metric data. metric {self.default_res}"
+                "Please check if the benchmark is running successfully. "
+            )
+
+        self.target_field = [*self.scheduler.simulator.data_field, *self.scheduler.benchmark.data_field]
 
     def run_plugin(self):
-        from ..config.config import map_param_with_value
         from ..optimizer.global_best_custom import CustomGlobalBestPSO
+
         self.prepare_plugin()
         # 备份原target field, 调整新的target field用来寻优
         with adapter_target_field(self), sample(self.scheduler):
             if self.load_breakpoint:
                 self.load_history_data = self.scheduler.data_storage.load_history_position(
                     self.scheduler.data_storage.config.store_dir,
-                    filter_field={**self.scheduler.data_storage.get_run_info(), REAL_EVALUATION: True}
+                    filter_field={**self.scheduler.data_storage.get_run_info(), REAL_EVALUATION: True},
                 )
             if self.load_history_data and self.load_breakpoint:
                 self.history_pos, self.history_cost = self.computer_fitness()
-            optimizer = CustomGlobalBestPSO(n_particles=self.n_particles, dimensions=self.dimensions(),
-                                            options=self.pso_options.model_dump(), bounds=self.constructing_bounds(),
-                                            init_pos=self.init_pos, breakpoint_pos=self.history_pos,
-                                            breakpoint_cost=self.history_cost, **self.pso_init_kwargs)
+            optimizer = CustomGlobalBestPSO(
+                n_particles=self.n_particles,
+                dimensions=self.dimensions(),
+                options=self.pso_options.model_dump(),
+                bounds=self.constructing_bounds(),
+                init_pos=self.init_pos,
+                breakpoint_pos=self.history_pos,
+                breakpoint_cost=self.history_cost,
+                **self.pso_init_kwargs,
+            )
             with enable_simulate(self.scheduler):
                 try:
                     cost, joint_vars = optimizer.optimize(self.op_func, iters=self.iters)
@@ -415,16 +483,19 @@ class PSOOptimizer(PerformanceTuner):
                         raise e
                 best_results = self.scheduler.data_storage.get_best_result()
         _record_fitness, _record_params, _record_res = self.refine_optimization_candidates(best_results)
-        best_fitness, best_param, best_performance_index = self.best_params(_record_fitness, _record_params,
-                                                                _record_res)
+        best_fitness, best_param, best_performance_index = self.best_params(
+            _record_fitness, _record_params, _record_res
+        )
         if best_param is None or best_fitness is None or best_performance_index is None:
             return
         _position = {_field.name: _field.value for _field in map_param_with_value(best_param, self.target_field)}
-        logger.debug(f"vars: {_position}, performance index: "
-                    f"ttft: {best_performance_index.time_to_first_token} \n"
-                    f"tpot: {best_performance_index.time_per_output_token} \n"
-                    f"generate_speed: {best_performance_index.generate_speed} \n")
-            
+        logger.debug(
+            f"vars: {_position}, performance index: "
+            f"ttft: {best_performance_index.time_to_first_token} \n"
+            f"tpot: {best_performance_index.time_per_output_token} \n"
+            f"generate_speed: {best_performance_index.generate_speed} \n"
+        )
+
 
 @contextmanager
 def adapter_target_field(pso_optimizer: PSOOptimizer):
@@ -447,8 +518,6 @@ def adapter_target_field(pso_optimizer: PSOOptimizer):
 
 @contextmanager
 def sample(scheduler):
-    from ..config.config import get_settings
-    from ..optimizer.interfaces.benchmark import BenchmarkInterface
     """
     采样请求控制。当只跑部分请求时 可以这样处理。
     Args:
@@ -457,12 +526,17 @@ def sample(scheduler):
     Returns:
 
     """
+    from ..config.config import get_settings
+    from ..optimizer.interfaces.benchmark import BenchmarkInterface
+
     settings = get_settings()
     _bak_number = None
     if settings.sample_size:
-        if (isinstance(scheduler.benchmark, BenchmarkInterface) and
-                scheduler.benchmark.num_prompts and
-                scheduler.benchmark.num_prompts > settings.sample_size):
+        if (
+            isinstance(scheduler.benchmark, BenchmarkInterface)
+            and scheduler.benchmark.num_prompts
+            and scheduler.benchmark.num_prompts > settings.sample_size
+        ):
             _bak_number = scheduler.benchmark.num_prompts
             scheduler.benchmark.num_prompts = settings.sample_size
         yield
@@ -484,24 +558,72 @@ def enable_simulate(scheduler):
             yield flag
     else:
         yield False
-    
-    
+
+
 def plugin_main(args: argparse.Namespace):
-    from ..optimizer.server import main as slave_server
     from ..optimizer.store import DataStorage
-    from ..config.config import get_settings
+    from ..config.config import Settings, get_settings, register_settings
     from ..optimizer.experience_fine_tunning import FineTune
     from ..optimizer.scheduler import Scheduler
     from ..optimizer.plugins.simulate import DisaggregationSimulator
     from ..optimizer.register import register_ori_functions
+
     register_ori_functions()
+    # 处理自定义配置文件
+    if args.config:
+        custom_config_path = Path(args.config).expanduser().resolve()
+        if not Rule.input_file_read.is_satisfied_by(custom_config_path):
+            logger.error("Custom config file not found: {}", custom_config_path)
+            return
+
+        # 验证配置文件是有效的 TOML 格式
+        tomllib = None
+        try:
+            import tomllib
+        except ImportError:
+            # Python < 3.11 使用 tomli
+            try:
+                import tomli as tomllib
+            except ImportError:
+                logger.warning("toml library not available, skipping TOML validation")
+        if tomllib is not None:
+            try:
+                with open(custom_config_path, "rb") as f:
+                    tomllib.load(f)
+            except Exception as e:
+                raise ValueError(f"Invalid TOML config file '{custom_config_path}': {e}") from e
+
+        # 使用 register_settings 动态注入配置
+        def create_custom_settings():
+            from pydantic_settings import SettingsConfigDict
+
+            # 动态构建 toml_file 列表，将用户指定的配置放在最后（最高优先级）
+            default_toml_files = list(Settings.model_config.get("toml_file", ()))
+            toml_files = default_toml_files + [custom_config_path]
+
+            # 获取原始 Settings 类的 model_config
+            original_model_config = Settings.model_config
+
+            # 创建一个自定义 Settings 类，在 model_config 中配置 toml_file
+            # 保留原始配置并添加额外的配置，同时允许 extra 字段
+            custom_config_dict = dict(original_model_config)
+            custom_config_dict["toml_file"] = toml_files
+            custom_config_dict["extra"] = "allow"
+
+            class CustomSettings(Settings):
+                model_config = SettingsConfigDict(**custom_config_dict)
+
+            return CustomSettings()
+
+        register_settings(create_custom_settings)
+        logger.info(f"Using custom config file: {custom_config_path}")
     settings = get_settings()
     if is_root():
         logger.warning(
             "Security Warning: Do not run this tool as root. "
             "Running with elevated privileges may compromise system security. "
             "Use a regular user account."
-        )   
+        )
     bak_path = None
     if args.backup:
         bak_path = settings.output.joinpath("bak")
@@ -529,61 +651,88 @@ def plugin_main(args: argparse.Namespace):
     data_storage = DataStorage(settings.data_storage, _simu, _bench)
     # 初始化调度模块，支持单机和多机
     scheduler = Scheduler(_simu, _bench, data_storage, bak_path=bak_path)
-    fine_tune = FineTune(ttft_penalty=settings.ttft_penalty,
-                         tpot_penalty=settings.tpot_penalty,
-                         target_field=_target_field,
-                         ttft_slo=settings.ttft_slo,
-                         tpot_slo=settings.tpot_slo,
-                         slo_coefficient=settings.slo_coefficient,
-                         step_size=settings.step_size)
-    # set constraints
-    constraint_thresholds = {
-        'ttft': getattr(settings, 'ttft_slo', 1.0) * (1 + getattr(settings, 'slo_coefficient', 0)),
-        'tpot': getattr(settings, 'tpot_slo', 0.05) * (1 + getattr(settings, 'slo_coefficient', 0))
-    }
+    fine_tune = FineTune(
+        ttft_penalty=settings.ttft_penalty,
+        tpot_penalty=settings.tpot_penalty,
+        target_field=_target_field,
+        ttft_slo=settings.ttft_slo,
+        tpot_slo=settings.tpot_slo,
+        slo_coefficient=settings.slo_coefficient,
+        step_size=settings.step_size,
+    )
     try:
-        pso = PSOOptimizer(scheduler,
-                       n_particles=settings.n_particles,
-                       iters=settings.iters,
-                       target_field=_target_field,
-                       ttft_penalty=settings.ttft_penalty,
-                       tpot_penalty=settings.tpot_penalty,
-                       success_rate_penalty=settings.success_rate_penalty,
-                       ttft_slo=settings.ttft_slo,
-                       tpot_slo=settings.tpot_slo,
-                       success_rate_slo=settings.success_rate_slo,
-                       generate_speed_target=settings.generate_speed_target,
-                       load_breakpoint=args.load_breakpoint,
-                       fine_tune=fine_tune,
-                       max_fine_tune=settings.max_fine_tune,
-                       pso_init_kwargs={"ftol": settings.ftol, "ftol_iter": settings.ftol_iter},
-                       )
+        pso = PSOOptimizer(
+            scheduler,
+            n_particles=settings.n_particles,
+            iters=settings.iters,
+            target_field=_target_field,
+            ttft_penalty=settings.ttft_penalty,
+            tpot_penalty=settings.tpot_penalty,
+            success_rate_penalty=settings.success_rate_penalty,
+            ttft_slo=settings.ttft_slo,
+            tpot_slo=settings.tpot_slo,
+            success_rate_slo=settings.success_rate_slo,
+            generate_speed_target=settings.generate_speed_target,
+            load_breakpoint=args.load_breakpoint,
+            fine_tune=fine_tune,
+            max_fine_tune=settings.max_fine_tune,
+            pso_init_kwargs={"ftol": settings.ftol, "ftol_iter": settings.ftol_iter},
+        )
         pso.run_plugin()
-    except Exception as e:	
+    except Exception as e:
         logger.error(f"Failed to run optimizer. Please check. error: {e}")
 
 
 def arg_parse(subparsers):
     from ..plugins import load_general_plugins
-    plugin = load_general_plugins()
+
+    load_general_plugins()
     sims = ["vllm", "mindie"]
     benches = ["ais_bench", "vllm_benchmark"]
     parser = subparsers.add_parser(
         "optimizer", formatter_class=argparse.ArgumentDefaultsHelpFormatter, help="optimize for performance"
     )
-    parser.add_argument("-lb", "--load_breakpoint", default=False, action="store_true",
-                        help="Continue from where the last optimization was aborted.")
-    parser.add_argument("-d", "--deploy_policy", default=DeployPolicy.single.value,
-                        choices=[k.value for k in list(DeployPolicy)],
-                        help="Indicates whether the multi-node running policy is used.")
-    parser.add_argument("--backup", default=False, action="store_true",
-                        help="Whether to back up data.")
-    parser.add_argument("--pd", default=PDPolicy.competition.value,
-                        choices=[k.value for k in list(PDPolicy)],
-                        help="whether pd competition or pd disaggregation")
-    parser.add_argument("-b", "--benchmark_policy", default='ais_bench', choices=list(benchmarks.keys()) + benches,
-                        help="Whether to use custom performance indicators.")
-    parser.add_argument("-e", "--engine", default='mindie', choices=list(simulates.keys()) + sims,
-                        help="The engine used for model evaluation.")
+    parser.add_argument(
+        "-lb",
+        "--load_breakpoint",
+        default=False,
+        action="store_true",
+        help="Continue from where the last optimization was aborted.",
+    )
+    parser.add_argument(
+        "-d",
+        "--deploy_policy",
+        default=DeployPolicy.single.value,
+        choices=[k.value for k in list(DeployPolicy)],
+        help="Indicates whether the multi-node running policy is used.",
+    )
+    parser.add_argument("--backup", default=False, action="store_true", help="Whether to back up data.")
+    parser.add_argument(
+        "--pd",
+        default=PDPolicy.competition.value,
+        choices=[k.value for k in list(PDPolicy)],
+        help="whether pd competition or pd disaggregation",
+    )
+    parser.add_argument(
+        "-b",
+        "--benchmark_policy",
+        default='ais_bench',
+        choices=list(benchmarks.keys()) + benches,
+        help="Whether to use custom performance indicators.",
+    )
+    parser.add_argument(
+        "-e",
+        "--engine",
+        default='mindie',
+        choices=list(simulates.keys()) + sims,
+        help="The engine used for model evaluation.",
+    )
+    parser.add_argument(
+        "-c",
+        "--config",
+        default=None,
+        type=str,
+        help="Path to custom configuration file (TOML format). "
+        "Supports absolute path, relative path, or filename in current directory.",
+    )
     parser.set_defaults(func=plugin_main)
-

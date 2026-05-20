@@ -16,7 +16,7 @@
 import json
 import unittest
 import argparse
-from math import isinf, inf
+from math import inf
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -25,14 +25,16 @@ import pandas as pd
 import pytest
 
 from ms_serviceparam_optimizer.config.config import (
-    BenchMarkPolicy, DeployPolicy, field_to_param, get_settings,
-    default_support_field, PerformanceIndex, OptimizerConfigField, 
+    BenchMarkPolicy,
+    DeployPolicy,
+    field_to_param,
+    get_settings,
+    default_support_field,
+    PerformanceIndex,
+    OptimizerConfigField,
 )
 from ms_serviceparam_optimizer.config.model_config import MindieModelConfig
-from ms_serviceparam_optimizer.config.base_config import (
-    EnginePolicy, DeployPolicy, AnalyzeTool,
-    ServiceType, BenchMarkPolicy, PDPolicy
-)
+from ms_serviceparam_optimizer.config.base_config import EnginePolicy
 from ms_serviceparam_optimizer.optimizer.optimizer import PSOOptimizer, plugin_main, arg_parse
 from ms_serviceparam_optimizer.optimizer.experience_fine_tunning import StopFineTune
 from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
@@ -41,7 +43,7 @@ from ms_serviceparam_optimizer.optimizer.plugins.simulate import VllmSimulator
 @pytest.fixture
 def generate_store(tmpdir):
     _config = Path(tmpdir).joinpath("data_storage_20250815175148.csv")
-    datas = [
+    data = [
         """generate_speed,time_to_first_token,time_per_output_token,success_rate,throughput,ttft_max,ttft_min,
         ttft_p75,ttft_p90,ttft_p99,tpot_max,tpot_min,tpot_p75,tpot_p90,tpot_p99,prefill_batch_size,
         prefill_batch_size_min,prefill_batch_size_max,prefill_batch_size_p75,prefill_batch_size_p90,
@@ -114,10 +116,10 @@ def generate_store(tmpdir):
         0.7220547,0.7747441,0.8654031,0.4425547,1.2800000000000001e-05,0.0362437,
         0.0388145,0.1474528,4.7771,3.0,10.0,5.0,6.0,8.0,55.6761,24.0,71.0,61.0,
         65.0,70.3,743,154,640,670600,False,0,1,1000,6,,,4.829008909894092,qwen3-8b,
-        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator"""
+        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,Simulator""",
     ]
-    columns = datas[0].replace('\n', '').replace(' ', '').split(',')
-    rows = [row.split(',') for row in datas[1:]]
+    columns = data[0].replace('\n', '').replace(' ', '').split(',')
+    rows = [row.split(',') for row in data[1:]]
 
     df = pd.DataFrame(rows, columns=columns)
     df.to_csv(_config, index=False)
@@ -128,7 +130,7 @@ def generate_store(tmpdir):
 @pytest.fixture
 def generate_store2(tmpdir):
     _config = Path(tmpdir).joinpath("data_storage_20250904114749.csv")
-    datas = [
+    data = [
         """generate_speed,time_to_first_token,time_per_output_token,success_rate,throughput,
         ttft_max,ttft_min,ttft_p75,ttft_p90,ttft_p99,tpot_max,tpot_min,tpot_p75,tpot_p90,
         tpot_p99,prefill_batch_size,prefill_batch_size_min,prefill_batch_size_max,prefill_batch_size_p75,
@@ -181,11 +183,10 @@ def generate_store2(tmpdir):
         0.7391481,0.8455796,0.9509563000000001,0.5170958000000001,1.7999999999999997e-05,0.0429984,0.0479505,
         0.18713370000000001,6.9698,4.0,13.0,8.0,9.0,11.71,81.7692,27.0,117.0,98.0,107.3,114.69,224,70,850,650,
         False,724300,3,0,202,1000,8.678341265579999,,,468.3717620372772,True,4.964495470257898,qwen2.5,
-        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,3000,256,Simulator"""
-
+        /data/ms_serviceparam_optimizer/datasets/short_input_64_2k.jsonl,3000,256,Simulator""",
     ]
-    columns = datas[0].replace('\n', '').replace(' ', '').split(',')
-    rows = [row.split(',') for row in datas[1:]]
+    columns = data[0].replace('\n', '').replace(' ', '').split(',')
+    rows = [row.split(',') for row in data[1:]]
 
     df = pd.DataFrame(rows, columns=columns)
     df.to_csv(_config, index=False)
@@ -199,12 +200,27 @@ def test_computer_fitness():
     optimizer.minimum_algorithm = MagicMock(return_value=1.0)
     # 模拟load_history_data方法的行为
     optimizer.load_history_data = [
-        {'generate_speed': 1, 'time_to_first_token': 2, 'time_per_output_token': 3, 'success_rate': 1.0,
-         "max_batch_size": 150},
-        {'generate_speed': 4, 'time_to_first_token': 5, 'time_per_output_token': 6, 'success_rate': 1.0,
-         "max_batch_size": 160},
-        {'generate_speed': 7, 'time_to_first_token': 8, 'time_per_output_token': 9, 'success_rate': 1.0,
-         "max_batch_size": 170},
+        {
+            'generate_speed': 1,
+            'time_to_first_token': 2,
+            'time_per_output_token': 3,
+            'success_rate': 1.0,
+            "max_batch_size": 150,
+        },
+        {
+            'generate_speed': 4,
+            'time_to_first_token': 5,
+            'time_per_output_token': 6,
+            'success_rate': 1.0,
+            "max_batch_size": 160,
+        },
+        {
+            'generate_speed': 7,
+            'time_to_first_token': 8,
+            'time_per_output_token': 9,
+            'success_rate': 1.0,
+            "max_batch_size": 170,
+        },
     ]
     # 调用computer_fitness方法
     positions, costs = optimizer.computer_fitness()
@@ -220,12 +236,30 @@ def test_computer_fitness_with_key_error():
     optimizer.minimum_algorithm = MagicMock(return_value=1.0)
     # 模拟load_history_data方法的行为
     optimizer.load_history_data = [
-        {'generate_speed': 1, 'time_to_first_token': 2, 'time_per_output_token': 3, 'success_rate': 1.0,
-         "max_batch_size": 3, "fitness": 3},
-        {'generate_speed': 4, 'time_to_first_token': 5, 'time_per_output_token': 6, 'success_rate': 1.0,
-         "max_batch_size": 4, "fitness": 32},
-        {'generate_speed': 7, 'time_to_first_token': 8, 'time_per_output_token': 9, 'success_rate': 1.0,
-         "max_batch_size": 5, "fitness": inf},
+        {
+            'generate_speed': 1,
+            'time_to_first_token': 2,
+            'time_per_output_token': 3,
+            'success_rate': 1.0,
+            "max_batch_size": 3,
+            "fitness": 3,
+        },
+        {
+            'generate_speed': 4,
+            'time_to_first_token': 5,
+            'time_per_output_token': 6,
+            'success_rate': 1.0,
+            "max_batch_size": 4,
+            "fitness": 32,
+        },
+        {
+            'generate_speed': 7,
+            'time_to_first_token': 8,
+            'time_per_output_token': 9,
+            'success_rate': 1.0,
+            "max_batch_size": 5,
+            "fitness": inf,
+        },
     ]
 
     # 调用computer_fitness方法
@@ -246,10 +280,11 @@ def test_op_func_success():
     # 创建PSOOptimizer实例
     optimizer = PSOOptimizer(MagicMock(), target_field=default_support_field)
     # 模拟scheduler.run方法
-    optimizer.scheduler.run_with_request_rate = MagicMock(return_value=PerformanceIndex(generate_speed=100,
-                                                                                        time_to_first_token=0.1,
-                                                                                        time_per_output_token=0.1,
-                                                                                        success_rate=1))
+    optimizer.scheduler.run_with_request_rate = MagicMock(
+        return_value=PerformanceIndex(
+            generate_speed=100, time_to_first_token=0.1, time_per_output_token=0.1, success_rate=1
+        )
+    )
 
     # 调用op_func方法
     result = optimizer.op_func(TEST_PARAMS)
@@ -278,7 +313,6 @@ def test_op_func_exception():
 
     # 验证返回值
     assert np.array_equal(result, np.array([float('inf'), float('inf')]))
-
 
 
 class MockField:
@@ -311,9 +345,11 @@ class TestPSOOptimizer:
 
     @classmethod
     def test_dimensions_all_fields_equal(cls, optimizer):
-        optimizer.target_field = [OptimizerConfigField(min=1, max=1),
-                                  OptimizerConfigField(min=2, max=2),
-                                  OptimizerConfigField(min=3, max=3)]
+        optimizer.target_field = [
+            OptimizerConfigField(min=1, max=1),
+            OptimizerConfigField(min=2, max=2),
+            OptimizerConfigField(min=3, max=3),
+        ]
         assert optimizer.dimensions() == 0
 
     @classmethod
@@ -321,7 +357,7 @@ class TestPSOOptimizer:
         optimizer.target_field = [
             OptimizerConfigField(min=1, max=1),
             OptimizerConfigField(min=2, max=3),
-            OptimizerConfigField(min=4, max=4)
+            OptimizerConfigField(min=4, max=4),
         ]
         assert optimizer.dimensions() == 1
 
@@ -343,18 +379,17 @@ class TestPSOOptimizer:
     @classmethod
     def test_params_in_records(cls):
         _params = np.array([1, 2, 3, 4])
-        _param_records = [np.array([5, 6, 7, 8]),
-                          np.array([1, 2, 3, 4])]
+        _param_records = [np.array([5, 6, 7, 8]), np.array([1, 2, 3, 4])]
         assert PSOOptimizer.params_in_records(_params, _param_records)
         _params = np.array([4, 3, 2, 1])
         assert not PSOOptimizer.params_in_records(_params, _param_records)
-    
+
     @pytest.fixture
     def optimizer(self):
         return PSOOptimizer(MagicMock(), target_field=default_support_field)
 
 
-@patch("ms_serviceparam_optimizer.config.config.field_to_param", )
+@patch("ms_serviceparam_optimizer.optimizer.optimizer.field_to_param")
 def test_refine_optimization_candidates(field_to_param_patch):
     field_to_param_patch.side_effect = [[3, 4], [7, 1]]
     pso = PSOOptimizer(MagicMock(), target_field=default_support_field)
@@ -376,55 +411,96 @@ def test_refine_optimization_candidates(field_to_param_patch):
     assert len(res) == 3
 
 
-@patch("ms_serviceparam_optimizer.config.config.field_to_param", )
+@patch("ms_serviceparam_optimizer.optimizer.optimizer.field_to_param")
 def test_refine_optimization_candidates_last_concurrency(field_to_param_patch):
     field_to_param_patch.side_effect = [[3, 4], [7, 1], [2, 5], [3, 1], [2, 6], [9, 1]]
     my_support_field = [
-    # max batch size 最小值要大于max_prefill_batch_size的最大值。
-    OptimizerConfigField(name="max_batch_size", config_position="BackendConfig.ScheduleConfig.maxBatchSize", min=10,
-                         max=1000, dtype="int"),
-    OptimizerConfigField(name="max_prefill_batch_size",
-                         config_position="BackendConfig.ScheduleConfig.maxPrefillBatchSize", min=0.1, max=0.7,
-                         dtype="ratio", dtype_param="max_batch_size"),
-    OptimizerConfigField(name="prefill_time_ms_per_req",
-                         config_position="BackendConfig.ScheduleConfig.prefillTimeMsPerReq", max=1000, dtype="int"),
-    OptimizerConfigField(name="support_select_batch",
-                         config_position="BackendConfig.ScheduleConfig.supportSelectBatch", max=1,
-                         dtype="bool"),
-    OptimizerConfigField(name="max_queue_deloy_mircroseconds",
-                         config_position="BackendConfig.ScheduleConfig.maxQueueDelayMicroseconds", min=500,
-                         max=1000000,
-                         dtype="int"),
-    OptimizerConfigField(name="prefill_policy_type",
-                         config_position="BackendConfig.ScheduleConfig.prefillPolicyType", min=0, max=1,
-                         dtype="enum", dtype_param=[0, 1, 3]),
-    OptimizerConfigField(name="decode_policy_type",
-                         config_position="BackendConfig.ScheduleConfig.decodePolicyType", min=0, max=1,
-                         dtype="enum", dtype_param=[0, 1, 3]),
-    OptimizerConfigField(name="CONCURRENCY", config_position="env", min=10, max=1001, dtype="int"),
-    OptimizerConfigField(name="REQUESTRATE", config_position="env", min=0, max=1001, dtype="int"),
-    ]  
+        # max batch size 最小值要大于max_prefill_batch_size的最大值。
+        OptimizerConfigField(
+            name="max_batch_size",
+            config_position="BackendConfig.ScheduleConfig.maxBatchSize",
+            min=10,
+            max=1000,
+            dtype="int",
+        ),
+        OptimizerConfigField(
+            name="max_prefill_batch_size",
+            config_position="BackendConfig.ScheduleConfig.maxPrefillBatchSize",
+            min=0.1,
+            max=0.7,
+            dtype="ratio",
+            dtype_param="max_batch_size",
+        ),
+        OptimizerConfigField(
+            name="prefill_time_ms_per_req",
+            config_position="BackendConfig.ScheduleConfig.prefillTimeMsPerReq",
+            max=1000,
+            dtype="int",
+        ),
+        OptimizerConfigField(
+            name="support_select_batch",
+            config_position="BackendConfig.ScheduleConfig.supportSelectBatch",
+            max=1,
+            dtype="bool",
+        ),
+        OptimizerConfigField(
+            name="max_queue_deloy_mircroseconds",
+            config_position="BackendConfig.ScheduleConfig.maxQueueDelayMicroseconds",
+            min=500,
+            max=1000000,
+            dtype="int",
+        ),
+        OptimizerConfigField(
+            name="prefill_policy_type",
+            config_position="BackendConfig.ScheduleConfig.prefillPolicyType",
+            min=0,
+            max=1,
+            dtype="enum",
+            dtype_param=[0, 1, 3],
+        ),
+        OptimizerConfigField(
+            name="decode_policy_type",
+            config_position="BackendConfig.ScheduleConfig.decodePolicyType",
+            min=0,
+            max=1,
+            dtype="enum",
+            dtype_param=[0, 1, 3],
+        ),
+        OptimizerConfigField(name="CONCURRENCY", config_position="env", min=10, max=1001, dtype="int"),
+        OptimizerConfigField(name="REQUESTRATE", config_position="env", min=0, max=1001, dtype="int"),
+    ]
     pso = PSOOptimizer(MagicMock(), target_field=my_support_field[-2:])
-    pso.default_res = PerformanceIndex(generate_speed=2000, time_to_first_token=5.5, time_per_output_token=1.3,
-                                       success_rate=1, throughput=5),
+    pso.default_res = (
+        PerformanceIndex(
+            generate_speed=2000, time_to_first_token=5.5, time_per_output_token=1.3, success_rate=1, throughput=5
+        ),
+    )
     pso.default_fitness = 3.333
     pso.default_run_param = [500, 6.3]
     best_results = pd.DataFrame({"CONCURRENCY": [700], "REQUESTRATE": [3.8]})
     pso.scheduler = MagicMock()
-    pso.scheduler.run = MagicMock(side_effect=[
-        PerformanceIndex(generate_speed=2000, time_to_first_token=5, time_per_output_token=1, success_rate=1,
-                         throughput=5),
-        PerformanceIndex(generate_speed=2435, time_to_first_token=3.23, time_per_output_token=0.14, success_rate=1,
-                         throughput=5),
-        PerformanceIndex(generate_speed=1700, time_to_first_token=0.4, time_per_output_token=0.03, success_rate=1,
-                         throughput=5),
-        PerformanceIndex(generate_speed=1750, time_to_first_token=0.43, time_per_output_token=0.038, success_rate=1,
-                         throughput=5),
-        PerformanceIndex(generate_speed=1820, time_to_first_token=0.57, time_per_output_token=0.038, success_rate=1,
-                         throughput=5),
-        PerformanceIndex(generate_speed=1800, time_to_first_token=0.44, time_per_output_token=0.04, success_rate=1,
-                         throughput=5),
-    ])
+    pso.scheduler.run = MagicMock(
+        side_effect=[
+            PerformanceIndex(
+                generate_speed=2000, time_to_first_token=5, time_per_output_token=1, success_rate=1, throughput=5
+            ),
+            PerformanceIndex(
+                generate_speed=2435, time_to_first_token=3.23, time_per_output_token=0.14, success_rate=1, throughput=5
+            ),
+            PerformanceIndex(
+                generate_speed=1700, time_to_first_token=0.4, time_per_output_token=0.03, success_rate=1, throughput=5
+            ),
+            PerformanceIndex(
+                generate_speed=1750, time_to_first_token=0.43, time_per_output_token=0.038, success_rate=1, throughput=5
+            ),
+            PerformanceIndex(
+                generate_speed=1820, time_to_first_token=0.57, time_per_output_token=0.038, success_rate=1, throughput=5
+            ),
+            PerformanceIndex(
+                generate_speed=1800, time_to_first_token=0.44, time_per_output_token=0.04, success_rate=1, throughput=5
+            ),
+        ]
+    )
     pso.scheduler.save_result = MagicMock()
     pso.fine_tune = MagicMock()
     pso.fine_tune.fine_tune_with_concurrency_and_request_rate = MagicMock(side_effect=StopFineTune)
@@ -440,12 +516,13 @@ def test_refine_optimization_candidates_last_concurrency(field_to_param_patch):
 @patch("ms_serviceparam_optimizer.config.model_config.MindieModelConfig")
 def test_prepare(mock_mindie_model_config, mock_is_mindie, mindie_config_file):
     optimizer = PSOOptimizer(MagicMock(), target_field=default_support_field[:5])
-    with open(mindie_config_file, 'r') as f:
+    with open(mindie_config_file, 'r', encoding="utf-8") as f:
         optimizer.scheduler.simulator.default_config = json.load(f)
-    optimizer.scheduler.run = MagicMock(return_value=PerformanceIndex(generate_speed=369,
-                                                                      time_to_first_token=0.3,
-                                                                      time_per_output_token=0.05,
-                                                                      success_rate=1))
+    optimizer.scheduler.run = MagicMock(
+        return_value=PerformanceIndex(
+            generate_speed=369, time_to_first_token=0.3, time_per_output_token=0.05, success_rate=1
+        )
+    )
     optimizer.scheduler.save_result = MagicMock(return_value=True)
     optimizer.scheduler.error_info = None
     optimizer.mindie_prepare = MagicMock(return_value=None)
@@ -460,21 +537,23 @@ def test_prepare(mock_mindie_model_config, mock_is_mindie, mindie_config_file):
 
 def test_run_plugin():
     # 创建PSOOptimizer的实例
-    optimizer = PSOOptimizer(MagicMock(), pso_options=get_settings().pso_options, 
-                             target_field=default_support_field[:3],
-                             pso_init_kwargs={"ftol": get_settings().ftol, "ftol_iter": get_settings().ftol_iter},
-                             load_breakpoint=True)
-    performance_index = PerformanceIndex(generate_speed=888,
-                                         time_to_first_token=0.5,
-                                         time_per_output_token=0.05,
-                                         success_rate=1)
+    optimizer = PSOOptimizer(
+        MagicMock(),
+        pso_options=get_settings().pso_options,
+        target_field=default_support_field[:3],
+        pso_init_kwargs={"ftol": get_settings().ftol, "ftol_iter": get_settings().ftol_iter},
+        load_breakpoint=True,
+    )
+    performance_index = PerformanceIndex(
+        generate_speed=888, time_to_first_token=0.5, time_per_output_token=0.05, success_rate=1
+    )
     # 模拟prepare方法
 
-    with patch('ms_serviceparam_optimizer.optimizer.global_best_custom.CustomGlobalBestPSO',
-                           autospec=True) as mock_custom_global_best_pso:
+    with patch(
+        'ms_serviceparam_optimizer.optimizer.global_best_custom.CustomGlobalBestPSO', autospec=True
+    ) as mock_custom_global_best_pso:
         # 模拟enable_simulate上下文管理器
-        with patch('ms_serviceparam_optimizer.optimizer.optimizer.enable_simulate',
-                               autospec=True) as mock_enable_simulate:
+        with patch('ms_serviceparam_optimizer.optimizer.optimizer.enable_simulate', autospec=True):
             custom_global_instance = mock_custom_global_best_pso.return_value
             custom_global_instance.optimize.return_value = (100, [200, 10, 100])
             # 模拟op_func方法
@@ -482,7 +561,8 @@ def test_run_plugin():
             optimizer.op_func = MagicMock()
             # 模拟refine_optimization_candidates方法
             optimizer.refine_optimization_candidates = MagicMock(
-                            return_value=([100], [[200, 10, 100]], [performance_index]))
+                return_value=([100], [[200, 10, 100]], [performance_index])
+            )
             # 模拟best_params方法
             optimizer.best_params = MagicMock(return_value=(100, [200, 10, 100], performance_index))
             # 模拟self.scheduler.data_storage
@@ -513,45 +593,77 @@ def test_plugin_main(scheduler_multi, scheduler, psooptimizer):
     args.backup = False
     args.load_breakpoint = False
     args.engine = EnginePolicy.vllm.value
- 
+    args.config = None
+
     # 调用被测试的方法
     with patch("ms_serviceparam_optimizer.optimizer.register.register_simulator"):
         # 模拟 simulates 字典，确保 'vllm' 对应的模拟器类存在
         with patch("ms_serviceparam_optimizer.optimizer.optimizer.simulates", {'vllm': VllmSimulator}):
             with patch("shutil.which", return_value="path/to/benchmark"):
                 plugin_main(args)
-    
+
     psooptimizer.assert_called_once()
     scheduler.assert_called_once()
 
 
-def test_best_params(generate_store):
+def test_best_params(generate_store):  # pylint: disable=redefined-outer-name
     from ms_serviceparam_optimizer.optimizer.experience_fine_tunning import FineTune
+
     optimizer_result = pd.read_csv(generate_store)
     my_support_field = [
-    # max batch size 最小值要大于max_prefill_batch_size的最大值。
-    OptimizerConfigField(name="max_batch_size", config_position="BackendConfig.ScheduleConfig.maxBatchSize", min=10,
-                         max=1000, dtype="int"),
-    OptimizerConfigField(name="max_prefill_batch_size",
-                         config_position="BackendConfig.ScheduleConfig.maxPrefillBatchSize", min=0.1, max=0.7,
-                         dtype="ratio", dtype_param="max_batch_size"),
-    OptimizerConfigField(name="prefill_time_ms_per_req",
-                         config_position="BackendConfig.ScheduleConfig.prefillTimeMsPerReq", max=1000, dtype="int"),
-    OptimizerConfigField(name="support_select_batch",
-                         config_position="BackendConfig.ScheduleConfig.supportSelectBatch", max=1,
-                         dtype="bool"),
-    OptimizerConfigField(name="max_queue_deloy_mircroseconds",
-                         config_position="BackendConfig.ScheduleConfig.maxQueueDelayMicroseconds", min=500,
-                         max=1000000,
-                         dtype="int"),
-    OptimizerConfigField(name="prefill_policy_type",
-                         config_position="BackendConfig.ScheduleConfig.prefillPolicyType", min=0, max=1,
-                         dtype="enum", dtype_param=[0, 1, 3]),
-    OptimizerConfigField(name="decode_policy_type",
-                         config_position="BackendConfig.ScheduleConfig.decodePolicyType", min=0, max=1,
-                         dtype="enum", dtype_param=[0, 1, 3]),
-    OptimizerConfigField(name="CONCURRENCY", config_position="env", min=10, max=1001, dtype="int"),
-    OptimizerConfigField(name="REQUESTRATE", config_position="env", min=0, max=1001, dtype="int"),
+        # max batch size 最小值要大于max_prefill_batch_size的最大值。
+        OptimizerConfigField(
+            name="max_batch_size",
+            config_position="BackendConfig.ScheduleConfig.maxBatchSize",
+            min=10,
+            max=1000,
+            dtype="int",
+        ),
+        OptimizerConfigField(
+            name="max_prefill_batch_size",
+            config_position="BackendConfig.ScheduleConfig.maxPrefillBatchSize",
+            min=0.1,
+            max=0.7,
+            dtype="ratio",
+            dtype_param="max_batch_size",
+        ),
+        OptimizerConfigField(
+            name="prefill_time_ms_per_req",
+            config_position="BackendConfig.ScheduleConfig.prefillTimeMsPerReq",
+            max=1000,
+            dtype="int",
+        ),
+        OptimizerConfigField(
+            name="support_select_batch",
+            config_position="BackendConfig.ScheduleConfig.supportSelectBatch",
+            max=1,
+            dtype="bool",
+        ),
+        OptimizerConfigField(
+            name="max_queue_deloy_mircroseconds",
+            config_position="BackendConfig.ScheduleConfig.maxQueueDelayMicroseconds",
+            min=500,
+            max=1000000,
+            dtype="int",
+        ),
+        OptimizerConfigField(
+            name="prefill_policy_type",
+            config_position="BackendConfig.ScheduleConfig.prefillPolicyType",
+            min=0,
+            max=1,
+            dtype="enum",
+            dtype_param=[0, 1, 3],
+        ),
+        OptimizerConfigField(
+            name="decode_policy_type",
+            config_position="BackendConfig.ScheduleConfig.decodePolicyType",
+            min=0,
+            max=1,
+            dtype="enum",
+            dtype_param=[0, 1, 3],
+        ),
+        OptimizerConfigField(name="CONCURRENCY", config_position="env", min=10, max=1001, dtype="int"),
+        OptimizerConfigField(name="REQUESTRATE", config_position="env", min=0, max=1001, dtype="int"),
     ]
     pso = PSOOptimizer(MagicMock(), target_field=tuple(my_support_field))
     _fitness_list = []
@@ -560,7 +672,7 @@ def test_best_params(generate_store):
     for _, row in optimizer_result.iterrows():
         try:
             _target_field = pso.get_target_field_from_case_data(row)
-        except Exception as e:
+        except Exception:
             _target_field = {}
             continue
         params = field_to_param(_target_field)
@@ -573,29 +685,31 @@ def test_best_params(generate_store):
                 _params[k] = row[k]
         performance_index = PerformanceIndex(**_params)
         _performance_index_list.append(performance_index)
-    pso.fine_tune = FineTune(ttft_penalty=get_settings().ttft_penalty,
-                         tpot_penalty=get_settings().tpot_penalty,
-                         target_field=_target_field,
-                         ttft_slo=get_settings().ttft_slo,
-                         tpot_slo=get_settings().tpot_slo,
-                         slo_coefficient=get_settings().slo_coefficient,
-                         step_size=get_settings().step_size)
+    pso.fine_tune = FineTune(
+        ttft_penalty=get_settings().ttft_penalty,
+        tpot_penalty=get_settings().tpot_penalty,
+        target_field=_target_field,
+        ttft_slo=get_settings().ttft_slo,
+        tpot_slo=get_settings().tpot_slo,
+        slo_coefficient=get_settings().slo_coefficient,
+        step_size=get_settings().step_size,
+    )
 
-    best_fitness, best_param, best_performance_index = pso.best_params(_fitness_list,
-                                                                       _params_list,
-                                                                       _performance_index_list)
+    best_fitness, best_param, best_performance_index = pso.best_params(
+        _fitness_list, _params_list, _performance_index_list
+    )
     assert best_performance_index.generate_speed == 1966.4359
     assert best_fitness == 3.952181054954989
     pso.tpot_penalty = 0
     pso.ttft_penalty = 0
-    best_fitness, best_param, best_performance_index = pso.best_params(_fitness_list,
-                                                                       _params_list,
-                                                                       _performance_index_list)
+    best_fitness, best_param, best_performance_index = pso.best_params(
+        _fitness_list, _params_list, _performance_index_list
+    )
     assert best_performance_index.generate_speed == 2628.1846
     pso.tpot_penalty = 3.0
-    best_fitness, best_param, best_performance_index = pso.best_params(_fitness_list,
-                                                                       _params_list,
-                                                                       _performance_index_list)
+    best_fitness, best_param, best_performance_index = pso.best_params(
+        _fitness_list, _params_list, _performance_index_list
+    )
     assert best_performance_index.generate_speed == 1966.4359
     # ttft 和 tpot 不都满足slo时
     _fitness_list = []
@@ -616,9 +730,9 @@ def test_best_params(generate_store):
         _performance_index_list.append(performance_index)
     pso.tpot_penalty = 3.0
     pso.ttft_penalty = 3.0
-    best_fitness, best_param, best_performance_index = pso.best_params(_fitness_list,
-                                                                       _params_list,
-                                                                       _performance_index_list)
+    best_fitness, best_param, best_performance_index = pso.best_params(
+        _fitness_list, _params_list, _performance_index_list
+    )
     assert best_performance_index.generate_speed == 2157.4913
     _fitness_list = []
     _params_list = []
@@ -637,40 +751,70 @@ def test_best_params(generate_store):
         performance_index = PerformanceIndex(**_params)
         _performance_index_list.append(performance_index)
     pso.ttft_penalty = 0
-    best_fitness, best_param, best_performance_index = pso.best_params(_fitness_list,
-                                                                       _params_list,
-                                                                       _performance_index_list)
+    best_fitness, best_param, best_performance_index = pso.best_params(
+        _fitness_list, _params_list, _performance_index_list
+    )
     assert best_performance_index.generate_speed == 2157.4913
 
 
-
-def test_best_params2(generate_store2):
+def test_best_params2(generate_store2):  # pylint: disable=redefined-outer-name
     from ms_serviceparam_optimizer.optimizer.experience_fine_tunning import FineTune
+
     optimizer_result = pd.read_csv(generate_store2)
     my_support_field = [
-    # max batch size 最小值要大于max_prefill_batch_size的最大值。
-    OptimizerConfigField(name="max_batch_size", config_position="BackendConfig.ScheduleConfig.maxBatchSize", min=10,
-                         max=1000, dtype="int"),
-    OptimizerConfigField(name="max_prefill_batch_size",
-                         config_position="BackendConfig.ScheduleConfig.maxPrefillBatchSize", min=0.1, max=0.7,
-                         dtype="ratio", dtype_param="max_batch_size"),
-    OptimizerConfigField(name="prefill_time_ms_per_req",
-                         config_position="BackendConfig.ScheduleConfig.prefillTimeMsPerReq", max=1000, dtype="int"),
-    OptimizerConfigField(name="support_select_batch",
-                         config_position="BackendConfig.ScheduleConfig.supportSelectBatch", max=1,
-                         dtype="bool"),
-    OptimizerConfigField(name="max_queue_deloy_mircroseconds",
-                         config_position="BackendConfig.ScheduleConfig.maxQueueDelayMicroseconds", min=500,
-                         max=1000000,
-                         dtype="int"),
-    OptimizerConfigField(name="prefill_policy_type",
-                         config_position="BackendConfig.ScheduleConfig.prefillPolicyType", min=0, max=1,
-                         dtype="enum", dtype_param=[0, 1, 3]),
-    OptimizerConfigField(name="decode_policy_type",
-                         config_position="BackendConfig.ScheduleConfig.decodePolicyType", min=0, max=1,
-                         dtype="enum", dtype_param=[0, 1, 3]),
-    OptimizerConfigField(name="CONCURRENCY", config_position="env", min=10, max=1001, dtype="int"),
-    OptimizerConfigField(name="REQUESTRATE", config_position="env", min=0, max=1001, dtype="int"),
+        # max batch size 最小值要大于max_prefill_batch_size的最大值。
+        OptimizerConfigField(
+            name="max_batch_size",
+            config_position="BackendConfig.ScheduleConfig.maxBatchSize",
+            min=10,
+            max=1000,
+            dtype="int",
+        ),
+        OptimizerConfigField(
+            name="max_prefill_batch_size",
+            config_position="BackendConfig.ScheduleConfig.maxPrefillBatchSize",
+            min=0.1,
+            max=0.7,
+            dtype="ratio",
+            dtype_param="max_batch_size",
+        ),
+        OptimizerConfigField(
+            name="prefill_time_ms_per_req",
+            config_position="BackendConfig.ScheduleConfig.prefillTimeMsPerReq",
+            max=1000,
+            dtype="int",
+        ),
+        OptimizerConfigField(
+            name="support_select_batch",
+            config_position="BackendConfig.ScheduleConfig.supportSelectBatch",
+            max=1,
+            dtype="bool",
+        ),
+        OptimizerConfigField(
+            name="max_queue_deloy_mircroseconds",
+            config_position="BackendConfig.ScheduleConfig.maxQueueDelayMicroseconds",
+            min=500,
+            max=1000000,
+            dtype="int",
+        ),
+        OptimizerConfigField(
+            name="prefill_policy_type",
+            config_position="BackendConfig.ScheduleConfig.prefillPolicyType",
+            min=0,
+            max=1,
+            dtype="enum",
+            dtype_param=[0, 1, 3],
+        ),
+        OptimizerConfigField(
+            name="decode_policy_type",
+            config_position="BackendConfig.ScheduleConfig.decodePolicyType",
+            min=0,
+            max=1,
+            dtype="enum",
+            dtype_param=[0, 1, 3],
+        ),
+        OptimizerConfigField(name="CONCURRENCY", config_position="env", min=10, max=1001, dtype="int"),
+        OptimizerConfigField(name="REQUESTRATE", config_position="env", min=0, max=1001, dtype="int"),
     ]
     pso = PSOOptimizer(MagicMock(), target_field=tuple(my_support_field))
     _fitness_list = []
@@ -679,7 +823,7 @@ def test_best_params2(generate_store2):
     for _, row in optimizer_result.iterrows():
         try:
             _target_field = pso.get_target_field_from_case_data(row)
-        except Exception as e:
+        except Exception:
             _target_field = {}
             continue
         params = field_to_param(_target_field)
@@ -693,31 +837,32 @@ def test_best_params2(generate_store2):
         performance_index = PerformanceIndex(**_params)
         _performance_index_list.append(performance_index)
 
-    pso.fine_tune = FineTune(ttft_penalty=get_settings().ttft_penalty,
-                         tpot_penalty=get_settings().tpot_penalty,
-                         target_field=_target_field,
-                         ttft_slo=get_settings().ttft_slo,
-                         tpot_slo=get_settings().tpot_slo,
-                         slo_coefficient=get_settings().slo_coefficient,
-                         step_size=get_settings().step_size)
+    pso.fine_tune = FineTune(
+        ttft_penalty=get_settings().ttft_penalty,
+        tpot_penalty=get_settings().tpot_penalty,
+        target_field=_target_field,
+        ttft_slo=get_settings().ttft_slo,
+        tpot_slo=get_settings().tpot_slo,
+        slo_coefficient=get_settings().slo_coefficient,
+        step_size=get_settings().step_size,
+    )
 
-    best_fitness, best_param, best_performance_index = pso.best_params(_fitness_list,
-                                                                       _params_list,
-                                                                       _performance_index_list)
+    best_fitness, best_param, best_performance_index = pso.best_params(
+        _fitness_list, _params_list, _performance_index_list
+    )
     assert best_performance_index.generate_speed == 2033.3873
     assert best_fitness == 4.964495470257898
     pso.tpot_penalty = 0
     pso.ttft_penalty = 0
-    best_fitness, best_param, best_performance_index = pso.best_params(_fitness_list,
-                                                                       _params_list,
-                                                                       _performance_index_list)
+    best_fitness, best_param, best_performance_index = pso.best_params(
+        _fitness_list, _params_list, _performance_index_list
+    )
     assert best_performance_index.generate_speed == 2705.9621, 0
     pso.tpot_penalty = 3.0
-    best_fitness, best_param, best_performance_index = pso.best_params(_fitness_list,
-                                                                       _params_list,
-                                                                       _performance_index_list)
+    best_fitness, best_param, best_performance_index = pso.best_params(
+        _fitness_list, _params_list, _performance_index_list
+    )
     assert best_performance_index.generate_speed == 2033.3873
-
 
 
 def test_mindie_prepare_theory_guided_disable():
@@ -735,8 +880,13 @@ def test_mindie_prepare_mc_none():
 
 def test_mindie_prepare_valid_input():
     target_field = (
-        OptimizerConfigField(name="max_batch_size", config_position="BackendConfig.ScheduleConfig.maxBatchSize", min=10,
-                             max=1000, dtype="int"),
+        OptimizerConfigField(
+            name="max_batch_size",
+            config_position="BackendConfig.ScheduleConfig.maxBatchSize",
+            min=10,
+            max=1000,
+            dtype="int",
+        ),
     )
     get_settings().theory_guided_enable = True
     get_settings().theory_guided_enable = 1.3

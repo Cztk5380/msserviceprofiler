@@ -18,18 +18,11 @@ from pathlib import Path
 from typing import Dict, Optional, List, Tuple
 
 import numpy as np
-import pandas as pd
 from loguru import logger
 from msguard.security import open_s, sanitize_csv_value
-from ..config.config import (
-    DataStorageConfig,
-    RUN_TIME,
-    PerformanceIndex,
-    OptimizerConfigField,
-    get_settings
-)
+from ..config.config import DataStorageConfig, PerformanceIndex, OptimizerConfigField, get_settings
+from ..config.base_config import RUN_TIME
 from ..optimizer.plugins.benchmark import VllmBenchMark, AisBench
-from ..optimizer.plugins.simulate import Simulator, VllmSimulator
 from ..common import read_csv_s
 
 
@@ -41,7 +34,12 @@ MAX_OUTPUT_LEN = "max_output_len"
 
 
 class DataStorage:
-    def __init__(self, config: DataStorageConfig, simulator=None, benchmark=None, ):
+    def __init__(
+        self,
+        config: DataStorageConfig,
+        simulator=None,
+        benchmark=None,
+    ):
         self.config = config
         if not self.config.store_dir.exists():
             self.config.store_dir.mkdir(parents=True, mode=0o750)
@@ -54,7 +52,7 @@ class DataStorage:
         if not load_dir.exists():
             raise FileNotFoundError(f"file: {load_dir}")
         if not load_dir.is_dir():
-            raise ValueError(f"Expect a directory, not a file.")
+            raise ValueError("Expect a directory, not a file.")
         history_data = []
         for file in sorted([f for f in load_dir.iterdir() if f.is_file()], key=lambda x: x.stat().st_ctime):
             if file.name.startswith("data_storage") and file.suffix == ".csv":
@@ -65,11 +63,11 @@ class DataStorage:
         return DataStorage.filter_data(history_data, filter_field)
 
     @staticmethod
-    def filter_data(datas: List[Dict], filter_field: Optional[Dict] = None):
+    def filter_data(data: List[Dict], filter_field: Optional[Dict] = None):
         if not filter_field:
-            return datas
-        filter_datas = []
-        for d in datas:
+            return data
+        filtered_data = []
+        for d in data:
             flag = False
             for k, v in filter_field.items():
                 # 不存在的字段 无法进行筛选
@@ -81,20 +79,19 @@ class DataStorage:
                 if isinstance(_d_value, int) and _d_value != int(v):
                     flag = True
                     break
-                elif isinstance(_d_value, float) and _d_value != float(v):
+                if isinstance(_d_value, float) and _d_value != float(v):
                     flag = True
                     break
-                elif isinstance(_d_value, bool) and _d_value != bool(v):
+                if isinstance(_d_value, bool) and _d_value != bool(v):
                     flag = True
                     break
-                elif str(_d_value).strip().lower() != str(v).strip().lower():
+                if str(_d_value).strip().lower() != str(v).strip().lower():
                     flag = True
                     break
             if flag:
                 continue
-            else:
-                filter_datas.append(d)
-        return filter_datas
+            filtered_data.append(d)
+        return filtered_data
 
     def get_run_info(self):
         _run_info = {}
@@ -108,7 +105,7 @@ class DataStorage:
 
     def save(self, performance_index: PerformanceIndex, params: Tuple[OptimizerConfigField], **kwargs):
         logger.info(f"Save result with DataStorage. File path: {self.save_file!r}")
-        
+
         def safe_sanitize_csv_value(value):
             """
             安全地处理CSV值，特别是处理包含--前缀的参数值
@@ -123,7 +120,7 @@ class DataStorage:
                 elif '--' in value:
                     value = value.replace('--', '')
             return sanitize_csv_value(value)
-        
+
         _column = []
         _value = []
         for k, v in performance_index.model_dump().items():
@@ -154,10 +151,10 @@ class DataStorage:
         optimizer_result = optimizer_result.replace([np.inf, -np.inf], np.nan)
         pso_result = optimizer_result
         if self.benchmark:
-            # 提取公共属性访问	
-            command = self.benchmark.config.command	
-            if hasattr(command, 'num_prompts'):	
-                request_nums = command.num_prompts	
+            # 提取公共属性访问
+            command = self.benchmark.config.command
+            if hasattr(command, 'num_prompts'):
+                request_nums = command.num_prompts
                 pso_result = optimizer_result[optimizer_result[NUM_PROMPTS] == request_nums]
         pso_result = pso_result.dropna(subset="fitness")
         pso_result = pso_result[pso_result["time_to_first_token"] > 0]
@@ -166,14 +163,20 @@ class DataStorage:
         pso_result = pso_result.reset_index()
         _fitness_index = pso_result.nsmallest(self.config.pso_top_k, "fitness").index
         if settings.ttft_penalty and settings.tpot_penalty:
-            _generate_speed_index = pso_result[
-                (pso_result["time_to_first_token"] <= settings.ttft_slo * (1 + settings.slo_coefficient)) &
-                (pso_result["time_per_output_token"] <= settings.tpot_slo * (1 + settings.slo_coefficient))].nlargest(
-                self.config.pso_top_k, "generate_speed").index
+            _generate_speed_index = (
+                pso_result[
+                    (pso_result["time_to_first_token"] <= settings.ttft_slo * (1 + settings.slo_coefficient))
+                    & (pso_result["time_per_output_token"] <= settings.tpot_slo * (1 + settings.slo_coefficient))
+                ]
+                .nlargest(self.config.pso_top_k, "generate_speed")
+                .index
+            )
         elif settings.tpot_penalty:
-            _generate_speed_index = pso_result[
-                pso_result["time_per_output_token"] <= settings.tpot_slo * (1 + settings.slo_coefficient)].nlargest(
-                self.config.pso_top_k, "generate_speed").index
+            _generate_speed_index = (
+                pso_result[pso_result["time_per_output_token"] <= settings.tpot_slo * (1 + settings.slo_coefficient)]
+                .nlargest(self.config.pso_top_k, "generate_speed")
+                .index
+            )
         else:
             _generate_speed_index = pso_result.nlargest(self.config.pso_top_k, "generate_speed").index
         _fine_tune_index = _fitness_index.union(_generate_speed_index)

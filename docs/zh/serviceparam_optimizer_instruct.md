@@ -18,8 +18,8 @@
 
 服务化自动寻优工具能够基于以上功能模块，自动推荐吞吐较优的服务化参数组合，使用时有两种模式：
 
-- [轻量化模式](#轻量化模式) 
-- [仿真模式](#仿真模式) 
+- [轻量化模式](#轻量化模式)
+- [仿真模式](#仿真模式)
 
 目前工具已基于llama3-8b和qwen3-8b通过验证，理论上不限制支持模型范围，后续计划扩大支持范围的验证。
 
@@ -44,7 +44,7 @@
 |Atlas 训练系列产品|  x   |
 
 > [!NOTE]
-> 
+>
 >针对Atlas A2 训练系列产品/Atlas A2 推理系列产品，当前仅支持该系列产品中的Atlas 800I A2 推理服务器。
 >针对Atlas 推理系列产品，当前仅支持该系列产品中的Atlas 300I Duo 推理卡+Atlas 800 推理服务器（型号：3000）。
 
@@ -97,7 +97,7 @@ pip uninstall ms_serviceparam_optimizer
 
 1. 完成[使用前准备](#使用前准备)章节要求。
 
-2. 修改配置文件：启动寻优前需用户按照实际情况配置[`config.toml`](../../ms_serviceparam_optimizer/ms_serviceparam_optimizer/config.toml)，包括寻优参数、测评工具参数、服务化参数。参考[配置文件说明](#配置文件说明)章节完成配置。
+2. 修改配置文件：启动寻优前需用户按照实际情况配置[`config.toml`](../../ms_serviceparam_optimizer/ms_serviceparam_optimizer/config.toml)，包括寻优参数、测评工具参数、服务化参数。参考[配置文件说明](#配置文件说明)章节完成配置。也可通过 `-c` 参数将配置文件放在任意路径，具体见[命令参数说明](#轻量化模式)。
 
 3. 启动寻优：完成上述步骤后，执行以下命令，一键启动轻量化自动寻优：
 
@@ -135,6 +135,7 @@ msserviceprofiler optimizer [options]
 |-b或--benchmark_policy|可选|指定测评工具，可取值：<br>&#8226;vllm_benchmark：使用vllm_benchmark作为测试工具 <br/>&#8226;ais_bench：使用AISBench作为测试工具<br/>默认值为`ais_bench`。<br/>用户需自行选择适配的推理框架以及测试框架。|
 |-e或--engine|可选|指定推理框架，可取值：<br>&#8226;mindie：使用MindIE作为推理框架<br>&#8226;vllm：使用VLLM作为推理框架<br/>默认值为`mindie`。|
 |--pd|可选|指定推理框架模式pd竞争或pd分离，可取值：<br>&#8226;competition：pd竞争模式<br>&#8226;disaggregation：pd分离模式<br/>默认值为`competition`。|
+|-c或--config|可选|指定自定义配置文件路径（TOML格式）。支持以下三种形式：<br>&#8226;绝对路径：直接使用指定路径；<br>&#8226;相对路径（含目录分隔符）：相对于当前工作目录解析；<br>&#8226;仅文件名：在当前工作目录下查找。<br/>默认不指定，工具按预设路径顺序自动搜索配置文件。<br/>指定文件必须为有效 TOML 格式，且具有最高配置优先级。|
 
 **使用示例（mindie服务化参数寻优）**
 
@@ -176,6 +177,23 @@ msserviceprofiler optimizer [options]
     ```bash
     msserviceprofiler optimizer -e vllm -b vllm_benchmark
     ```
+
+**使用示例（指定自定义配置文件）**
+
+如果配置文件不在默认搜索路径中，可通过 `-c` 参数显式指定：
+
+```bash
+# 绝对路径
+msserviceprofiler optimizer -c /data/configs/my_config.toml
+
+# 当前目录下的文件名
+msserviceprofiler optimizer -c my_config.toml
+
+# 相对路径
+msserviceprofiler optimizer -e vllm -b vllm_benchmark -c ../configs/vllm_config.toml
+```
+
+指定的配置文件具有最高优先级，会覆盖默认路径下的同名配置项。
 
 **输出说明**
 
@@ -231,7 +249,7 @@ msserviceprofiler optimizer [options]
 2. 训练模型
 
     ```bash
-    msserviceprofiler train -i=/path/to/input -o=/path/to/output 
+    msserviceprofiler train -i=/path/to/input -o=/path/to/output
     ```
 
 3. 寻优时需开启环境变量
@@ -284,7 +302,7 @@ msserviceprofiler optimizer [options]
 |---|---|---|
 |n_particles|必选|寻优种子数，即一组生成的参数组合数，取值范围为：1-1000的整数。建议设为 15 ~ 30。 |
 |iters|必选|迭代轮次数，取值范围为：1-1000的整数。建议设为 5 ~ 10。 |
-|ttft_penalty|必选|`time_to_first_token` 即首token时延超时惩罚系数，若对 `time_to_first_token` 没有时延要求设置为0即可。取值范围：【0, 100】。建议设为1。| 
+|ttft_penalty|必选|`time_to_first_token` 即首token时延超时惩罚系数，若对 `time_to_first_token` 没有时延要求设置为0即可。取值范围：【0, 100】。建议设为1。|
 |tpot_penalty|必选|`time_per_output_token` 即非首token时延超时惩罚系数，若对`time_per_output_token`没有时延要求设置为0即可。取值范围：【0, 100】。建议设为1。|
 |success_rate_penalty|必选|请求成功率惩罚系数，取值范围为：1-1000的整数。建议设为5。 |
 |ttft_slo|必选|`time_to_first_token`的限制时延。如对`time_to_first_token`限制为2s内，则设为2，取值范围：(0, 100]，单位s。|
@@ -299,21 +317,21 @@ msserviceprofiler optimizer [options]
 |---|---|
 |models| 指定模型任务，可根据[模型配置说明](https://gitee.com/aisbench/benchmark/blob/master/doc/users_guide/models.md)进行配置。|
 |datasets| 指定数据集任务，可根据[数据集准备指南](https://gitee.com/aisbench/benchmark/blob/master/doc/users_guide/datasets.md)进行配置 |
-|mode| 运行模式。可根据[运行模式说明](https://gitee.com/aisbench/benchmark/blob/master/doc/users_guide/mode.md)进行配置。| 
-|num_prompts| 控制运行数据集的条数，`mode`为`perf`时有效。| 
+|mode| 运行模式。可根据[运行模式说明](https://gitee.com/aisbench/benchmark/blob/master/doc/users_guide/mode.md)进行配置。|
+|num_prompts| 控制运行数据集的条数，`mode`为`perf`时有效。|
 
 若使用`vllm_benchmark`测评，需修改以下参数：
 
 |参数|可选/必选|说明|
 |---|---|---|
 |host|必选| 主机ip，需与`[vllm.command]`中的`host`保持一致，可设为`127.0.0.1`。|
-|port|必选| 端口号，需与`[vllm.command]`中的`port`保持一致。| 
-|model|必选| 模型路径，需与`[vllm.command]`中的`model`保持一致。| 
+|port|必选| 端口号，需与`[vllm.command]`中的`port`保持一致。|
+|model|必选| 模型路径，需与`[vllm.command]`中的`model`保持一致。|
 |served_model_name|必选| 模型名称，需与`[vllm.command]`中的`served_model_name`保持一致。|
 |dataset_name|必选| 数据集名称。|
 |dataset_path|必选| 数据集路径。|
 |num_prompts|必选| 控制运行数据集的条数。<br>取值范围：1-10000的整数。|
-|others|可选| 拼接其他参数，注意参数间使用空格分隔，参数内部不能留有空格。如`--ignore-eos --custom-output-len 1500`。默认为空。| 
+|others|可选| 拼接其他参数，注意参数间使用空格分隔，参数内部不能留有空格。如`--ignore-eos --custom-output-len 1500`。默认为空。|
 
 **服务化参数**： 可以参考[MindIE server 配置参数说明](https://www.hiascend.com/document/detail/zh/mindie/20RC1/mindieservice/servicedev/mindie_service0285.html)进行修改。
 服务化参数可直接指定参数的范围，如配置服务化参数 `max_batch_size` 的寻优搜索空间为 10 ~ 400，则可设置：
@@ -335,8 +353,164 @@ msserviceprofiler optimizer [options]
 "config_position": "BackendConfig.ScheduleConfig.maxPrefillBatchSize",
 "min": 0,
 "max": 1,
-"dtype": "ratio", 
+"dtype": "ratio",
 "dtype_param": "max_batch_size"    # 表明该参数与max_batch_size相关
+```
+
+此外，`target_field` 支持的所有 `dtype` 类型如下：
+
+| 分类 | dtype | 含义 | dtype_param 格式 |
+|---|---|---|---|
+| 基础类型 | `int` | 在 [min, max] 内取整数 | — |
+| 基础类型 | `float` | 在 [min, max] 内取浮点数 | — |
+| 基础类型 | `bool` | 布尔开关（参数值 > 0.5 时为 true） | — |
+| 基础类型 | `enum` | 从候选列表中选值（支持数值或字符串） | 候选值列表，如 `[1, 2, 4, 8]` |
+| 基础类型 | `range` | 按步长在 [min, max] 内枚举 | 步长整数，如 `10` |
+| 二元派生 | `ratio` | `int(比例 × target)` | 依赖字段名（字符串），如 `"max_batch_size"` |
+| 二元派生 | `share` | `target.min + target.max - target.value`（互补） | 依赖字段名（字符串） |
+| 二元派生 | `factories` | `product ÷ target` | `{"target_name": "字段名", "product": 值, "dtype": "int"}` |
+| 二元派生 | `times` | `product × target` | `{"target_name": "字段名", "product": 值, "dtype": "int"}` |
+| **三元派生** | **`ternary_factories`** | **`product ÷ (field_a × field_b)`** | **`{"target_names": ["A", "B"], "product": 值, "dtype": "int"}`** |
+| **三元派生** | **`ternary_times`** | **`product × field_a × field_b`** | **`{"target_names": ["A", "B"], "product": 值, "dtype": "int"}`** |
+
+> [!note] 说明
+>
+> 派生类型字段（`factories` / `times` / `ternary_factories` / `ternary_times`）的值由依赖关系自动推导，**不参与粒子群搜索**，需将 `min` 和 `max` 均设为 `0`。若任一依赖字段值为 `0`（除法场景）或 `None`/`NaN`（乘法场景），本轮推导跳过，字段保持原值并输出警告日志。
+
+**三元派生类型使用示例**
+
+场景一：`tp`、`pp` 为可调参数，`dp` 由总卡数（16）自动推导（`dp = 16 ÷ (tp × pp)`）：
+
+> [!note] 约束说明
+>
+> `ternary_factories` 要求各依赖字段的乘积能合法推出派生字段。对于 `dtype = "int"`，`product` 必须能被依赖字段乘积整除，否则会触发优先级修复。
+>
+> - **int 类型内置保护**：结果不足 1 或不能整除时优先尝试修复源字段；修复失败后按 min/max 降级处理，并输出 WARNING。
+> - **显式设置范围**：在 `dtype_param` 中配置 `min_value` / `max_value` 可覆盖上下界。
+> - **最佳实践**：限制 `tp`、`pp` 的枚举候选使乘积可整除 `product`，避免依赖降级处理。
+
+```shell
+# 方式一（最佳实践）：限制 tp 和 pp 的枚举候选值，保证 tp × pp ≤ 16
+[[mindie.target_field]]
+name = "tp"
+config_position = "BackendConfig.ModelDeployConfig.ModelConfig.0.tp"
+min = 0
+max = 1
+dtype = "enum"
+dtype_param = [1, 2, 4, 8]   # tp 最大为 8
+
+[[mindie.target_field]]
+name = "pp"
+config_position = "BackendConfig.ModelDeployConfig.ModelConfig.0.pp"
+min = 0
+max = 1
+dtype = "enum"
+dtype_param = [1, 2]          # pp 限制为 1 或 2，保证 tp × pp 最大 8 × 2 = 16 不超出
+
+[[mindie.target_field]]
+name = "dp"
+config_position = "BackendConfig.ModelDeployConfig.ModelConfig.0.dp"
+min = 0
+max = 0
+dtype = "ternary_factories"
+dtype_param = {target_names = ["tp", "pp"], product = 16, dtype = "int"}
+# 示例：tp=4, pp=2 → dp = 16 ÷ (4 × 2) = 2
+#        tp=8, pp=2 → dp = 16 ÷ (8 × 2) = 1
+```
+
+```shell
+# 方式二：配置 min_value 作为修复失败后的下界保护，并输出警告
+[[mindie.target_field]]
+name = "dp"
+config_position = "BackendConfig.ModelDeployConfig.ModelConfig.0.dp"
+min = 0
+max = 0
+dtype = "ternary_factories"
+dtype_param = {target_names = ["tp", "pp"], product = 16, dtype = "int", min_value = 1}
+# 如果没有可修复的合法组合，且结果低于 min_value，会降级至 min_value=1，并输出 WARNING
+```
+
+**优先级修复策略（`priority_policy`）**
+
+当 PSO 生成的 `tp`、`pp` 组合不能合法推出 `dp`（如不能整除、超界）时，系统会尝试修复。修复策略由 `priority_policy` 控制：
+
+| 策略名 | 语义 | 适用场景 |
+|--------|------|----------|
+| `balanced`（默认） | 将粒子均分两组：前半用 `target_names` 顺序修复，后半用反序修复，降低单一解码顺序带来的结构性偏置 | 用户没有明确字段优先偏好，默认使用 |
+| `fixed` | 用户显式指定修复顺序：高优先级字段尽量保持不动，优先调整低优先级字段 | 用户明确知道哪个字段更应该稳定 |
+
+```shell
+# balanced（默认）策略示例
+# 适用：用户没有指定哪个字段更重要，系统自动均衡分配修复方向
+[[mindie.target_field]]
+name = "dp"
+config_position = "BackendConfig.ModelDeployConfig.ModelConfig.0.dp"
+min = 0
+max = 0
+dtype = "ternary_factories"
+dtype_param = {
+  target_names = ["tp", "pp"],
+  product = 32,
+  dtype = "int",
+  priority_policy = "balanced"   # 默认即为 balanced，可不写
+}
+```
+
+```shell
+# fixed 策略示例
+# 适用：用户明确知道 tp 应保持稳定，优先调整 pp
+[[mindie.target_field]]
+name = "dp"
+config_position = "BackendConfig.ModelDeployConfig.ModelConfig.0.dp"
+min = 0
+max = 0
+dtype = "ternary_factories"
+dtype_param = {
+  target_names = ["tp", "pp"],
+  product = 32,
+  dtype = "int",
+  priority_policy = "fixed",
+  priority = ["tp", "pp"]        # tp 高优先：尽量保留 tp，首先调整 pp
+}
+# 示例： tp=8、pp=3（非法）：
+#   stage1：固定 tp=8，在 pp 候选中找最近合法値 → pp=4， dp=1
+#   stage1 失败时再 stage2：两个字段均可调整，按距离升序搜索
+```
+
+> [!note] priority_policy 说明
+>
+> - `balanced` 是默认策略，不配置时自动生效。
+> - `balanced` 通过将粒子按解码顺序分层，降低单一字段顺序导致的结构性偏置，但不能保证全局最优。
+> - `fixed` 适合用户明确知道哪个字段更应该稳定的场景，例如 tp 由硬件资源决定时。
+> - 修复分两阶段：stage1 固定高优先字段、调整低优先字段；stage1 失败后 stage2 两个字段均可调整。
+> - 全部候选都不合法时，修复失败，降级至 min/max 截断，并输出 warning。
+
+场景二：`seq_len`、`prefill_batch_size` 为可调参数，`max_prefill_tokens` 自动设为二者之积的 2 倍（`max_prefill_tokens = 2 × seq_len × prefill_batch_size`）：
+
+```shell
+[[mindie.target_field]]
+name = "seq_len"
+config_position = "BackendConfig.ModelConfig.seqLen"
+min = 0
+max = 1
+dtype = "enum"
+dtype_param = [512, 1024, 2048, 4096]
+
+[[mindie.target_field]]
+name = "prefill_batch_size"
+config_position = "BackendConfig.ScheduleConfig.maxPrefillBatchSize"
+min = 1
+max = 16
+dtype = "int"
+
+[[mindie.target_field]]
+name = "max_prefill_tokens"
+config_position = "BackendConfig.ScheduleConfig.maxPrefillTokens"
+min = 0         # 设为 0 使其成为常量，不参与搜索
+max = 0
+dtype = "ternary_times"
+dtype_param = {target_names = ["seq_len", "prefill_batch_size"], product = 2, dtype = "int"}
+# 当 seq_len=1024, prefill_batch_size=4 时，max_prefill_tokens = 2 × 1024 × 4 = 8192
 ```
 
 使用vllm框架时，需修改`config.toml`中的`[vllm.command]`参数，如：
@@ -353,10 +527,10 @@ others = ""
 |参数|可选/必选|说明|
 |---|---|---|
 |host|必选| 主机ip，需与`[vllm_benchmark.command]`中的`host`保持一致，可设为`127.0.0.1`。|
-|port|必选| 端口号，需与`[vllm_benchmark.command]`中的`port`保持一致。| 
-|model|必选| 模型路径，需与`[vllm_benchmark.command]`中的`model`保持一致。| 
+|port|必选| 端口号，需与`[vllm_benchmark.command]`中的`port`保持一致。|
+|model|必选| 模型路径，需与`[vllm_benchmark.command]`中的`model`保持一致。|
 |served_model_name|必选| 模型名称，需与`[vllm_benchmark.command]`中的`served_model_name`保持一致。|
-|others|可选| 拼接其他参数，注意参数间使用空格分隔，参数内部不能留有空格。如：`--tensor-parallel-size 2 --no-enable-prefix-caching`。默认为空。| 
+|others|可选| 拼接其他参数，注意参数间使用空格分隔，参数内部不能留有空格。如：`--tensor-parallel-size 2 --no-enable-prefix-caching`。默认为空。|
 
 ### 自定义参数寻优
 
@@ -398,7 +572,7 @@ others = "--gpu-memory-utilization $GPU_MEMORY_UTILIZATION"
 name = "COMPILATION_CONFIG"
 config_position = "env"
 dtype = "enum"
-dtype_param = ["", "--compilation-config '{\"cudagraph_mode\": \"FULL_DECODE_ONLY\"}'"]  
+dtype_param = ["", "--compilation-config '{\"cudagraph_mode\": \"FULL_DECODE_ONLY\"}'"]
 value = "--compilation-config '{\"cudagraph_mode\": \"FULL_DECODE_ONLY\"}'"
 ```
 

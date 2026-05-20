@@ -13,7 +13,7 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
-import subprocess
+import subprocess  # nosec B404
 import time
 from pathlib import Path
 from typing import Tuple, Optional
@@ -23,23 +23,45 @@ from loguru import logger
 
 from ..common import get_train_sub_path, is_mindie, is_vllm
 from ..config.base_config import REAL_EVALUATION
-from ..config.config import get_settings, PerformanceIndex, OptimizerConfigField, \
-    map_param_with_value, CommunicationConfig, ErrorSeverity
+from ..config.config import (
+    get_settings,
+    PerformanceIndex,
+    OptimizerConfigField,
+    map_param_with_value,
+    CommunicationConfig,
+    ErrorSeverity,
+    DecodeContext,
+)
 from ..config.base_config import FOLDER_LIMIT_SIZE, REQUESTRATES
 from ..config.constant import Stage
 from ..optimizer.communication import CommunicationForFile, CustomCommand
 from ..optimizer.plugins.simulate import Simulator, DisaggregationSimulator
 from ..optimizer.store import DataStorage
 from ..optimizer.utils import get_folder_size
-from ..optimizer.health_check import (ErrorContext, BenchmarkHealthCheckHook,
-                                       ServiceHealthCheckHook, ServiceHookPoint, BenchmarkHookPoint,
-                                       HealthCheckContext, service_health_checks_hooks,
-                                       benchmark_health_checks_hooks, FatalError, RetryableError)
+from ..optimizer.health_check import (
+    ErrorContext,
+    BenchmarkHealthCheckHook,
+    ServiceHealthCheckHook,
+    ServiceHookPoint,
+    BenchmarkHookPoint,
+    HealthCheckContext,
+    service_health_checks_hooks,
+    benchmark_health_checks_hooks,
+    FatalError,
+    RetryableError,
+)
 
 
 class Scheduler:
-    def __init__(self, simulator, benchmark, data_storage: DataStorage,
-                 bak_path: Optional[Path] = None, retry_number: int = 3, wait_start_time: Optional[int] = None):
+    def __init__(
+        self,
+        simulator,
+        benchmark,
+        data_storage: DataStorage,
+        bak_path: Optional[Path] = None,
+        retry_number: int = 3,
+        wait_start_time: Optional[int] = None,
+    ):
         self.simulator = simulator
         self.benchmark = benchmark
         self.data_storage = data_storage
@@ -75,7 +97,7 @@ class Scheduler:
             benchmark=self.benchmark,
             scheduler=self,
             current_time=time.time(),
-            elapsed_time=elapsed
+            elapsed_time=elapsed,
         )
 
     def _handle_error(self, error_context: ErrorContext) -> None:
@@ -117,16 +139,22 @@ class Scheduler:
                         return
                     elif res.stage == Stage.start:
                         if int(elapsed) % 60 == 0:
-                            logger.warning(f"Check the service status at {elapsed} seconds. status: {res.stage}. info: {res.info}")
+                            logger.warning(
+                                f"Check the service status at {elapsed} seconds. status: {res.stage}. info: {res.info}"
+                            )
                         continue
-                    elif res.stage == Stage.stop or res.stage == Stage.error:
+                    elif res.stage in (Stage.stop, Stage.error):
                         logger.error(f"Failed to start the {self.simulator.process} process.")
-                        raise subprocess.SubprocessError(f"Failed in run simulator. status: {res.stage}. info: {res.info}")
+                        raise subprocess.SubprocessError(
+                            f"Failed in run simulator. status: {res.stage}. info: {res.info}"
+                        )
                     else:
                         logger.warning(f" Unknown Status. status: {res.stage}. info: {res.info}")
                 else:
-                    raise RuntimeError(f"No actionable method found. the expected is check_success or health. "
-                                       f"simulator: {type(self.simulator)}")
+                    raise RuntimeError(
+                        f"No actionable method found. the expected is check_success or health. "
+                        f"simulator: {type(self.simulator)}"
+                    )
             else:
                 self._handle_error(result.error_context)
         raise TimeoutError(self.wait_time)
@@ -157,16 +185,18 @@ class Scheduler:
             if hasattr(self.simulator, "check_success"):
                 if is_mindie() or is_vllm():
                     if self.simulator.process.poll() is not None:
-                        raise subprocess.SubprocessError(f"Failed in run simulator. "
-                                                        f"return code: {self.simulator.process.returncode}.")
+                        raise subprocess.SubprocessError(
+                            f"Failed in run simulator. return code: {self.simulator.process.returncode}."
+                        )
                 if self.benchmark.check_success():
                     return
             if hasattr(self.simulator, "health"):
                 if not isinstance(self.simulator, (DisaggregationSimulator, Simulator)):
                     res = self.simulator.health()
                     if res.stage != Stage.running:
-                        raise subprocess.SubprocessError(f"Failed in run simulator. error: {res.stage} "
-                                                        f"info: {res.info}.")
+                        raise subprocess.SubprocessError(
+                            f"Failed in run simulator. error: {res.stage} info: {res.info}."
+                        )
                 res = self.benchmark.health()
                 if res.stage != Stage.running:
                     return
@@ -184,7 +214,7 @@ class Scheduler:
         2. 启动benchmark 测试
         3. 检查mindie状态，检查benchmark状态
         """
-        for attempt  in range(self.retry_number):
+        for attempt in range(self.retry_number):
             try:
                 # 1. 启动 simulator（wait_simulate 内部会运行钩子检查）
                 self.run_simulate(params, params_field)
@@ -198,9 +228,11 @@ class Scheduler:
                 return
             except FatalError as e:
                 # 致命错误（钩子检测到 OOM、设备错误等）立即退出，不重试
-                logger.error(f"Fatal error in run_target_server (attempt {attempt + 1}/{self.retry_number}): {e}, \n"
-                             f"simulator log: {self.simulator.run_log}, \n"
-                             f"log last info: {self.simulator.get_last_log()}")
+                logger.error(
+                    f"Fatal error in run_target_server (attempt {attempt + 1}/{self.retry_number}): {e}, \n"
+                    f"simulator log: {self.simulator.run_log}, \n"
+                    f"log last info: {self.simulator.get_last_log()}"
+                )
                 self.stop_target_server(False)
                 raise
             except RetryableError as e:
@@ -208,7 +240,8 @@ class Scheduler:
                 logger.warning(
                     f"Retryable error in run_target_server (attempt {attempt + 1}/{self.retry_number}): {e}, \n"
                     f"simulator log: {self.simulator.run_log}, \n"
-                    f"log last info: {self.simulator.get_last_log()}")
+                    f"log last info: {self.simulator.get_last_log()}"
+                )
                 self.stop_target_server(False)
                 continue
         raise ValueError(f"Failed in run_target_server after {self.retry_number} attempts")
@@ -226,9 +259,15 @@ class Scheduler:
         real_evaluation = True
         if REAL_EVALUATION in kwargs:
             real_evaluation = kwargs.pop(REAL_EVALUATION)
-        self.data_storage.save(self.performance_index, tuple(self.simulate_run_info),
-                               error=self.error_info, backup=self.current_back_path, duration=duration,
-                               real_evaluation=real_evaluation, **kwargs)
+        self.data_storage.save(
+            self.performance_index,
+            tuple(self.simulate_run_info),
+            error=self.error_info,
+            backup=self.current_back_path,
+            duration=duration,
+            real_evaluation=real_evaluation,
+            **kwargs,
+        )
         if self.bak_path:
             self.backup()
         self.stop_target_server()
@@ -243,19 +282,24 @@ class Scheduler:
         if hasattr(self.benchmark, "update_command"):
             self.benchmark.update_command()
 
-    def run(self, params: np.ndarray, params_field: Tuple[OptimizerConfigField]) -> PerformanceIndex:
+    def run(
+        self,
+        params: np.ndarray,
+        params_field: Tuple[OptimizerConfigField],
+        decode_context: Optional['DecodeContext'] = None,
+    ) -> PerformanceIndex:
         """
         1. 启动mindie仿真
         2. 启动benchmark 测试
         3. 获取benchmark测试结果
         4. 关闭mindie仿真
         5. 返回benchmark测试结果
-        params: 是一维数组，其值对应mindie 的相关配置。
+        params: 是一维数组，其値对应mindie 的相关配置。
         """
         self.run_start_timestamp = time.time()
         logger.debug("Start run in scheduler.")
         self.set_back_up_path()
-        self.simulate_run_info = map_param_with_value(params, params_field)
+        self.simulate_run_info = map_param_with_value(params, params_field, decode_context)
         logger.info("run param info {}", {v.name: v.value for v in self.simulate_run_info})
         self.error_info = None
         self.del_log = True
@@ -266,20 +310,27 @@ class Scheduler:
             time.sleep(1)
             self.performance_index = self.benchmark.get_performance_index()
         except Exception as e:
-            logger.error(f"Failed running. bak path: {self.simulator.bak_path}. error {e}"
-                         f"simulator log {self.simulator.run_log}, benchmark log {self.benchmark.run_log}")
+            logger.error(
+                f"Failed running. bak path: {self.simulator.bak_path}. error {e}"
+                f"simulator log {self.simulator.run_log}, benchmark log {self.benchmark.run_log}"
+            )
             self.error_info = e
             self.del_log = False
         return self.performance_index
 
-    def run_with_request_rate(self, params: np.ndarray, params_field: Tuple[OptimizerConfigField]) -> PerformanceIndex:
+    def run_with_request_rate(
+        self,
+        params: np.ndarray,
+        params_field: Tuple[OptimizerConfigField],
+        decode_context: Optional['DecodeContext'] = None,
+    ) -> PerformanceIndex:
         """
         运行服务，先运行最大并发，获取request rate，然后再根据并发和request rate运行，最后一组作为评估结果
-        params: 是一维数组，其值对应mindie 的相关配置。
+        params: 是一维数组，其値对应mindie 的相关配置。
         """
         self.run_start_timestamp = time.time()
         self.set_back_up_path()
-        self.simulate_run_info = map_param_with_value(params, params_field)
+        self.simulate_run_info = map_param_with_value(params, params_field, decode_context)
         logger.info("run param info {}", {v.name: v.value for v in self.simulate_run_info})
         self.error_info = None
         self.del_log = True
@@ -313,14 +364,18 @@ class Scheduler:
                 try:
                     self.monitoring_status()
                 except Exception as e:
-                    logger.error(f"Failed in monitoring status. error: {e}, simulator log {self.simulator.run_log}, "
-                                 f"benchmark log {self.benchmark.run_log}")
+                    logger.error(
+                        f"Failed in monitoring status. error: {e}, simulator log {self.simulator.run_log}, "
+                        f"benchmark log {self.benchmark.run_log}"
+                    )
                     raise e
                 time.sleep(1)
                 self.performance_index = self.benchmark.get_performance_index()
         except Exception as e:
-            logger.error(f"Failed running. bak path: {self.simulator.bak_path}. error {e}"
-                         f"simulator log {self.simulator.run_log}, benchmark log {self.benchmark.run_log}")
+            logger.error(
+                f"Failed running. bak path: {self.simulator.bak_path}. error {e}"
+                f"simulator log {self.simulator.run_log}, benchmark log {self.benchmark.run_log}"
+            )
             self.error_info = e
             self.del_log = False
         return self.performance_index
@@ -330,9 +385,10 @@ class ScheduleWithMultiMachine(Scheduler):
     def __init__(self, communication_config: CommunicationConfig, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.communication_config = communication_config
-        self.communication = CommunicationForFile(self.communication_config.cmd_file,
-                                                  self.communication_config.res_file,
-                                                  )
+        self.communication = CommunicationForFile(
+            self.communication_config.cmd_file,
+            self.communication_config.res_file,
+        )
         self.cmd = CustomCommand()
         _cmd = self.cmd.init
         self.communication.send_command(_cmd)
@@ -357,10 +413,9 @@ class ScheduleWithMultiMachine(Scheduler):
             _cmd = self.cmd.process_poll
             self.communication.send_command(_cmd)
             all_poll = [self.simulator.process.poll(), self.communication.clear_command(_cmd)]
-            if any([_i is not None for _i in all_poll]):
+            if any(_i is not None for _i in all_poll):
                 self.stop_target_server(del_log=False)
-                raise subprocess.SubprocessError(
-                    f"Failed in run simulator. all status: {all_poll}.")
+                raise subprocess.SubprocessError(f"Failed in run simulator. all status: {all_poll}.")
             if self.benchmark.check_success():
                 return
             time.sleep(1)
@@ -380,7 +435,7 @@ class ScheduleWithMultiMachine(Scheduler):
         self.communication.clear_command(_cmd)
 
     def stop_target_server(self, del_log: bool = True):
-        super(ScheduleWithMultiMachine, self).stop_target_server(del_log)
+        super().stop_target_server(del_log)
         # wait 其他服务器上的服务成功。
         _cmd = f"{self.cmd.stop} params:{del_log}"
         self.communication.send_command(_cmd)
