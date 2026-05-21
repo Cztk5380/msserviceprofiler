@@ -92,6 +92,7 @@ EXCLUDED_MD=(
   en/vLLM_metrics_tool_instruct.md
   en/vLLM_service_oriented_performance_collection_tool.md
   en/vulnerability_handling_procedure.md
+  design/Ternary_Relationship_Detailed_Design.md
 )
 
 if [[ ! -f "$MKDOCS" ]]; then
