@@ -41,6 +41,46 @@ def test_given_timeline_start_and_trigger_points_when_record_then_duration_metri
     assert kwargs == {}
 
 
+def test_given_model_runner_output_and_post_process_when_record_then_non_forward_metric_emitted(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        mh,
+        "metrics_client",
+        SimpleNamespace(
+            record_metric=lambda *a, **k: calls.append((a, k)),
+            get_or_create_metric=lambda *a, **k: None,
+        ),
+    )
+
+    tl = mh.Timeline()
+    tl.record("forward", 10.0, 1.0)
+    tl.record("model_runner_get_output", 15.0, 2.0)
+    tl.record("post process", 18.0, 4.0)
+
+    metric_values = {args[0]: args[1] for args, _kwargs in calls}
+    assert metric_values["npu:kernel_launch"] == 12.0
+    assert metric_values["npu:non_forward_duration"] == 5.0
+
+
+def test_given_negative_non_forward_duration_when_record_then_metric_skipped(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        mh,
+        "metrics_client",
+        SimpleNamespace(
+            record_metric=lambda *a, **k: calls.append((a, k)),
+            get_or_create_metric=lambda *a, **k: None,
+        ),
+    )
+
+    tl = mh.Timeline()
+    tl.record("model_runner_get_output", 20.0, 5.0)
+    tl.record("post process", 18.0, 1.0)
+
+    metric_names = [args[0] for args, _kwargs in calls]
+    assert "npu:non_forward_duration" not in metric_names
+
+
 def test_given_timing_context_normal_exit_when_exit_then_records_metric_and_timeline(monkeypatch):
     calls = []
     monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
@@ -57,9 +97,12 @@ def test_given_timing_context_normal_exit_when_exit_then_records_metric_and_time
         def __exit__(self, exc_type, exc_val, exc_tb):
             return False
 
+    with _Ctx() as ctx:
+        assert ctx == "ctx"
+
     tcm = mh.TimingContextManager("abc", _Ctx())
-    assert tcm.__enter__() == "ctx"
-    tcm.__exit__(None, None, None)
+    with tcm as ctx:
+        assert ctx == "ctx"
     assert len(calls) == 1
     assert len(tr_calls) == 1
 
@@ -75,14 +118,24 @@ def test_given_timing_context_exception_when_exit_then_skip_metric(monkeypatch):
         def __exit__(self, exc_type, exc_val, exc_tb):
             return False
 
+    with _Ctx():
+        pass
+
     tcm = mh.TimingContextManager("abc", _Ctx())
-    tcm.__enter__()
-    tcm.__exit__(RuntimeError, RuntimeError("x"), None)
-    assert calls == []
+    try:
+        with tcm:
+            raise RuntimeError("x")
+    except RuntimeError as exc:
+        assert str(exc) == "x"
+    else:
+        raise AssertionError("expected RuntimeError")
+    assert not calls
 
 
 def test_given_original_context_factory_when_hook_wrapped_then_returns_timing_context():
-    out = mh.record_function_timer_hook(lambda name, *a, **k: SimpleNamespace(__enter__=lambda: None, __exit__=lambda *_: False), "n")
+    out = mh.record_function_timer_hook(
+        lambda name, *a, **k: SimpleNamespace(__enter__=lambda: None, __exit__=lambda *_: False), "n"
+    )
     assert isinstance(out, mh.TimingContextManager)
 
 
@@ -284,7 +337,7 @@ def test_given_block_allocate_success_when_hook_called_then_does_not_record(monk
     out = mh.block_allocate_failure_hooker(lambda *_a, **_k: "allocated", object())
 
     assert out == "allocated"
-    assert calls == []
+    assert not calls
 
 
 def test_given_rpc_timeout_when_hook_called_then_records_and_reraises(monkeypatch):
@@ -332,3 +385,53 @@ def test_given_rpc_runtime_error_when_hook_called_then_records_actual_exception_
         pass
 
     assert calls == [(("rpc_errors", 1, {"exception_type": "RuntimeError"}), {})]
+
+
+def test_given_eplb_do_update_when_worker_exposes_hotness_then_records_hotness_and_imbalance(monkeypatch):
+    calls = []
+
+    def record_metric(*args, **kwargs):
+        if "labels" in kwargs:
+            kwargs = {**kwargs, "labels": kwargs["labels"].copy()}
+        calls.append((args, kwargs))
+
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=record_metric))
+
+    worker = SimpleNamespace(
+        rank_id=0,
+        latest_expert_hotness={
+            "current_mean": 10,
+            "current_max": 20,
+            "update_mean": 8,
+            "update_max": 12,
+            "current_imbalance_list": [0.1, 0.2],
+            "update_imbalance_list": [0.03, 0.04],
+        },
+    )
+
+    def do_update(this):
+        assert this is worker
+        return "update_info"
+
+    assert mh.eplb_do_update_hotness_handler(do_update, worker) == "update_info"
+
+    metric_names = [args[0] for args, _kwargs in calls]
+    assert "eplb:expert_hotness:current_mean" in metric_names
+    assert "eplb:expert_hotness:current_max" in metric_names
+    assert "eplb:expert_hotness:update_mean" in metric_names
+    assert "eplb:expert_hotness:update_max" in metric_names
+
+    imbalance_calls = [kwargs for args, kwargs in calls if args[0] == "eplb:expert_hotness:imbalance"]
+    assert len(imbalance_calls) == 4
+    assert imbalance_calls[0]["labels"] == {"rank": "0", "phase": "current", "layer": "0"}
+    assert imbalance_calls[-1]["labels"] == {"rank": "0", "phase": "update", "layer": "1"}
+
+
+def test_given_eplb_nonzero_rank_when_handler_finishes_then_skips_metrics(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    worker = SimpleNamespace(rank_id=1, latest_expert_hotness={"current_mean": 10})
+    assert mh.eplb_do_update_hotness_handler(lambda _self: "update_info", worker) == "update_info"
+
+    assert not calls

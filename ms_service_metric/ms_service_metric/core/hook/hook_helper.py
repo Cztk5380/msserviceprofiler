@@ -27,6 +27,8 @@ HookHelper: Hook辅助类
 """
 
 import importlib
+import inspect
+import functools
 import types
 from typing import Any, Callable, Optional
 
@@ -38,20 +40,20 @@ logger = get_logger("hook_helper")
 
 class HookHelper:
     """Hook辅助类
-    
+
     负责具体的函数替换和恢复操作。
     只负责简单的函数替换，复杂的handler合并逻辑由Symbol类处理。
-    
+
     Attributes:
         target: 目标对象（函数或方法）
         hook_func: hook函数
         original_func: 原始函数（用于恢复）
     """
-    
+
     def __init__(self, target: Any, hook_func: Callable):
         """
         初始化HookHelper
-        
+
         Args:
             target: 目标对象（函数、方法或类属性）
             hook_func: hook函数，接收(ori_func, *args, **kwargs)参数
@@ -59,26 +61,27 @@ class HookHelper:
         self._target = target
         self._hook_func = hook_func
         self._original_func: Optional[Callable] = None
+        self._original_descriptor: Optional[Any] = None
         self._replaced = False
-        
+
         # 解析目标对象
         self._target_obj, self._target_name = self._parse_target(target)
-        
-        logger.debug(f"HookHelper created: target={self._target_name}")
-        
+
+        logger.debug("HookHelper created: target=%s", self._target_name)
+
     def _parse_target(self, target: Any) -> tuple:
         """
         解析目标对象
-        
+
         确定目标对象所在的容器和属性名。
-        
+
         Args:
             target: 目标对象
-            
+
         Returns:
             (容器对象, 属性名)
         """
-        logger.debug(f"Parsing target: {target}")
+        logger.debug("Parsing target: %s", target)
         # 如果是函数或方法
         if isinstance(target, (types.FunctionType, types.MethodType)):
             # 获取函数所在的模块或类
@@ -90,74 +93,92 @@ class HookHelper:
                 # 尝试获取模块
                 module = importlib.import_module(target.__module__)
                 parts = target.__qualname__.split('.')
-                
-                logger.debug(f"Module: {module}, parts: {parts}")
-                
+
+                logger.debug("Module: %s, parts: %s", module, parts)
+
                 # 过滤掉 <locals>，它是嵌套函数的标记，不是真正的属性
                 parts = [p for p in parts if p != '<locals>']
-                
+
                 # 逐级获取父对象
                 obj = module
                 for part in parts[:-1]:
-                    logger.debug(f"Getting attribute: {part} from {obj}")
+                    logger.debug("Getting attribute: %s from %s", part, obj)
                     obj = getattr(obj, part)
-                    
+
                 return (obj, parts[-1])
             else:
                 raise HookError(f"Cannot parse target: {target}")
         else:
             raise HookError(f"Unsupported target type: {type(target)}")
-            
+
     def replace(self):
         """
         应用hook，替换目标函数
-        
+
         保存原始函数，用hook函数直接替换。
         hook_func应该是一个完整的包装函数，不需要再次包装。
         """
         if self._replaced:
             logger.debug("Hook already applied")
             return
-            
+
         try:
             # 获取原始函数
+            if isinstance(self._target_obj, type):
+                self._original_descriptor = inspect.getattr_static(self._target_obj, self._target_name)
             self._original_func = getattr(self._target_obj, self._target_name)
-            
+
             # 直接替换为hook函数（hook函数应该是一个完整的包装函数）
-            setattr(self._target_obj, self._target_name, self._hook_func)
+            setattr(self._target_obj, self._target_name, self._wrap_descriptor(self._hook_func))
             self._replaced = True
-            
-            logger.debug(f"Hook applied: {self._target_name}")
-            
+
+            logger.debug("Hook applied: %s", self._target_name)
+
         except Exception as e:
-            logger.error(f"Failed to apply hook: {e}")
+            logger.error("Failed to apply hook: %s", e)
             raise HookError(f"Failed to apply hook: {e}") from e
-            
+
     def recover(self):
         """
         恢复原始函数
-        
+
         将目标函数恢复为原始函数。
         """
         if not self._replaced:
             return
-            
-        if self._original_func:
-            try:
+
+        try:
+            if self._original_descriptor is not None:
+                setattr(self._target_obj, self._target_name, self._original_descriptor)
+            elif self._original_func:
                 setattr(self._target_obj, self._target_name, self._original_func)
-            except Exception as e:
-                logger.error(f"Failed to recover hook: {e}")
-                raise HookError(f"Failed to recover hook: {e}") from e
-            
-        logger.debug(f"Hook recovered: {self._target_name}")
+        except Exception as e:
+            logger.error("Failed to recover hook: %s", e)
+            raise HookError(f"Failed to recover hook: {e}") from e
+
+        logger.debug("Hook recovered: %s", self._target_name)
         self._replaced = False
         self._original_func = None
-            
+        self._original_descriptor = None
+
+    def _wrap_descriptor(self, func: Callable) -> Any:
+        """Keep staticmethod/classmethod binding semantics after replacement."""
+        if isinstance(self._original_descriptor, staticmethod):
+            return staticmethod(func)
+        if isinstance(self._original_descriptor, classmethod):
+
+            @functools.wraps(func)
+            def classmethod_func(cls, *args, **kwargs):
+                return func(*args, **kwargs)
+
+            return classmethod(classmethod_func)
+        return func
+
     @property
     def is_replaced(self) -> bool:
         """是否已经应用hook"""
         return self._replaced
-        
+
     @property
     def original_func(self) -> Optional[Callable]:
         """原始函数"""

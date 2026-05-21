@@ -21,7 +21,7 @@ vLLM Metric Handlers (v1)
 """
 
 import time
-from typing import Any
+from typing import Any, NamedTuple
 
 from ms_service_metric.utils.logger import get_logger
 from ms_service_metric.metrics.metrics_manager import get_metrics_manager, MetricType, SIZE_BUCKETS
@@ -35,45 +35,68 @@ logger = get_logger(__name__)
 metrics_client = get_metrics_manager()
 
 
+class TimeRecord(NamedTuple):
+    start: float
+    end: float
+
+
 class Timeline:
     """时间线记录器
-    
+
     用于记录和计算特定时间段内的耗时。
     """
+
     duration_config = {
         "npu:forward_duration": ("forward", "model_runner_get_output"),
         "npu:kernel_launch": ("forward", "post process"),
+        "npu:non_forward_duration": ("model_runner_get_output", "post process", "end"),
     }
 
     def __init__(self):
         self.time_record_set = {value[0] for value in self.duration_config.values()}
-        self.duration_activate_dict = {
-            trigger: (start, metric)
-            for metric, (start, trigger) in self.duration_config.items()
-        }
+        self.time_record_set.add("model_runner_get_output")
+        self.duration_activate_dict = {}
+        for metric, config in self.duration_config.items():
+            start, trigger = config[:2]
+            start_point = config[2] if len(config) > 2 else "start"
+            self.duration_activate_dict.setdefault(trigger, []).append((start, metric, start_point))
         self.time_recorded = {}
         # 预创建指标（性能优化）
-        for metric_name in self.duration_config.keys():
+        for metric_name in self.duration_config:
             metrics_client.get_or_create_metric(metric_name)
 
     def record(self, name, start_time, duration):
         """记录时间点
-        
+
         Args:
             name: 记录名称
             start_time: 开始时间
             duration: 持续时间
         """
         if name in self.time_record_set:
-            self.time_recorded[name] = (start_time, start_time + duration)
+            self.time_recorded[name] = TimeRecord(start_time, start_time + duration)
 
-        if name in self.duration_activate_dict:
-            start_name, metric_name = self.duration_activate_dict[name]
-            if self.time_recorded.get(start_name) is None:
-                return
-            end_time = start_time + duration
-            start_time = self.time_recorded[start_name][0]
-            metrics_client.record_metric(metric_name, end_time - start_time, {})
+        end_time = start_time + duration
+        for start_name, metric_name, start_point in self.duration_activate_dict.get(name, ()):
+            start_record = self.time_recorded.get(start_name)
+            if start_record is None:
+                continue
+            start_value = getattr(start_record, start_point)
+            duration_value = end_time - start_value
+            if duration_value < 0:
+                logger.debug(
+                    "Negative duration detected for %s: %.6f, start=%s.%s=%.6f, end=%s.%s=%.6f",
+                    metric_name,
+                    duration_value,
+                    start_name,
+                    start_point,
+                    start_value,
+                    name,
+                    "end",
+                    end_time,
+                )
+                continue
+            metrics_client.record_metric(metric_name, duration_value, {})
 
 
 timeline_recorder: Timeline = Timeline()
@@ -170,7 +193,7 @@ def runner_get_output_hooker(original_func, *args, **kwargs):
     start_time = time.time()
     ret = original_func(*args, **kwargs)
     duration = time.time() - start_time
-    
+
     metrics_client.record_metric("worker:model_runner_get_output:duration", duration, {})
     timeline_recorder.record("model_runner_get_output", start_time, duration)
     return ret
@@ -184,7 +207,9 @@ metrics_client.get_or_create_metric("scheduler:seqlen:avg", metric_type=MetricTy
 metrics_client.get_or_create_metric("scheduler:seqlen:sum", metric_type=MetricType.GAUGE, buckets=SIZE_BUCKETS)
 metrics_client.get_or_create_metric("scheduler:phase_batch_size", ["req_phase"], buckets=SIZE_BUCKETS)
 metrics_client.get_or_create_metric("scheduler:recompute_events", metric_type=MetricType.COUNTER)
-metrics_client.get_or_create_metric("scheduler:phase_scheduled_token_counter", ["req_phase"], metric_type=MetricType.COUNTER)
+metrics_client.get_or_create_metric(
+    "scheduler:phase_scheduled_token_counter", ["req_phase"], metric_type=MetricType.COUNTER
+)
 metrics_client.get_or_create_metric(
     "scheduler:phase_scheduled_tokens",
     ["req_phase"],
@@ -200,6 +225,7 @@ metrics_client.get_or_create_metric(RUNNING_TO_WAITING_COUNT, metric_type=Metric
 metrics_client.get_or_create_metric(BLOCK_ALLOCATE_FAILURES, metric_type=MetricType.COUNTER)
 metrics_client.get_or_create_metric(RPC_ERRORS, ["exception_type"], metric_type=MetricType.COUNTER)
 
+
 def _is_failed_allocation_result(ret: Any) -> bool:
     if ret is None or ret is False:
         return True
@@ -208,8 +234,8 @@ def _is_failed_allocation_result(ret: Any) -> bool:
         try:
             if attr() if callable(attr) else bool(attr):
                 return True
-        except Exception:
-            continue
+        except Exception as exc:
+            logger.debug("Skip failed allocation attribute '%s': %s", attr_name, exc)
     return False
 
 
@@ -237,10 +263,10 @@ def scheduler_scheduler_hooker(original_func, self, *args, **kwargs):
     metrics_client.record_metric("scheduler:duration", duration)
     metrics_client.record_metric("scheduler:batch_size", len(ret.num_scheduled_tokens))
     metrics_client.record_metric("scheduler:running_queue_size", len(self.running))
-    
+
     seqlen_sum = 0
     seqlen_cnt = len(ret.scheduled_new_reqs) + len(ret.scheduled_cached_reqs.num_computed_tokens)
-    
+
     for req in ret.scheduled_new_reqs:
         seqlen_sum += req.num_computed_tokens
 
@@ -301,3 +327,73 @@ def rpc_error_hooker(original_func, *args, **kwargs):
         metrics_client.record_metric(RPC_ERRORS, 1, {"exception_type": _get_exception_type(exc)})
         raise
 
+
+# 预创建 EPLB 相关指标（性能优化）
+_EPLB_HOTNESS_SUMMARY_METRICS = (
+    "eplb:expert_hotness:current_mean",
+    "eplb:expert_hotness:current_max",
+    "eplb:expert_hotness:update_mean",
+    "eplb:expert_hotness:update_max",
+)
+
+for summary_metric_name in _EPLB_HOTNESS_SUMMARY_METRICS:
+    metrics_client.get_or_create_metric(
+        summary_metric_name,
+        metric_type=MetricType.GAUGE,
+        label_names=["rank"],
+    )
+
+metrics_client.get_or_create_metric(
+    "eplb:expert_hotness:imbalance",
+    metric_type=MetricType.GAUGE,
+    label_names=["rank", "phase", "layer"],
+)
+
+
+def eplb_do_update_hotness_handler(original_func, self, *args, **kwargs):
+    """Record EPLB hotness metrics exposed by vllm-ascend EplbWorker.
+
+    Only rank 0 records hotness metrics because vllm-ascend computes and
+    exposes the aggregated EPLB imbalance summary on rank 0.
+    """
+    result = original_func(self, *args, **kwargs)
+
+    rank_id = getattr(self, "rank_id", -1)
+    if rank_id != 0:
+        return result
+
+    hotness = getattr(self, "latest_expert_hotness", None)
+    if not hotness:
+        logger.debug("Skip EPLB hotness metrics because latest_expert_hotness is missing")
+        return result
+
+    labels = {"rank": str(rank_id)}
+    for suffix in ("current_mean", "current_max", "update_mean", "update_max"):
+        value = hotness.get(suffix)
+        if value is None:
+            logger.debug(
+                "Skip EPLB hotness metric for rank %s because value '%s' is missing",
+                rank_id,
+                suffix,
+            )
+            continue
+        metrics_client.record_metric(f"eplb:expert_hotness:{suffix}", value=float(value), labels=labels)
+
+    for phase, key in (
+        ("current", "current_imbalance_list"),
+        ("update", "update_imbalance_list"),
+    ):
+        imbalance_list = hotness.get(key)
+        if imbalance_list is None:
+            logger.debug("Skip EPLB %s imbalance metrics because %s is missing", phase, key)
+            continue
+        base_labels = {"rank": str(rank_id), "phase": phase}
+        for layer_idx, value in enumerate(imbalance_list):
+            base_labels["layer"] = str(layer_idx)
+            metrics_client.record_metric(
+                "eplb:expert_hotness:imbalance",
+                value=float(value),
+                labels=base_labels,
+            )
+
+    return result

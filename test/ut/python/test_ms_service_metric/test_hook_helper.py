@@ -17,6 +17,20 @@
 from ms_service_metric.core.hook.hook_helper import HookHelper
 
 
+class StaticHookTarget:
+    @staticmethod
+    def method(x, y):
+        return x + y
+
+
+class ClassHookTarget:
+    value = 3
+
+    @classmethod
+    def method(cls, x):
+        return cls.value + x
+
+
 class TestHookHelper:
     def test_given_simple_function_when_hook_then_replace_and_recover(self):
         original_calls = []
@@ -53,7 +67,9 @@ class TestHookHelper:
 
         obj = TestClass()
         original = obj.method
-        hook_func = lambda *args, **kwargs: original(*args, **kwargs)
+
+        def hook_func(*args, **kwargs):
+            return original(*args, **kwargs)
 
         helper = HookHelper(obj.method, hook_func)
         helper.replace()
@@ -69,9 +85,45 @@ class TestHookHelper:
 
         obj = TestClass()
         original = obj.method
-        hook_func = lambda *args, **kwargs: original(*args, **kwargs)
+
+        def hook_func(*args, **kwargs):
+            return original(*args, **kwargs)
 
         helper = HookHelper(obj.method, hook_func)
         helper.recover()
 
         assert helper.is_replaced is False
+
+    def test_given_staticmethod_when_hook_then_descriptor_preserved(self):
+        original = StaticHookTarget.method
+
+        def hook_func(*args, **kwargs):
+            return original(*args, **kwargs) * 2
+
+        helper = HookHelper(StaticHookTarget.method, hook_func)
+        helper.replace()
+
+        assert StaticHookTarget.method(1, 2) == 6
+        assert StaticHookTarget().method(1, 2) == 6
+
+        helper.recover()
+
+        assert StaticHookTarget.method(1, 2) == 3
+        assert StaticHookTarget().method(1, 2) == 3
+
+    def test_given_classmethod_when_hook_then_descriptor_preserved(self):
+        original = ClassHookTarget.method
+
+        def hook_func(*args, **kwargs):
+            return original(*args, **kwargs) * 2
+
+        helper = HookHelper(ClassHookTarget.method, hook_func)
+        helper.replace()
+
+        assert ClassHookTarget.method(4) == 14
+        assert ClassHookTarget().method(4) == 14
+
+        helper.recover()
+
+        assert ClassHookTarget.method(4) == 7
+        assert ClassHookTarget().method(4) == 7

@@ -14,6 +14,9 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 
+import threading
+import time
+
 from ms_service_metric.core.hook.hook_chain import get_chain
 
 
@@ -63,10 +66,6 @@ def test_given_two_head_wrap_nodes_when_call_patched_global_then_hooks_run_in_or
 
     node2.remove()
     node1.remove()
-
-import pytest
-import threading
-import time
 
 
 def test_given_hook_raises_exception_when_executed_then_falls_back_to_original_result():

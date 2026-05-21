@@ -44,7 +44,7 @@
   metrics:
     - name: output_processor_duration
       type: timer
-    - name: engine_core_outputs_len 
+    - name: engine_core_outputs_len
       expr: len(engine_core_outputs)
       type: histogram
       buckets: [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 10000, 262144]
@@ -78,6 +78,25 @@
   metrics:
     - name: executor:prepare_inputs:duration
 
+- symbol: vllm_ascend.eplb.core.eplb_worker:EplbWorker.do_update
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:eplb_do_update_hotness_handler
+
+- symbol: vllm_ascend.eplb.core.eplb_device_transfer_loader:D2DExpertWeightLoader.update_expert_map_and_weight
+  metrics:
+    - name: eplb:expert_weight_update:duration
+
+- symbol: vllm_ascend.eplb.adaptor.vllm_adaptor:VllmEplbAdaptor.do_update_expert_map
+  metrics:
+    - name: eplb:expert_map_update:duration
+
+- symbol: vllm_ascend.eplb.adaptor.vllm_adaptor:VllmEplbAdaptor.do_update_log2phy_map
+  metrics:
+    - name: eplb:log2phy_map_update:duration
+
+- symbol: vllm_ascend.eplb.adaptor.vllm_adaptor:VllmEplbAdaptor.do_update_expert_weight
+  metrics:
+    - name: eplb:expert_weight_replace:duration
+
 # - symbol: vllm.v1.sample.sampler:Sampler.forward
 #   metrics:
 #     - name: executor:sampler:duration
@@ -102,7 +121,6 @@
     - name: engine_core:engine_core_step:duration
 
 # ===== Batch | Scheduler =====
-- symbol: vllm.v1.core.sched.scheduler:Scheduler.add_request # 添加到 waitting 队列，request 会记录时间
+- symbol: vllm.v1.core.sched.scheduler:Scheduler.add_request # 添加到 waiting 队列，request 会记录时间
   metrics:
     - name: scheduler:add_request:duration
-

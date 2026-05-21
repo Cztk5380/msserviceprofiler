@@ -14,6 +14,8 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 
+from typing import Callable
+
 import pytest
 
 try:
@@ -22,6 +24,14 @@ try:
     BYTECODE_AVAILABLE = True
 except ImportError:
     BYTECODE_AVAILABLE = False
+
+
+@pytest.mark.skipif(not BYTECODE_AVAILABLE, reason="bytecode library not available")
+class StaticInjectTarget:
+    @staticmethod
+    def method(x, y):
+        total = x + y
+        return total
 
 
 @pytest.mark.skipif(not BYTECODE_AVAILABLE, reason="bytecode library not available")
@@ -47,9 +57,8 @@ class TestInject:
             hook_calls.append(f"ori_{x}")
             return x * 2
 
-        injected = inject_function(original_func, [context_factory])
-
-        result = injected(5)
+        injected: Callable[[int], int] = inject_function(original_func, [context_factory])
+        result = injected(5)  # pylint: disable=not-callable
 
         assert "enter" in hook_calls
         assert "ori_5" in hook_calls
