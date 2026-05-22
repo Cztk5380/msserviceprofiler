@@ -48,7 +48,9 @@ class ExporterEplbObserve(TaskExporterBase):
 
         output = cls.args.output_path
 
-        if NAME not in data.keys() or not data.get(NAME):
+        if not isinstance(data, dict):
+            raise ValueError("Profiling data is invalid, please check the profiling data.")
+        elif NAME not in data.keys() or not data.get(NAME):
             return
 
         expert_hot = data[NAME]  # ["instance_name"][eplb_period][rank][iteration][layer][expert_per_rank]
@@ -64,16 +66,19 @@ class ExporterEplbObserve(TaskExporterBase):
             rebalanced_point = [0]
             for eplb_iteration, expert_hot_per_eplb in enumerate(expert_hot_per_instance):
                 expert_hot_per_eplb = cut2samelen(expert_hot_per_eplb)
-                summed_hot_rank_output_path = \
-                    os.path.join(output, SUMMED_OUTPUT_NAME_RANK.format(instance_name, eplb_iteration))
+                summed_hot_rank_output_path = os.path.join(
+                    output, SUMMED_OUTPUT_NAME_RANK.format(instance_name, eplb_iteration)
+                )
                 # 将热度信息按照rank、expert_per_rank的维度进行累加
                 # shape:[rank][iteration][layer][expert_per_rank] -> [layer, rank]
                 expert_hot_summed_rank = np.array([item.sum(axis=(0, -1)) for item in expert_hot_per_eplb]).T
-                draw_hot_map_from_arr(expert_hot_summed_rank,
-                                      title=f"{instance_name} EPLB_Period_{eplb_iteration} Summed Hot Map By Rank",
-                                      y_label="Decoder layers",
-                                      x_label="Rank_0 to Rank_N",
-                                      output_path=summed_hot_rank_output_path)
+                draw_hot_map_from_arr(
+                    expert_hot_summed_rank,
+                    title=f"{instance_name} EPLB_Period_{eplb_iteration} Summed Hot Map By Rank",
+                    y_label="Decoder layers",
+                    x_label="Rank_0 to Rank_N",
+                    output_path=summed_hot_rank_output_path,
+                )
 
                 # shape:[rank][iteration][layer][expert_per_rank] -> [rank, iteration, layer]
                 expert_hot_with_iteration = np.array([item.sum(axis=(-1)) for item in expert_hot_per_eplb])
@@ -85,15 +90,19 @@ class ExporterEplbObserve(TaskExporterBase):
                 expert_hot_per_eplb_arr = np.array(expert_hot_per_eplb)
                 expert_hot_summed_expert = expert_hot_per_eplb_arr.sum(axis=1).transpose([0, 2, 1])
                 # shape: rank * expert_per_rank * layer -> layer * total_expert
-                expert_hot_summed_expert = \
-                    expert_hot_summed_expert.reshape(-1, expert_hot_summed_expert.shape[-1]).transpose([1, 0])
-                summed_hot_expert_output_path = \
-                    os.path.join(output, SUMMED_OUTPUT_NAME_EXPERT.format(instance_name, eplb_iteration))
-                draw_hot_map_from_arr(expert_hot_summed_expert,
-                                      title=f"{instance_name} Summed Hot Map By Expert",
-                                      y_label="Decoder layers",
-                                      x_label="Experts in Rank_0 to Rank_N",
-                                      output_path=summed_hot_expert_output_path)
+                expert_hot_summed_expert = expert_hot_summed_expert.reshape(
+                    -1, expert_hot_summed_expert.shape[-1]
+                ).transpose([1, 0])
+                summed_hot_expert_output_path = os.path.join(
+                    output, SUMMED_OUTPUT_NAME_EXPERT.format(instance_name, eplb_iteration)
+                )
+                draw_hot_map_from_arr(
+                    expert_hot_summed_expert,
+                    title=f"{instance_name} Summed Hot Map By Expert",
+                    y_label="Decoder layers",
+                    x_label="Experts in Rank_0 to Rank_N",
+                    output_path=summed_hot_expert_output_path,
+                )
 
             local_time = transfer_unix_time(instance_time_stamp.get(instance_name))
             balance_ratio_path = os.path.join(output, f"{instance_name}_balance_ratio.png")
@@ -111,18 +120,22 @@ class ExporterEplbObserve(TaskExporterBase):
                     expert_hot_per_eplb = cut2samelen(expert_hot_per_eplb)
                     expert_hot_per_eplb_arr = np.array(expert_hot_per_eplb)
                     expert_hot_summed_expert = expert_hot_per_eplb_arr.sum(axis=1).transpose([0, 2, 1])
-                    expert_hot_summed_expert = \
-                        expert_hot_summed_expert.reshape(-1, expert_hot_summed_expert.shape[-1]).transpose([1, 0])
+                    expert_hot_summed_expert = expert_hot_summed_expert.reshape(
+                        -1, expert_hot_summed_expert.shape[-1]
+                    ).transpose([1, 0])
 
                     remapped_expert_hot = remap_expert_hot(expert_map_per_eplb, expert_hot_summed_expert)
 
-                    summed_hot_model_expert_output_path = \
-                        os.path.join(output, SUMMED_OUTPUT_NAME_MODEL_EXPERT.format(instance_name, eplb_iteration))
-                    draw_hot_map_from_arr(remapped_expert_hot,
-                                          title=f"{instance_name} Summed Hot Map By Expert",
-                                          y_label="Decoder layers",
-                                          x_label="Experts from 0 to N",
-                                          output_path=summed_hot_model_expert_output_path)
+                    summed_hot_model_expert_output_path = os.path.join(
+                        output, SUMMED_OUTPUT_NAME_MODEL_EXPERT.format(instance_name, eplb_iteration)
+                    )
+                    draw_hot_map_from_arr(
+                        remapped_expert_hot,
+                        title=f"{instance_name} Summed Hot Map By Expert",
+                        y_label="Decoder layers",
+                        x_label="Experts from 0 to N",
+                        output_path=summed_hot_model_expert_output_path,
+                    )
 
     @classmethod
     def depends(cls):
@@ -155,8 +168,8 @@ def draw_hot_map_from_arr(arr, title="", x_label="", y_label="", output_path="ho
     if isinstance(y_label, str) and y_label:
         plt.ylabel(y_label)
 
-    plt.xticks(ticks=[i for i in range(arr.shape[1])], labels=list(range(arr.shape[1])), rotation=90)
-    plt.yticks(ticks=[i for i in range(arr.shape[0])], labels=list(range(arr.shape[0])))
+    plt.xticks(ticks=list(range(arr.shape[1])), labels=list(range(arr.shape[1])), rotation=90)
+    plt.yticks(ticks=list(range(arr.shape[0])), labels=list(range(arr.shape[0])))
     plt.colorbar()
     plt.tight_layout()
     with UmaskWrapper(umask=0o137):
@@ -173,9 +186,11 @@ def transfer_unix_time(unix_time_list):
     return res
 
 
-def draw_balance_ratio(std_balance_ratio, rebalanced_time_points, d_time, figsize=(60, 8),
-                       output_path="balance_ratio.png"):
+def draw_balance_ratio(
+    std_balance_ratio, rebalanced_time_points, d_time, figsize=(60, 8), output_path="balance_ratio.png"
+):
     import matplotlib.pyplot as plt
+
     # 创建图形和坐标轴
     _, ax = plt.subplots(figsize=figsize)
 
@@ -187,9 +202,15 @@ def draw_balance_ratio(std_balance_ratio, rebalanced_time_points, d_time, figsiz
     # 在标注点处添加特殊标记
     for point in rebalanced_time_points:
         if 0 <= point < len(std_balance_ratio):
-            ax.plot(point, std_balance_ratio[point], 'o',
-                    markerfacecolor='white', markeredgecolor=color,
-                    markersize=8, markeredgewidth=2)
+            ax.plot(
+                point,
+                std_balance_ratio[point],
+                'o',
+                markerfacecolor='white',
+                markeredgecolor=color,
+                markersize=8,
+                markeredgewidth=2,
+            )
 
     # 在横轴上标注特定点
     for point, local_time in zip(rebalanced_time_points, d_time):
@@ -198,11 +219,17 @@ def draw_balance_ratio(std_balance_ratio, rebalanced_time_points, d_time, figsiz
             ax.axvline(x=point, color='red', linestyle='--', alpha=0.5, linewidth=1)
 
             # 在横轴下方添加标注
-            ax.text(point, ax.get_ylim()[0] - 0.1 * (ax.get_ylim()[1] - ax.get_ylim()[0]),
-                    f'{local_time}',
-                    rotation=45, horizontalalignment='right',
-                    color='red', fontweight='bold', fontsize=9,
-                    bbox=dict(boxstyle="round,pad=0.3", facecolor="yellow", alpha=0.7))
+            ax.text(
+                point,
+                ax.get_ylim()[0] - 0.1 * (ax.get_ylim()[1] - ax.get_ylim()[0]),
+                f'{local_time}',
+                rotation=45,
+                horizontalalignment='right',
+                color='red',
+                fontweight='bold',
+                fontsize=9,
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="yellow", alpha=0.7),
+            )
 
     # 设置图表属性
     ax.set_xlabel('tokens num', fontsize=12)
@@ -231,15 +258,16 @@ def remap_expert_hot(expert_map_per_eplb, expert_hot_summed_expert):
     remapped_expert_hot = np.zeros([expert_map_per_eplb.shape[0], model_expert_num])
 
     if expert_map_per_eplb.shape != expert_hot_summed_expert.shape:
-        raise ValueError(f"Shape of expert_map and expert_hot are not equal, "
-                         f"please check profiling input.Expert_map shape: "
-                         f"{expert_map_per_eplb.shape}, expert_hot shape: {expert_hot_summed_expert.shape}")
+        raise ValueError(
+            f"Shape of expert_map and expert_hot are not equal, "
+            f"please check profiling input.Expert_map shape: "
+            f"{expert_map_per_eplb.shape}, expert_hot shape: {expert_hot_summed_expert.shape}"
+        )
 
     for layer_index in range(expert_hot_summed_expert.shape[0]):
         for expert_index in range(expert_hot_summed_expert.shape[1]):
             model_expert_index = expert_map_per_eplb[layer_index][expert_index]
-            remapped_expert_hot[layer_index][model_expert_index] += \
-                expert_hot_summed_expert[layer_index][expert_index]
+            remapped_expert_hot[layer_index][model_expert_index] += expert_hot_summed_expert[layer_index][expert_index]
 
     return remapped_expert_hot
 
@@ -254,8 +282,7 @@ def cut2samelen(array_list: List[np.ndarray]):
 
 def get_x_ticks(x):
     if x < 100:
-        return [i for i in range(x + 1)]
+        return list(range(x + 1))
 
     bit = 10 ** (len(str(x)) - 2)
     return [i * bit for i in range(x // bit + 1)]
-

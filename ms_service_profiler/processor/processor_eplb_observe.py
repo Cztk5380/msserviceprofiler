@@ -25,7 +25,6 @@ EXPERT_ROUTING_NAME = "expert_routing"
 
 
 class ProcessorEplbObserve(ProcessorBase):
-
     @property
     def name(self):
         return "ProcessorEplbObserve"
@@ -37,7 +36,10 @@ class ProcessorEplbObserve(ProcessorBase):
 
         data = [item for item in data if isinstance(item, pd.DataFrame) and not item.empty]
 
-        tx_data_df = pd.concat(data)
+        if not data:
+            raise ValueError("Profiling data is invalid, please check the profiling data.")
+        else:
+            tx_data_df = pd.concat(data)
 
         if tx_data_df is None:
             logger.warning("No tx data in profiling data, skip moe eplb analysis.")
@@ -85,23 +87,22 @@ class ProcessorEplbObserve(ProcessorBase):
         expert_hot_by_instance = transfer_expert_hot(expert_hot_by_host, instance_pod_map)
         instance_time_stamp = mapping_time_stamp(pod_time_stamp_dict, instance_pod_map)
 
-        res = {
-            "time_stamp": instance_time_stamp
-        }
+        res = {"time_stamp": instance_time_stamp}
 
         # 不存在路由表则直接返回
         if not expert_routing:
             # transposed_expert_hot shape: ["instance_name"][eplb_period][rank][iteration][layer][expert_per_rank]
             transposed_expert_hot = {
-                key: transpose_eplb_iteration(value)
-                for key, value in expert_hot_by_instance.items()
+                key: transpose_eplb_iteration(value) for key, value in expert_hot_by_instance.items()
             }
             res["expert_hot"] = transposed_expert_hot
             return res
 
         expert_map = self.mapping_expert_hot(expert_hot_by_instance, instance_pod_map, expert_routing)
-        transposed_expert_hot = {instance_name: transpose_eplb_iteration(value, len(expert_map.get(instance_name, [0])))
-                                 for instance_name, value in expert_hot_by_instance.items()}
+        transposed_expert_hot = {
+            instance_name: transpose_eplb_iteration(value, len(expert_map.get(instance_name, [0])))
+            for instance_name, value in expert_hot_by_instance.items()
+        }
         res["expert_hot"] = transposed_expert_hot
         # expert_map shape: ["instance_name][eplb_period][layer][total_expert_num]
         res["expert_map"] = expert_map
@@ -115,8 +116,9 @@ class ProcessorEplbObserve(ProcessorBase):
             pod_name = pod_name_list[0]
 
             # 每个instance的专家数 = instance中的rank数 * 每个rank的专家数
-            instance_expert_num = len(expert_hot_by_instance[instance_name]) * \
-                                  len(expert_hot_by_instance[instance_name][0][0][0][0])
+            instance_expert_num = len(expert_hot_by_instance[instance_name]) * len(
+                expert_hot_by_instance[instance_name][0][0][0][0]
+            )
 
             layer_num = len(list(expert_routing[pod_name].values())[0][0])
 
@@ -166,7 +168,8 @@ class ProcessorEplbObserve(ProcessorBase):
                 up_mark_id = mark_id_list[i]
                 down_mark_id = mark_id_list[i + 1]
                 split_expert_hot.append(
-                    df_by_pid[(df_by_pid["markId"] > up_mark_id) & (df_by_pid["markId"] < down_mark_id)])
+                    df_by_pid[(df_by_pid["markId"] > up_mark_id) & (df_by_pid["markId"] < down_mark_id)]
+                )
 
         time_stamp = []
         for period_data in split_expert_hot:

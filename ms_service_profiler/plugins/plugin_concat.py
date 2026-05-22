@@ -19,7 +19,7 @@ import re
 
 import pandas as pd
 
-from ms_service_profiler.plugins.base import PluginBase 
+from ms_service_profiler.plugins.base import PluginBase
 from ms_service_profiler.utils.timer import timer
 from ms_service_profiler.utils.log import logger
 
@@ -124,9 +124,9 @@ class PluginConcat(PluginBase):
     @classmethod
     def _find_original_rid_for_variant(cls, rid_str, original_rids):
         if len(rid_str) > cls.HASH_SUFFIX_LEN and rid_str[-cls.HASH_SUFFIX_LEN] == '-':
-            suffix = rid_str[-cls.HASH_SUFFIX_LEN:]
+            suffix = rid_str[-cls.HASH_SUFFIX_LEN :]
             if cls.HASH_RID_SUFFIX_RE.match(suffix):
-                prefix = rid_str[:-cls.HASH_SUFFIX_LEN]
+                prefix = rid_str[: -cls.HASH_SUFFIX_LEN]
                 if prefix in original_rids:
                     return prefix
 
@@ -222,24 +222,33 @@ class PluginConcat(PluginBase):
             return rid
         return cls._get_mapping_rid(rid, rid_map)
 
+    @staticmethod
+    def _extract_dict_req(req):
+        if req.get('dp'):
+            return req.get('rid'), None, req.get('dp')
+
+        iter_value = req.get('iter')
+        if iter_value is None:
+            return req.get('rid'), None, None
+
+        try:
+            token_id = int(iter_value)
+        except (ValueError, TypeError):
+            token_id = None
+        return req.get('rid'), token_id, None
+
     @classmethod
     def _extract_rid(cls, rid):
         rid_list, token_id_list, dp_list = [], [], []
         if isinstance(rid, list):
             for req in rid:
                 if isinstance(req, dict):
-                    rid_list.append(req.get('rid'))
-                    if req.get('dp'):
-                        dp_list.append(req.get('dp'))
+                    req_rid, token_id, dp = cls._extract_dict_req(req)
+                    rid_list.append(req_rid)
+                    if dp:
+                        dp_list.append(dp)
                     else:
-                        iter_value = req.get('iter')
-                        if iter_value is not None:
-                            try:
-                                token_id_list.append(int(iter_value))
-                            except (ValueError, TypeError):
-                                token_id_list.append(None)
-                        else:
-                            token_id_list.append(None)
+                        token_id_list.append(token_id)
                 else:
                     rid_list.append(req)
                     token_id_list.append(None)
@@ -282,6 +291,19 @@ class PluginConcat(PluginBase):
         return data_df
 
     @classmethod
+    def _try_apply_hash_rid_mapping(cls, merged_data, tx_data_df):
+        try:
+            hash_rid_map = cls._build_rid_hash_mapping(tx_data_df)
+            if hash_rid_map:
+                logger.info(
+                    "[RidMapping] PluginConcat: Built hash rid mapping for %s rids after merge",
+                    len(hash_rid_map),
+                )
+                merged_data['tx_data_df'] = cls._apply_rid_mapping(tx_data_df, hash_rid_map)
+        except (TypeError, ValueError, KeyError) as ex:
+            logger.warning("[RidMapping] PluginConcat: Failed to apply rid mapping, skip it. error: %s", ex)
+
+    @classmethod
     @timer(logger.debug)
     def parse(cls, data):
         merged_data = defaultdict(pd.DataFrame)
@@ -311,19 +333,13 @@ class PluginConcat(PluginBase):
             merged_data["pid_label_map"] = pid_label_map
 
         for key, value in merged_data.items():
-            if isinstance(value, pd.DataFrame):
+            if isinstance(value, pd.DataFrame) and not value.empty:
                 merged_data[key] = value.sort_values(by='start_time', ascending=True).reset_index(drop=True)
+            elif isinstance(value, pd.DataFrame) and value.empty:
+                raise ValueError("Profiling data is invalid, please check the profiling data.")
 
         tx_data_df = merged_data.get('tx_data_df')
         if tx_data_df is not None and not tx_data_df.empty:
-            try:
-                hash_rid_map = cls._build_rid_hash_mapping(tx_data_df)
-                if hash_rid_map:
-                    logger.info(
-                        f"[RidMapping] PluginConcat: Built hash rid mapping for {len(hash_rid_map)} rids after merge"
-                    )
-                    merged_data['tx_data_df'] = cls._apply_rid_mapping(tx_data_df, hash_rid_map)
-            except (TypeError, ValueError, KeyError) as ex:
-                logger.warning(f"[RidMapping] PluginConcat: Failed to apply rid mapping, skip it. error: {ex}")
+            cls._try_apply_hash_rid_mapping(merged_data, tx_data_df)
 
         return merged_data
