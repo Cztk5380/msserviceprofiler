@@ -1,10 +1,10 @@
-# ms_service_metric 设计文档
+# ms\_service\_metric 设计文档
 
 ## 1. 项目概述
 
 ### 1.1 背景
 
-ms_service_metric 是从 ms_service_profiler/patcher 中提取出来的独立 metric 功能模块，作为独立的库发布。主要用于监控和分析服务（如 vLLM）的性能指标。
+ms\_service\_metric 是从 ms\_service\_profiler/patcher 中提取出来的独立 metric 功能模块，作为独立的库发布。主要用于监控和分析服务（如 vLLM）的性能指标。
 
 ### 1.2 目标
 
@@ -16,12 +16,12 @@ ms_service_metric 是从 ms_service_profiler/patcher 中提取出来的独立 me
 
 ### 1.3 与原项目的关系
 
-| 特性 | ms_service_profiler | ms_service_metric |
-|------|---------------------|-------------------|
-| Profiling | ✅ 支持 | ❌ 不支持 |
-| Metrics | ✅ 支持 | ✅ 支持 |
-| 动态开关 | C++回调 | 共享内存+信号 |
-| 独立部署 | ❌ 依赖C++ | ✅ 纯Python |
+| 特性        | ms\_service\_profiler | ms\_service\_metric |
+| --------- | --------------------- | ------------------- |
+| Profiling | ✅ 支持                  | ❌ 不支持               |
+| Metrics   | ✅ 支持                  | ✅ 支持                |
+| 动态开关      | C++回调                 | 共享内存+信号             |
+| 独立部署      | ❌ 依赖C++               | ✅ 纯Python           |
 
 ## 2. 项目结构
 
@@ -117,10 +117,10 @@ ms_service_metric/                           # 项目根目录
 **关键设计：**
 
 1. 基于handler的增删，自动处理symbol对象
-2. 简化锁的使用（仅保护_enabled和批量操作的原子性）
-3. 批量apply_hook，而不是每个handler变化都reapply
+2. 简化锁的使用（仅保护\_enabled和批量操作的原子性）
+3. 批量apply\_hook，而不是每个handler变化都reapply
 4. 处理打开时，暂停所有symbol的hook/unhook操作，完成后统一执行
-5. 支持优雅停止（graceful stop），根据lock_patch属性决定是否保留handler
+5. 支持优雅停止（graceful stop），根据lock\_patch属性决定是否保留handler
 
 **类定义：**
 
@@ -197,7 +197,7 @@ class SymbolHandlerManager:
 - 管理其handlers（不允许重复）
 - 直接监听模块加载事件（不通过SymbolHandlerManager中转）
 - 根据Manager状态决定是否执行hook/unhook
-- 支持优雅停止（lock_patch功能）
+- 支持优雅停止（lock\_patch功能）
 
 **类定义：**
 
@@ -367,11 +367,11 @@ class Handler(ABC):
 **职责：**
 
 - 负责加载内置的handler或者用户自定义的handler
-- 将hook_func分类为wrap_func和context_funcs
+- 将hook\_func分类为wrap\_func和context\_funcs
 - 自动检测handler类型（通过函数签名）
-- 提供唯一的handler_id（从hook_func的完整路径生成）
+- 提供唯一的handler\_id（从hook\_func的完整路径生成）
 - 支持metrics配置
-- 支持lock_patch属性（关闭时不删除）
+- 支持lock\_patch属性（关闭时不删除）
 
 **类定义：**
 
@@ -494,8 +494,8 @@ def advanced_context_handler(ctx, local_values):
 
 **职责：**
 
-- 存储函数执行上下文（local_values、return_value）
-- 提供便捷方法访问local_values
+- 存储函数执行上下文（local\_values、return\_value）
+- 提供便捷方法访问local\_values
 
 **类定义：**
 
@@ -991,7 +991,7 @@ class SymbolConfig:
 
 **职责：**
 
-- 使用posix_ipc共享内存和SIGUSR1信号实现进程间通信
+- 使用posix\_ipc共享内存和SIGUSR1信号实现进程间通信
 - 支持环境变量配置共享内存和信号量名称前缀
 - 简化设计：只需要start标志和时间戳
   - start=False: 关闭metric收集
@@ -1049,7 +1049,7 @@ class MetricConfigWatch:
 
 **职责：**
 
-- 统一管理ms_service_metric的共享内存操作
+- 统一管理ms\_service\_metric的共享内存操作
 - 内存布局定义（支持版本兼容）
 - 共享内存创建/连接/断开/释放
 - 信号量操作
@@ -1071,7 +1071,7 @@ class MetricConfigWatch:
 - 魔数 (0x4D534D54 = "MSMT")
 - 版本号
 - 头部长度（从开始到结束标记的总字节数）
-- 状态（STATE_OFF=0/STATE_ON=1）
+- 状态（STATE\_OFF=0/STATE\_ON=1）
 - 时间戳
 - 进程列表偏移（相对于共享内存起始位置）
 - 头部结束标记 (0xDEADBEEF)
@@ -1084,7 +1084,7 @@ class MetricConfigWatch:
 - 使用魔数和头部结束标记验证内存格式
 - 版本不匹配时标记 `_version_mismatch`，但尽量读取可用字段
 - 通过 `_is_field_available(offset)` 检查字段是否在有效头部长度范围内
-- 进程列表不可用时返回异常值（PROC_LEN_INVALID = -1）
+- 进程列表不可用时返回异常值（PROC\_LEN\_INVALID = -1）
 
 **类定义：**
 
@@ -1409,7 +1409,7 @@ ms-service-metric status  # 查看状态
 
 **环境变量：**
 
-- `MS_SERVICE_METRIC_SHM_PREFIX`: 共享内存和信号量名称前缀（默认: /ms_service_metric）
+- `MS_SERVICE_METRIC_SHM_PREFIX`: 共享内存和信号量名称前缀（默认: /ms\_service\_metric）
 - `MS_SERVICE_METRIC_MAX_PROCS`: 最大进程数（默认: 1000）
 
 ## 4. 配置格式
@@ -1502,18 +1502,222 @@ SymbolHandlerManager.initialize()
                            └── 原函数
 ```
 
+### 5.5 Hook 过程时序图
+
+Hook 过程是指从框架适配器启动、用户发送开启命令、到最终目标函数被替换为 Hook 闭包的完整链路。整个过程拆分为三个子流程：**初始化与开关触发**、**Handler 差异更新**、**Hook 注入与函数替换**。
+
+#### 5.5.1 初始化与开关触发
+
+本流程描述从 vLLM 进程启动到用户发送开启命令、Manager 收到回调的完整链路。
+
+- **Adapter** 负责框架适配，初始化时设置版本、Metrics 环境、dp\_rank，然后创建并初始化 Manager
+- **Manager** 是核心管理类，初始化时加载配置、注册控制回调、启动 Watcher
+- **Control** 是动态开关监视器，通过共享内存+SIGUSR1信号实现进程间通信
+- **Watcher** 是模块加载监视器，通过 `sys.meta_path` 拦截模块导入
+
+```mermaid
+sequenceDiagram
+    participant Adapter as VLLMMetricAdapter
+    participant Manager as SymbolHandlerManager
+    participant Control as MetricControlWatch
+    participant Watcher as SymbolWatcher
+
+    Note over Adapter: vLLM进程启动，entry_points自动触发
+
+    Adapter->>Adapter: initialize()<br/>检测版本/设置Metrics环境/设置dp_rank
+    Adapter->>Manager: new SymbolHandlerManager(version)
+    Adapter->>Manager: initialize(config_path, default_config_path)<br/>加载配置/注册回调/启动监视器
+
+    Manager->>Control: register_callback(_on_control_state_change)<br/>注册开关状态变化回调
+    Manager->>Control: start()<br/>连接共享内存/注册SIGUSR1/添加进程PID
+    Manager->>Watcher: start()<br/>将Finder插入sys.meta_path[0]
+
+    Note over Control: 用户执行 ms-service-metric on<br/>CLI写入共享内存+发送SIGUSR1
+
+    Control->>Control: _signal_handler()<br/>收到SIGUSR1信号
+    Control->>Control: _check_control_state()<br/>读取共享内存状态和时间戳
+    Control->>Manager: _on_control_state_change(True, timestamp)<br/>通知开启或重启
+```
+
+#### 5.5.2 Handler 差异更新
+
+本流程描述 Manager 收到开启回调后，如何根据配置差异增删改 Handler，并自动管理 Symbol 生命周期。
+
+- **Manager** 计算新旧 handler 差异，执行增量更新
+- **Symbol** 代表一个需要 hook 的符号，管理其 handlers，监听模块加载事件
+- **Watcher** 在模块加载完成时通知 Symbol
+
+```mermaid
+sequenceDiagram
+    participant Manager as SymbolHandlerManager
+    participant Symbol as Symbol
+    participant Watcher as SymbolWatcher
+
+    Note over Manager: 收到开启回调
+
+    Manager->>Manager: _updating = True<br/>暂停Symbol立即hook
+    Manager->>Manager: reload() 配置<br/>关闭期间配置可能已变化
+    Manager->>Manager: _update_handlers(config)<br/>计算to_add/to_remove/to_update
+
+    loop 每个新增handler
+        Manager->>Manager: _add_handler(handler)<br/>若Symbol不存在则创建
+        Manager->>Symbol: new Symbol(symbol_path, watcher, manager)<br/>创建Symbol并注册模块监听
+        Symbol->>Watcher: watch_module(module_path, _on_module_loaded)<br/>注册模块加载回调
+        alt 模块已加载
+            Watcher->>Symbol: _on_module_loaded(event)<br/>立即回调，设置module_loaded
+        else 模块未加载
+            Note over Symbol: 等待模块加载回调
+        end
+        Manager->>Symbol: add_handler(handler)<br/>将handler添加到Symbol
+    end
+
+    loop 每个移除handler
+        Manager->>Symbol: remove_handler(handler_id)
+        alt Symbol无剩余handler
+            Manager->>Symbol: stop()<br/>停止监听并解绑
+        end
+    end
+
+    Manager->>Manager: _enabled = True, _updating = False
+    Manager->>Manager: _apply_all_hooks()<br/>批量应用所有Symbol的hook
+```
+
+#### 5.5.3 Hook 注入与函数替换
+
+本流程描述 Symbol 如何将多个 handler 组合成最终的 hook 函数，并通过 HookChain 和 HookHelper 完成原函数替换。
+
+- **Symbol** 负责 handler 分类、构建 final\_hook
+- **Chain** 是 HookChain 双向链表，管理多个 Symbol 对同一函数的 hook
+- **Inject** 是字节码注入模块，为 context handler 在函数入口/返回点插入 hook 代码
+- **Helper** 是 HookHelper，负责实际的函数替换和恢复
+
+```mermaid
+sequenceDiagram
+    participant Symbol as Symbol
+    participant Chain as HookChain
+    participant Inject as Inject(字节码注入)
+    participant Helper as HookHelper
+
+    Note over Symbol: _apply_hook() 被调用
+
+    Symbol->>Symbol: 分离wrap_funcs和context_funcs<br/>按handler类型分类
+
+    alt 首次hook
+        Symbol->>Chain: get_chain(target)<br/>获取或创建HookChain
+        Symbol->>Chain: add_chain_node(insert_at_head=True)<br/>添加节点到链表，首次时触发replace_chain
+    end
+
+    Symbol->>Symbol: _build_final_hook()<br/>组合所有handler为最终hook函数
+
+    alt 有context_funcs(需要locals)
+        Symbol->>Inject: inject_function(target, context_funcs)<br/>在函数入口插入enter hook<br/>在RETURN_VALUE前插入return hook
+        Inject-->>Symbol: injected_func(注入后的函数)
+    end
+
+    alt 有wrap_funcs(洋葱模型)
+        Symbol->>Symbol: _build_wrap_chain()<br/>从内到外构建wrap调用链<br/>handler1→handler2→原函数→handler2→handler1
+    end
+
+    Symbol->>Chain: hook_node.set_hook_func(final_hook)<br/>更新节点的hook函数
+
+    alt 首次hook → replace_chain()
+        Chain->>Chain: exec_chain_closure()<br/>生成execute_hook_chain闭包(含异常保护)
+        Chain->>Helper: new HookHelper(ori_func, closure)<br/>解析target所在容器和属性名
+        Helper->>Helper: replace()<br/>setattr(obj, name, hook_func)<br/>原函数被替换为HookChain闭包
+    end
+
+    Note over Symbol: _hook_applied = True<br/>目标函数已被替换
+```
+
+### 5.6 运行时 Metric 发送时序图
+
+Hook 完成后，业务代码正常调用被 hook 的目标函数时，控制流进入 HookChain 执行闭包，最终触发 handler 中的 metric 记录逻辑。根据 handler 类型分为两条路径：**Context Handler 路径**和 **Wrap Handler 路径**。
+
+#### 5.6.1 Context Handler 执行流程（字节码注入）
+
+当 Symbol 拥有需要访问函数 locals 的 context handler 时，原函数已被字节码注入修改，在入口和返回点插入了 hook 代码。执行过程：
+
+1. **入口注入点**：创建 `FunctionContext`，设置 `local_values`，依次调用各 handler 的 `__enter__`（前置处理）
+2. **原函数体**：正常执行业务逻辑
+3. **返回注入点**：设置 `return_value` 和最新的 `local_values`，**逆序**调用各 handler 的 `__exit__`（后置处理）
+4. **Metric 记录**：在后置逻辑中计算 duration、求值 expr、调用 `MetricsManager.record_metric()` 写入 Prometheus
+
+```mermaid
+sequenceDiagram
+    participant Caller as 业务调用方
+    participant Inject as 注入函数<br/>(字节码修改后)
+    participant Handler as Context Handler<br/>(生成器函数)
+    participant MetricsMgr as MetricsManager
+    participant Prometheus as Prometheus
+
+    Caller->>Inject: target_func(*args, **kwargs)
+
+    Note over Inject: 入口注入点
+    Inject->>Inject: hook_func_when_enter(local_values)<br/>创建FunctionContext/设置locals
+    Inject->>Handler: handler(ctx).__enter__()<br/>前置处理(如记录start_time)
+
+    Note over Inject: 原函数体正常执行
+    Inject->>Inject: 原始字节码执行
+
+    Note over Inject: 返回注入点(每个RETURN_VALUE前)
+    Inject->>Inject: hook_func_when_return(ret, local_values)<br/>设置ctx.return_value和locals
+    Inject->>Handler: handler.__exit__()<br/>后置处理：计算duration/求值expr
+    Handler->>MetricsMgr: record_metric(name, value, labels)<br/>添加dp/role标签
+    MetricsMgr->>Prometheus: observe/inc/set(value)<br/>写入Prometheus指标
+
+    Inject-->>Caller: return_value
+```
+
+#### 5.6.2 Wrap Handler 执行流程（洋葱模型）
+
+当 Symbol 只有 wrap handler 时，`final_hook` 指向洋葱模型构建的 wrap 链。每个 wrap handler 签名为 `(ori_func, *args, **kwargs)`，必须显式调用 `ori_func` 传递控制权。执行顺序为外→内→外：
+
+```mermaid
+sequenceDiagram
+    participant Caller as 业务调用方
+    participant Wrap1 as Wrap Handler 1<br/>(外层)
+    participant Wrap2 as Wrap Handler 2<br/>(内层)
+    participant OriFunc as 原始函数
+    participant MetricsMgr as MetricsManager
+
+    Caller->>Wrap1: wrap_handler_1(ori, *args, **kwargs)
+    Note over Wrap1: 前置处理
+
+    Wrap1->>Wrap2: wrap_handler_2(ori, *args, **kwargs)
+    Note over Wrap2: 前置处理
+
+    Wrap2->>OriFunc: ori_func(*args, **kwargs)<br/>最内层调用原函数
+    OriFunc-->>Wrap2: result
+
+    Note over Wrap2: 后置处理：计算metric
+    Wrap2->>MetricsMgr: record_metric(name, value, labels)
+    Wrap2-->>Wrap1: result
+
+    Note over Wrap1: 后置处理：计算metric
+    Wrap1->>MetricsMgr: record_metric(name, value, labels)
+    Wrap1-->>Caller: result
+```
+
+#### 异常保护机制
+
+`HookChain` 的 `execute_hook_chain` 闭包内置了异常保护，确保业务逻辑不受 hook 异常影响：
+
+- 若 hook 链异常且 `_last_result` 为 `NO_RESULT`（原函数未执行），主动调用 `ori_func` 确保业务继续
+- 若 `_last_result` 是异常（原函数本身抛出），重新抛出该异常
+- 若 `_last_result` 已有正常值（原函数已成功执行），返回保存的结果
+
 ## 6. 线程安全
 
 ### 6.1 锁的使用
 
-| 类 | 锁 | 用途 |
-|----|-----|------|
-| SymbolHandlerManager | `_lock` | 保护_enabled和批量操作的原子性 |
-| SymbolWatcher | `_lock` | 保护回调列表和模块集合 |
-| HookChain | `_lock` | 保护链表操作 |
-| MetricsManager | 无 | 依赖Prometheus客户端的线程安全 |
-| MetaState | `_lock` | 保护数据字典 |
-| SharedMemoryManager | `_sem` (信号量) | 保护共享内存访问 |
+| 类                    | 锁            | 用途                   |
+| -------------------- | ------------ | -------------------- |
+| SymbolHandlerManager | `_lock`      | 保护\_enabled和批量操作的原子性 |
+| SymbolWatcher        | `_lock`      | 保护回调列表和模块集合          |
+| HookChain            | `_lock`      | 保护链表操作               |
+| MetricsManager       | 无            | 依赖Prometheus客户端的线程安全 |
+| MetaState            | `_lock`      | 保护数据字典               |
+| SharedMemoryManager  | `_sem` (信号量) | 保护共享内存访问             |
 
 ### 6.2 单例模式
 
@@ -1541,6 +1745,7 @@ ServiceMetricError          # 基础异常类
 
 1. **配置加载失败**: 记录错误，使用空配置继续
 2. **Handler创建失败**: 记录错误，跳过该handler
-3. **Hook应用失败**: 记录错误，标记_hook_applied=False
+3. **Hook应用失败**: 记录错误，标记\_hook\_applied=False
 4. **Hook执行异常**: 异常保护机制确保原函数被调用
 5. **共享内存操作失败**: 抛出SharedMemoryError
+
