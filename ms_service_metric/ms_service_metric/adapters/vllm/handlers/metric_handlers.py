@@ -20,6 +20,7 @@ vLLM Metric Handlers (v1)
 提供vLLM v1特定的metric处理函数。
 """
 
+import inspect
 import time
 from typing import Any, NamedTuple
 
@@ -29,10 +30,27 @@ from ms_service_metric.adapters.vllm.handlers.utils import (
     clear_request_phase_state as _clear_request_phase_state,
     collect_phase_metrics as _collect_phase_metrics,
     get_scheduler_phase_state as _get_scheduler_phase_state,
+    get_batch_phase_details as _get_batch_phase_details,
+    phase_scope as _phase_scope,
+    meta_state_scope as _meta_state_scope,
+    _iter_cached_req_id_and_num_comp,
 )
+from ms_service_metric.metrics.meta_state import get_meta_state
+from ms_service_metric.handlers.builtin import default_handler
+from ms_service_metric.utils.expr_eval import ExprEval
 
 logger = get_logger(__name__)
 metrics_client = get_metrics_manager()
+
+_PHASE_SENSITIVE_OPERATION_NAMES = frozenset(
+    {
+        "prepare input",
+        "forward",
+        "post process",
+        "sample_token",
+        "draft_token",
+    }
+)
 
 
 class TimeRecord(NamedTuple):
@@ -61,18 +79,10 @@ class Timeline:
             start_point = config[2] if len(config) > 2 else "start"
             self.duration_activate_dict.setdefault(trigger, []).append((start, metric, start_point))
         self.time_recorded = {}
-        # 预创建指标（性能优化）
         for metric_name in self.duration_config:
             metrics_client.get_or_create_metric(metric_name)
 
     def record(self, name, start_time, duration):
-        """记录时间点
-
-        Args:
-            name: 记录名称
-            start_time: 开始时间
-            duration: 持续时间
-        """
         if name in self.time_record_set:
             self.time_recorded[name] = TimeRecord(start_time, start_time + duration)
 
@@ -102,6 +112,196 @@ class Timeline:
 timeline_recorder: Timeline = Timeline()
 
 
+def _extract_scheduler_output_from_model_runner(self) -> Any:
+    execute_model_state = getattr(self, "execute_model_state", None)
+    if execute_model_state is not None:
+        try:
+            candidate = execute_model_state[0]
+            if hasattr(candidate, "scheduled_new_reqs") or hasattr(candidate, "num_scheduled_tokens"):
+                return candidate
+        except Exception:
+            return None
+    return None
+
+
+def _infer_model_runner_phase(self) -> tuple[str, dict[str, int] | None]:
+    scheduler_output = _extract_scheduler_output_from_model_runner(self)
+    if scheduler_output is None:
+        return "mixed", None
+    return _get_batch_phase_details(_get_scheduler_phase_state(), scheduler_output)
+
+
+def _infer_phase_from_iteration_stats(iteration_stats: Any) -> str:
+    if iteration_stats is None:
+        return "mixed"
+    num_prompt_tokens = getattr(iteration_stats, "num_prompt_tokens", 0) or 0
+    num_generation_tokens = getattr(iteration_stats, "num_generation_tokens", 0) or 0
+    if num_prompt_tokens > 0 >= num_generation_tokens:
+        return "prefill"
+    if num_prompt_tokens <= 0 < num_generation_tokens:
+        return "decode"
+    if num_prompt_tokens > 0 and num_generation_tokens > 0:
+        return "mixed"
+    return "mixed"
+
+
+def _infer_iteration_stats_from_args(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+    iteration_stats = kwargs.get("iteration_stats")
+    if iteration_stats is not None:
+        return iteration_stats
+    for arg in args:
+        if hasattr(arg, "num_prompt_tokens") and hasattr(arg, "num_generation_tokens"):
+            return arg
+    return None
+
+
+def _resolve_phase_from_iteration_stats_or_last(args: tuple[Any, ...], kwargs: dict[str, Any]) -> str:
+    iteration_stats = _infer_iteration_stats_from_args(args, kwargs)
+    phase = _infer_phase_from_iteration_stats(iteration_stats)
+    if phase != "mixed":
+        return phase
+    return get_meta_state().get("last_async_llm_phase", "mixed")
+
+
+def _build_metrics_recorder(metrics_config):
+    manager = get_metrics_manager()
+    expr_evaluators = {}
+    label_evaluators = {}
+    for metric in metrics_config:
+        metric_name = metric.get('name', '')
+        metric_type = metric.get('type', 'timer')
+        expr = metric.get('expr', '')
+        if expr:
+            try:
+                expr_evaluators[metric_name] = ExprEval(expr)
+            except Exception as e:
+                logger.debug("Failed to compile expr for metric %s: %s", metric_name, e)
+        label_exprs = {}
+        for label_name, label_expr in metric.get('labels', {}).items():
+            if label_name and label_expr:
+                try:
+                    label_exprs[label_name] = ExprEval(label_expr)
+                except Exception as e:
+                    logger.debug("Failed to compile label expr for %s: %s", label_name, e)
+        if label_exprs:
+            label_evaluators[metric_name] = label_exprs
+        manager.get_or_create_metric(
+            metric_name=metric_name,
+            metric_type=metric_type,
+            buckets=metric.get('buckets'),
+            label_names=list(label_exprs.keys()),
+        )
+
+    def _record(duration, ret, local_values=None):
+        eval_context = {'duration': duration, 'ret': ret}
+        if local_values:
+            eval_context.update(local_values)
+        for metric in metrics_config:
+            name = metric.get('name', '')
+            metric_type_str = metric.get('type', 'timer')
+            if metric_type_str == 'timer':
+                value = duration
+            else:
+                evaluator = expr_evaluators.get(name)
+                if evaluator:
+                    try:
+                        value = evaluator(eval_context)
+                    except Exception:
+                        value = 1
+                else:
+                    value = 1
+            labels = {}
+            for label_name, evaluator in label_evaluators.get(name, {}).items():
+                try:
+                    labels[label_name] = evaluator(eval_context)
+                except Exception:  # nosec B110
+                    pass
+            manager.record_metric(name, value, labels)
+
+    return _record
+
+
+def process_outputs_phase_handler(metrics_config, is_async: bool = False, **kwargs):
+    record = _build_metrics_recorder(metrics_config)
+    if is_async:
+
+        async def async_handler(ori, *args, **kwargs):
+            phase = _resolve_phase_from_iteration_stats_or_last(args, kwargs)
+            logger.debug("process_outputs phase=%s", phase)
+            with _meta_state_scope(get_meta_state(), {"phase": phase, "last_async_llm_phase": phase}):
+                start_time = time.time()
+                ret = await ori(*args, **kwargs)
+                duration = time.time() - start_time
+                engine_core_outputs = args[1] if len(args) > 1 else kwargs.get("engine_core_outputs")
+                record(
+                    duration,
+                    ret,
+                    {"engine_core_outputs": engine_core_outputs} if engine_core_outputs is not None else {},
+                )
+                return ret
+
+        return async_handler
+
+    def sync_handler(ori, *args, **kwargs):
+        phase = _resolve_phase_from_iteration_stats_or_last(args, kwargs)
+        logger.debug("process_outputs phase=%s", phase)
+        with _meta_state_scope(get_meta_state(), {"phase": phase, "last_async_llm_phase": phase}):
+            start_time = time.time()
+            ret = ori(*args, **kwargs)
+            duration = time.time() - start_time
+            engine_core_outputs = args[1] if len(args) > 1 else kwargs.get("engine_core_outputs")
+            record(
+                duration, ret, {"engine_core_outputs": engine_core_outputs} if engine_core_outputs is not None else {}
+            )
+            return ret
+
+    return sync_handler
+
+
+def record_stats_phase_handler(metrics_config, is_async: bool = False, **kwargs):
+    base_handler = default_handler(metrics_config, is_async=is_async, **kwargs)
+    if is_async:
+
+        async def async_handler(ori, *args, **kwargs):
+            phase = _resolve_phase_from_iteration_stats_or_last(args, kwargs)
+            logger.debug("record_stats phase=%s", phase)
+            with _meta_state_scope(get_meta_state(), {"phase": phase, "last_async_llm_phase": phase}):
+                return await base_handler(ori, *args, **kwargs)
+
+        return async_handler
+
+    def sync_handler(ori, *args, **kwargs):
+        phase = _resolve_phase_from_iteration_stats_or_last(args, kwargs)
+        logger.debug("record_stats phase=%s", phase)
+        with _meta_state_scope(get_meta_state(), {"phase": phase, "last_async_llm_phase": phase}):
+            return base_handler(ori, *args, **kwargs)
+
+    return sync_handler
+
+
+def abort_requests_phase_handler(metrics_config, is_async: bool = False, **kwargs):
+    base_handler = default_handler(metrics_config, is_async=is_async, **kwargs)
+    if is_async:
+
+        async def async_handler(ori, *args, **kwargs):
+            meta_state = get_meta_state()
+            phase = meta_state.get("last_async_llm_phase", meta_state.get("phase", "mixed"))
+            logger.debug("abort_requests phase=%s", phase)
+            with _phase_scope(meta_state, phase):
+                return await base_handler(ori, *args, **kwargs)
+
+        return async_handler
+
+    def sync_handler(ori, *args, **kwargs):
+        meta_state = get_meta_state()
+        phase = meta_state.get("last_async_llm_phase", meta_state.get("phase", "mixed"))
+        logger.debug("abort_requests phase=%s", phase)
+        with _phase_scope(meta_state, phase):
+            return base_handler(ori, *args, **kwargs)
+
+    return sync_handler
+
+
 class TimingContextManager:
     """用于计时的上下文管理器包装类。
 
@@ -110,86 +310,95 @@ class TimingContextManager:
     """
 
     def __init__(self, label_name: str, original_context: Any):
-        """初始化计时上下文管理器。
-
-        Args:
-            label_name: 标签名称
-            original_context: 原始上下文管理器
-        """
         self.label_name = label_name
         self.original_context = original_context
         self.start_time: float = 0.0
+        self._captured_phase: str = "mixed"
+        self._captured_role: str = "mixed"
 
     def __enter__(self):
-        """进入上下文时开始计时。"""
         self.start_time = time.time()
+        stack_phase = _infer_phase_from_call_stack()
+        if stack_phase != "mixed":
+            self._captured_phase = stack_phase
+        else:
+            meta_state = get_meta_state()
+            meta_phase = meta_state.get("phase", "mixed")
+            self._captured_phase = meta_phase if meta_phase != "mixed" else stack_phase
+        meta_state = get_meta_state()
+        self._captured_role = meta_state.get("pd_role", meta_state.get("role", "mixed"))
+        logger.debug("TimingContextManager.enter: name=%s phase=%s", self.label_name, self._captured_phase)
         return self.original_context.__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """退出上下文时记录耗时。"""
         if exc_type is None:
             duration = time.time() - self.start_time
-            metrics_client.record_metric("record_function_or_nullcontext", duration, {"name": self.label_name})
+            logger.debug(
+                "TimingContextManager.exit: name=%s phase=%s duration=%.4f",
+                self.label_name,
+                self._captured_phase,
+                duration,
+            )
+            metrics_client.record_metric(
+                "record_function_or_nullcontext",
+                duration,
+                {
+                    "name": self.label_name,
+                    "phase": self._captured_phase,
+                    "role": self._captured_role,
+                },
+            )
             timeline_recorder.record(self.label_name, self.start_time, duration)
         return self.original_context.__exit__(exc_type, exc_val, exc_tb)
 
 
-# 预创建指标（性能优化）
 metrics_client.get_or_create_metric("record_function_or_nullcontext", ["name"])
 
 
 def record_function_timer_hook(original_func, name, *args, **kwargs):
-    """record_function_or_nullcontext 的 hook 处理函数。
-
-    该函数用于 hook vLLM 的 record_function_or_nullcontext 函数，
-    拦截其返回的上下文管理器，并包装为 TimingContextManager，
-    从而实现对 with 语句块执行耗时的采集。
-
-    Args:
-        original_func: 原始的 record_function_or_nullcontext 函数
-        name: 函数名称
-        *args: 位置参数
-        **kwargs: 关键字参数
-
-    Returns:
-        TimingContextManager: 包装后的上下文管理器
-    """
+    """record_function_or_nullcontext 的 hook 处理函数。"""
     original_context = original_func(name, *args, **kwargs)
     return TimingContextManager(name, original_context)
 
 
 def record_function_timer_hook_vllm_ascend(original_func, self, name, *args, **kwargs):
-    """vllm_ascend 的 record_function_or_nullcontext hook 处理函数。
-
-    Args:
-        original_func: 原始的 record_function_or_nullcontext 函数
-        self: 实例对象
-        name: 函数名称
-        *args: 位置参数
-        **kwargs: 关键字参数
-
-    Returns:
-        TimingContextManager: 包装后的上下文管理器
-    """
+    """vllm_ascend 的 record_function_or_nullcontext hook 处理函数。"""
+    phase = "mixed"
+    phase_detail = None
+    if name in _PHASE_SENSITIVE_OPERATION_NAMES:
+        phase, phase_detail = _infer_model_runner_phase(self)
+        logger.debug("batch phase detail: name=%s phase=%s detail=%s", name, phase, phase_detail)
     original_context = original_func(self, name, *args, **kwargs)
-    return TimingContextManager(name, original_context)
+    if phase == "mixed":
+        return TimingContextManager(name, original_context)
+
+    meta_state = get_meta_state()
+
+    class PhaseTimingContextManager(TimingContextManager):
+        def __init__(self, label_name: str, wrapped_context: Any):
+            super().__init__(label_name, wrapped_context)
+            self._phase_cm = None
+
+        def __enter__(self):
+            self._phase_cm = _phase_scope(meta_state, phase)
+            self._phase_cm.__enter__()
+            return super().__enter__()
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            try:
+                return super().__exit__(exc_type, exc_val, exc_tb)
+            finally:
+                if self._phase_cm is not None:
+                    self._phase_cm.__exit__(exc_type, exc_val, exc_tb)
+
+    return PhaseTimingContextManager(name, original_context)
 
 
-# 预创建指标（性能优化）
 metrics_client.get_or_create_metric("worker:model_runner_get_output:duration")
 
 
 def runner_get_output_hooker(original_func, *args, **kwargs):
-    """ModelRunner.get_output 的 hook 处理函数。
-
-    Args:
-        original_func: 原始函数
-        *args: 位置参数
-        **kwargs: 关键字参数
-
-    Returns:
-        原始函数返回值
-    """
+    """ModelRunner.get_output 的 hook 处理函数。"""
     start_time = time.time()
     ret = original_func(*args, **kwargs)
     duration = time.time() - start_time
@@ -199,7 +408,6 @@ def runner_get_output_hooker(original_func, *args, **kwargs):
     return ret
 
 
-# 预创建 scheduler 相关指标（性能优化）
 metrics_client.get_or_create_metric("scheduler:duration")
 metrics_client.get_or_create_metric("scheduler:batch_size", buckets=SIZE_BUCKETS)
 metrics_client.get_or_create_metric("scheduler:running_queue_size", buckets=SIZE_BUCKETS)
@@ -244,21 +452,17 @@ def _get_exception_type(exc: BaseException) -> str:
 
 
 def scheduler_scheduler_hooker(original_func, self, *args, **kwargs):
-    """Scheduler.schedule 的 hook 处理函数。
-
-    Args:
-        original_func: 原始函数
-        self: Scheduler 实例
-        *args: 位置参数
-        **kwargs: 关键字参数
-
-    Returns:
-        原始函数返回值
-    """
+    """Scheduler.schedule 的 hook 处理函数。"""
     start_time = time.time()
     ret = original_func(self, *args, **kwargs)
     duration = time.time() - start_time
     phase_metrics = _collect_phase_metrics(_get_scheduler_phase_state(), ret)
+
+    scheduler_phase, batch_detail = _get_batch_phase_details(_get_scheduler_phase_state(), ret)
+    logger.debug("scheduler phase=%s detail=%s", scheduler_phase, batch_detail)
+    meta_state = get_meta_state()
+    meta_state.set("last_scheduler_phase", scheduler_phase)
+    meta_state.set("phase", scheduler_phase)
 
     metrics_client.record_metric("scheduler:duration", duration)
     metrics_client.record_metric("scheduler:batch_size", len(ret.num_scheduled_tokens))
@@ -294,12 +498,6 @@ def scheduler_scheduler_hooker(original_func, self, *args, **kwargs):
 
 
 def scheduler_preempt_request_hooker(original_func, self, *args, **kwargs):
-    """Record exact v1 recompute events.
-
-    In current vLLM v1, Scheduler._preempt_request is the path that
-    preempts a running request, frees its KV cache, and resets computed
-    tokens so the request will recompute when scheduled again.
-    """
     ret = original_func(self, *args, **kwargs)
     _clear_request_phase_state(_get_scheduler_phase_state(), *args, *kwargs.values(), ret)
     metrics_client.record_metric(RUNNING_TO_WAITING_COUNT, 1)
@@ -328,7 +526,6 @@ def rpc_error_hooker(original_func, *args, **kwargs):
         raise
 
 
-# 预创建 EPLB 相关指标（性能优化）
 _EPLB_HOTNESS_SUMMARY_METRICS = (
     "eplb:expert_hotness:current_mean",
     "eplb:expert_hotness:current_max",
@@ -397,3 +594,112 @@ def eplb_do_update_hotness_handler(original_func, self, *args, **kwargs):
             )
 
     return result
+
+
+def _infer_phase_from_scheduler_output(scheduler_output) -> str:
+    if scheduler_output is None:
+        return "mixed"
+    has_new = bool(getattr(scheduler_output, "scheduled_new_reqs", None))
+    has_cached = bool(list(_iter_cached_req_id_and_num_comp(getattr(scheduler_output, "scheduled_cached_reqs", None))))
+    if has_new and not has_cached:
+        return "prefill"
+    if has_cached and not has_new:
+        return "decode"
+    if has_new and has_cached:
+        return "mixed"
+    return "mixed"
+
+
+def _infer_phase_from_call_stack() -> str:
+    try:
+        frame = inspect.currentframe()
+        while frame is not None:
+            func_name = frame.f_code.co_name
+            local_self = frame.f_locals.get("self")
+            is_npu_runner = local_self is not None and type(local_self).__name__ == "NPUModelRunner"
+            if func_name in ("execute_model", "sample_tokens") and is_npu_runner:
+                scheduler_output = frame.f_locals.get("scheduler_output")
+                phase = _infer_phase_from_scheduler_output(scheduler_output)
+                if phase != "mixed":
+                    return phase
+            frame = frame.f_back
+    except Exception:
+        logger.debug("Failed to infer phase from call stack", exc_info=True)
+    return "mixed"
+
+
+def _resolve_worker_phase(self, args=None) -> str:
+    try:
+        inferred_phase, _ = _infer_model_runner_phase(self)
+        if inferred_phase != "mixed":
+            return inferred_phase
+    except Exception:
+        logger.debug("Failed to infer model runner phase", exc_info=True)
+
+    scheduler_output = None
+    if args and len(args) > 0:
+        scheduler_output = args[0]
+
+    if scheduler_output is not None:
+        phase = _infer_phase_from_scheduler_output(scheduler_output)
+        if phase != "mixed":
+            return phase
+
+    return get_meta_state().get("pd_role", get_meta_state().get("role", "mixed"))
+
+
+def model_runner_phase_handler(metrics_config, is_async: bool = False, **kwargs):
+    base_handler = default_handler(metrics_config, is_async=is_async, **kwargs)
+
+    def handler(ori, self, *args, **kwargs):
+        phase = _resolve_worker_phase(self, args)
+        logger.debug("model_runner_phase: phase=%s", phase)
+        with _phase_scope(get_meta_state(), phase):
+            return base_handler(ori, self, *args, **kwargs)
+
+    return handler
+
+
+def engine_core_phase_handler(metrics_config, is_async: bool = False, **kwargs):
+    base_handler = default_handler(metrics_config, is_async=is_async, **kwargs)
+
+    def handler(ori, *args, **kwargs):
+        meta_state = get_meta_state()
+        phase = meta_state.get("last_scheduler_phase", meta_state.get("pd_role", "mixed"))
+        logger.debug("engine_core_phase: phase=%s", phase)
+        with _phase_scope(meta_state, phase):
+            return base_handler(ori, *args, **kwargs)
+
+    return handler
+
+
+def executor_execute_model_phase_handler(metrics_config, is_async: bool = False, **kwargs):
+    base_handler = default_handler(metrics_config, is_async=is_async, **kwargs)
+
+    def _extract_scheduler_output(args, kwargs):
+        for i, arg in enumerate(args):
+            if i == 0:
+                continue
+            if hasattr(arg, "num_scheduled_tokens") or hasattr(arg, "scheduled_new_reqs"):
+                return arg
+        return kwargs.get("scheduler_output")
+
+    def handler(ori, *args, **kwargs):
+        phase = "mixed"
+        scheduler_output = _extract_scheduler_output(args, kwargs)
+        if scheduler_output is not None:
+            try:
+                sched_phase, _ = _get_batch_phase_details(_get_scheduler_phase_state(), scheduler_output)
+                if sched_phase != "mixed":
+                    phase = sched_phase
+            except Exception:
+                logger.debug("Failed to get batch phase details", exc_info=True)
+
+        meta_state = get_meta_state()
+        if phase == "mixed":
+            phase = meta_state.get("last_scheduler_phase", meta_state.get("pd_role", "mixed"))
+        logger.debug("executor_execute_model_phase: phase=%s", phase)
+        with _phase_scope(meta_state, phase):
+            return base_handler(ori, *args, **kwargs)
+
+    return handler

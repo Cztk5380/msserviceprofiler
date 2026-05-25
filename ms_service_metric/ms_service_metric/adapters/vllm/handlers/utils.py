@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 import threading
+from contextlib import contextmanager
 from typing import Any, Dict, Generator, Iterable, Iterator, Tuple
 
 from ms_service_metric.utils.logger import get_logger
@@ -188,8 +189,7 @@ def collect_phase_metrics(state: SchedulerPhaseState, scheduler_output: Any) -> 
         num_comp_by_rid[rid] = num_comp
 
     phase_stats: Dict[str, Dict[str, float]] = {
-        phase: {"batch_size": 0, "scheduled_tokens_sum": 0}
-        for phase in QUEUE_PHASES
+        phase: {"batch_size": 0, "scheduled_tokens_sum": 0} for phase in QUEUE_PHASES
     }
 
     scheduled_tokens_by_rid = getattr(scheduler_output, "num_scheduled_tokens", {})
@@ -220,3 +220,75 @@ def collect_phase_metrics(state: SchedulerPhaseState, scheduler_output: Any) -> 
         state.request_id_to_prompt_token_len.pop(finished_req_id, None)
 
     return phase_stats
+
+
+def infer_batch_phase_from_scheduler_output(state: SchedulerPhaseState, scheduler_output: Any) -> str:
+    """Infer a single phase label for one scheduled batch.
+
+    Returns:
+        "prefill": all scheduled requests are prefill
+        "decode": all scheduled requests are decode
+        "mixed": both prefill and decode exist in one batch
+        "unknown": phase cannot be inferred
+    """
+    phase_stats = collect_phase_metrics(state, scheduler_output)
+    non_zero_phases = [
+        phase for phase in ("prefill", "decode", "unknown") if phase_stats.get(phase, {}).get("batch_size", 0) > 0
+    ]
+    if not non_zero_phases:
+        return "unknown"
+    if non_zero_phases == ["prefill"]:
+        return "prefill"
+    if non_zero_phases == ["decode"]:
+        return "decode"
+    if "unknown" in non_zero_phases and len(non_zero_phases) == 1:
+        return "unknown"
+    return "mixed"
+
+
+def get_batch_phase_details(state: SchedulerPhaseState, scheduler_output: Any) -> tuple[str, Dict[str, int]]:
+    """Return one batch phase plus per-phase batch-size breakdown for debugging."""
+    phase_stats = collect_phase_metrics(state, scheduler_output)
+    detail = {phase: int(phase_stats.get(phase, {}).get("batch_size", 0)) for phase in ("prefill", "decode", "unknown")}
+    non_zero_phases = [phase for phase, count in detail.items() if count > 0]
+    if not non_zero_phases:
+        phase = "unknown"
+    elif non_zero_phases == ["prefill"]:
+        phase = "prefill"
+    elif non_zero_phases == ["decode"]:
+        phase = "decode"
+    elif non_zero_phases == ["unknown"]:
+        phase = "unknown"
+    else:
+        phase = "mixed"
+    return phase, detail
+
+
+@contextmanager
+def phase_scope(meta_state, phase: str):
+    """Temporarily override execution phase for metrics labels."""
+    previous_phase = meta_state.get("phase", "mixed")
+    meta_state.set("phase", phase)
+    try:
+        yield
+    finally:
+        meta_state.set("phase", previous_phase)
+
+
+_MISSING = object()
+
+
+@contextmanager
+def meta_state_scope(meta_state, overrides: dict[str, Any]):
+    """Temporarily override multiple meta_state keys, restoring on exit."""
+    previous = {key: (meta_state.get(key, _MISSING), meta_state.has(key)) for key in overrides}
+    for key, value in overrides.items():
+        meta_state.set(key, value)
+    try:
+        yield
+    finally:
+        for key, (prev_val, existed) in previous.items():
+            if not existed:
+                meta_state.remove(key)
+            else:
+                meta_state.set(key, prev_val)

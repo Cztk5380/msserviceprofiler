@@ -20,6 +20,17 @@ import ms_service_metric.adapters.vllm.handlers.metric_handlers as mh
 import ms_service_metric.adapters.vllm.handlers.utils as hu
 
 
+def _make_time_mock(values):
+    remaining = list(values)
+
+    def _mock_time():
+        if remaining:
+            return remaining.pop(0)
+        return values[-1]
+
+    return _mock_time
+
+
 def test_given_timeline_start_and_trigger_points_when_record_then_duration_metric_emitted(monkeypatch):
     calls = []
     monkeypatch.setattr(
@@ -87,8 +98,7 @@ def test_given_timing_context_normal_exit_when_exit_then_records_metric_and_time
     tr_calls = []
     monkeypatch.setattr(mh, "timeline_recorder", SimpleNamespace(record=lambda *a, **k: tr_calls.append((a, k))))
     # __enter__ takes start time, __exit__ takes end time — fixed sequence, no coupling to record_metric calls.
-    times = iter([100.0, 101.5])
-    monkeypatch.setattr(mh.time, "time", lambda: next(times))
+    monkeypatch.setattr(mh.time, "time", _make_time_mock([100.0, 101.5]))
 
     class _Ctx:
         def __enter__(self):
@@ -153,8 +163,7 @@ def test_given_runner_get_output_when_hook_called_then_records_duration_and_time
     monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
     tr_calls = []
     monkeypatch.setattr(mh, "timeline_recorder", SimpleNamespace(record=lambda *a, **k: tr_calls.append((a, k))))
-    times = iter([10.0, 10.4])
-    monkeypatch.setattr(mh.time, "time", lambda: next(times))
+    monkeypatch.setattr(mh.time, "time", _make_time_mock([10.0, 10.4]))
 
     out = mh.runner_get_output_hooker(lambda *_a, **_k: 123)
     assert out == 123
@@ -165,8 +174,7 @@ def test_given_runner_get_output_when_hook_called_then_records_duration_and_time
 def test_given_scheduler_result_when_scheduler_hook_called_then_records_core_metrics(monkeypatch):
     calls = []
     monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
-    times = iter([1.0, 1.2, 1.2])
-    monkeypatch.setattr(mh.time, "time", lambda: next(times))
+    monkeypatch.setattr(mh.time, "time", _make_time_mock([1.0, 1.2, 1.2]))
 
     ret = SimpleNamespace(
         num_scheduled_tokens=[1, 2],
@@ -186,8 +194,7 @@ def test_given_scheduler_result_when_scheduler_hook_called_then_records_core_met
 def test_given_scheduled_tokens_without_request_ids_when_scheduler_hook_called_then_records_unknown_phase(monkeypatch):
     calls = []
     monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
-    times = iter([1.0, 1.2, 1.2])
-    monkeypatch.setattr(mh.time, "time", lambda: next(times))
+    monkeypatch.setattr(mh.time, "time", _make_time_mock([1.0, 1.2, 1.2]))
 
     ret = SimpleNamespace(
         num_scheduled_tokens=[1, 2],
@@ -213,8 +220,7 @@ def test_given_scheduled_tokens_without_request_ids_when_scheduler_hook_called_t
 def test_given_scheduler_result_without_tokens_when_scheduler_hook_called_then_avg_sum_not_recorded(monkeypatch):
     calls = []
     monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
-    times = iter([2.0, 2.1])
-    monkeypatch.setattr(mh.time, "time", lambda: next(times))
+    monkeypatch.setattr(mh.time, "time", _make_time_mock([2.0, 2.1]))
 
     ret = SimpleNamespace(
         num_scheduled_tokens=[],
@@ -239,8 +245,7 @@ def test_given_mixed_phase_batch_when_scheduler_hook_called_then_prefill_decode_
         "_get_scheduler_phase_state",
         lambda: SimpleNamespace(request_id_to_prompt_token_len={"cached_prefill": 10}),
     )
-    times = iter([3.0, 3.2])
-    monkeypatch.setattr(mh.time, "time", lambda: next(times))
+    monkeypatch.setattr(mh.time, "time", _make_time_mock([3.0, 3.2]))
 
     ret = SimpleNamespace(
         num_scheduled_tokens={

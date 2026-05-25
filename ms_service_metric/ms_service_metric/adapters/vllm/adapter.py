@@ -38,26 +38,27 @@ from ms_service_metric.core.symbol_handler_manager import SymbolHandlerManager
 
 logger = get_logger(__name__)
 
+
 class VLLMMetricAdapter:
     """vLLM Metric适配器
-    
+
     负责：
     1. 设置dp_rank到meta_state
     2. 加载V1版本的配置和handlers
     3. 初始化SymbolHandlerManager
     4. 提供与vLLM生命周期的集成点
-    
+
     Attributes:
         _manager: SymbolHandlerManager实例
         _initialized: 是否已初始化
     """
-    
+
     def __init__(self):
         """初始化适配器"""
         self._manager: Optional[SymbolHandlerManager] = None
         self._initialized = False
         self._version: Optional[str] = None
-        
+
     def initialize(self):
         """初始化适配器
 
@@ -71,10 +72,11 @@ class VLLMMetricAdapter:
 
         # 检测vLLM版本
         self._version = self._detect_vllm_version()
-        logger.info(f"Detected vLLM version: {self._version}")
+        logger.info("Detected vLLM version: %s", self._version)
 
         # 设置vLLM metrics环境（多进程、registry、前缀等）
         from ms_service_metric.adapters.vllm.metrics_init import setup_vllm_metrics
+
         setup_vllm_metrics()
 
         # 设置meta_state的dp_rank
@@ -90,38 +92,38 @@ class VLLMMetricAdapter:
 
         self._initialized = True
         logger.info("VLLMMetricAdapter initialized successfully")
-    
+
     def shutdown(self):
         """关闭适配器"""
         if not self._initialized:
             return
-        
+
         logger.info("Shutting down VLLMMetricAdapter")
-        
+
         if self._manager:
             self._manager.shutdown()
             self._manager = None
-        
+
         self._initialized = False
         logger.info("VLLMMetricAdapter shutdown complete")
-    
+
     def _setup_dp_rank(self):
         """设置dp_rank到meta_state
-        
+
         尝试从vLLM的各种配置中获取dp_rank。
         """
         dp_rank = self._get_dp_rank_from_env()
-        
+
         # Resolve dp_rank from explicit sources first, then fall back to vLLM's process name.
         if dp_rank < 0:
             dp_rank = self._get_dp_rank_from_vllm()
         if dp_rank < 0:
             dp_rank = self._get_dp_rank_from_process_name()
-        
+
         # 设置到meta_state
         logger.debug("Final dp_rank before set_dp_rank: %r", dp_rank)
         set_dp_rank(dp_rank)
-        logger.debug(f"Set dp_rank to meta_state: {dp_rank}")
+        logger.debug("Set dp_rank to meta_state: %s", dp_rank)
 
     def _get_dp_rank_from_env(self) -> int:
         env_dp_rank = os.getenv("VLLM_DP_RANK")
@@ -131,15 +133,16 @@ class VLLMMetricAdapter:
 
         try:
             dp_rank = int(env_dp_rank)
-            logger.debug(f"Got dp_rank from environment: {dp_rank}")
+            logger.debug("Got dp_rank from environment: %s", dp_rank)
             return dp_rank
         except ValueError as e:
-            logger.debug(f"Invalid VLLM_DP_RANK value {env_dp_rank!r}: {e}")
+            logger.debug("Invalid VLLM_DP_RANK value %r: %s", env_dp_rank, e)
             return -1
 
     def _get_dp_rank_from_vllm(self) -> int:
         try:
             from vllm.distributed.parallel_state import get_data_parallel_rank
+
             raw_dp_rank = get_data_parallel_rank()
             logger.debug(
                 "Raw get_data_parallel_rank() return value=%r, type=%s",
@@ -147,10 +150,10 @@ class VLLMMetricAdapter:
                 type(raw_dp_rank).__name__,
             )
             dp_rank = int(raw_dp_rank)
-            logger.debug(f"Got dp_rank from vLLM: {dp_rank}")
+            logger.debug("Got dp_rank from vLLM: %s", dp_rank)
             return dp_rank
         except Exception as e:
-            logger.debug(f"Failed to get dp_rank from vLLM distributed state: {e}", exc_info=True)
+            logger.debug("Failed to get dp_rank from vLLM distributed state: %s", e, exc_info=True)
             return -1
 
     def _get_dp_rank_from_process_name(self) -> int:
@@ -167,29 +170,30 @@ class VLLMMetricAdapter:
         if not match:
             return -1
         return int(match.group(1))
-        
+
     def _setup_pd_role(self):
-        """设置dp_rank到meta_state
-        
-        尝试从vLLM的各种配置中获取dp_rank。
-        """
+        """设置pd_role到meta_state"""
         pd_role = "mixed"
-        
+
         try:
             from vllm.distributed.ec_transfer import get_ec_transfer, has_ec_transfer
+
             if has_ec_transfer():
-                pd_role = "prefill" if get_ec_transfer().is_producer else "decode"
-        except Exception as e:
+                _ec = get_ec_transfer()
+                pd_role = "prefill" if _ec.is_producer else "decode"
+        except Exception:
             try:
                 from vllm.distributed.kv_transfer import get_kv_transfer_group, has_kv_transfer_group
-                if has_kv_transfer_group():
-                    pd_role = str(get_kv_transfer_group().role)
-            except Exception as e:
-                logger.warning(f"Failed to get pd_role: {e}")
 
-        # 设置到meta_state
+                if has_kv_transfer_group():
+                    _kv = get_kv_transfer_group()
+                    pd_role = str(_kv.role)
+            except Exception as e:
+                logger.debug("Failed to get pd_role: %s", e)
+
         get_meta_state().set("pd_role", pd_role.lower())
-        logger.debug(f"Set role to meta_state: {pd_role.lower()}")
+        get_meta_state().set("role", pd_role.lower())
+        logger.debug("Setup pd_role=%s", pd_role.lower())
 
     def _detect_vllm_version(self) -> Optional[str]:
         """检测vLLM版本
@@ -201,15 +205,15 @@ class VLLMMetricAdapter:
         """
         version = get_package_version("vllm")
         if version:
-            logger.debug(f"vLLM version: {version}")
+            logger.debug("vLLM version: %s", version)
             return version
         return None
 
     def _get_config_path(self) -> Tuple[Optional[str], Optional[str]]:
         """获取配置文件路径
-        
+
         优先使用环境变量指定的配置，否则使用默认V1配置。
-        
+
         Returns:
             配置文件路径，如果没有合适的配置则返回None
         """
@@ -217,33 +221,33 @@ class VLLMMetricAdapter:
         adapter_dir = os.path.dirname(os.path.abspath(__file__))
         config_dir = os.path.join(adapter_dir, "config")
         default_config_path = os.path.join(config_dir, "default.yaml")
-        
+
         # 首先检查环境变量指定的配置
         env_config = os.getenv("MS_SERVICE_METRIC_VLLM_CONFIG")
         if env_config and os.path.exists(env_config):
-            logger.debug(f"Using config from environment: {env_config}")
+            logger.debug("Using config from environment: %s", env_config)
             return env_config, default_config_path
-        
+
         # 使用V1配置
         config_path = os.path.join(config_dir, "v1_metrics.yaml")
         if os.path.exists(config_path):
-            logger.debug(f"Using V1 config: {config_path}")
+            logger.debug("Using V1 config: %s", config_path)
             return config_path, default_config_path
-        
+
         logger.warning("No config file found for vLLM adapter")
         return None, default_config_path
-    
+
     def get_manager(self) -> Optional[SymbolHandlerManager]:
         """获取SymbolHandlerManager实例
-        
+
         Returns:
             SymbolHandlerManager实例或None
         """
         return self._manager
-    
+
     def is_initialized(self) -> bool:
         """检查是否已初始化
-        
+
         Returns:
             是否已初始化
         """
@@ -256,7 +260,7 @@ _vllm_adapter_instance: Optional[VLLMMetricAdapter] = None
 
 def get_vllm_adapter() -> VLLMMetricAdapter:
     """获取全局VLLM适配器实例（单例模式）
-    
+
     Returns:
         VLLMMetricAdapter单例实例
     """
@@ -268,9 +272,9 @@ def get_vllm_adapter() -> VLLMMetricAdapter:
 
 def initialize_vllm_metric():
     """初始化vLLM metric收集
-    
+
     这是主要的初始化入口，应在vLLM启动时调用。
-    
+
     Example:
         >>> from ms_service_metric.adapters.vllm import initialize_vllm_metric
         >>> initialize_vllm_metric()

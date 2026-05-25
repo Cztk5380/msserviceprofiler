@@ -41,6 +41,7 @@
       type: timer
 
 - symbol: vllm.v1.engine.output_processor:OutputProcessor.process_outputs
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:process_outputs_phase_handler
   metrics:
     - name: output_processor_duration
       type: timer
@@ -58,12 +59,34 @@
   metrics:
     - name: engine:tokenizer_encode
 
-- symbol: vllm.v1.core.sched.scheduler:Scheduler.update_from_output # 处理返回output
+- symbol: vllm.v1.core.sched.scheduler:Scheduler.update_from_output
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:engine_core_phase_handler
   metrics:
     - name: scheduler:update_from_output:duration
 
+- symbol: vllm.v1.metrics.loggers:StatLoggerManager.record
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:record_stats_phase_handler
+  metrics:
+    - name: async_llm:record_stats:duration
+
+- symbol: vllm.v1.engine.core_client:AsyncMPClient.abort_requests_async
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:abort_requests_phase_handler
+  metrics:
+    - name: async_llm:abort_requests:duration
+
+- symbol: vllm.v1.engine.core_client:DPAsyncMPClient.abort_requests_async
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:abort_requests_phase_handler
+  metrics:
+    - name: async_llm:abort_requests:duration
+
+- symbol: vllm.v1.engine.core_client:DPLBAsyncMPClient.abort_requests_async
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:abort_requests_phase_handler
+  metrics:
+    - name: async_llm:abort_requests:duration
+
 # ===== Executor =====
 - symbol: vllm.v1.executor.multiproc_executor:MultiprocExecutor.execute_model
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:executor_execute_model_phase_handler
   metrics:
     - name: executor:execute_model:duration
 
@@ -71,10 +94,12 @@
   handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:rpc_error_hooker
 
 - symbol: vllm_ascend.worker.model_runner_v1:NPUModelRunner.execute_model
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:model_runner_phase_handler
   metrics:
     - name: executor:model_runner_execute_model:duration
 
 - symbol: vllm_ascend.worker.model_runner_v1:NPUModelRunner._prepare_inputs
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:model_runner_phase_handler
   metrics:
     - name: executor:prepare_inputs:duration
 
@@ -103,20 +128,24 @@
 #       expr: duration
 
 - symbol: vllm.v1.executor.multiproc_executor:MultiprocExecutor.sample_tokens
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:engine_core_phase_handler
   metrics:
     - name: executor:sample_tokens:duration
 
 
 # ===== engine core processor =====
-- symbol: vllm.v1.engine.core:EngineCoreProc._process_input_queue # 从请求队列里面获取数据，并且放到 scheduler 的队列中
+- symbol: vllm.v1.engine.core:EngineCoreProc._process_input_queue
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:engine_core_phase_handler
   metrics:
     - name: engine_core:process_input_queue:duration
 
-- symbol: vllm.v1.engine.core:EngineCoreProc._process_engine_step # 从返回队列中获取数据，并推给 CoreClient
+- symbol: vllm.v1.engine.core:EngineCoreProc._process_engine_step
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:engine_core_phase_handler
   metrics:
     - name: engine_core:process_engine_step:duration
 
-- symbol: vllm.v1.engine.core:EngineCore.step # 一步
+- symbol: vllm.v1.engine.core:EngineCore.step
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:engine_core_phase_handler
   metrics:
     - name: engine_core:engine_core_step:duration
 
