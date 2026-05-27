@@ -15,6 +15,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
         args: ["--allow-multiple-documents"]
+        exclude: ^mkdocs\.yml$
       - id: check-added-large-files
       - id: check-merge-conflict
       - id: detect-private-key
@@ -84,4 +85,3 @@ repos:
           - "--verbose"
           - "-i"
         exclude: ^build/|tests/third_party/
-
