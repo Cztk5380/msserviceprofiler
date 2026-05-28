@@ -298,6 +298,8 @@ msserviceprofiler optimizer -e vllm -b vllm_benchmark -c ../configs/vllm_config.
 **寻优参数**： `n_particles` （寻优种子数）、`iters` （迭代轮次数）、 `tpot_slo` （`time_per_output_token`的限制时延）等。
 用户可根据预估时间来自行配置种子和迭代次数。我们单个种子使用时间为拉起服务+测试数据。比如用户拉起服务+完成测试需9-10min，且愿意用8小时来进行寻优，则一共可跑约50个种子，建议用户配置5 * 10。设置种子数为10，迭代次数为5，建议用户配置种子数为迭代次数的2倍左右。
 
+> **注意**：以下寻优参数均为必填项，不可删除或省略，否则运行时会报错。
+
 |参数|可选/必选|说明|
 |---|---|---|
 |n_particles|必选|寻优种子数，即一组生成的参数组合数，取值范围为：1-1000的整数。建议设为 15 ~ 30。 |
@@ -518,7 +520,7 @@ dtype_param = {target_names = ["seq_len", "prefill_batch_size"], product = 2, dt
 ```shell
 [vllm.command]
 host = "127.0.0.1"
-port = 8000
+port = "8000"
 model = "/workspace/vllm/models/llama-2-7b-chat-hf"
 served_model_name = "llama-2-7b-chat-hf"
 others = ""

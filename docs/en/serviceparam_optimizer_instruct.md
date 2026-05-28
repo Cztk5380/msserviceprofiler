@@ -12,8 +12,9 @@ The tool supports simulation and lightweight modes and consists of three core fu
 
 - **Parameter verification module**: automatically starts the serving process and benchmark tool to test parameters and obtain performance results. Currently, the supported benchmark tools include `ais_bench` and `vllm_benchmark`.
 
-> ![](public_sys-resources/icon-note.gif) **Note:**
-> The benchmark tool is about to be replaced by ais_bench and is no longer supported by Serviceparam Optimizer.
+> [!NOTE]
+>
+> The benchmark tool is about to be replaced by AISBench and is no longer supported by Serviceparam Optimizer.
 
 Based on the modules above, Serviceparam Optimizer can automatically recommend serving parameter combinations that deliver high throughput. It can be used in the following modes:
 
@@ -29,7 +30,7 @@ The tool has been validated on LLaMA3-8B and Qwen3-8B. In principle, it does not
 
 ## Supported Products<a name="ZH-CN_TOPIC_0000002479925980"></a>
 
->[!NOTE]
+> [!NOTE]
 >
 >For details about Ascend product models, see [Ascend Product Models](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html).
 
@@ -41,7 +42,7 @@ The tool has been validated on LLaMA3-8B and Qwen3-8B. In principle, it does not
 |Atlas inference products|  Yes  |
 |Atlas training products|  No  |
 
->[!NOTE]
+> [!NOTE]
 >
 >For Atlas A2 training products/Atlas A2 inference products, only the Atlas 800I A2 inference server is supported.
 >For Atlas inference products, only the Atlas 300I Duo inference card and Atlas 800 inference server (model 3000) are supported.
@@ -229,7 +230,7 @@ The simulation mode requires training on collected serving data. Run the MindIE 
 2. Train a model:
 
     ```bash
-    msserviceprofiler train -i=/path/to/input -o=/path/to/output 
+    msserviceprofiler train -i=/path/to/input -o=/path/to/output
     ```
 
 3. Set environment variables before optimization:
@@ -278,11 +279,13 @@ Other columns are the `config.toml` parameters from MindIE or vLLM.
 **Optimization parameters**: `n_particles` (number of optimization particles), `iters` (number of iterations), and `tpot_slo` (latency constraint for `time_per_output_token`).
 You can configure the number of particles and iterations based on the estimated time. Each particle requires time for service startup and testing. For example, if service startup and testing takes 9 to 10 minutes per run, and you allocate 8 hours for optimization, you can run approximately 50 particles in total. The recommended configuration is 5 × 10. That is, 10 particles and 5 iterations. As a rule of thumb, set the number of particles to about twice the number of iterations.
 
+> **Note**: All of the following optimization parameters are mandatory and must not be deleted or omitted. Otherwise, an error will occur during running.
+
 |Parameter|Mandatory (Yes/No)|Description|
 |---|---|---|
 |n_particles|Yes|Number of particles (parameter combinations). The value is an integer ranging from 1 to 1000. The recommended value ranges from 15 to 30.|
 |iters|Yes|Number of iterations. The value is an integer ranging from 1 to 1000. The recommended value ranges from 5 to 10.|
-|ttft_penalty|Yes|Penalty coefficient for `time_to_first_token` (TTFT) violations. Set it to `0` if there is no TTFT constraint. Value range: [0, 100]. The recommended value is `1`.| 
+|ttft_penalty|Yes|Penalty coefficient for `time_to_first_token` (TTFT) violations. Set it to `0` if there is no TTFT constraint. Value range: [0, 100]. The recommended value is `1`.|
 |tpot_penalty|Yes|Penalty coefficient for `time_per_output_token` (TPOT) violations. Set it to `0` if there is no TPOT constraint. Value range: [0, 100]. The recommended value is `1`.|
 |success_rate_penalty|Yes|Penalty coefficient for the request success rate. The value is an integer ranging from 1 to 1000. The recommended value is `5`.|
 |ttft_slo|Yes|TTFT latency constraint (in seconds) For example, if TTFT is limited to 2s, set the value to `2`. Value range: (0, 100].|
@@ -297,21 +300,21 @@ If `ais_bench` is used for the test, modify the following parameters. For detail
 |---|---|
 |models| Specifies a model task. You can configure it as described in [Model Configuration Description] (<https://gitee.com/aisbench/benchmark/blob/master/doc/users_guide/models.md>).|
 |datasets| Specifies a dataset task. For details, see [Dataset Preparation Guide] (<https://gitee.com/aisbench/benchmark/blob/master/doc/users_guide/datasets.md>).|
-|mode| Specifies the operation mode. For details, see [Operation Mode Description](https://gitee.com/aisbench/benchmark/blob/master/doc/users_guide/mode.md).| 
-|num_prompts| Specifies the number of prompts to run from the dataset. This parameter is valid only when `mode` is set to `perf`.| 
+|mode| Specifies the operation mode. For details, see [Operation Mode Description](https://gitee.com/aisbench/benchmark/blob/master/doc/users_guide/mode.md).|
+|num_prompts| Specifies the number of prompts to run from the dataset. This parameter is valid only when `mode` is set to `perf`.|
 
 If `vllm_benchmark` is used for the test, modify the following parameters:
 
 |Parameter|Mandatory (Yes/No)|Description|
 |---|---|---|
 |host|Yes| Host IP address, which must match `host` in `[vllm.command]`. The value can be `127.0.0.1`.|
-|port|Yes| Port number, which must match `port` in `[vllm.command]`.| 
-|model|Yes| Model path, which must match `model` in `[vllm.command]`.| 
+|port|Yes| Port number, which must match `port` in `[vllm.command]`.|
+|model|Yes| Model path, which must match `model` in `[vllm.command]`.|
 |served_model_name|Yes| Model name, which must match `served_model_name` in `[vllm.command]`.|
 |dataset_name|Yes| Dataset name|
 |dataset_path|Yes| Dataset path|
 |num_prompts|Yes| Specifies the number of prompts to run from the dataset.| The value is an integer ranging from 1 to 10000.|
-|others|No| Additional parameters. Use spaces to separate them, and no space is allowed within the parameters, for example, `--ignore-eos --custom-output-len 1500`. This parameter is left empty by default.| 
+|others|No| Additional parameters. Use spaces to separate them, and no space is allowed within the parameters, for example, `--ignore-eos --custom-output-len 1500`. This parameter is left empty by default.|
 
 **Serving parameters**: Modify these parameters as described in [MindIE Server Configuration Parameter Description] (<https://www.hiascend.com/document/detail/zh/mindie/20RC1/mindieservice/servicedev/mindie_service0285.html>).
 You can define search ranges directly using these parameters. For example, to set the optimization search space for `max_batch_size` to 10 to 400:
@@ -333,7 +336,7 @@ You can also define parameters relative to others. For example, to set `max_pref
 "config_position": "BackendConfig.ScheduleConfig.maxPrefillBatchSize",
 "min": 0,
 "max": 1,
-"dtype": "ratio", 
+"dtype": "ratio",
 "dtype_param": "max_batch_size" # Indicates that max_prefill_batch_size is proportional to max_batch_size.
 ```
 
@@ -342,7 +345,7 @@ When the vLLM framework is used, you need to modify the `[vllm.command]` paramet
 ```shell
 [vllm.command]
 host = "127.0.0.1"
-port = 8000
+port = "8000"
 model = "/workspace/vllm/models/llama-2-7b-chat-hf"
 served_model_name = "llama-2-7b-chat-hf"
 others = ""
@@ -351,12 +354,62 @@ others = ""
 |Parameter|Mandatory (Yes/No)|Description|
 |---|---|---|
 |host|Yes| Host IP address, which must match `host` in `[vllm_benchmark.command]`. The value can be `127.0.0.1`.|
-|port|Yes| Port number, which must match `port` in `[vllm_benchmark.command]`.| 
-|model|Yes| Model path, which must match `model` in `[vllm_benchmark.command]`.| 
+|port|Yes| Port number, which must match `port` in `[vllm_benchmark.command]`.|
+|model|Yes| Model path, which must match `model` in `[vllm_benchmark.command]`.|
 |served_model_name|Yes| Model name, which must match `served_model_name` in `[vllm_benchmark.command]`.|
-|others|No| Additional parameters. Use spaces to separate them, and no space is allowed within the parameters, for example, `--tensor-parallel-size 2 --no-enable-prefix-caching`. This parameter is left empty by default.| 
+|others|No| Additional parameters. Use spaces to separate them, and no space is allowed within the parameters, for example, `--tensor-parallel-size 2 --no-enable-prefix-caching`. This parameter is left empty by default.|
 
-### PD Disaggregation Optimization
+### Custom Parameter Optimization
+
+The optimizer supports adding any vllm startup parameter for optimization through `[[vllm.target_field]]`. The configuration involves two steps: **declaring the optimization field** and **referencing the variable in `others`**.
+
+> **Variable reference rule**: Use the format `$UPPERCASE_FIELD_NAME` in `others` to reference an optimization field. The tool automatically replaces it with the actual value of the current iteration.
+
+#### Example 1: Enumerated Numeric Parameter (Taking `gpu_memory_utilization` as an Example)
+
+**Step 1**: Declare the optimization field.
+
+```toml
+[[vllm.target_field]]
+name = "GPU_MEMORY_UTILIZATION"
+config_position = "env"
+dtype = "enum"
+dtype_param = [0.9, 0.91, 0.92]
+value = 0.9
+```
+
+**Step 2**: Reference the variable in `others` of `[vllm.command]`.
+
+```toml
+[vllm.command]
+# ... other mandatory parameters ...
+others = "--gpu-memory-utilization $GPU_MEMORY_UTILIZATION"
+```
+
+#### Example 2: Switch/Composite String Parameter (Taking Compilation Config `--compilation-config` as an Example)
+
+When the parameter itself is a complete CLI string, you can use an empty string `""` (not enabled) and the enabled form as enum candidates. The tool automatically skips empty strings and does not append anything to the launch command.
+
+**Step 1**: Declare the optimization field.
+
+> **Note**: TOML uses double quotation marks `"` as string delimiters. If the string content contains double quotation marks, use `\"` to escape them. Otherwise, a parsing error will occur.
+
+```toml
+[[vllm.target_field]]
+name = "COMPILATION_CONFIG"
+config_position = "env"
+dtype = "enum"
+dtype_param = ["", "--compilation-config '{\"cudagraph_mode\": \"FULL_DECODE_ONLY\"}'"]
+value = "--compilation-config '{\"cudagraph_mode\": \"FULL_DECODE_ONLY\"}'"
+```
+
+**Step 2**: Reference the variable in `others` of `[vllm.command]`.
+
+```toml
+[vllm.command]
+# ... other mandatory parameters ...
+others = "$COMPILATION_CONFIG"
+```
 
 Serviceparam Optimizer supports parameter optimization for MindIE in A2 single-node PD disaggregation scenarios (lightweight mode only). This requires a Kubernetes deployment. Ensure that Kubernetes can successfully start the MindIE service.
 Set the `kubectl_default_path` field in `config.toml` to the single-node execution directory extracted from the Kubernetes installation script. The directory structure must be as follows:

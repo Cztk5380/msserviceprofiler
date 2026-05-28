@@ -74,6 +74,7 @@ class PSOOptimizer(PerformanceTuner):
         self.fine_tune = fine_tune
         self.max_fine_tune = min(max_fine_tune, MAX_ITER_NUM)
         self._iteration = 0  # op_func 调用计数，用于 balanced 策略的迭代间方向交替
+        self._seen_params = {}
 
     @staticmethod
     def is_within_boundary(target_pos, min_bound, max_bound):
@@ -162,6 +163,27 @@ class PSOOptimizer(PerformanceTuner):
             logger.warning(f"Position correction failed for particle {particle_index}: {e}")
             return position, decode_context
 
+    def _skip_if_duplicate(
+        self, param_key: tuple, particle_index: int, iteration: int, position: np.ndarray, decode_context
+    ) -> bool:
+        from ..config.config import PerformanceIndex
+
+        if param_key not in self._seen_params:
+            self._seen_params[param_key] = (iteration, particle_index)
+            return False
+        prev_iter, prev_particle = self._seen_params[param_key]
+        logger.info(
+            f"Particle {particle_index}: params already evaluated "
+            f"(iter={prev_iter}, particle={prev_particle}), skipping."
+        )
+        self.scheduler.simulate_run_info = map_param_with_value(
+            position, self.target_field, decode_context=decode_context
+        )
+        self.scheduler.error_info = f"skip: param type mapping same as iter={prev_iter} particle={prev_particle}"
+        self.scheduler.performance_index = PerformanceIndex()
+        self.scheduler.save_result(fitness=inf)
+        return True
+
     def op_func(self, x) -> np.ndarray:
         n_particles = x.shape[0]
         logger.debug(f"Acquired n_particles: {n_particles}, value: {x}")
@@ -169,9 +191,11 @@ class PSOOptimizer(PerformanceTuner):
         self._iteration += 1
         generate_speed = []
         for i in range(n_particles):
-            # 阶段一：位置归一化（字段约束修复，反馈真实位置给 PSO）
             x[i], decode_context = self._normalize_particle_position(x[i], i, n_particles, current_iteration)
-            # 阶段二：调度执行 + 适应度计算
+            param_key = tuple(np.round(x[i], decimals=6))
+            if self._skip_if_duplicate(param_key, i, current_iteration, x[i], decode_context):
+                generate_speed.append(inf)
+                continue
             try:
                 _res = self.scheduler.run_with_request_rate(x[i], self.target_field, decode_context=decode_context)
                 _fitness = self.minimum_algorithm(_res)
