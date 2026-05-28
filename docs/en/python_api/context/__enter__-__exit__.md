@@ -2,9 +2,9 @@
 
 ## Supported Products<a name="section8178181118225"></a>
 
-> [!NOTE]
+>[!NOTE]
 >
-> For details about Ascend product models, see [Ascend Product Models](<>).
+>For details about Ascend product models, see [Ascend Product Models](<>).
 
 |Product Type|Supported (Yes/No)|
 |--|:-:|
@@ -14,12 +14,12 @@
 |Atlas inference products|Yes|
 |Atlas training products|No|
 
->[!NOTE] 
+>[!NOTE]
 >
 >For Atlas A2 training products/Atlas A2 inference products, only the Atlas 800I A2 inference server is supported.
 >For Atlas inference products, only the Atlas 300I Duo inference card and Atlas 800 inference server (model 3000) are supported.
 
-## Function Usage
+## Function Usage <a name="section463019538153"></a>
 
 Upon entry, automatically calls the `span\_start` function to record the start time of a process; upon exit, automatically calls the `span\_end` function to record the end time of a process.
 

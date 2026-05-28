@@ -4,7 +4,7 @@ Performance tuning for serving frameworks often feels like a "black box," making
 
 msServiceProfiler provides end-to-end performance profiling. It clearly displays the performance of framework scheduling and model inference, helping users quickly locate performance bottlenecks and effectively improve performance.
 
-> [!NOTE] 
+>[!NOTE]
 > 
 > The following provides only a quick start guide for msServiceProfiler. For details about the operations, APIs, parameters, and fields, see the msServiceProfiler documentation.
 
@@ -12,15 +12,15 @@ msServiceProfiler provides end-to-end performance profiling. It clearly displays
 
 - Before using msServiceProfiler, read about the restrictions in "[Constraints](msserviceprofiler_install_guide.md#constraints)" in the [msServiceProfiler Installation Guide](msserviceprofiler_install_guide.md).
 - Ensure that the corresponding service framework has been installed and its availability has been verified (the service starts successfully, and can process an inference request using official example scripts or APIs).
-  - **MindIE Motor**: Install and configure MindIE as described in [MindIE Installation Guide](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/README.md) and ensure that the MindIE Motor service can start successfully and complete a sample inference request.
-  - **vLLM-Ascend**: Set up the environment and verify that the vLLM service can provide inference APIs for external systems. For details, see [vLLM Service Profiler User Guide] (vLLM_service_oriented_performance_collection_tool.md) and official  vLLM-Ascend installation document.
+  - **MindIE Motor**: Install and configure MindIE as described in [MindIE Installation Guide](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/en/user_guide/README.md) and ensure that the MindIE Motor service can start successfully and complete a sample inference request.
+  - **vLLM-ascend**: Set up the environment and verify that the vLLM service can provide inference APIs for external systems. For details, see [vLLM Service Profiler User Guide] (vLLM_service_oriented_performance_collection_tool.md) and official  vLLM-ascend installation document.
   - **SGLang**: Set up the environment and verify that the SGLang service can provide inference APIs for external systems. For details, see [SGLang Service Profiler User Guide] (SGLang_service_oriented_performance_collection_tool.md) and official SGLang installation document.
 
-## Procedure
+## Procedure <a name="section166491954201410"></a>
 
-> msServiceProfiler supports multiple serving inference frameworks, including MindIE Motor, vLLM-Ascend, and SGLang. 
+> msServiceProfiler supports multiple serving inference frameworks, including MindIE Motor, vLLM-ascend, and SGLang. 
 
-### 1. Configure Environment Variables
+### 1. Configure Environment Variables<a name="li104932444507"></a>
 
 To enable msServiceProfiler's profiling capability, set the environment variable `SERVICE_PROF_CONFIG_PATH` before service deployment. If the environment variable is misspelled or is not set before service deployment, the profiling capability cannot be enabled.
 
@@ -36,8 +36,8 @@ To enable msServiceProfiler's profiling capability, set the environment variable
 
 The value of `SERVICE_PROF_CONFIG_PATH` must include the JSON file name. The JSON file is the configuration file for controlling profile data collection. For example, it specifies the path for storing profile metadata and enables or disables operator collection. For details about the fields, see [3. Collect Data](#3-collect-data). If no configuration file exists at the specified path, the tool automatically generates a default configuration (with the profiling feature disabled by default).
 
-> [!NOTE] 
-> 
+>[!NOTE]
+>  
 > In multi-node deployments, it is advised not to place the configuration file or its specified data storage path in a shared directory (such as a network shared location). Because data writing may involve additional network or buffering steps rather than direct disk writing, such configurations may lead to unexpected system behavior or results in certain situations.
 
 ### 2. Start Services
@@ -61,9 +61,9 @@ If the configuration file specified by `SERVICE_PROF_CONFIG_PATH` does not exist
 [msservice_profiler] [PID:225] [INFO] [SaveConfigToJsonFile:588] Successfully saved profiler configuration to: ./ms_service_profiler_config.json
 ```
 
-#### 2.2 vLLM-Ascend
+#### 2.2 vLLM-ascend
 
-After preparing the vLLM-Ascend environment and configuring the necessary variables, start the service using the native vLLM method. Example:
+After preparing the vLLM-ascend environment and configuring the necessary variables, start the service using the native vLLM method. Example:
 
 ```bash
 cd ${path_to_store_profiling_files}
@@ -88,6 +88,10 @@ python -m sglang.launch_server \
     --model-path=/Qwen2.5-0.5B-Instruct \
     --device npu
 ```
+
+In the preceding command,
+
+- `SERVICE_PROF_CONFIG_PATH`: specifies the path to the profiling configuration file. If the file does not exist, it is automatically generated.
 
 ### 3. Collect Data<a name="li10670349115211"></a>
 
@@ -144,7 +148,7 @@ Similarly, the tool generates the original profile data of the inference service
 
    `--input-path` is set to the path specified by `prof_dir` in [3. Collect Data](#3-collect-data). After parsing, parsed profile data files are generated in the directory where the command is executed.
 
-> For vLLM-Ascend/SGLang on NPU, `prof_dir` is located in `${HOME}/.ms_server_profiler/xxxx-xxxx` by default. You can run the following command in this directory:
+> For vLLM-ascend/SGLang on NPU, `prof_dir` is located in `${HOME}/.ms_server_profiler/xxxx-xxxx` by default. You can run the following command in this directory:
 >
 > ```bash
 > msserviceprofiler parse --input-path=./ --output-path output
@@ -185,4 +189,4 @@ The following figure shows an example of profile data visualized using MindStudi
 
    The following figure shows an example of profile data visualized using MindStudio Insight.
 
-   ![](figures/image_0000002478067012.png)
+   ![](figures/zh-cn_image_0000002478067012.png)

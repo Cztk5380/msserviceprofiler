@@ -8,7 +8,7 @@ SGLang Service Profiler is used for performance monitoring and optimization anal
 
 ## Supported Products
 
-> [!NOTE] 
+>[!NOTE]
 >
 >For details about Ascend product models, see [Ascend Product Models](<>).
 
@@ -19,14 +19,14 @@ SGLang Service Profiler is used for performance monitoring and optimization anal
 |Atlas 200I/500 A2 inference products|  No  |
 |Atlas inference products|  No  |
 |Atlas training products|  No  |
-The NPU models supported by this tool match those supported by the SGLang framework for inference serving. For details, see [SGLang installation with NPUs support](https://docs.sglang.io/docs/hardware-platforms/ascend-npus/ascend_npu).
+The NPU models supported by this tool match those supported by the SGLang framework for inference serving. For details, see [SGLang installation with NPUs support](https://docs.sglang.io/platforms/ascend_npu.html).
 
 ## Preparations
 
 ### Environment Setup
 
 1. In the Ascend environment, install the matching CANN Toolkit and ops operator packages, and configure CANN environment variables. For details, see [CANN Installation Guide](<>).
-2. Install and deploy SGLang on the NPU and ensure that the inference service can run properly. For details, see [SGLang installation with NPUs support](https://docs.sglang.io/docs/hardware-platforms/ascend-npus/ascend_npu).
+2. Install and deploy SGLang on the NPU and ensure that the inference service can run properly. For details, see [SGLang installation with NPUs support](https://docs.sglang.io/platforms/ascend_npu.html).
 3. Build the .run package from the source code and upgrade the tool. For details, see the section *Upgrade* in [msServiceProfiler Installation Guide](./msserviceprofiler_install_guide.md#upgrade).
 
 ### Restrictions
@@ -115,7 +115,7 @@ After parsing is complete, the `output` folder is generated in the current direc
 |     `kvcache.csv`     | Records memory usage during inference. For details, see [kvcache.csv] (./msserviceprofiler_serving_tuning_instruct.md#kvcachecsv).         |
 |      `batch.csv`      | Records detailed data of inference batches in a serving scenario. For details, see [batch.csv] (./msserviceprofiler_serving_tuning_instruct.md#batchcsv).      |
 
-> [!NOTE] 
+>[!NOTE]
 >
 > The output file is closely related to the collection of the domain field. For details, see [Mapping between domain fields and the parsing results] (./msserviceprofiler_serving_tuning_instruct.md# parsing result).
 

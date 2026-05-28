@@ -38,13 +38,13 @@ The key directories are as follows. For details, see [Project Directory](docs/en
 
 | Release Version| Release Date      | Release Tag      | Compatibility   |
 | ------- |------------| ------------- | ------------- |
-| 26.0.0-alpha.1 | 2026/02/06 | tag_MindStudio_26.0.0-alpha.1 | Compatible with Ascend CANN 8.5.0 and earlier versions. For details about how to obtain the CANN installation package, see [CANN Installation Guide](https://www.hiascend.com/cann/download).|
+| 26.0.0-alpha.1 | 2026/02/06 | tag_MindStudio_26.0.0-alpha.1 | Compatible with Ascend CANN 8.5.0 and earlier versions. For details about how to obtain the CANN installation package, see [CANN Installation Guide](<>).|
 
 ## Environment Setup
 
 ### Environment and Dependency
 
-- For details about the hardware environment, see [Ascend Product Description](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html).
+- For details about the hardware environment, see [Ascend Product Description](<>).
 
 - To use the tool, obtain and install the CANN open-source version in advance. Please stay tuned for the upcoming release of the CANN open-source version.
 
@@ -73,7 +73,7 @@ For different usage scenarios, you can experience this tool quickly in the follo
    - [Serviceparam Optimizer](docs/en/serviceparam_optimizer_instruct.md)
    - [Serviceparam Optimizer Plugin Mode](docs/en/serviceparam_optimizer_plugin_instruct.md)
    - [Service Expert Advisor](docs/en/service_profiling_advisor_instruct.md)
-6. **Online monitoring and Prometheus integration (vLLM scenario)**: For details about how to monitor Prometheus metrics online in the vLLM-Ascend framework, see [vLLM Serving Prometheus Metric Monitoring Tool User Guide](docs/en/vLLM_metrics_tool_instruct.md). Prometheus and Grafana are third-party open-source software and are not included in the MindStudio product package. Users can choose other compatible monitoring and visualization solutions based on their environment. If Prometheus is used, use a security-maintained version and apply necessary hardening.
+6. **Online monitoring and Prometheus integration (vLLM scenario)**: For details about how to monitor Prometheus metrics online in the vLLM-Ascend framework, see [vLLM Serving Prometheus Metric Monitoring Tool User Guide](docs/en/vLLM_metrics_tool_instruct.md).
 
 ## How to Contribute
 

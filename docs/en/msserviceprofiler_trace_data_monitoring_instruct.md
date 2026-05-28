@@ -13,7 +13,7 @@ It collects data from the MindIE Motor service, including request response time,
 
 ## Supported Products<a name="ZH-CN_TOPIC_0000002489576470"></a>
 
-> [!NOTE] 
+>[!NOTE]
 >
 >For details about Ascend product models, see [Ascend Product Models](https://www.hiascend.com/document/detail/en/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html).
 
@@ -25,7 +25,7 @@ It collects data from the MindIE Motor service, including request response time,
 |Atlas Inference Products|  Yes  |
 |Atlas training products|  No  |
 
-> [!NOTE] 
+>[!NOTE]
 >
 >For Atlas A2 training products/Atlas A2 inference products, only the Atlas 800I A2 inference server is supported.
 >For Atlas inference products, only the Atlas 300I Duo inference card and Atlas 800 inference server (model 3000) are supported.
@@ -38,9 +38,16 @@ It collects data from the MindIE Motor service, including request response time,
 
 2. Install [msServiceProfiler](msserviceprofiler_install_guide.md).
 
-3. Install and configure MindIE and ensure that MindIE Motor can run properly. For details, see [MindIE Installation Guide](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/install/installing_mindie.md).
+3. Install the environment dependencies.
 
-4. Establish a stable network connection between the Ascend environment hosting the MindIE Motor service and the OTLP collector (such as Jaeger).
+   ```bash
+   pip install opentelemetry-exporter-otlp-proto-grpc==1.33.1
+   pip install opentelemetry-exporter-otlp-proto-http==1.33.1
+   ```
+
+4. Install and configure MindIE and ensure that MindIE Motor can run properly. For details, see [MindIE Installation Guide](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/install/installing_mindie.md).
+
+5. Establish a stable network connection between the Ascend environment hosting the MindIE Motor service and the OTLP collector (such as Jaeger).
 
 **Constraint<a name="section12833144412392"></a>.**
 
@@ -93,7 +100,7 @@ Related log messages (the following logs are reported only once per hour):
 
 ### Configuring a Target Server for Collection<a name="ZH-CN_TOPIC_0000002518641905"></a>
 
-> [!NOTE] 
+>[!NOTE]
 >
 >For security purposes, you are advised to usesecure mode with Transport Layer Security (TLS) authentication
 
@@ -131,7 +138,7 @@ Currently, the following four protocols are supported:
     export OTEL_EXPORTER_OTLP_CERTIFICATE=/home/certificates/ca/ca.crt # Set the absolute path to the certificate. The directory owner and file owner must match the current user. The directory permission is 700 and the file permission is 600.
     ```
 
->[!NOTE]
+>[!NOTE]NOTE
 >
 >This tool depends on the third-party OpenTelemetry library. This document describes only the mandatory parameters required by the tool. For additional features and APIs, see the official documents.
 >
@@ -216,7 +223,7 @@ traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01
 |parent-id|Characters 36 to 51|16 characters|Parent span ID (8 bytes, 16 hexadecimal characters), which identifies the direct upstream of the current operation.|Yes|
 |trace-flags|Characters 53 and 54|2 characters|Trace flags. Currently, only the least significant bit is used. `01`: sampling enabled; `00`: sampling disabled.|Yes|
 
-**B3 Single Header**
+**B3 Single Header<a name="section10847195822715"></a>**
 
 Example:
 

@@ -1,6 +1,6 @@
 # Project Directory
 
-The msServiceProfiler project directory is described as follows:
+The msServiceprofiler project directory is described as follows:
 
 ```ColdFusion
 3rdparty/                                                    # Directory for third-party dependencies

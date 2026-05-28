@@ -10,9 +10,9 @@ This metric monitoring tool enhances the native monitoring capability of the vLL
 
 ## Supported Products
 
-> [!NOTE] 
+>[!NOTE]
 >
->For details about Ascend product models, see [Ascend Product Models](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html).
+>For details about Ascend product models, see [Ascend Product Models](<>).
 
 |Product Type| Supported (Yes/No)|
 |--|:----:|
@@ -26,8 +26,8 @@ This metric monitoring tool enhances the native monitoring capability of the vLL
 
 ### Environment Setup
 
-1. In the Ascend environment, install the matching CANN Toolkit and ops operator packages, and configure CANN environment variables. For details, see [CANN Installation Guide](https://www.hiascend.com/cann/download).
-2. Install vLLM and vLLM-Ascend. Verify that vLLM-Ascend can run properly and the metrics endpoint is accessible. For details, see [vLLM-Ascend Installation Guide](https://vllm-ascend.readthedocs.io/en/latest/installation.html).
+1. In the Ascend environment, install the matching CANN Toolkit and ops operator packages, and configure CANN environment variables. For details, see [CANN Installation Guide](<>).
+2. Install vLLM and vLLM-Ascend. Verify that vLLM-ascend can run properly and the metrics endpoint is accessible. For details, see [vLLM-Ascend Installation Guide](https://vllm-ascend.readthedocs.io/en/latest/installation.html).
 3. Build the .run package from the source code and upgrade the tool. For details, see the section *Upgrade* in [msServiceProfiler Installation Guide](./msserviceprofiler_install_guide.md#upgrade).
 
 ### Restrictions
@@ -35,12 +35,6 @@ This metric monitoring tool enhances the native monitoring capability of the vLL
 - **Version compatibility**: Ensure that vLLM-Ascend, CANN, and collection tool versions meet the requirements in the Appendix.
 - **Resource usage**: Data monitoring requires enabling **Prometheus multi-process mode** (`PROMETHEUS_MULTIPROC_DIR`). This may impact inference performance.
 - **Function restrictions**: Some advanced features may require specific vLLM-Ascend versions.
-
-### Third-Party Visualization Tools
-
-Grafana and Prometheus are third-party open-source software. They are not included in the MindStudio Service Profiler or MindStudio product package, and they are not the only visualization tools required by this tool. Users can choose Grafana, Prometheus, or other compatible monitoring and visualization systems based on their environment.
-
-If Prometheus is used, use a security-maintained version and harden it according to the deployment environment, including access control, network isolation, and permission configuration.
 
 ## Instructions
 
@@ -51,7 +45,7 @@ Follow these steps to complete the metric monitoring process:
 1. **Set environment variables and start the service** (with Prometheus multi-process mode enabled).
 2. **Enable the collection function** by modifying the `metric_enable` field in the configuration file (independent of the `enable` field).
 3. **Send an inference request**.
-4. **View metrics** by accessing the metrics endpoint or a visualization tool such as Grafana.
+4. **View metrics** by accessing the metrics endpoint or Grafana.
 
 ### Step 1: Environment Variable Setup and Service Startup
 
@@ -116,7 +110,7 @@ Obtain data through the metrics endpoint of the vLLM service.
 curl -s http://localhost:8000/metrics
 ```
 
-You can also configure Prometheus to scrape metrics from this endpoint and visualize the metrics using Grafana or another compatible tool.
+You can also configure Prometheus to scrape metrics from this endpoint and visualize the metrics using Grafana.
 
 ## Symbol Configuration User Guide
 
@@ -203,9 +197,7 @@ The following are metric symbols built into the tool. All metric names are autom
 | free_kvcache_blocks | Gauge | Number of idle KVCache blocks in the current DP domain.|
 | allocated_kvcache_blocks | Gauge | Number of blocks allocated to the KVCache in the current DP domain.|
 
->[!NOTE]
->
->The KVCache usage can be approximately calculated as `(1 - free_kvcache_blocks / total_kvcache_blocks) * 100%`. This helps monitor memory usage and load balancing.
+>![](public_sys-resources/icon-tip.gif)**Note**: The KVCache usage can be approximately calculated as `(1 - free_kvcache_blocks / total_kvcache_blocks) * 100%`. This helps monitor memory usage and load balancing.
 
 ## Relevant Documents
 

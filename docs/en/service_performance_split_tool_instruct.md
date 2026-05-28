@@ -11,7 +11,7 @@ Based on performance data collected by msServiceProfiler, Service Performance Sp
 
 ## Product Support<a name="ZH-CN_TOPIC_0000002479925980"></a>
 
-> [!NOTE] 
+>[!NOTE]
 >
 >For details about Ascend product models, see [Ascend Product Models](<>).
 
@@ -23,7 +23,7 @@ Based on performance data collected by msServiceProfiler, Service Performance Sp
 |Atlas inference products|  Yes  |
 |Atlas training products|  x   |
 
-> [!NOTE] 
+>[!NOTE]
 >
 >For Atlas A2 training products/Atlas A2 inference products, only the Atlas 800I A2 inference server is supported.
 >For Atlas inference products, only the Atlas 300I Duo inference card and Atlas 800 inference server (model 3000) are supported.
