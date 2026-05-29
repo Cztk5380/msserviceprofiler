@@ -18,6 +18,7 @@ from types import SimpleNamespace
 
 import ms_service_metric.adapters.vllm.handlers.metric_handlers as mh
 import ms_service_metric.adapters.vllm.handlers.utils as hu
+from ms_service_metric.metrics.metrics_manager import MetricConfig, MetricType
 
 
 def _make_time_mock(values):
@@ -440,3 +441,117 @@ def test_given_eplb_nonzero_rank_when_handler_finishes_then_skips_metrics(monkey
     assert mh.eplb_do_update_hotness_handler(lambda _self: "update_info", worker) == "update_info"
 
     assert not calls
+
+
+def test_given_engine_memory_handler_when_compile_finishes_then_records_raw_metrics(monkeypatch):
+    calls = []
+    registered = []
+
+    def record_metric(*args, **kwargs):
+        calls.append((args, kwargs))
+
+    monkeypatch.setattr(
+        mh,
+        "metrics_client",
+        SimpleNamespace(
+            record_metric=record_metric,
+            get_or_create_metric=lambda *a, **k: registered.append((a, k)),
+        ),
+    )
+
+    handler = mh.engine_memory_phase_handler(
+        [
+            {"name": "engine:memory:total_gb", "type": "gauge"},
+            {"name": "engine:memory:utilization_ratio", "type": "gauge"},
+            {"name": "engine:memory:reserved_gb", "type": "gauge"},
+            {"name": "engine:memory:weights_gb", "type": "gauge"},
+            {"name": "engine:memory:kvcache_gb", "type": "gauge"},
+            {"name": "engine:memory:non_torch_gb", "type": "gauge"},
+            {"name": "engine:memory:activation_gb", "type": "gauge"},
+            {"name": "engine:memory:graph_gb", "type": "gauge"},
+        ]
+    )
+
+    gib = 1024**3
+    worker = SimpleNamespace(
+        init_snapshot=SimpleNamespace(total_memory=32 * gib),
+        cache_config=SimpleNamespace(gpu_memory_utilization=0.8),
+        requested_memory=int(25.6 * gib),
+        model_runner=SimpleNamespace(model_memory_usage=int(12.5 * gib)),
+        available_kv_cache_memory_bytes=int(8.25 * gib),
+        non_torch_memory=int(1.75 * gib),
+        peak_activation_memory=int(2.5 * gib),
+        npugraph_memory_bytes=int(0.5 * gib),
+    )
+
+    result = handler(lambda _self: "ok", worker)
+
+    assert result == "ok"
+    assert len(registered) == 8
+    assert all(kwargs == {"metric_type": mh.MetricType.GAUGE} for _args, kwargs in registered)
+    values = {args[0]: args[1] for args, _kwargs in calls}
+    assert values["engine:memory:total_gb"] == 32.0
+    assert values["engine:memory:utilization_ratio"] == 0.8
+    assert values["engine:memory:reserved_gb"] == round(int(25.6 * gib) / gib, 2)
+    assert values["engine:memory:weights_gb"] == round(int(12.5 * gib) / gib, 2)
+    assert values["engine:memory:kvcache_gb"] == round(int(8.25 * gib) / gib, 2)
+    assert values["engine:memory:non_torch_gb"] == round(int(1.75 * gib) / gib, 2)
+    assert values["engine:memory:activation_gb"] == round(int(2.5 * gib) / gib, 2)
+    assert values["engine:memory:graph_gb"] == round(int(0.5 * gib) / gib, 2)
+
+
+def test_given_engine_memory_handler_when_attribute_missing_then_does_not_raise(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        mh,
+        "metrics_client",
+        SimpleNamespace(
+            record_metric=lambda *a, **k: calls.append((a, k)),
+            get_or_create_metric=lambda *a, **k: None,
+        ),
+    )
+
+    handler = mh.engine_memory_phase_handler([{"name": "engine:memory:total_gb", "type": "gauge"}])
+
+    worker = SimpleNamespace()
+
+    result = handler(lambda _self: "ok", worker)
+
+    assert result == "ok"
+
+
+def test_given_engine_memory_handler_when_metric_config_object_then_registers_without_subscript(monkeypatch):
+    calls = []
+    registered = []
+    monkeypatch.setattr(
+        mh,
+        "metrics_client",
+        SimpleNamespace(
+            record_metric=lambda *a, **k: calls.append((a, k)),
+            get_or_create_metric=lambda *a, **k: registered.append((a, k)),
+        ),
+    )
+
+    handler = mh.engine_memory_phase_handler([MetricConfig(name="engine:memory:total_gb", type=MetricType.GAUGE)])
+    worker = SimpleNamespace(init_snapshot=SimpleNamespace(total_memory=16 * 1024**3))
+
+    result = handler(lambda _self: "ok", worker)
+
+    assert result == "ok"
+    assert registered == [(("engine:memory:total_gb",), {"metric_type": mh.MetricType.GAUGE})]
+    assert calls == [(("engine:memory:total_gb", 16.0, {}), {})]
+
+
+def test_given_format_gib_value_when_zero_then_returns_zero():
+    assert mh._format_gib_value(0) == 0.0
+
+
+def test_given_format_gib_value_when_int_input_then_returns_correct_value():
+    gib = 1024**3
+    assert mh._format_gib_value(25 * gib) == 25.0
+
+
+def test_given_format_gib_value_when_very_large_then_returns_rounded():
+    gib = 1024**3
+    result = mh._format_gib_value(1024 * gib)
+    assert result == 1024.0

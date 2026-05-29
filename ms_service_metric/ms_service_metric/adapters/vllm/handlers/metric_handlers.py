@@ -42,6 +42,8 @@ from ms_service_metric.utils.expr_eval import ExprEval
 logger = get_logger(__name__)
 metrics_client = get_metrics_manager()
 
+GIB_BYTES = 1024**3
+
 _PHASE_SENSITIVE_OPERATION_NAMES = frozenset(
     {
         "prepare input",
@@ -219,6 +221,54 @@ def _build_metrics_recorder(metrics_config):
             manager.record_metric(name, value, labels)
 
     return _record
+
+
+def _format_gib_value(b: int) -> float:
+    return round(b / GIB_BYTES, 2)
+
+
+def _get_metric_config_value(metric_config, key: str, default=None):
+    if hasattr(metric_config, "get"):
+        return metric_config.get(key, default)
+    return getattr(metric_config, key, default)
+
+
+_ENGINE_MEMORY_METRIC_ACCESSORS = {
+    "engine:memory:total_gb": lambda self: _format_gib_value(self.init_snapshot.total_memory),
+    "engine:memory:utilization_ratio": lambda self: self.cache_config.gpu_memory_utilization,
+    "engine:memory:reserved_gb": lambda self: _format_gib_value(self.requested_memory),
+    "engine:memory:weights_gb": lambda self: _format_gib_value(self.model_runner.model_memory_usage),
+    "engine:memory:kvcache_gb": lambda self: _format_gib_value(self.available_kv_cache_memory_bytes),
+    "engine:memory:non_torch_gb": lambda self: _format_gib_value(self.non_torch_memory),
+    "engine:memory:activation_gb": lambda self: _format_gib_value(self.peak_activation_memory),
+    "engine:memory:graph_gb": lambda self: _format_gib_value(self.npugraph_memory_bytes),
+}
+
+
+def engine_memory_phase_handler(metrics_config, **_kwargs):
+    """Record one-shot engine memory metrics after worker initialization."""
+    configured_metrics = []
+    for m in metrics_config:
+        metric_name = _get_metric_config_value(m, "name", "")
+        if not metric_name:
+            continue
+        configured_metrics.append(metric_name)
+        metrics_client.get_or_create_metric(metric_name, metric_type=MetricType.GAUGE)
+
+    def handler(ori, self, *args, **kwargs):
+        ret = ori(self, *args, **kwargs)
+        try:
+            for name in configured_metrics:
+                accessor = _ENGINE_MEMORY_METRIC_ACCESSORS.get(name)
+                if accessor is None:
+                    logger.debug("Skip unknown engine memory metric: %s", name)
+                    continue
+                metrics_client.record_metric(name, accessor(self), {})
+        except Exception:
+            logger.warning("Failed to record engine memory metrics", exc_info=True)
+        return ret
+
+    return handler
 
 
 def process_outputs_phase_handler(metrics_config, is_async: bool = False, **kwargs):

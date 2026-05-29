@@ -43,7 +43,9 @@ def test_setup_dp_rank_uses_env_first(monkeypatch):
     monkeypatch.setenv("VLLM_DP_RANK", "2")
     monkeypatch.setattr(adapter_module, "set_dp_rank", captured.append)
     monkeypatch.setattr(adapter, "_get_dp_rank_from_vllm", lambda: pytest.fail("vLLM fallback should not run"))
-    monkeypatch.setattr(adapter, "_get_dp_rank_from_process_name", lambda: pytest.fail("process fallback should not run"))
+    monkeypatch.setattr(
+        adapter, "_get_dp_rank_from_process_name", lambda: pytest.fail("process fallback should not run")
+    )
 
     adapter._setup_dp_rank()
 

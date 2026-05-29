@@ -122,6 +122,26 @@
   metrics:
     - name: eplb:expert_weight_replace:duration
 
+- symbol: vllm_ascend.worker.worker:NPUWorker.compile_or_warm_up_model
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:engine_memory_phase_handler
+  metrics:
+    - name: engine:memory:total_gb
+      type: gauge
+    - name: engine:memory:utilization_ratio
+      type: gauge
+    - name: engine:memory:reserved_gb
+      type: gauge
+    - name: engine:memory:weights_gb
+      type: gauge
+    - name: engine:memory:kvcache_gb
+      type: gauge
+    - name: engine:memory:non_torch_gb
+      type: gauge
+    - name: engine:memory:activation_gb
+      type: gauge
+    - name: engine:memory:graph_gb
+      type: gauge
+
 # - symbol: vllm.v1.sample.sampler:Sampler.forward
 #   metrics:
 #     - name: executor:sampler:duration
