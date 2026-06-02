@@ -165,12 +165,16 @@ def test_given_scheduler_missing_queue_attr_when_get_scheduler_queue_then_warns_
 
 
 def test_given_pid_changes_when_get_scheduler_phase_state_then_state_is_reinitialized(monkeypatch):
-    pids = iter([100, 100, 200, 200])
-    monkeypatch.setattr(hu.os, "getpid", lambda: next(pids))
+    if hasattr(hu._scheduler_phase_state, "state"):
+        del hu._scheduler_phase_state.state
+
+    monkeypatch.setattr(hu.os, "getpid", lambda: 100)
 
     first = hu.get_scheduler_phase_state()
     first.request_id_to_prompt_token_len["stale"] = 1
     same = hu.get_scheduler_phase_state()
+
+    monkeypatch.setattr(hu.os, "getpid", lambda: 200)
     changed = hu.get_scheduler_phase_state()
 
     assert same is first
@@ -246,6 +250,101 @@ def test_given_scheduler_stats_when_record_then_scheduler_and_iteration_metrics_
     assert len(recorded) >= 8
 
 
+def test_given_slow_decode_and_prefill_when_update_from_output_then_threshold_counters_recorded(monkeypatch):
+    recorded = []
+    mock_client = SimpleNamespace(record_metric=lambda *a, **k: recorded.append((a, k)))
+    monkeypatch.setattr(mh, "metrics_client", mock_client)
+    monkeypatch.setattr(mh, "get_meta_state", lambda: _FakeState(dp_rank=8, has_dp=True))
+
+    iteration_stats = SimpleNamespace(
+        inter_token_latencies_iter=[0.5, 1.0, 1.2, 2.0],
+        time_to_first_tokens_iter=[4.9, 5.1, 10.1, 20.1],
+    )
+    req_stats = SimpleNamespace(num_generation_tokens=0, last_token_ts=10.0)
+
+    out = mh.iteration_stats_update_from_output_hooker(
+        lambda *_a, **_k: "ok",
+        iteration_stats,
+        SimpleNamespace(request_id="rid"),
+        10.25,
+        False,
+        8,
+        req_stats,
+        None,
+        None,
+    )
+
+    assert out == "ok"
+    assert ((mh.DECODE_OVER_1S_COUNT, 2, None), {}) in recorded
+    assert ((mh.PREFILL_OVER_THRESHOLD_COUNT, 3, {"threshold": "5s"}), {}) in recorded
+    assert ((mh.PREFILL_OVER_THRESHOLD_COUNT, 2, {"threshold": "10s"}), {}) in recorded
+    assert ((mh.PREFILL_OVER_THRESHOLD_COUNT, 1, {"threshold": "20s"}), {}) in recorded
+
+
+def test_given_empty_latency_lists_when_update_from_output_then_threshold_counters_not_recorded(monkeypatch):
+    recorded = []
+    mock_client = SimpleNamespace(record_metric=lambda *a, **k: recorded.append((a, k)))
+    monkeypatch.setattr(mh, "metrics_client", mock_client)
+    monkeypatch.setattr(mh, "get_meta_state", lambda: _FakeState(dp_rank=8, has_dp=True))
+
+    iteration_stats = SimpleNamespace(
+        inter_token_latencies_iter=None,
+        time_to_first_tokens_iter=[],
+    )
+    req_stats = SimpleNamespace(num_generation_tokens=0, last_token_ts=10.0)
+
+    mh.iteration_stats_update_from_output_hooker(
+        lambda *_a, **_k: "ok",
+        iteration_stats,
+        SimpleNamespace(request_id="rid"),
+        10.25,
+        False,
+        8,
+        req_stats,
+        None,
+        None,
+    )
+
+    metric_names = [args[0] for args, _kwargs in recorded]
+    assert mh.DECODE_OVER_1S_COUNT not in metric_names
+    assert mh.PREFILL_OVER_THRESHOLD_COUNT not in metric_names
+
+
+def test_given_threshold_metric_record_fails_when_update_from_output_then_existing_metrics_continue(monkeypatch):
+    recorded = []
+
+    def record_metric(*args, **kwargs):
+        if args[0] == mh.DECODE_OVER_1S_COUNT:
+            raise RuntimeError("metrics down")
+        recorded.append((args, kwargs))
+
+    mock_client = SimpleNamespace(record_metric=record_metric)
+    monkeypatch.setattr(mh, "metrics_client", mock_client)
+    monkeypatch.setattr(mh, "get_meta_state", lambda: _FakeState(dp_rank=8, has_dp=True))
+
+    iteration_stats = SimpleNamespace(
+        inter_token_latencies_iter=[1.2],
+        time_to_first_tokens_iter=[5.1],
+    )
+    req_stats = SimpleNamespace(num_generation_tokens=1, last_token_ts=10.0)
+
+    out = mh.iteration_stats_update_from_output_hooker(
+        lambda *_a, **_k: "ok",
+        iteration_stats,
+        SimpleNamespace(request_id="rid"),
+        10.25,
+        False,
+        8,
+        req_stats,
+        None,
+        None,
+    )
+
+    assert out == "ok"
+    assert ((mh.PREFILL_OVER_THRESHOLD_COUNT, 1, {"threshold": "5s"}), {}) in recorded
+    assert ((mh.SECOND_TOKEN_LATENCY,), {"labels": {"dp": 8}, "value": 0.25}) in recorded
+
+
 def test_given_none_stats_when_record_helpers_then_return_without_recording(monkeypatch):
     recorded = []
     mock_client = SimpleNamespace(record_metric=lambda *a, **k: recorded.append((a, k)))
@@ -253,7 +352,7 @@ def test_given_none_stats_when_record_helpers_then_return_without_recording(monk
 
     mh._record_scheduler_metrics(None, {"engine": "e"})
     mh._record_iteration_metrics(None, {"engine": "e"})
-    assert recorded == []
+    assert not recorded
 
 
 def test_given_second_decode_output_when_update_from_output_then_records_second_token_latency(monkeypatch):

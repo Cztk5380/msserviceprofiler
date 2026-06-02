@@ -153,15 +153,21 @@ def _record_scheduler_metrics(scheduler_stats, labels: Dict[str, str]):
     metrics_client.record_metric(WAITING_BATCH_SIZE, labels=labels, value=scheduler_stats.num_waiting_reqs)
 
     if scheduler_stats.spec_decoding_stats and scheduler_stats.spec_decoding_stats.num_spec_tokens is not None:
-        metrics_client.record_metric(NUM_SPEC_TOKENS, labels=labels, value=scheduler_stats.spec_decoding_stats.num_spec_tokens)
+        metrics_client.record_metric(
+            NUM_SPEC_TOKENS, labels=labels, value=scheduler_stats.spec_decoding_stats.num_spec_tokens
+        )
 
 
 TOTAL_TOKENS = "total_tokens"
-SECOND_TOKEN_LATENCY = "second_token_latency"
+SECOND_TOKEN_LATENCY = "second_token_latency"  # nosec B105
 INPUT_METRICS = "input"
 OUTPUT_METRICS = "output"
 FINE_GRAINED_TTFT = "fine_grained_ttft"
 FINE_GRAINED_TPOT = "fine_grained_tpot"
+DECODE_OVER_1S_COUNT = "decode_over_1s_count"
+PREFILL_OVER_THRESHOLD_COUNT = "prefill_over_threshold_count"
+
+_PREFILL_THRESHOLDS = (("5s", 5.0), ("10s", 10.0), ("20s", 20.0))
 
 
 metrics_client.get_or_create_metric(TOTAL_TOKENS, buckets=SIZE_BUCKETS, label_names=["engine"])
@@ -170,6 +176,40 @@ metrics_client.get_or_create_metric(INPUT_METRICS, buckets=SIZE_BUCKETS, label_n
 metrics_client.get_or_create_metric(OUTPUT_METRICS, buckets=SIZE_BUCKETS, label_names=["engine"])
 metrics_client.get_or_create_metric(FINE_GRAINED_TTFT, buckets=SIZE_BUCKETS, label_names=["engine"])
 metrics_client.get_or_create_metric(FINE_GRAINED_TPOT, buckets=SIZE_BUCKETS, label_names=["engine"])
+metrics_client.get_or_create_metric(DECODE_OVER_1S_COUNT, metric_type=MetricType.COUNTER)
+metrics_client.get_or_create_metric(
+    PREFILL_OVER_THRESHOLD_COUNT,
+    label_names=["threshold"],
+    metric_type=MetricType.COUNTER,
+)
+
+_DECODE_LATENCY_THRESHOLD = 1.0
+
+
+def _record_metric_safely(metric_name: str, value: int = 1, labels: Dict[str, str] | None = None) -> None:
+    try:
+        metrics_client.record_metric(metric_name, value, labels)
+    except Exception as exc:
+        logger.warning("Failed to record metric %s safely: %s", metric_name, exc)
+
+
+def _record_slow_decode_metrics(iteration_stats):
+    decode_count = sum(
+        1
+        for latency in (getattr(iteration_stats, "inter_token_latencies_iter", None) or [])
+        if latency > _DECODE_LATENCY_THRESHOLD
+    )
+    if decode_count > 0:
+        _record_metric_safely(DECODE_OVER_1S_COUNT, decode_count)
+
+
+def _record_slow_prefill_metrics(iteration_stats):
+    for threshold_label, threshold_value in _PREFILL_THRESHOLDS:
+        prefill_count = sum(
+            1 for ttft in (getattr(iteration_stats, "time_to_first_tokens_iter", None) or []) if ttft > threshold_value
+        )
+        if prefill_count > 0:
+            _record_metric_safely(PREFILL_OVER_THRESHOLD_COUNT, prefill_count, {"threshold": threshold_label})
 
 
 def iteration_stats_update_from_output_hooker(
@@ -210,6 +250,9 @@ def iteration_stats_update_from_output_hooker(
     previous_generation_tokens = getattr(req_stats, "num_generation_tokens", None)
     previous_token_ts = getattr(req_stats, "last_token_ts", None)
     ret = original_func(this, output, engine_core_timestamp, is_prefilling, *args, **kwargs)
+
+    _record_slow_decode_metrics(this)
+    _record_slow_prefill_metrics(this)
 
     if is_prefilling or previous_generation_tokens != 1 or previous_token_ts is None:
         return ret
@@ -253,7 +296,9 @@ def _record_iteration_metrics(iteration_stats, labels: Dict[str, str]):
     # Fine-grained TPOT
     if iteration_stats.finished_requests:
         for finished_request in iteration_stats.finished_requests:
-            metrics_client.record_metric(FINE_GRAINED_TPOT, labels=labels, value=finished_request.mean_time_per_output_token)
+            metrics_client.record_metric(
+                FINE_GRAINED_TPOT, labels=labels, value=finished_request.mean_time_per_output_token
+            )
 
 
 def record(original_func, this, scheduler_stats, iteration_stats, mm_cache_stats, engine_idx, *args, **kwargs):
@@ -271,7 +316,7 @@ def record_dp_rank(original_func, this, scheduler_stats, *args, **kwargs):
         dp_rank = scheduler_stats.kv_connector_stats.pop("dp", None)
         if dp_rank is not None and dp_rank != -1:
             state = get_meta_state()
-            if (not state.has("dp_rank") or state.dp_rank == -1):
+            if not state.has("dp_rank") or state.dp_rank == -1:
                 state.dp_rank = dp_rank
         # 如果字典变空则恢复为 None
         if scheduler_stats.kv_connector_stats == {}:

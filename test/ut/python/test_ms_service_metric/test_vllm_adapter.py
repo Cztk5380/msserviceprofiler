@@ -80,6 +80,16 @@ def test_v1_metrics_config_contains_exception_status_hooks():
     for item in config:
         handlers_by_symbol.setdefault(item["symbol"], []).append(item.get("handler"))
 
+    scheduler_handler = "ms_service_metric.adapters.vllm.handlers.metric_handlers:scheduler_scheduler_hooker"
+    for symbol in (
+        "vllm.v1.core.sched.scheduler:Scheduler.schedule",
+        "vllm_ascend.core.scheduler_dynamic_batch:SchedulerDynamicBatch.schedule",
+        "vllm_ascend.core.scheduler_profiling_chunk:ProfilingChunkScheduler.schedule",
+        "vllm_ascend.core.recompute_scheduler:RecomputeScheduler.schedule",
+        "vllm_ascend.patch.platform.patch_balance_schedule:BalanceScheduler.schedule",
+    ):
+        assert scheduler_handler in handlers_by_symbol[symbol]
+
     assert (
         "ms_service_metric.adapters.vllm.handlers.metric_handlers:block_allocate_failure_hooker"
         in handlers_by_symbol["vllm.v1.core.kv_cache_manager:KVCacheManager.allocate_slots"]
@@ -87,4 +97,16 @@ def test_v1_metrics_config_contains_exception_status_hooks():
     assert (
         "ms_service_metric.adapters.vllm.handlers.metric_handlers:rpc_error_hooker"
         in handlers_by_symbol["vllm.v1.executor.multiproc_executor:MultiprocExecutor.collective_rpc"]
+    )
+    assert (
+        "ms_service_metric.adapters.vllm.handlers.metric_handlers:health_engine_client_hooker"
+        in handlers_by_symbol["vllm.entrypoints.serve.instrumentator.health:engine_client"]
+    )
+    assert (
+        "ms_service_metric.adapters.vllm.handlers.metric_handlers:engine_core_pending_hooker"
+        in handlers_by_symbol["vllm.v1.engine.core:EngineCore.step"]
+    )
+    assert (
+        "ms_service_metric.adapters.vllm.handlers.metric_handlers:engine_core_pending_hooker"
+        in handlers_by_symbol["vllm.v1.engine.core:EngineCore.step_with_batch_queue"]
     )

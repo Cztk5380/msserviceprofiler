@@ -478,10 +478,56 @@ metrics_client.get_or_create_metric(
 RUNNING_TO_WAITING_COUNT = "running_to_waiting_count"
 BLOCK_ALLOCATE_FAILURES = "block_allocate_failures"
 RPC_ERRORS = "rpc_errors"
+REQUEST_PREFILL_PENDING_NUMS = "request_prefill_pending_nums"
+HEALTH_CHECK_FAILED = "health_check_failed"
+_PENDING_RECORDED_ATTR = "_ms_service_metric_pending_recorded"
+_HEALTH_WRAPPED_ATTR = "_ms_service_metric_health_wrapped"
 
 metrics_client.get_or_create_metric(RUNNING_TO_WAITING_COUNT, metric_type=MetricType.COUNTER)
 metrics_client.get_or_create_metric(BLOCK_ALLOCATE_FAILURES, metric_type=MetricType.COUNTER)
 metrics_client.get_or_create_metric(RPC_ERRORS, ["exception_type"], metric_type=MetricType.COUNTER)
+metrics_client.get_or_create_metric(REQUEST_PREFILL_PENDING_NUMS, metric_type=MetricType.COUNTER)
+metrics_client.get_or_create_metric(HEALTH_CHECK_FAILED, metric_type=MetricType.COUNTER)
+
+
+def _record_metric_safely(metric_name: str, value: int = 1, labels: dict[str, str] | None = None) -> None:
+    try:
+        metrics_client.record_metric(metric_name, value, labels)
+    except Exception as exc:
+        logger.warning("Failed to record metric %s safely: %s", metric_name, exc)
+
+
+def _queue_has_items(queue: Any) -> bool:
+    if queue is None:
+        return False
+    try:
+        return len(queue) > 0
+    except Exception:
+        try:
+            return bool(queue)
+        except Exception as exc:
+            logger.debug("Skip queue size check: %s", exc)
+            return False
+
+
+def _is_running_capacity_blocked(scheduler: Any) -> bool:
+    running = getattr(scheduler, "running", None)
+    max_num_running_reqs = getattr(scheduler, "max_num_running_reqs", None)
+    if running is None or max_num_running_reqs is None:
+        return False
+
+    try:
+        running_is_full = len(running) == max_num_running_reqs
+    except Exception as exc:
+        logger.debug("Skip running capacity check: %s", exc)
+        return False
+
+    if not running_is_full:
+        return False
+
+    return _queue_has_items(getattr(scheduler, "waiting", None)) or _queue_has_items(
+        getattr(scheduler, "skipped_waiting", None)
+    )
 
 
 def _is_failed_allocation_result(ret: Any) -> bool:
@@ -503,6 +549,13 @@ def _get_exception_type(exc: BaseException) -> str:
 
 def scheduler_scheduler_hooker(original_func, self, *args, **kwargs):
     """Scheduler.schedule 的 hook 处理函数。"""
+    if _is_running_capacity_blocked(self):
+        if not getattr(self, _PENDING_RECORDED_ATTR, False):
+            _record_metric_safely(REQUEST_PREFILL_PENDING_NUMS)
+            setattr(self, _PENDING_RECORDED_ATTR, True)
+    else:
+        setattr(self, _PENDING_RECORDED_ATTR, False)
+
     start_time = time.time()
     ret = original_func(self, *args, **kwargs)
     duration = time.time() - start_time
@@ -547,6 +600,17 @@ def scheduler_scheduler_hooker(original_func, self, *args, **kwargs):
     return ret
 
 
+def engine_core_pending_hooker(original_func, self, *args, **kwargs):
+    scheduler = getattr(self, "scheduler", None)
+    if _is_running_capacity_blocked(scheduler):
+        if not getattr(scheduler, _PENDING_RECORDED_ATTR, False):
+            _record_metric_safely(REQUEST_PREFILL_PENDING_NUMS)
+            setattr(scheduler, _PENDING_RECORDED_ATTR, True)
+    elif scheduler is not None:
+        setattr(scheduler, _PENDING_RECORDED_ATTR, False)
+    return original_func(self, *args, **kwargs)
+
+
 def scheduler_preempt_request_hooker(original_func, self, *args, **kwargs):
     ret = original_func(self, *args, **kwargs)
     _clear_request_phase_state(_get_scheduler_phase_state(), *args, *kwargs.values(), ret)
@@ -574,6 +638,77 @@ def rpc_error_hooker(original_func, *args, **kwargs):
     except Exception as exc:
         metrics_client.record_metric(RPC_ERRORS, 1, {"exception_type": _get_exception_type(exc)})
         raise
+
+
+def _is_engine_dead_error(exc: BaseException) -> bool:
+    return _get_exception_type(exc) == "EngineDeadError"
+
+
+def _record_health_check_failed_if_needed(ret: Any) -> Any:
+    if getattr(ret, "status_code", None) == 503:
+        _record_metric_safely(HEALTH_CHECK_FAILED)
+    return ret
+
+
+async def _await_health_result(awaitable):
+    try:
+        ret = await awaitable
+    except Exception as exc:
+        if _is_engine_dead_error(exc):
+            _record_metric_safely(HEALTH_CHECK_FAILED)
+        raise
+    return _record_health_check_failed_if_needed(ret)
+
+
+def health_check_failed_hooker(original_func, *args, **kwargs):
+    try:
+        ret = original_func(*args, **kwargs)
+    except Exception as exc:
+        if _is_engine_dead_error(exc):
+            _record_metric_safely(HEALTH_CHECK_FAILED)
+        raise
+
+    if inspect.isawaitable(ret):
+        return _await_health_result(ret)
+    return _record_health_check_failed_if_needed(ret)
+
+
+def _is_health_request(request: Any) -> bool:
+    return getattr(getattr(request, "url", None), "path", None) == "/health"
+
+
+def _wrap_health_check_once(client: Any) -> None:
+    if client is None or getattr(client, _HEALTH_WRAPPED_ATTR, False):
+        return
+
+    check_health = getattr(client, "check_health", None)
+    if not callable(check_health):
+        logger.debug("Skip wrapping health client because check_health is not callable: %r", client)
+        return
+
+    async def wrapped_check_health(*args, **kwargs):
+        try:
+            ret = check_health(*args, **kwargs)
+            if inspect.isawaitable(ret):
+                ret = await ret
+            return ret
+        except Exception as exc:
+            if _is_engine_dead_error(exc):
+                _record_metric_safely(HEALTH_CHECK_FAILED)
+            raise
+
+    try:
+        setattr(client, "check_health", wrapped_check_health)
+        setattr(client, _HEALTH_WRAPPED_ATTR, True)
+    except Exception as exc:
+        logger.debug("Failed to wrap health client: %s", exc)
+
+
+def health_engine_client_hooker(original_func, request, *args, **kwargs):
+    client = original_func(request, *args, **kwargs)
+    if _is_health_request(request):
+        _wrap_health_check_once(client)
+    return client
 
 
 _EPLB_HOTNESS_SUMMARY_METRICS = (

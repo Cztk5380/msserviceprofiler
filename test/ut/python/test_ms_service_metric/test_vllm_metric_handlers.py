@@ -15,6 +15,7 @@
 # -------------------------------------------------------------------------
 
 from types import SimpleNamespace
+import asyncio
 
 import ms_service_metric.adapters.vllm.handlers.metric_handlers as mh
 import ms_service_metric.adapters.vllm.handlers.utils as hu
@@ -30,6 +31,15 @@ def _make_time_mock(values):
         return values[-1]
 
     return _mock_time
+
+
+def _make_scheduler_ret():
+    return SimpleNamespace(
+        num_scheduled_tokens=[],
+        scheduled_new_reqs=[],
+        scheduled_cached_reqs=SimpleNamespace(num_computed_tokens=[]),
+        total_num_scheduled_tokens=0,
+    )
 
 
 def test_given_timeline_start_and_trigger_points_when_record_then_duration_metric_emitted(monkeypatch):
@@ -238,6 +248,148 @@ def test_given_scheduler_result_without_tokens_when_scheduler_hook_called_then_a
     assert "scheduler:phase_scheduled_tokens" not in metric_names
 
 
+def test_given_running_full_and_waiting_when_scheduler_hook_called_then_records_pending_once(monkeypatch):
+    calls = []
+    call_count = {"original": 0}
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+    monkeypatch.setattr(mh.time, "time", _make_time_mock([2.0, 2.1]))
+
+    ret = _make_scheduler_ret()
+    scheduler = SimpleNamespace(running=[1, 2], max_num_running_reqs=2, waiting=[object()], skipped_waiting=[])
+
+    def original(*_args, **_kwargs):
+        call_count["original"] += 1
+        return ret
+
+    out = mh.scheduler_scheduler_hooker(original, scheduler)
+
+    assert out is ret
+    assert call_count["original"] == 1
+    assert ((mh.REQUEST_PREFILL_PENDING_NUMS, 1, None), {}) in calls
+
+
+def test_given_running_full_and_only_skipped_waiting_when_scheduler_hook_called_then_records_pending(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+    monkeypatch.setattr(mh.time, "time", _make_time_mock([2.0, 2.1]))
+
+    scheduler = SimpleNamespace(running=[1], max_num_running_reqs=1, waiting=[], skipped_waiting=[object()])
+
+    mh.scheduler_scheduler_hooker(lambda *_a, **_k: _make_scheduler_ret(), scheduler)
+
+    assert ((mh.REQUEST_PREFILL_PENDING_NUMS, 1, None), {}) in calls
+
+
+def test_given_running_not_full_or_missing_attrs_when_scheduler_hook_called_then_does_not_record_pending(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+    monkeypatch.setattr(mh.time, "time", _make_time_mock([2.0, 2.1, 3.0, 3.1]))
+
+    mh.scheduler_scheduler_hooker(
+        lambda *_a, **_k: _make_scheduler_ret(),
+        SimpleNamespace(running=[1], max_num_running_reqs=2, waiting=[object()]),
+    )
+    mh.scheduler_scheduler_hooker(lambda *_a, **_k: _make_scheduler_ret(), SimpleNamespace(running=[1]))
+
+    assert not [call for call in calls if call[0][0] == mh.REQUEST_PREFILL_PENDING_NUMS]
+
+
+def test_given_pending_metric_record_fails_when_scheduler_hook_called_then_original_result_returned(monkeypatch):
+    call_count = {"original": 0}
+    recorded = []
+
+    def record_metric(*args, **kwargs):
+        if args[0] == mh.REQUEST_PREFILL_PENDING_NUMS:
+            raise RuntimeError("metrics down")
+        recorded.append((args, kwargs))
+
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=record_metric))
+    monkeypatch.setattr(mh.time, "time", _make_time_mock([2.0, 2.1]))
+
+    ret = _make_scheduler_ret()
+    scheduler = SimpleNamespace(running=[1], max_num_running_reqs=1, waiting=[object()])
+
+    def original(*_args, **_kwargs):
+        call_count["original"] += 1
+        return ret
+
+    out = mh.scheduler_scheduler_hooker(original, scheduler)
+
+    assert out is ret
+    assert call_count["original"] == 1
+    assert any(args[0] == "scheduler:duration" for args, _kwargs in recorded)
+
+
+def test_given_engine_core_scheduler_blocked_when_step_hook_called_then_records_pending(monkeypatch):
+    calls = []
+    call_count = {"original": 0}
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    ret = object()
+    scheduler = SimpleNamespace(running=[1], max_num_running_reqs=1, waiting=[object()], skipped_waiting=[])
+    engine_core = SimpleNamespace(scheduler=scheduler)
+
+    def original(*_args, **_kwargs):
+        call_count["original"] += 1
+        return ret
+
+    out = mh.engine_core_pending_hooker(original, engine_core)
+
+    assert out is ret
+    assert call_count["original"] == 1
+    assert calls == [((mh.REQUEST_PREFILL_PENDING_NUMS, 1, None), {})]
+
+
+def test_given_step_and_scheduler_run_in_same_cycle_when_pending_blocked_then_records_once(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+    monkeypatch.setattr(mh.time, "time", _make_time_mock([1.0, 1.1]))
+
+    ret = _make_scheduler_ret()
+    scheduler = SimpleNamespace(running=[1], max_num_running_reqs=1, waiting=[object()], skipped_waiting=[])
+    engine_core = SimpleNamespace(scheduler=scheduler)
+
+    assert mh.engine_core_pending_hooker(lambda *_a, **_k: "step", engine_core) == "step"
+    assert mh.scheduler_scheduler_hooker(lambda *_a, **_k: ret, scheduler) is ret
+
+    pending_calls = [entry for entry in calls if entry[0][0] == mh.REQUEST_PREFILL_PENDING_NUMS]
+    assert pending_calls == [((mh.REQUEST_PREFILL_PENDING_NUMS, 1, None), {})]
+
+
+def test_given_engine_core_without_blocked_scheduler_when_step_hook_called_then_does_not_record(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    scheduler = SimpleNamespace(running=[], max_num_running_reqs=1, waiting=[object()])
+    engine_core = SimpleNamespace(scheduler=scheduler)
+
+    out = mh.engine_core_pending_hooker(lambda *_a, **_k: "ok", engine_core)
+
+    assert out == "ok"
+    assert not calls
+
+
+def test_given_engine_core_pending_metric_fails_when_step_hook_called_then_original_result_returned(monkeypatch):
+    call_count = {"original": 0}
+
+    def record_metric(*_args, **_kwargs):
+        raise RuntimeError("metrics down")
+
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=record_metric))
+
+    scheduler = SimpleNamespace(running=[1], max_num_running_reqs=1, waiting=[object()])
+    engine_core = SimpleNamespace(scheduler=scheduler)
+
+    def original(*_args, **_kwargs):
+        call_count["original"] += 1
+        return "ok"
+
+    out = mh.engine_core_pending_hooker(original, engine_core)
+
+    assert out == "ok"
+    assert call_count["original"] == 1
+
+
 def test_given_mixed_phase_batch_when_scheduler_hook_called_then_prefill_decode_metrics_split(monkeypatch):
     calls = []
     monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
@@ -391,6 +543,110 @@ def test_given_rpc_runtime_error_when_hook_called_then_records_actual_exception_
         pass
 
     assert calls == [(("rpc_errors", 1, {"exception_type": "RuntimeError"}), {})]
+
+
+def test_given_health_ok_when_hook_called_then_does_not_record(monkeypatch):
+    calls = []
+    response = SimpleNamespace(status_code=200)
+    call_count = {"original": 0}
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    def original(*_args, **_kwargs):
+        call_count["original"] += 1
+        return response
+
+    out = mh.health_check_failed_hooker(original, object())
+
+    assert out is response
+    assert call_count["original"] == 1
+    assert not calls
+
+
+def test_given_health_503_when_hook_called_then_records_failure(monkeypatch):
+    calls = []
+    response = SimpleNamespace(status_code=503)
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    out = mh.health_check_failed_hooker(lambda *_a, **_k: response, object())
+
+    assert out is response
+    assert calls == [((mh.HEALTH_CHECK_FAILED, 1, None), {})]
+
+
+def test_given_async_health_503_when_hook_called_then_records_failure(monkeypatch):
+    calls = []
+    response = SimpleNamespace(status_code=503)
+    call_count = {"original": 0}
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    async def original(*_args, **_kwargs):
+        call_count["original"] += 1
+        return response
+
+    out = asyncio.run(mh.health_check_failed_hooker(original, object()))
+
+    assert out is response
+    assert call_count["original"] == 1
+    assert calls == [((mh.HEALTH_CHECK_FAILED, 1, None), {})]
+
+
+def test_given_health_engine_dead_error_when_hook_called_then_records_and_reraises(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    class EngineDeadError(Exception):
+        pass
+
+    def original(*_args, **_kwargs):
+        raise EngineDeadError("dead")
+
+    try:
+        mh.health_check_failed_hooker(original, object())
+    except EngineDeadError:
+        pass
+    else:
+        raise AssertionError("expected EngineDeadError")
+
+    assert calls == [((mh.HEALTH_CHECK_FAILED, 1, None), {})]
+
+
+def test_given_health_metric_record_fails_when_hook_called_then_response_preserved(monkeypatch):
+    response = SimpleNamespace(status_code=503)
+
+    def record_metric(*_args, **_kwargs):
+        raise RuntimeError("metrics down")
+
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=record_metric))
+
+    out = mh.health_check_failed_hooker(lambda *_a, **_k: response, object())
+
+    assert out is response
+
+
+def test_given_health_request_when_engine_client_wrapped_then_records_engine_dead_error(monkeypatch):
+    calls = []
+    request = SimpleNamespace(url=SimpleNamespace(path="/health"))
+    monkeypatch.setattr(mh, "metrics_client", SimpleNamespace(record_metric=lambda *a, **k: calls.append((a, k))))
+
+    class EngineDeadError(Exception):
+        pass
+
+    class Client:
+        async def check_health(self):
+            raise EngineDeadError("dead")
+
+    client = Client()
+    out = mh.health_engine_client_hooker(lambda *_a, **_k: client, request)
+
+    assert out is client
+    try:
+        asyncio.run(client.check_health())
+    except EngineDeadError:
+        pass
+    else:
+        raise AssertionError("expected EngineDeadError")
+
+    assert calls == [((mh.HEALTH_CHECK_FAILED, 1, None), {})]
 
 
 def test_given_eplb_do_update_when_worker_exposes_hotness_then_records_hotness_and_imbalance(monkeypatch):
