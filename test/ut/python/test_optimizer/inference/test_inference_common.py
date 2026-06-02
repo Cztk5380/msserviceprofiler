@@ -16,8 +16,7 @@
 import numpy as np
 import pytest
 
-from ms_serviceparam_optimizer.inference.common import get_bins_and_label, \
-    get_field_bins_count  
+from ms_serviceparam_optimizer.inference.common import get_bins_and_label, get_field_bins_count
 
 
 def test_get_bins_and_label():

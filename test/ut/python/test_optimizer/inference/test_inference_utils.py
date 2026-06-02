@@ -15,39 +15,44 @@
 # -------------------------------------------------------------------------
 import unittest
 from unittest.mock import patch, MagicMock
-import numpy as np
 import pandas as pd
 from ms_serviceparam_optimizer.inference.utils import (
-    PreprocessTool, HistInfo, OP_EXPECTED_FIELD_MAPPING,
-    OperatorProcessingConfig, _preprocess_dataframe,
-    RowData, OpData
+    PreprocessTool,
+    OperatorProcessingConfig,
+    _preprocess_dataframe,
+    RowData,
+    OpData,
 )
 
 
 class TestPreprocessTool(unittest.TestCase):
     def setUp(self):
         # 测试用请求数据
-        self.sample_request_row = (
-            ("req1", 10, 2, 5),
-            ("req2", 15, 3, 8)
-        )
+        self.sample_request_row = (("req1", 10, 2, 5), ("req2", 15, 3, 8))
         self.request_columns = ("request_id", "input_length", "block_count", "output_length")
-        
+
         # 测试用算子数据
         self.sample_op_row = (
             ("MatMul", "2", "float32;float32", "100,200;50,60", "200,100", "0.5", "0.1"),
-            ("Add", "1", "float32", "30,40", "30,40", "0.2", "0.05")
+            ("Add", "1", "float32", "30,40", "30,40", "0.2", "0.05"),
         )
-        self.op_columns = ("op_name", "call_count", "input_dtype", "input_shape", "output_shape", 
-                          "execute_delta", "execute_delta_ratio")
+        self.op_columns = (
+            "op_name",
+            "call_count",
+            "input_dtype",
+            "input_shape",
+            "output_shape",
+            "execute_delta",
+            "execute_delta_ratio",
+        )
 
     def test_generate_data_basic(self):
         """测试基础数据生成"""
         row = ("1", "2.5", "text")
         columns = ("id", "value", "desc")
-        
+
         result, new_columns = PreprocessTool.generate_data(row, columns)
-        
+
         self.assertEqual(result, (1.0, 2.5, "text"))
         self.assertEqual(new_columns, columns)
 
@@ -56,12 +61,11 @@ class TestPreprocessTool(unittest.TestCase):
         # 构造
         row = ((1015, 19, 0),)
         columns = ("input_length", "need_blocks", "output_length")
-        
+
         result, new_columns = PreprocessTool.generate_data_with_request_info_by_df(row, columns)
-        
+
         self.assertEqual(result[0], 0.0)  # 总输出长度
         self.assertIn("total_output_length", new_columns)
-
 
     @patch('ms_serviceparam_optimizer.inference.utils.PreprocessTool.get_op_in_origin_row_index')
     @patch('ms_serviceparam_optimizer.inference.utils.PreprocessTool.get_all_op_input_ratio')
@@ -72,7 +76,7 @@ class TestPreprocessTool(unittest.TestCase):
         mock_get_label_hist_value,
         mock_get_all_op_execute_delta_ratio,
         mock_get_all_op_input_ratio,
-        mock_get_op_in_origin_row_index
+        mock_get_op_in_origin_row_index,
     ):
         """测试算子信息生成"""
         # 模拟输入
@@ -96,9 +100,9 @@ class TestPreprocessTool(unittest.TestCase):
         """测试结构信息转换（比率放大）"""
         row = (0.15, 100)
         columns = ("hit_rate", "count")
-        
+
         result, new_columns = PreprocessTool.generate_data_with_struct_info(row, columns)
-        
+
         self.assertEqual(result[0], 15)  # 0.15 -> 15%
         self.assertEqual(result[1], 100.0)
 
@@ -107,15 +111,15 @@ class TestPreprocessTool(unittest.TestCase):
         row = (
             {"kv_quant_type": "int8", "group_size": 64},  # quantization_config
             ["Transformer"],  # architectures
-            True  # quantize
+            True,  # quantize
         )
         columns = ("quantization_config", "architectures", "quantize")
-        
+
         result, new_columns = PreprocessTool.generate_data_with_model_config(row, columns)
-        
+
         # 验证量化配置
         self.assertEqual(result[new_columns.index("kv_quant_type")], "int8")
-    
+
     def test_get_all_op_input_ratio_empty_input(self):
         # 测试空输入的情况
         input_data = ()
@@ -155,25 +159,19 @@ class TestGenerateDataWithRequestInfo(unittest.TestCase):
         row = (
             MagicMock(**{self.output_length_field: 5}),
             MagicMock(**{self.output_length_field: 15}),
-            MagicMock(**{self.output_length_field: 25})
+            MagicMock(**{self.output_length_field: 25}),
         )
         column = (self.output_length_field, "input_length", "need_blocks")
 
         # 模拟get_field_bins_count的返回值
-        with patch('ms_serviceparam_optimizer.inference.common.get_field_bins_count') as \
-            mock_get_field_bins_count:
+        with patch('ms_serviceparam_optimizer.inference.common.get_field_bins_count') as mock_get_field_bins_count:
             mock_get_field_bins_count.side_effect = [
                 [0, 2, 1],  # 对于input_length的返回值
                 [1, 0, 1],  # 对于need_blocks的返回值
-                [0, 4, 1]   # 对于output_length的返回值
+                [0, 4, 1],  # 对于output_length的返回值
             ]
 
             # 调用方法
-            expected_new_index = (
-                self.total_output_length,
-                "input_length_0-80", "input_length_80-160", "input_length_160-240",
-                "need_blocks_0-1", "need_blocks_1-2", "need_blocks_2-3"
-            )
             result = PreprocessTool.generate_data_with_request_info(row, column)
 
             # 验证结果
@@ -193,7 +191,7 @@ class TestGenerateDataWithRequestInfo(unittest.TestCase):
         row = (
             MagicMock(**{self.output_length_field: 5}),
             MagicMock(**{self.output_length_field: 15}),
-            MagicMock(**{self.output_length_field: 25})
+            MagicMock(**{self.output_length_field: 25}),
         )
         column = ()
 
@@ -249,7 +247,7 @@ class TestProcessOperatorInfo(unittest.TestCase):
             op_output_expected={},
             op_execute_delta_field=[],
             op_delta_expected={},
-            op=""
+            op="",
         )
 
     def test_op_name(self):
@@ -306,10 +304,12 @@ class TestProcessOperatorInfo(unittest.TestCase):
 
 class TestPreprocessDataFrame(unittest.TestCase):
     def setUp(self):
-        self.df = pd.DataFrame({
-            'A': ["1", "2", "3"],
-            'B': ["4", "5", "6"],
-        })
+        self.df = pd.DataFrame(
+            {
+                'A': ["1", "2", "3"],
+                'B': ["4", "5", "6"],
+            }
+        )
 
     def test_all_columns_valid(self):
         # 测试所有检查的列都有效的情况
@@ -337,7 +337,7 @@ class TestProcessRowData(unittest.TestCase):
             origin_row=[["input_dtype", "int32;float32"], ["output_dtype", "int32;float32"]],
             origin_index=["input_dtype", "output_dtype"],
             op_index_on_origin_rows=[0, 1],
-            dtype_category=["int32", "float32"]
+            dtype_category=["int32", "float32"],
         )
 
         self.op_data = OpData(

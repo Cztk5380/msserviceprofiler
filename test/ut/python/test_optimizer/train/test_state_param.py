@@ -13,9 +13,10 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
+# pylint: disable=duplicate-code
 
 import unittest
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch
 from pathlib import Path
 from dataclasses import asdict
 import shutil
@@ -38,9 +39,7 @@ class TestStateParam(unittest.TestCase):
     def test_initialization(self):
         # 创建配置实例
         param = StateParam(
-            title="Test Config",
-            base_path=Path("/tmp/test"),
-            xgb_model_train_param={'learning_rate': 0.1}
+            title="Test Config", base_path=Path("/tmp/test"), xgb_model_train_param={'learning_rate': 0.1}
         )
 
         # 验证自动创建的路径
@@ -60,10 +59,7 @@ class TestStateParam(unittest.TestCase):
 
     def test_asdict(self):
         # 创建配置实例
-        param = StateParam(
-            title="Test Config",
-            base_path=Path("/tmp/test")
-        )
+        param = StateParam(title="Test Config", base_path=Path("/tmp/test"))
 
         # 转换为字典
         param_dict = asdict(param)
@@ -102,7 +98,7 @@ class TestStateParam(unittest.TestCase):
             save_model=False,
             shuffle=False,
             plot_pred_and_real=False,
-            op_algorithm="scale"
+            op_algorithm="scale",
         )
 
         # 验证自定义属性
@@ -123,14 +119,14 @@ class TestStateParam(unittest.TestCase):
         mock_mkdir.side_effect = OSError("Permission denied")
 
         with self.assertRaises(OSError):
-            sp = StateParam(base_path=self.test_dir / "invalid")
+            StateParam(base_path=self.test_dir / "invalid")
 
     def test_xgb_params(self):
         """测试XGBoost参数配置"""
         sp = StateParam(
             base_path=self.test_dir,
             xgb_model_train_param={"max_depth": 6, "eta": 0.3},
-            xgb_model_update_param={"updater": "refresh"}
+            xgb_model_update_param={"updater": "refresh"},
         )
 
         # 验证训练参数

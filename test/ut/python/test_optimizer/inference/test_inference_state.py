@@ -13,25 +13,51 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
+# pylint: disable=eval-used,consider-using-generator
 from copy import deepcopy
 from pathlib import Path
 from multiprocessing import Pool
 from typing import Optional, List, Callable, Dict
 import unittest
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import patch, MagicMock
 from pandas import DataFrame
 
 import numpy as np
 import pandas as pd
 from ms_serviceparam_optimizer.data_feature.v1 import FileReader, BATCH_FIELD
-from ms_serviceparam_optimizer.inference.state_eval_v1 import XGBStateEvaluate, predict_v1, CachePredict, \
-    predict_v1_with_cache
-from ms_serviceparam_optimizer.inference.dataset import CustomOneHotEncoder, CustomLabelEncoder, InputData,\
-    preset_category_data, DataProcessor
-from ms_serviceparam_optimizer.inference.data_format_v1 import ConfigPath, ModelOpField, ModelStruct, \
-    ModelConfig, MindieConfig, EnvField, HardWare, RequestField, BatchField
-from ms_serviceparam_optimizer.inference.data_format_v1 import REQUEST_FIELD, MODEL_OP_FIELD, \
-    MODEL_STRUCT_FIELD, MODEL_CONFIG_FIELD, MINDIE_FIELD, ENV_FIELD, HARDWARE_FIELD
+from ms_serviceparam_optimizer.inference.state_eval_v1 import (
+    XGBStateEvaluate,
+    predict_v1,
+    CachePredict,
+    predict_v1_with_cache,
+)
+from ms_serviceparam_optimizer.inference.dataset import (
+    CustomOneHotEncoder,
+    CustomLabelEncoder,
+    InputData,
+    preset_category_data,
+    DataProcessor,
+)
+from ms_serviceparam_optimizer.inference.data_format_v1 import (
+    ConfigPath,
+    ModelOpField,
+    ModelStruct,
+    ModelConfig,
+    MindieConfig,
+    EnvField,
+    HardWare,
+    RequestField,
+    BatchField,
+)
+from ms_serviceparam_optimizer.inference.data_format_v1 import (
+    REQUEST_FIELD,
+    MODEL_OP_FIELD,
+    MODEL_STRUCT_FIELD,
+    MODEL_CONFIG_FIELD,
+    MINDIE_FIELD,
+    ENV_FIELD,
+    HARDWARE_FIELD,
+)
 from ms_serviceparam_optimizer.train.pretrain import NodeInfo
 from ms_serviceparam_optimizer.inference.file_reader import FileHanlder, StaticFile
 
@@ -71,34 +97,12 @@ def test_predict_v1(mock_data_processor, mock_xgb_state_evaluate, tmpdir, static
 
     # Create the necessary objects
     batch_info = BatchField("decode", 20, 20.0, 580.0, 29.0)
-    request_info = (
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-    )
+    request_info = tuple(RequestField(29.0, 1, 2) for _ in range(20))
     config_path = ConfigPath(
-        Path(fr"{tmpdir}\xgb_model.ubj"),
+        Path(rf"{tmpdir}\xgb_model.ubj"),
         static_file.base_path,
-        Path(fr"{tmpdir}\req_and_decode_file.json"),
-        Path(fr"{tmpdir}\cache_data"),
-
+        Path(rf"{tmpdir}\req_and_decode_file.json"),
+        Path(rf"{tmpdir}\cache_data"),
     )
 
     # Call the method under test
@@ -116,17 +120,19 @@ class MockBooster:
     @staticmethod
     def predict(*args, **kwargs):
         return np.array([66666])
-    
+
     def load_model(self, model_path):
         pass
 
 
 @patch("xgboost.Booster", MockBooster)
-def predict_with_model(lines_data: DataFrame,
-                       xgb_model_path: Optional[Path] = None,
-                       ohe_path: Optional[Path] = None,
-                       train_field="model_execute_time",
-                       dataset_type: DataProcessor = DataProcessor):
+def predict_with_model(
+    lines_data: DataFrame,
+    xgb_model_path: Optional[Path] = None,
+    ohe_path: Optional[Path] = None,
+    train_field="model_execute_time",
+    dataset_type: DataProcessor = DataProcessor,
+):
     # 转换格式为接口需要格式
     origin_data: List[NodeInfo] = []
     predict_data: List[NodeInfo] = []
@@ -135,12 +141,18 @@ def predict_with_model(lines_data: DataFrame,
     custom_encoder = CustomLabelEncoder(preset_category_data)
     custom_encoder.fit()
     data_processor = dataset_type(custom_encoder)
-    xgb_state_eval = XGBStateEvaluate(
-        xgb_model_path=Path(xgb_model_path),
-        dataprocessor=data_processor)
+    xgb_state_eval = XGBStateEvaluate(xgb_model_path=Path(xgb_model_path), dataprocessor=data_processor)
     for _, row in lines_data.iterrows():
-        batch_field, request_field, model_op_field, model_struct_field, model_config_field, mindie_field, env_field, \
-            hardware_field = None, None, None, None, None, None, None, None
+        (
+            batch_field,
+            request_field,
+            model_op_field,
+            model_struct_field,
+            model_config_field,
+            mindie_field,
+            env_field,
+            hardware_field,
+        ) = None, None, None, None, None, None, None, None
         for i, _cur_columns in enumerate(lines_data.columns):
             _cur_columns = eval(_cur_columns)
             if _cur_columns == BATCH_FIELD:
@@ -173,7 +185,7 @@ def predict_with_model(lines_data: DataFrame,
             model_config_field=model_config_field,
             mindie_field=mindie_field,
             env_field=env_field,
-            hardware_field=hardware_field
+            hardware_field=hardware_field,
         )
         # 使用模型进行预测
         _up, _ud = xgb_state_eval.predict(input_data)
@@ -236,10 +248,10 @@ def test_predict_v1_with_cache(mock_input_data, mock_xgb_state_eval, tmpdir, sta
         RequestField(29.0, 1, 2),
     )
     config_path = ConfigPath(
-        Path(fr"{tmpdir}\xgb_model.ubj"),
+        Path(rf"{tmpdir}\xgb_model.ubj"),
         static_file.base_path,
-        Path(fr"{tmpdir}\req_and_decode_file.json"),
-        Path(fr"{tmpdir}\cache_data"),
+        Path(rf"{tmpdir}\req_and_decode_file.json"),
+        Path(rf"{tmpdir}\cache_data"),
     )
     static_file = StaticFile(base_path=static_file.base_path)
     fh = FileHanlder(static_file)
@@ -249,7 +261,7 @@ def test_predict_v1_with_cache(mock_input_data, mock_xgb_state_eval, tmpdir, sta
     data_processor = DataProcessor(custom_encoder)
 
     # Act
-    result = predict_v1_with_cache(batch_info, request_info, config_path, fh, data_processor)
+    predict_v1_with_cache(batch_info, request_info, config_path, fh, data_processor)
 
     # Assert
     mock_input_data.assert_called_once()
@@ -261,11 +273,7 @@ class TestCachePredict(unittest.TestCase):
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
     def test_dataloader_with_data(self, mock_open, mock_exists):
         # 测试当data不为None时的情况
-        data = pd.DataFrame({
-            'label': [1, 2, 3],
-            'feature1': [4, 5, 6],
-            'feature2': [7, 8, 9]
-        })
+        data = pd.DataFrame({'label': [1, 2, 3], 'feature1': [4, 5, 6], 'feature2': [7, 8, 9]})
         loader = CachePredict(data_path=Path(""), data=data, label_name='label')
         self.assertEqual(loader.label.tolist(), [1, 2, 3])
         self.assertEqual(loader.data.columns.tolist(), ['feature1', 'feature2'])

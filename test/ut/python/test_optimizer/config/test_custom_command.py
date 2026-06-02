@@ -30,10 +30,10 @@ class TestVllmCommand:
         # Setup
         mock_which.return_value = "/usr/bin/vllm"
         config = MockVllmCommandConfig()
-        
+
         # Execute
         command = VllmCommand(config)
-        
+
         # Verify
         assert command.process == "/usr/bin/vllm"
         assert command.command_config == config
@@ -44,9 +44,9 @@ class TestVllmCommand:
         # Setup
         mock_which.return_value = None
         config = MockVllmCommandConfig()
-        
+
         # Execute & Verify
         with pytest.raises(ValueError) as excinfo:
             VllmCommand(config)
-        
+
         assert "Error: The 'vllm' executable was not found in the system PATH." in str(excinfo.value)

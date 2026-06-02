@@ -14,21 +14,17 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 import unittest
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock
 from pathlib import Path
 import os
 
 import shutil
 import pandas as pd
 
-from ms_serviceparam_optimizer.train.pretrain import (
-    PretrainModel, TrainVersion1, pretrain
-)
+from ms_serviceparam_optimizer.train.pretrain import PretrainModel, pretrain
 from ms_serviceparam_optimizer.train.state_param import StateParam
 from ms_serviceparam_optimizer.data_feature.dataset import MyDataSet
 from ms_serviceparam_optimizer.model.xgb_state_model import StateXgbModel
-from ms_serviceparam_optimizer.data_feature.dataset import preset_category_data
-from ms_serviceparam_optimizer.data_feature.dataset import CustomLabelEncoder
 
 
 class TestPretrainModel(unittest.TestCase):
@@ -60,7 +56,7 @@ class TestPretrainModel(unittest.TestCase):
                 plot_pred_and_real=True,
                 plot_data_feature=True,
                 start_num_lines=4000,
-                title="MixModel without warmup with batch max seq 2 op info"
+                title="MixModel without warmup with batch max seq 2 op info",
             )
             self.state_param = sp
             self.real_model = StateXgbModel(
@@ -69,41 +65,27 @@ class TestPretrainModel(unittest.TestCase):
                 save_model_path=sp.xgb_model_save_model_path,
                 load_model_path=sp.xgb_model_save_model_path,
                 show_test_data_prediction=sp.xgb_model_show_test_data_prediction,
-                show_feature_importance=sp.xgb_model_show_feature_importance
+                show_feature_importance=sp.xgb_model_show_feature_importance,
             )
             self.real_trainer = PretrainModel(
-                state_param=sp,
-                dataset=self.real_dataset,
-                model=self.real_model,
-                plt_data=False
+                state_param=sp, dataset=self.real_dataset, model=self.real_model, plt_data=False
             )
 
         # 创建临时变量
         self.dataset = MagicMock()
         self.model = MagicMock()
-        self.pm = PretrainModel(
-            state_param=sp,
-            dataset=self.dataset,
-            model=self.model
-        )
-        self.trainer = PretrainModel(
-            state_param=sp,
-            dataset=self.dataset,
-            model=self.model,
-            plt_data=False
+        self.pm = PretrainModel(state_param=sp, dataset=self.dataset, model=self.model)
+        self.trainer = PretrainModel(state_param=sp, dataset=self.dataset, model=self.model, plt_data=False)
+
+        self.sample_data = pd.DataFrame(
+            {
+                'batch_stage': ['prefill', 'decode', 'prefill'],
+                'batch_size': [1, 2, 3],
+                'model_execute_time': [100, 200, 300],
+            }
         )
 
-        self.sample_data = pd.DataFrame({
-            'batch_stage': ['prefill', 'decode', 'prefill'],
-            'batch_size': [1, 2, 3],
-            'model_execute_time': [100, 200, 300]
-        })
-
-        self.features = pd.DataFrame({
-            'batch_stage': [1, 0],
-            'batch_size': [1, 2],
-            'feature1': [0.5, 0.7]
-        })
+        self.features = pd.DataFrame({'batch_stage': [1, 0], 'batch_size': [1, 2], 'feature1': [0.5, 0.7]})
         self.labels = pd.Series([100, 200])
 
     def tearDown(self):
@@ -120,9 +102,7 @@ class TestPretrainModel(unittest.TestCase):
         self.trainer.train(lines_data=self.sample_data)
 
         # 验证调用
-        self.dataset.construct_data.assert_called_once_with(
-            self.sample_data, plt_data=False, middle_save_path=None
-        )
+        self.dataset.construct_data.assert_called_once_with(self.sample_data, plt_data=False, middle_save_path=None)
         self.model.train.assert_called_once_with(self.dataset, middle_save_path=None)
 
         # 验证结果
@@ -135,14 +115,9 @@ class TestPretrainModel(unittest.TestCase):
                 self.batch_size = batch_size
                 self.model_execute_time = time
 
-        nodes = [
-            Node('prefill', 1, 100),
-            Node('decode', 2, 200)
-        ]
+        nodes = [Node('prefill', 1, 100), Node('decode', 2, 200)]
         # 测试方法
-        prefill, decode = PretrainModel.get_up_ud(
-            tuple(nodes), "model_execute_time"
-        )
+        prefill, decode = PretrainModel.get_up_ud(tuple(nodes), "model_execute_time")
         # 验证结果
         self.assertEqual(prefill[list(prefill)[0]], [10000.0])
         self.assertEqual(decode[list(decode)[0]], [5000.0])
@@ -152,7 +127,7 @@ class TestPretrainModel(unittest.TestCase):
         # 创建模型文件
         model_file = self.state_param.xgb_model_save_model_path
         model_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(model_file, "w") as f:
+        with open(model_file, "w", encoding="utf-8") as f:
             f.write("dummy model data")
 
         # 执行备份
@@ -208,15 +183,9 @@ class TestPretrainModel(unittest.TestCase):
                 self.batch_size = batch_size
                 self.model_execute_time = time
 
-        nodes = [
-            Node('prefill', 1, 100),
-            Node('decode', 2, 200),
-            Node('prefill', 3, 300)
-        ]
+        nodes = [Node('prefill', 1, 100), Node('decode', 2, 200), Node('prefill', 3, 300)]
         # 测试方法
-        prefill, decode = PretrainModel.get_decode_and_prefill_time(
-            tuple(nodes), "model_execute_time"
-        )
+        prefill, decode = PretrainModel.get_decode_and_prefill_time(tuple(nodes), "model_execute_time")
         # 验证结果
         self.assertEqual(prefill[list(prefill)[0]], [100])
         self.assertEqual(prefill[list(prefill)[1]], [300])
@@ -231,12 +200,8 @@ class TestPretrainModel(unittest.TestCase):
                 self.pm.train(self.sample_data)
 
                 # 验证调用
-                mock_construct.assert_called_once_with(
-                    self.sample_data, plt_data=False, middle_save_path=None
-                )
-                mock_train.assert_called_once_with(
-                    self.dataset, middle_save_path=None
-                )
+                mock_construct.assert_called_once_with(self.sample_data, plt_data=False, middle_save_path=None)
+                mock_train.assert_called_once_with(self.dataset, middle_save_path=None)
                 self.assertEqual(self.pm.rmse, [0.5])
 
     def test_partial_train(self):
@@ -250,12 +215,8 @@ class TestPretrainModel(unittest.TestCase):
 
                     # 验证调用
                     mock_fit.assert_called_once_with(load=True)
-                    mock_construct.assert_called_once_with(
-                        self.sample_data, plt_data=False, middle_save_path=None
-                    )
-                    mock_train.assert_called_once_with(
-                        self.dataset, train_type="partial_fit", middle_save_path=None
-                    )
+                    mock_construct.assert_called_once_with(self.sample_data, plt_data=False, middle_save_path=None)
+                    mock_train.assert_called_once_with(self.dataset, train_type="partial_fit", middle_save_path=None)
                     self.assertEqual(self.pm.rmse, [0.3])
 
     def test_initialization(self):

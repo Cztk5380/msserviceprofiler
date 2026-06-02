@@ -13,17 +13,18 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
-import unittest
 import tempfile
 from pathlib import Path
 from ms_serviceparam_optimizer.data_feature.v1 import FileReader
 
 
 def generate_data(fp):
-    header = """world_size,request_rate,concurrency,prefill_batchsize,decode_batchsize,select_batch,"""\
-        """prefillTimeMsPerReq,decodeTimeMsPerReq,line,batch_num,"('codellama_34b',)","('llama3_70b',)","('"""\
-            """llama3_8b',)","('qwen1.5_14b',)","('qwen1.5_72b',)","('decode',)","('prefill',)"
+    header = (
+        """world_size,request_rate,concurrency,prefill_batchsize,decode_batchsize,select_batch,"""
+        """prefillTimeMsPerReq,decodeTimeMsPerReq,line,batch_num,"('codellama_34b',)","('llama3_70b',)","('"""
+        """llama3_8b',)","('qwen1.5_14b',)","('qwen1.5_72b',)","('decode',)","('prefill',)"
             """
+    )
     fp.write(header)
     fp.write("\n")
     for _ in range(2000):
@@ -32,14 +33,13 @@ def generate_data(fp):
 
 
 def test_file_reader():
-    _file_1 = tempfile.NamedTemporaryFile(mode="w", delete=False)
-    _file_2 = tempfile.NamedTemporaryFile(mode="w", delete=False)
-    file_paths = [Path(_file_1.name),
-                  Path(_file_2.name)]
-    generate_data(_file_1)
-    generate_data(_file_2)
-    _file_1.close()
-    _file_2.close()
+    with (
+        tempfile.NamedTemporaryFile(mode="w", delete=False) as _file_1,
+        tempfile.NamedTemporaryFile(mode="w", delete=False) as _file_2,
+    ):
+        file_paths = [Path(_file_1.name), Path(_file_2.name)]
+        generate_data(_file_1)
+        generate_data(_file_2)
     fr = FileReader(file_paths)
     res = fr.read_lines()
     assert res.shape[0] > 1977

@@ -57,7 +57,13 @@ class TestStaticFile(unittest.TestCase):
     def test_post_init_all_paths_exist(self):
         with patch('pathlib.Path.exists', return_value=True):
             static_file = StaticFile(base_path=self.base_path)
-            for path in [static_file.hardware_path, static_file.env_path, static_file.mindie_config_path, \
-                         static_file.config_path, static_file.model_struct_path, static_file.model_decode_op_path, \
-                         static_file.model_prefill_op_path]:
+            for path in [
+                static_file.hardware_path,
+                static_file.env_path,
+                static_file.mindie_config_path,
+                static_file.config_path,
+                static_file.model_struct_path,
+                static_file.model_decode_op_path,
+                static_file.model_prefill_op_path,
+            ]:
                 self.assertTrue(path.exists())

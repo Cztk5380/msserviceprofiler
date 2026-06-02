@@ -13,6 +13,7 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
+# pylint: disable=no-member
 from collections import defaultdict
 from unittest.mock import MagicMock
 
@@ -45,11 +46,7 @@ class TestGenerateFeatures:
             attn_metadata.block_tables = None
             request_ids_to_seq_ids = {"1": [1], "2": [2], "3": [3]}
             sampling_metadata = type('', (), {})()
-            sampling_metadata.seq_groups = [
-                type('', (), {})(),
-                type('', (), {})(),
-                type('', (), {})()
-            ]
+            sampling_metadata.seq_groups = [type('', (), {})(), type('', (), {})(), type('', (), {})()]
             sampling_metadata.seq_groups[0].seq_ids = [1]
             sampling_metadata.seq_groups[0].sampling_params = type('', (), {"stop_token_ids": None})()
             sampling_metadata.seq_groups[0].seq_data = {1: type('', (), {})()}
@@ -92,11 +89,7 @@ class TestGenerateFeatures:
             attn_metadata.block_tables = torch.tensor([[-1, -1, -1], [0, 1, 2], [3, 4, 5]])
             request_ids_to_seq_ids = {"1": [1], "2": [2], "3": [3]}
             sampling_metadata = type('', (), {})()
-            sampling_metadata.seq_groups = [
-                type('', (), {})(),
-                type('', (), {})(),
-                type('', (), {})()
-            ]
+            sampling_metadata.seq_groups = [type('', (), {})(), type('', (), {})(), type('', (), {})()]
             sampling_metadata.seq_groups[0].seq_ids = [1]
             sampling_metadata.seq_groups[0].sampling_params = type('', (), {"stop_token_ids": None})()
             sampling_metadata.seq_groups[0].seq_data = {1: type('', (), {})()}
@@ -277,9 +270,11 @@ class TestSimulateVllmUpdateToken:
         model_input = MagicMock()
         model_input.request_ids_to_seq_ids = {'0': [0], '1': [1], '2': [2], '3': [3]}
         sampling_output = MagicMock()
-        sampling_output.outputs = [type('CompletionSequenceGroupOutput', (), {})(),
-                                   type('CompletionSequenceGroupOutput', (), {})(),
-                                   type('CompletionSequenceGroupOutput', (), {})()]
+        sampling_output.outputs = [
+            type('CompletionSequenceGroupOutput', (), {})(),
+            type('CompletionSequenceGroupOutput', (), {})(),
+            type('CompletionSequenceGroupOutput', (), {})(),
+        ]
         sampling_output.outputs[0].samples = [type('SequenceOutput', (), {})()]
         sampling_output.outputs[0].samples[0].output_token = 46310
         sampling_output.outputs[0].samples[0].parent_seq_id = 0

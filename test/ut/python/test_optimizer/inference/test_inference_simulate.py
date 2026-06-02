@@ -84,7 +84,7 @@ class TestFileLogger:
     @pytest.fixture
     def logger(self):
         return FileLogger(Path(get_settings().simulator_output).joinpath(f"simulate_{os.getpid()}.csv"))
-    
+
     @pytest.fixture
     def file_path(self):
         return Path("test.log")
@@ -134,8 +134,9 @@ def test_generate_logits():
     for batch_size in [1, 2, 10]:
         for vocab_size in [128, 1024, 129280]:
             logits = Simulate.generate_logits(batch_size, vocab_size, device=device)
-            assert logits.shape == (
-            batch_size, vocab_size), f"Expected shape ({batch_size}, {vocab_size}), got {logits.shape}"
+            assert logits.shape == (batch_size, vocab_size), (
+                f"Expected shape ({batch_size}, {vocab_size}), got {logits.shape}"
+            )
 
     # 测试不同的dtype
     for dtype in ["float16", "bfloat16", "float"]:
@@ -236,32 +237,11 @@ class MockConfigPath:
         self.cache_data = {}
 
 
-@pytest.fixture
-def predict_setup():
+@pytest.fixture(name="predict_setup")
+def fixture_predict_setup():
     Simulate.predict_cache = {}
     ServiceField.batch_field = BatchField("decode", 20, 20.0, 580.0, 29.0)
-    ServiceField.request_field = (
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-        RequestField(29.0, 1, 2),
-    )
+    ServiceField.request_field = tuple(RequestField(29.0, 1, 2) for _ in range(20))
     ServiceField.config_path = MockConfigPath()
     ServiceField.fh = MockFileHandler()
     ServiceField.data_processor = MockDataProcessor()
@@ -269,8 +249,9 @@ def predict_setup():
 
 # Test cases
 def test_predict_with_sleep(predict_setup, monkeypatch):
-    monkeypatch.setattr("ms_serviceparam_optimizer.inference.simulate.predict_v1_with_cache", \
-                        lambda *args, **kwargs: (-1, 300000))
+    monkeypatch.setattr(
+        "ms_serviceparam_optimizer.inference.simulate.predict_v1_with_cache", lambda *args, **kwargs: (-1, 300000)
+    )
     assert len(Simulate.predict_cache) == 0
     st = time.perf_counter()
     os.environ[IS_SLEEP_FLAG] = "true"
@@ -284,8 +265,9 @@ def test_predict_with_sleep(predict_setup, monkeypatch):
 
 
 def test_predict_without_sleep(predict_setup, monkeypatch):
-    monkeypatch.setattr("ms_serviceparam_optimizer.inference.simulate.predict_v1_with_cache", \
-                        lambda *args, **kwargs: (-1, 300000))
+    monkeypatch.setattr(
+        "ms_serviceparam_optimizer.inference.simulate.predict_v1_with_cache", lambda *args, **kwargs: (-1, 300000)
+    )
     os.environ[IS_SLEEP_FLAG] = "false"
     assert len(Simulate.predict_cache) == 0
     st = time.perf_counter()
