@@ -143,6 +143,103 @@ ms-service-metric status
 
 详细使用方法，请参考：[使用指南](https://gitcode.com/Ascend/msserviceprofiler/blob/master/docs/zh/vLLM_metrics_tool_instruct.md)
 
+## vLLM 内置指标概览
+
+默认 vLLM 适配器会为指标名添加 `vllm_profiling_` 前缀，并默认补充 `dp` 标签。部分指标包含额外标签，例如 `engine`、`req_phase`、`phase`、`role`、`name`、`rank`、`layer`、`threshold`、`exception_type`。
+
+### 调度与批处理
+
+| 指标名称 | 类型 | 说明 |
+|----------|------|------|
+| batch_size | Histogram | 当前正在执行的请求数量 |
+| waiting_batch_size | Histogram | 当前等待调度的请求数量 |
+| num_spec_tokens | Histogram | 投机解码中的草稿 token 数量 |
+| scheduler:duration | Histogram | 单次调度耗时 |
+| scheduler:batch_size | Histogram | 单次调度输出的请求数量 |
+| scheduler:running_queue_size | Histogram | 调度后 running 队列中的请求数量 |
+| scheduler:seqlen:avg | Gauge | 单次调度批次内平均序列长度 |
+| scheduler:seqlen:sum | Gauge | 单次调度批次内序列长度总和 |
+| scheduler:phase_batch_size | Histogram | 各请求阶段的调度请求数量 |
+| scheduler:phase_scheduled_tokens | Histogram | 各请求阶段的单次调度 token 数量 |
+| scheduler:phase_scheduled_token_counter | Counter | 各请求阶段累计调度 token 数量 |
+| running_phase_batch_size | Histogram | running 队列中各请求阶段的请求数量 |
+| waiting_phase_batch_size | Histogram | waiting 队列中各请求阶段的请求数量 |
+| scheduler:add_request:duration | Histogram | 请求加入 waiting 队列的耗时 |
+| scheduler:update_from_output:duration | Histogram | Scheduler 处理模型输出并更新状态的耗时 |
+| scheduler:recompute_events | Counter | 重计算触发次数 |
+
+### Token 与慢请求
+
+| 指标名称 | 类型 | 说明 |
+|----------|------|------|
+| total_tokens | Histogram | 单次迭代中 prompt token 与 generation token 之和 |
+| input | Histogram | 输入 prompt 的 token 数量 |
+| output | Histogram | 输出生成结果的 token 数量 |
+| second_token_latency | Histogram | 第二个 token 的生成延迟 |
+| fine_grained_ttft | Histogram | 细粒度首 token 延迟（TTFT） |
+| fine_grained_tpot | Histogram | 细粒度每 token 平均耗时（TPOT） |
+| decode_over_1s_count | Counter | Decode 阶段单 token 间隔超过 1s 的累计次数 |
+| prefill_over_threshold_count | Counter | Prefill 首 token 延迟超过 5s、10s、20s 阈值的累计次数 |
+
+### KVCache 与显存
+
+| 指标名称 | 类型 | 说明 |
+|----------|------|------|
+| total_kvcache_blocks | Gauge | 当前 DP 域 KVCache block 总数 |
+| free_kvcache_blocks | Gauge | 当前 DP 域 KVCache 空闲 block 数 |
+| allocated_kvcache_blocks | Gauge | 当前 DP 域 KVCache 已分配 block 数 |
+| block_allocate_failures | Counter | KVCache block 分配失败次数 |
+| engine:memory:total_gb | Gauge | NPUWorker 初始化时设备总显存，单位 GiB |
+| engine:memory:utilization_ratio | Gauge | vLLM 配置的显存使用比例 |
+| engine:memory:reserved_gb | Gauge | vLLM 按显存使用比例预留的显存，单位 GiB |
+| engine:memory:weights_gb | Gauge | 模型权重占用显存，单位 GiB |
+| engine:memory:kvcache_gb | Gauge | 可用于 KVCache 的显存，单位 GiB |
+| engine:memory:non_torch_gb | Gauge | 非 PyTorch 组件占用显存，单位 GiB |
+| engine:memory:activation_gb | Gauge | Profile 过程中峰值 activation 显存，单位 GiB |
+| engine:memory:graph_gb | Gauge | NPU Graph 占用显存，单位 GiB |
+
+### 引擎、执行器与 NPU 耗时
+
+| 指标名称 | 类型 | 说明 |
+|----------|------|------|
+| engine:async_add_request:duration | Histogram | AsyncLLM 添加请求的耗时 |
+| engine:generate:duration | Histogram | AsyncLLM.generate 端到端生成耗时 |
+| engine:tokenizer_encode | Histogram | 输入处理与 tokenizer encode 耗时 |
+| async_llm:record_stats:duration | Histogram | AsyncLLM 记录 stats 的耗时 |
+| async_llm:abort_requests:duration | Histogram | AsyncLLM 中止请求的耗时 |
+| output_processor_duration | Histogram | OutputProcessor 处理输出的耗时 |
+| engine_core_outputs_len | Histogram | OutputProcessor 单次处理的 engine core 输出数量 |
+| engine_core:process_input_queue:duration | Histogram | EngineCore 处理输入队列的耗时 |
+| engine_core:process_engine_step:duration | Histogram | EngineCore 处理 engine step 的耗时 |
+| engine_core:engine_core_step:duration | Histogram | EngineCore 单步执行耗时 |
+| executor:execute_model:duration | Histogram | MultiprocExecutor 执行模型的耗时 |
+| executor:model_runner_execute_model:duration | Histogram | NPUModelRunner.execute_model 执行耗时 |
+| executor:prepare_inputs:duration | Histogram | NPUModelRunner 准备输入的耗时 |
+| executor:sample_tokens:duration | Histogram | MultiprocExecutor.sample_tokens 采样耗时 |
+| worker:model_runner_get_output:duration | Histogram | ModelRunnerOutput.get_output 耗时 |
+| record_function_or_nullcontext | Histogram | vLLM/vLLM-Ascend 内部 record function 片段耗时 |
+| npu:forward_duration | Histogram | Forward 阶段耗时 |
+| npu:kernel_launch | Histogram | Forward 到 post process 之间的 kernel launch 相关耗时 |
+| npu:non_forward_duration | Histogram | ModelRunner 输出后到本轮结束之间的非 forward 耗时 |
+
+### 异常状态与 EPLB
+
+| 指标名称 | 类型 | 说明 |
+|----------|------|------|
+| running_to_waiting_count | Counter | 请求从 running 队列回退到 waiting 队列的次数 |
+| request_prefill_pending_nums | Counter | running 队列满且 waiting/skipped_waiting 中仍有请求时的 pending 累计次数 |
+| rpc_errors | Counter | MultiprocExecutor.collective_rpc 异常次数 |
+| health_check_failed | Counter | `/health` 检查失败、返回 503 或 EngineDeadError 的次数 |
+| eplb:expert_hotness:current_mean | Gauge | EPLB 更新前专家热点均值 |
+| eplb:expert_hotness:current_max | Gauge | EPLB 更新前专家热点最大值 |
+| eplb:expert_hotness:update_mean | Gauge | EPLB 更新后专家热点均值 |
+| eplb:expert_hotness:update_max | Gauge | EPLB 更新后专家热点最大值 |
+| eplb:expert_hotness:imbalance | Gauge | EPLB 各层专家热点失衡度 |
+| eplb:expert_weight_update:duration | Histogram | EPLB 专家映射与权重更新总耗时 |
+| eplb:expert_map_update:duration | Histogram | EPLB 专家映射更新耗时 |
+| eplb:log2phy_map_update:duration | Histogram | EPLB 逻辑到物理映射更新耗时 |
+| eplb:expert_weight_replace:duration | Histogram | EPLB 专家权重替换耗时 |
+
 ## 配置
 
 用户可以自定义需要采集的内容，可以通过：MS_SERVICE_METRIC_VLLM_CONFIG 环境变量指定yaml 文件。如果不指定，默认使用内部的采集配置
