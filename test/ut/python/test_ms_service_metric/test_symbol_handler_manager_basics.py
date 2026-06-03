@@ -30,5 +30,19 @@ def test_given_new_manager_when_inspect_defaults_then_disabled_empty_stats():
     assert stats["hooked_symbols"] == 0
     assert m.get_symbol("nonexistent:path") is None
     assert m.get_handler("no-such-id") is None
-    assert m.get_all_symbols() == {}
-    assert m.get_all_handlers() == {}
+    assert not m.get_all_symbols()
+    assert not m.get_all_handlers()
+
+
+def test_given_same_handler_for_different_symbols_when_update_then_keeps_each_symbol():
+    m = SymbolHandlerManager()
+    handler_config = {"handler": "ms_service_metric.handlers:default_handler"}
+    config = {
+        "module:func1": [handler_config],
+        "module:func2": [handler_config],
+    }
+
+    m._update_handlers(config)
+
+    assert set(m.get_all_symbols()) == {"module:func1", "module:func2"}
+    assert len(m.get_all_handlers()) == 2

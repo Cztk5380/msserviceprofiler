@@ -20,6 +20,7 @@ pytest.importorskip("ms_service_metric.core.symbol")
 pytest.importorskip("ms_service_metric.metrics.metrics_manager")
 
 from ms_service_metric.core.handler import HandlerType, MetricHandler
+from ms_service_metric.utils.exceptions import HandlerError
 
 
 def sample_wrap_handler(ori_func, *args, **kwargs):
@@ -94,13 +95,14 @@ class TestMetricHandlerProperties:
 
 
 class TestMetricHandlerEquality:
-    def test_given_same_hook_callable_different_symbols_when_eq_then_equal_and_same_hash(self):
+    def test_given_same_hook_callable_different_symbols_when_eq_then_not_equal_and_distinct_hash(self):
         symbol_info1 = {"symbol_path": "module:func1"}
         symbol_info2 = {"symbol_path": "module:func2"}
         handler1 = MetricHandler("test", symbol_info1, sample_wrap_handler)
         handler2 = MetricHandler("test", symbol_info2, sample_wrap_handler)
-        assert handler1 == handler2
-        assert hash(handler1) == hash(handler2)
+        assert handler1 != handler2
+        assert hash(handler1) != hash(handler2)
+        assert handler1.id != handler2.id
 
 
 class TestMetricHandlerFromConfig:
@@ -119,8 +121,6 @@ class TestMetricHandlerFromConfig:
         handler = MetricHandler.from_config(config, "module:func")
         assert handler is not None
         assert len(handler.metrics_config) == 1
-
-from ms_service_metric.utils.exceptions import HandlerError
 
 
 def test_given_invalid_symbol_path_none_when_constructed_then_symbol_path_is_none():
