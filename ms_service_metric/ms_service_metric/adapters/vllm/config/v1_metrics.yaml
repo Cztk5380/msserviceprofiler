@@ -158,6 +158,14 @@
     - name: engine:memory:graph_gb
       type: gauge
 
+- symbol: vllm_ascend.worker.worker:NPUWorker.profile_memory
+  handler: ms_service_metric.adapters.vllm.handlers.metric_handlers:runtime_memory_phase_handler
+  metrics:
+    - name: engine:memory:torch_reserved_gb
+      type: gauge
+    - name: engine:memory:torch_allocated_gb
+      type: gauge
+
 # - symbol: vllm.v1.sample.sampler:Sampler.forward
 #   metrics:
 #     - name: executor:sampler:duration

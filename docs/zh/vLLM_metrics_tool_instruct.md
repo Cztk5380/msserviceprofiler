@@ -46,13 +46,13 @@ Grafana 与 Prometheus 为第三方开源软件，不属于 MindStudio Service P
 
 ### 安装
 
-```bash 
+```bash
 pip install ms_service_metric
 ```
 
-```bash 
+```bash
 # 本地安装（不推荐，仅建议开发时使用）
-git clone https://gitcode.com/Ascend/msserviceprofiler.git 
+git clone https://gitcode.com/Ascend/msserviceprofiler.git
 cd msserviceprofiler/ms_service_metric
 pip install -e .
 ```
@@ -241,10 +241,12 @@ vllm_profiling_server:create_chat_completion:duration_count{dp="-1"} 9.0
 | engine:memory:non_torch_gb | Gauge | - | 非 PyTorch 组件占用显存，单位 GiB |
 | engine:memory:activation_gb | Gauge | - | Profile 过程中峰值 activation 显存，单位 GiB |
 | engine:memory:graph_gb | Gauge | - | NPU Graph 占用显存，单位 GiB |
+| engine:memory:torch_reserved_gb | Gauge | - | vllm-ascend 运行态 PyTorch reserved 显存，单位 GiB |
+| engine:memory:torch_allocated_gb | Gauge | - | vllm-ascend 运行态 PyTorch allocated 显存，单位 GiB |
 
 >[!NOTE]
 >
->KVCache 使用率可近似计算为 `(1 - free_kvcache_blocks / total_kvcache_blocks) * 100%`，用于监测显存占用与负载均衡。`engine:memory:*` 指标为 Worker 初始化后的静态显存快照，通常每个进程只记录一次。
+>KVCache 使用率可近似计算为 `(1 - free_kvcache_blocks / total_kvcache_blocks) * 100%`，用于监测显存占用与负载均衡。`engine:memory:torch_reserved_gb` 和 `engine:memory:torch_allocated_gb` 为运行态显存指标，其余 `engine:memory:*` 指标为 Worker 初始化后的静态显存快照，通常每个进程只记录一次。
 
 #### 引擎与端到端耗时类
 

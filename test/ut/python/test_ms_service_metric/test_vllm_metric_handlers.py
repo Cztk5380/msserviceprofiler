@@ -798,6 +798,56 @@ def test_given_engine_memory_handler_when_metric_config_object_then_registers_wi
     assert calls == [(("engine:memory:total_gb", 16.0, {}), {})]
 
 
+def test_given_runtime_memory_handler_when_worker_executes_then_records_torch_memory(monkeypatch):
+    calls = []
+    registered = []
+    monkeypatch.setattr(
+        mh,
+        "metrics_client",
+        SimpleNamespace(
+            record_metric=lambda *a, **k: calls.append((a, k)),
+            get_or_create_metric=lambda *a, **k: registered.append((a, k)),
+        ),
+    )
+
+    handler = mh.runtime_memory_phase_handler(
+        [
+            {"name": "engine:memory:torch_reserved_gb", "type": "gauge"},
+            {"name": "engine:memory:torch_allocated_gb", "type": "gauge"},
+        ]
+    )
+    gib = 1024**3
+    worker = SimpleNamespace(torch_reserved=int(18.25 * gib), torch_allocated=int(11.5 * gib))
+
+    result = handler(lambda _self: "ok", worker)
+
+    assert result == "ok"
+    assert len(registered) == 2
+    assert all(kwargs == {"metric_type": mh.MetricType.GAUGE} for _args, kwargs in registered)
+    values = {args[0]: args[1] for args, _kwargs in calls}
+    assert values["engine:memory:torch_reserved_gb"] == round(int(18.25 * gib) / gib, 2)
+    assert values["engine:memory:torch_allocated_gb"] == 11.5
+
+
+def test_given_runtime_memory_handler_when_attribute_missing_then_does_not_raise(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        mh,
+        "metrics_client",
+        SimpleNamespace(
+            record_metric=lambda *a, **k: calls.append((a, k)),
+            get_or_create_metric=lambda *a, **k: None,
+        ),
+    )
+
+    handler = mh.runtime_memory_phase_handler([{"name": "engine:memory:torch_reserved_gb", "type": "gauge"}])
+
+    result = handler(lambda _self: "ok", SimpleNamespace())
+
+    assert result == "ok"
+    assert not calls
+
+
 def test_given_format_gib_value_when_zero_then_returns_zero():
     assert mh._format_gib_value(0) == 0.0
 

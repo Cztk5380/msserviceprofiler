@@ -245,6 +245,12 @@ _ENGINE_MEMORY_METRIC_ACCESSORS = {
 }
 
 
+_RUNTIME_MEMORY_METRIC_ACCESSORS = {
+    "engine:memory:torch_reserved_gb": lambda self: _format_gib_value(self.torch_reserved),
+    "engine:memory:torch_allocated_gb": lambda self: _format_gib_value(self.torch_allocated),
+}
+
+
 def engine_memory_phase_handler(metrics_config, **_kwargs):
     """Record one-shot engine memory metrics after worker initialization."""
     configured_metrics = []
@@ -266,6 +272,32 @@ def engine_memory_phase_handler(metrics_config, **_kwargs):
                 metrics_client.record_metric(name, accessor(self), {})
         except Exception:
             logger.warning("Failed to record engine memory metrics", exc_info=True)
+        return ret
+
+    return handler
+
+
+def runtime_memory_phase_handler(metrics_config, **_kwargs):
+    """Record runtime torch memory metrics after vllm-ascend refreshes them."""
+    configured_metrics = []
+    for m in metrics_config:
+        metric_name = _get_metric_config_value(m, "name", "")
+        if not metric_name:
+            continue
+        configured_metrics.append(metric_name)
+        metrics_client.get_or_create_metric(metric_name, metric_type=MetricType.GAUGE)
+
+    def handler(ori, self, *args, **kwargs):
+        ret = ori(self, *args, **kwargs)
+        try:
+            for name in configured_metrics:
+                accessor = _RUNTIME_MEMORY_METRIC_ACCESSORS.get(name)
+                if accessor is None:
+                    logger.debug("Skip unknown runtime memory metric: %s", name)
+                    continue
+                metrics_client.record_metric(name, accessor(self), {})
+        except Exception:
+            logger.warning("Failed to record runtime memory metrics", exc_info=True)
         return ret
 
     return handler

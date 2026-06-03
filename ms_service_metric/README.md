@@ -34,7 +34,7 @@ vLLM 通过 entry_points 机制自动适配，无需额外代码：
 
 ```bash
 # 开启 vLLM 多进程 metric 采集环境变量
-export PROMETHEUS_MULTIPROC_DIR=/dev/shm/vllm_metrics && mkdir -p $PROMETHEUS_MULTIPROC_DIR 
+export PROMETHEUS_MULTIPROC_DIR=/dev/shm/vllm_metrics && mkdir -p $PROMETHEUS_MULTIPROC_DIR
 
 # 可选，清理上次的指标文件
 # rm -rf $PROMETHEUS_MULTIPROC_DIR/*
@@ -74,14 +74,14 @@ ms-service-metric status
    - 下载 `prometheus-<version>.windows-amd64.zip`
 
 2. 解压并配置:
-   
+
    ```powershell
    # 解压到指定目录
    Expand-Archive -Path prometheus-*.zip -DestinationPath C:\Prometheus
    ```
 
 3. 修改 `prometheus.yml` 配置文件，添加 vLLM 指标采集任务:
-   
+
    ```yaml
    scrape_configs:
      - job_name: 'vllm'
@@ -91,27 +91,27 @@ ms-service-metric status
    ```
 
 4. 启动 Prometheus:
-   
+
    ```powershell
    cd C:\Prometheus
    .\prometheus.exe --config.file=prometheus.yml
    ```
-   
+
    Prometheus 默认访问地址: `http://localhost:9090`
 
 #### 安装 Grafana
 
 1. 下载 Grafana Windows 版本:
-   
+
    - 访问 [Grafana 下载页面](https://grafana.com/grafana/download?platform=windows)
    - 下载并运行安装程序
 
 2. 启动 Grafana 服务:
-   
+
    ```powershell
    # 通过服务管理器启动
    net start grafana
-   
+
    # 或者手动启动
    cd "C:\Program Files\GrafanaLabs\grafana\bin"
    .\grafana-server.exe
@@ -136,7 +136,7 @@ ms-service-metric status
    - 左侧菜单: **Dashboards** → **Import**
    - 点击 **Upload dashboard JSON file**
    - 选择 [Dashboard 样例文件(下载到本地，匹配默认的采集配置)](https://gitcode.com/Ascend/msserviceprofiler/blob/master/ms_service_metric/example/MsServiceMetric-grafana-Dashboard.json) 文件
-   - 点击 **Import**   
+   - 点击 **Import**
    - 选择刚才创建的 Prometheus 数据源
 
 ### 4. 更多介绍
@@ -197,6 +197,8 @@ ms-service-metric status
 | engine:memory:non_torch_gb | Gauge | 非 PyTorch 组件占用显存，单位 GiB |
 | engine:memory:activation_gb | Gauge | Profile 过程中峰值 activation 显存，单位 GiB |
 | engine:memory:graph_gb | Gauge | NPU Graph 占用显存，单位 GiB |
+| engine:memory:torch_reserved_gb | Gauge | vllm-ascend 运行态 PyTorch reserved 显存，单位 GiB |
+| engine:memory:torch_allocated_gb | Gauge | vllm-ascend 运行态 PyTorch allocated 显存，单位 GiB |
 
 ### 引擎、执行器与 NPU 耗时
 
@@ -324,14 +326,14 @@ ms-service-metric status
 def my_wrap_handler(ori_func, *args, **kwargs):
     # 前置处理
     start_time = time.time()
-    
+
     # 调用原函数
     result = ori_func(*args, **kwargs)
-    
+
     # 后置处理
     duration = time.time() - start_time
     print(f"Duration: {duration}")
-    
+
     return result
 ```
 
@@ -344,13 +346,13 @@ def context_handler(ctx):
     # ctx: FunctionContext 对象
     # ctx.return_value: 返回值（yield 后可用）
     # ctx.locals: 函数的 locals 字典
-    
+
     # 前置处理
     start_time = time.time()
     print(f"Locals before: {ctx.locals}")
-    
+
     yield  # 原函数在这里执行
-    
+
     # 后置处理
     duration = time.time() - start_time
     print(f"Duration: {duration}")
@@ -419,10 +421,10 @@ from ms_service_metric.core import SymbolHandlerManager
 class MyAdapter:
     def __init__(self):
         self._manager = SymbolHandlerManager()
-        
+
     def initialize(self, config_path: str):
         self._manager.initialize(config_path)
-        
+
     def shutdown(self):
         self._manager.shutdown()
 ```
