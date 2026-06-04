@@ -16,6 +16,8 @@ add_library(ms_service_profiler SHARED
 target_include_directories(ms_service_profiler PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${THIRD_PARTY_DIR}/json/include
+    ${THIRD_PARTY_DIR}/ascend/include
+    ${SQLite3_INCLUDE_DIR}
 )
 
 target_compile_options(ms_service_profiler PRIVATE
@@ -65,6 +67,7 @@ if (DEFINED ENV{ASCEND_TOOLKIT_HOME})
         ${TOOLKIT_BASE_PATH}/include
         ${TOOLKIT_BASE_PATH}/aarch64-linux/include
         ${TOOLKIT_BASE_PATH}/x86_64-linux/include
+        ${TOOLKIT_BASE_PATH}/tools/mstx/include
     )
     target_link_directories(ms_service_profiler PRIVATE
         ${TOOLKIT_BASE_PATH}/lib64
