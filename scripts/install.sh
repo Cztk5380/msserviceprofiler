@@ -9,6 +9,7 @@ root_libmsserviceprofiler_right=444
 user_libmsserviceprofiler_right=440
 MSSERVICE_RUN_NAME="mindstudio-msserviceprofiler"
 SHARE_INFO_DIR="share/info"
+BIN_BACKUP="bin_backup"
 UNINSTALL_SCRIPT="uninstall.sh"
 VERSION_INFO="version.info"
 MSSERVICEPROFILER="msserviceprofiler"
@@ -56,7 +57,13 @@ function implement_install() {
     copy_file ${UNINSTALL_SCRIPT} ${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${UNINSTALL_SCRIPT}
     copy_file ${VERSION_INFO} ${install_path}/${SHARE_INFO_DIR}/${MSSERVICEPROFILER}/${VERSION_INFO}
 	  # install whl
+	  rm -rf ${install_path}/${BIN_BACKUP}
+	  create_directory ${install_path}/${BIN_BACKUP} ${right}
+	  copy_file ${install_path%/}/python/site-packages/bin ${install_path}/${BIN_BACKUP}
     install_whl_package $pylocal ms_service_profiler-*.whl ${install_path%/}/python/site-packages
+    copy_file ${install_path%/}/python/site-packages/bin/msserviceprofiler ${install_path}/${BIN_BACKUP}/msserviceprofiler
+    copy_file ${install_path}/${BIN_BACKUP} ${install_path%/}/python/site-packages/bin
+    rm -rf ${install_path}/${BIN_BACKUP}
     print_log "INFO" "${install_path%/}/python/site-packages/ms_service_profiler is replaced."
     # libms_service_profiler.so
     lib64_right=$(stat -c "%a" ${install_path}/${arch_name}/lib64 2>/dev/null)
