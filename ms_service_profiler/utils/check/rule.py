@@ -29,52 +29,19 @@ class Rule:
 
     @staticmethod
     def config_file() -> PathChecker:
-        return (
-            PathChecker()
-            .exists()
-            .is_file()
-            .is_readable()
-            .is_not_writable_to_others()
-            .is_safe_parent_dir()
-            .max_size(10 * 1000 * 1000)
-            .as_default()
-        )
+        return PathChecker().exists().is_file().as_default()
 
     @staticmethod
     def input_file() -> PathChecker:
-        return (
-            PathChecker()
-            .exists()
-            .forbidden_softlink()
-            .is_file()
-            .is_readable()
-            .is_owner()
-            .is_not_writable_to_others()
-            .is_safe_parent_dir()
-            .max_size(2 * 1000 * 1000 * 1000)
-            .as_default()
-        )
+        return PathChecker().exists().as_default()
 
     @staticmethod
     def input_dir() -> PathChecker:
-        return (
-            PathChecker()
-            .exists()
-            .forbidden_softlink()
-            .is_dir()
-            .is_readable()
-            .is_owner()
-            .is_not_writable_to_others()
-            .as_default()
-        )
+        return PathChecker().exists().is_dir().as_default()
 
     @staticmethod
     def output_dir() -> PathChecker:
-        return (
-            Rule.path()
-            .any(Rule.anti(PathChecker().exists()), PathChecker().is_dir().is_writeable().is_not_writable_to_others())
-            .as_default()
-        )
+        return Rule.path().any(Rule.anti(PathChecker().exists()), PathChecker().is_dir()).as_default()
 
     @staticmethod
     def any(*rules: Checker) -> Checker:

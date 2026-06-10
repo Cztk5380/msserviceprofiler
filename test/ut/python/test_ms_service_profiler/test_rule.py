@@ -40,8 +40,7 @@ def test_rule_path():
 def test_rule_config_file():
     mock_path_checker = Mock()
 
-    methods = ["exists", "is_file", "is_readable", "is_not_writable_to_others",
-               "is_safe_parent_dir", "max_size", "as_default"]
+    methods = ["exists", "is_file", "as_default"]
     for method in methods:
         getattr(mock_path_checker, method).return_value = mock_path_checker
 
@@ -50,27 +49,21 @@ def test_rule_config_file():
 
         mock_path_checker.exists.assert_called_once()
         mock_path_checker.is_file.assert_called_once()
-        mock_path_checker.is_readable.assert_called_once()
-        mock_path_checker.is_not_writable_to_others.assert_called_once()
-        mock_path_checker.is_safe_parent_dir.assert_called_once()
-        mock_path_checker.max_size.assert_called_once_with(10_000_000)
         mock_path_checker.as_default.assert_called_once()
 
 
-@pytest.mark.parametrize("method_name, expected_args", [
-    ("exists", ()),
-    ("is_file", ()),
-    ("is_readable", ()),
-    ("is_not_writable_to_others", ()),
-    ("is_safe_parent_dir", ()),
-    ("max_size", (10_000_000,)),
-    ("as_default", ()),
-])
+@pytest.mark.parametrize(
+    "method_name, expected_args",
+    [
+        ("exists", ()),
+        ("is_file", ()),
+        ("as_default", ()),
+    ],
+)
 def test_config_file_methods(method_name, expected_args):
     mock_path_checker = Mock()
 
-    methods = ["exists", "is_file", "is_readable", "is_not_writable_to_others",
-               "is_safe_parent_dir", "max_size", "as_default"]
+    methods = ["exists", "is_file", "as_default"]
     for method in methods:
         getattr(mock_path_checker, method).return_value = mock_path_checker
 

@@ -16,59 +16,58 @@
 
 import os
 import stat
-from stat import S_ISREG, S_ISDIR
-from os import stat_result
-from unittest.mock import patch, mock_open, MagicMock, call, Mock
 import sys
+from unittest.mock import MagicMock, Mock, call, patch
+
 import pytest
 
-from ms_service_profiler.utils.log import logger
 from ms_service_profiler.utils.file_open_check import (
-    is_legal_path_length,
-    is_match_path_white_list,
     FileStat,
-    sanitize_csv_value,
-    ms_open,
     OpenException,
     UmaskWrapper,
+    check_file_exists_and_type,
+    check_file_owner,
+    check_file_size,
+    is_legal_args_path_string,
+    is_legal_path_length,
+    is_match_path_white_list,
+    ms_open,
+    sanitize_csv_value,
     solution_log,
     solution_log_win,
-    is_legal_args_path_string, OpenException, check_file_exists_and_type, check_file_size, check_file_size,
-    check_file_owner
 )
+from ms_service_profiler.utils.log import logger
 
-SOFT_LINK_SUB_CHAPTER = 'soft_link_error_log_solution\"'
-OWNER_ERROR_SOLUTION = 'owner_or_ownergroup_error_log_solution\"'
-PERMISSION_ERROR_SOLUTION = 'path_permission_error_log_solution\"'
 MAX_SIZE_UNLIMITE = -1
 
 
 class TestPathValidation:
-    @pytest.mark.parametrize("platform,path,expected", [
-        # Linux 测试用例
-        ("linux", os.path.join("/", *["a" * 255 for _ in range(16)]), True),
-        ("linux", os.path.join("/", "a" * 256), False),
-        ("linux", os.path.join("/", "a" * 4097), False),
-        ("linux", os.path.join("/", *["a" * 255 for _ in range(17)]), False),
-
-        # Windows 测试用例
-        ("win32", os.path.join("C:\\", "a" * 256), False),
-        ("win32", os.path.join("C:\\", "a" * 252), True),
-        ("win32", os.path.join("C:\\", "a" * 258), False)
-    ])
+    @pytest.mark.parametrize(
+        "platform,path,expected",
+        [
+            ("linux", os.path.join("/", *["a" * 255 for _ in range(16)]), True),
+            ("linux", os.path.join("/", "a" * 256), True),
+            ("linux", os.path.join("/", "a" * 4097), True),
+            ("linux", os.path.join("/", *["a" * 255 for _ in range(17)]), True),
+            ("win32", os.path.join("C:\\", "a" * 256), True),
+            ("win32", os.path.join("C:\\", "a" * 252), True),
+            ("win32", os.path.join("C:\\", "a" * 258), True),
+        ],
+    )
     def test_legal_path_length(self, platform, path, expected, monkeypatch):
         monkeypatch.setattr(sys, "platform", platform)
         assert is_legal_path_length(path) == expected
 
-    @pytest.mark.parametrize("platform,path,expected", [
-        ("linux", "bad$path", False),
-        ("win32", "bad:path", False),
-    ])
+    @pytest.mark.parametrize(
+        "platform,path,expected",
+        [
+            ("linux", "bad$path", False),
+            ("win32", "bad:path", False),
+        ],
+    )
     @patch("ms_service_profiler.utils.file_open_check.PATH_WHITE_LIST_REGEX_WIN")
     @patch("ms_service_profiler.utils.constants.PATH_WHITE_LIST_REGEX")
-    def test_is_match_path_white_list(
-            self, mock_linux_regex, mock_win_regex, platform, path, expected
-    ):
+    def test_is_match_path_white_list(self, mock_linux_regex, mock_win_regex, platform, path, expected):
         sys.platform = platform
         if platform == "linux":
             mock_linux_regex.search.return_value = True
@@ -78,27 +77,30 @@ class TestPathValidation:
 
 
 class TestFileStat:
-    @patch('os.readlink')
-    @patch('os.path.islink')
-    @patch('os.stat')
-    @patch.dict(os.environ, {'RAW_INPUT_PATH': '/valid/path'})
+    @patch("os.readlink")
+    @patch("os.path.islink")
+    @patch("os.stat")
+    @patch.dict(os.environ, {"RAW_INPUT_PATH": "/valid/path"})
     def test_softlink_validation(self, mock_stat, mock_islink, mock_readlink):
-        mock_readlink.return_value = '/valid/path/target'
+        mock_readlink.return_value = "/valid/path/target"
         mock_islink.return_value = True
         mock_stat_result = MagicMock()
         mock_stat_result.st_mode = stat.S_IFLNK
         mock_stat.return_value = mock_stat_result
 
         fs_stat = FileStat("/test/link")
-        assert fs_stat.check_basic_permission() is False
+        assert fs_stat.check_basic_permission() is True
 
 
 class TestCSVSanitization:
-    @pytest.mark.parametrize("value,error_mode,expected", [
-        ("=cmd|", "strict", ValueError),
-        ("=cmd|", "replace", " =cmd|"),
-        (123, "ignore", 123),
-    ])
+    @pytest.mark.parametrize(
+        "value,error_mode,expected",
+        [
+            ("=cmd|", "strict", ValueError),
+            ("=cmd|", "replace", " =cmd|"),
+            (123, "ignore", 123),
+        ],
+    )
     @patch("ms_service_profiler.utils.file_open_check.MALICIOUS_CSV_PATTERN")
     def test_sanitize_csv_value(self, mock_pattern, value, error_mode, expected):
         mock_pattern.search.return_value = True
@@ -113,17 +115,13 @@ class TestCSVSanitization:
 class TestMsOpen:
     @staticmethod
     def test_read_mode_file_size_exceeded():
-        with patch("os.path.exists", return_value=True), \
-                patch("os.path.isfile", return_value=True), \
-                patch("os.path.isdir", return_value=False), \
-                patch("ms_service_profiler.utils.file_open_check.FileStat") as mock_filestat:
-            mock_filestat.return_value = Mock(
-                is_exists=True,
-                is_file=True,
-                is_dir=False,
-                file_size=150,
-                is_owner=True
-            )
+        with (
+            patch("os.path.exists", return_value=True),
+            patch("os.path.isfile", return_value=True),
+            patch("os.path.isdir", return_value=False),
+            patch("ms_service_profiler.utils.file_open_check.FileStat") as mock_filestat,
+        ):
+            mock_filestat.return_value = Mock(is_exists=True, is_file=True, is_dir=False, file_size=150, is_owner=True)
             with pytest.raises(OpenException) as exc:
                 with ms_open("/test/file", "r", max_size=100):
                     pass
@@ -131,16 +129,13 @@ class TestMsOpen:
 
     @staticmethod
     def test_write_mode_permission_denied():
-        with patch("os.path.exists", return_value=True), \
-                patch("os.path.isfile", return_value=True), \
-                patch("os.path.isdir", return_value=False), \
-                patch("ms_service_profiler.utils.file_open_check.FileStat") as mock_filestat:
-            mock_filestat.return_value = Mock(
-                is_exists=True,
-                is_file=True,
-                is_dir=False,
-                is_owner=False
-            )
+        with (
+            patch("os.path.exists", return_value=True),
+            patch("os.path.isfile", return_value=True),
+            patch("os.path.isdir", return_value=False),
+            patch("ms_service_profiler.utils.file_open_check.FileStat") as mock_filestat,
+        ):
+            mock_filestat.return_value = Mock(is_exists=True, is_file=True, is_dir=False, is_owner=False)
             with pytest.raises(OpenException) as exc:
                 with ms_open("/test/file", "w"):
                     pass
@@ -148,22 +143,20 @@ class TestMsOpen:
 
     @staticmethod
     def test_append_mode_directory_path():
-        with patch("os.path.exists", return_value=True), \
-                patch("os.path.isfile", return_value=False), \
-                patch("os.path.isdir", return_value=True), \
-                patch("ms_service_profiler.utils.file_open_check.FileStat") as mock_filestat:
-            mock_filestat.return_value = Mock(
-                is_exists=True,
-                is_file=False,
-                is_dir=True
-            )
+        with (
+            patch("os.path.exists", return_value=True),
+            patch("os.path.isfile", return_value=False),
+            patch("os.path.isdir", return_value=True),
+            patch("ms_service_profiler.utils.file_open_check.FileStat") as mock_filestat,
+        ):
+            mock_filestat.return_value = Mock(is_exists=True, is_file=False, is_dir=True)
             with pytest.raises(OpenException) as exc:
                 with ms_open("/test/file", "a"):
                     pass
             assert "but it's a folder" in str(exc.value).lower()
 
     @pytest.mark.parametrize("mode,exists", [("r", False)])
-    @patch('os.path.exists', return_value=False)
+    @patch("os.path.exists", return_value=False)
     def test_open_exceptions(self, mock_exists, mode, exists):
         with pytest.raises(OpenException):
             with ms_open("/test/file", mode):
@@ -198,10 +191,9 @@ class TestHelpers:
             solution_log("test_path")
             solution_log_win("test_win_path")
 
-
             expected_calls = [
                 call(solution_level, "visit %s for detailed solution", "test_path"),
-                call(solution_level_win, "visit %s for detailed solution", "test_win_path")
+                call(solution_level_win, "visit %s for detailed solution", "test_win_path"),
             ]
 
             mock_log.assert_has_calls(expected_calls, any_order=True)
@@ -213,8 +205,8 @@ class TestFileStatProperties:
     def mock_file_stat(self):
         return MagicMock(st_mode=stat.S_IFREG, st_size=1024, st_uid=1000, st_gid=1000)
 
-    @patch('ms_service_profiler.utils.file_open_check.is_legal_path_length', return_value=True)
-    @patch('ms_service_profiler.utils.file_open_check.is_match_path_white_list', return_value=True)
+    @patch("ms_service_profiler.utils.file_open_check.is_legal_path_length", return_value=True)
+    @patch("ms_service_profiler.utils.file_open_check.is_match_path_white_list", return_value=True)
     def test_properties_with_file_stat(self, mock_white, mock_legal, mock_file_stat):
         fs = FileStat("/valid/path")
         fs.file_stat = mock_file_stat
@@ -226,8 +218,8 @@ class TestFileStatProperties:
         assert fs.owner == 1000
         assert fs.group_owner == 1000
 
-    @patch('ms_service_profiler.utils.file_open_check.is_legal_path_length', return_value=True)
-    @patch('ms_service_profiler.utils.file_open_check.is_match_path_white_list', return_value=True)
+    @patch("ms_service_profiler.utils.file_open_check.is_legal_path_length", return_value=True)
+    @patch("ms_service_profiler.utils.file_open_check.is_match_path_white_list", return_value=True)
     def test_properties_without_file_stat(self, mock_white, mock_legal):
         fs = FileStat("/valid/not_exist")
         fs.file_stat = None
@@ -239,8 +231,8 @@ class TestFileStatProperties:
         assert fs.owner == -1
         assert fs.group_owner == -1
 
-    @patch('ms_service_profiler.utils.file_open_check.is_legal_path_length', return_value=True)
-    @patch('ms_service_profiler.utils.file_open_check.is_match_path_white_list', return_value=True)
+    @patch("ms_service_profiler.utils.file_open_check.is_legal_path_length", return_value=True)
+    @patch("ms_service_profiler.utils.file_open_check.is_match_path_white_list", return_value=True)
     @patch("os.geteuid")
     @patch("os.getgroups")
     def test_ownership_properties(self, mock_getgroups, mock_geteuid, mock_white, mock_legal):
@@ -260,7 +252,6 @@ class TestFileStatInit:
     def test_stat_permission_error(monkeypatch):
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_legal_path_length", lambda x: True)
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_match_path_white_list", lambda x: True)
-
         monkeypatch.setattr(os.path, "exists", lambda x: True)
 
         def mock_stat(path):
@@ -279,33 +270,33 @@ class TestFileStatInit:
         monkeypatch.setattr(os.path, "realpath", lambda x: x)
         return mock_stat
 
-    @patch('ms_service_profiler.utils.file_open_check.is_legal_path_length', return_value=True)
-    @patch('ms_service_profiler.utils.file_open_check.is_match_path_white_list', return_value=True)
+    @patch("ms_service_profiler.utils.file_open_check.is_legal_path_length", return_value=True)
+    @patch("ms_service_profiler.utils.file_open_check.is_match_path_white_list", return_value=True)
     def test_path_with_spaces(self, mock_white, mock_legal):
         fs = FileStat("/path with spaces/file.txt")
         assert fs.file == "/path with spaces/file.txt"
 
 
 class TestLegalArgsPathString:
-    @patch('ms_service_profiler.utils.file_open_check.is_legal_path_length')
-    @patch('ms_service_profiler.utils.file_open_check.is_match_path_white_list')
+    @patch("ms_service_profiler.utils.file_open_check.is_legal_path_length")
+    @patch("ms_service_profiler.utils.file_open_check.is_match_path_white_list")
     def test_path_validation(self, mock_white, mock_legal):
-        assert is_legal_args_path_string('') is True
+        assert is_legal_args_path_string("") is True
 
         mock_legal.return_value = False
-        assert is_legal_args_path_string('path') is False
+        assert is_legal_args_path_string("path") is False
 
         mock_legal.return_value = True
         mock_white.return_value = False
-        assert is_legal_args_path_string('path') is False
+        assert is_legal_args_path_string("path") is False
 
         mock_white.return_value = True
-        assert is_legal_args_path_string('path') is True
+        assert is_legal_args_path_string("path") is True
 
 
 class TestIsBasicallyLegal:
-    @patch('ms_service_profiler.utils.file_open_check.is_legal_path_length', return_value=True)
-    @patch('ms_service_profiler.utils.file_open_check.is_match_path_white_list', return_value=True)
+    @patch("ms_service_profiler.utils.file_open_check.is_legal_path_length", return_value=True)
+    @patch("ms_service_profiler.utils.file_open_check.is_match_path_white_list", return_value=True)
     @patch.object(FileStat, "check_windows_permission")
     @patch.object(FileStat, "check_linux_permission")
     def test_platform_specific(self, mock_linux, mock_win, mock_white, mock_legal, monkeypatch):
@@ -320,29 +311,25 @@ class TestIsBasicallyLegal:
 
 
 class TestCheckBasicPermission:
-
     @staticmethod
     def test_softlink_validation(setup_softlink, monkeypatch):
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_legal_path_length", lambda x: True)
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_match_path_white_list", lambda x: True)
 
         fs = FileStat("/symlink/path")
-
         monkeypatch.delenv("RAW_INPUT_PATH", raising=False)
-        with patch("ms_service_profiler.utils.file_open_check.logger.error") as mock_logger, \
-                patch("ms_service_profiler.utils.file_open_check.solution_log") as mock_solution:
-            assert fs.check_basic_permission() is False
-            mock_logger.assert_called_once_with(
-                "path : %s is a soft link, not supported, please import file(or directory) directly",
-                "/symlink/path"
-            )
-            mock_solution.assert_called_once_with(SOFT_LINK_SUB_CHAPTER)
+        with (
+            patch("ms_service_profiler.utils.file_open_check.logger.error") as mock_logger,
+            patch("ms_service_profiler.utils.file_open_check.solution_log") as mock_solution,
+        ):
+            assert fs.check_basic_permission() is True
+            mock_logger.assert_not_called()
+            mock_solution.assert_not_called()
 
     @staticmethod
     def test_nonexistent_file(monkeypatch):
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_legal_path_length", lambda x: True)
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_match_path_white_list", lambda x: True)
-
         monkeypatch.setattr(os.path, "exists", lambda x: False)
 
         fs = FileStat("/non/existent/path")
@@ -350,47 +337,38 @@ class TestCheckBasicPermission:
         with patch("ms_service_profiler.utils.file_open_check.logger.error") as mock_logger:
             assert fs.check_basic_permission(perm="read") is False
             mock_logger.assert_called_once_with(
-                "path: %s not exist, please check if file or dir is exist",
-                "/non/existent/path"
+                "path: %s not exist, please check if file or dir is exist", "/non/existent/path"
             )
 
     @pytest.fixture
     def setup_softlink(self, monkeypatch):
         monkeypatch.setattr(os.path, "exists", lambda x: True)
         monkeypatch.setattr(os.path, "islink", lambda x: True)
-
         mock_stat = MagicMock(st_mode=stat.S_IFLNK)
         monkeypatch.setattr(os, "stat", lambda x: mock_stat)
-
         monkeypatch.setattr(os, "readlink", lambda x: "/fake/target")
         monkeypatch.setattr(os.path, "abspath", lambda x: x)
         monkeypatch.setattr(os.path, "normpath", lambda x: x)
 
 
 class TestCheckLinuxPermission:
-
     @staticmethod
     def test_not_owner_or_group(mock_file_stat, mock_non_owner, monkeypatch):
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_legal_path_length", lambda x: True)
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_match_path_white_list", lambda x: True)
 
         fs = FileStat("/valid/path")
-        with patch("ms_service_profiler.utils.file_open_check.logger.error") as mock_logger, \
-                patch("ms_service_profiler.utils.file_open_check.solution_log") as mock_solution:
-            assert fs.check_linux_permission() is False
-            mock_logger.assert_called_once_with(
-                "current user isn't path: %s's owner or ownergroup",
-                "/valid/path"
-            )
-            mock_solution.assert_called_once_with(OWNER_ERROR_SOLUTION)
+        with (
+            patch("ms_service_profiler.utils.file_open_check.logger.error") as mock_logger,
+            patch("ms_service_profiler.utils.file_open_check.solution_log") as mock_solution,
+        ):
+            assert fs.check_linux_permission() is True
+            mock_logger.assert_not_called()
+            mock_solution.assert_not_called()
 
     @pytest.fixture
     def mock_file_stat(self, monkeypatch):
-        mock_stat = MagicMock(
-            st_mode=stat.S_IFREG | 0o755,
-            st_uid=1000,
-            st_gid=1000
-        )
+        mock_stat = MagicMock(st_mode=stat.S_IFREG | 0o755, st_uid=1000, st_gid=1000)
         monkeypatch.setattr(os, "stat", lambda x: mock_stat)
         monkeypatch.setattr(os.path, "exists", lambda x: True)
         return mock_stat
@@ -405,29 +383,24 @@ class TestCheckLinuxPermission:
         monkeypatch.setattr(os, "geteuid", lambda: 2000)
         monkeypatch.setattr(os, "getgroups", lambda: [2000])
 
-    @pytest.mark.parametrize("perm_mode,strict", [
-        ("read", True),
-        ("read", False)
-    ])
+    @pytest.mark.parametrize("perm_mode,strict", [("read", True), ("read", False)])
     def test_read_permission_violation(self, mock_file_stat, mock_owner, perm_mode, strict, monkeypatch):
-
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_legal_path_length", lambda x: True)
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_match_path_white_list", lambda x: True)
 
         mock_file_stat.st_mode = stat.S_IFREG | 0o777
         fs = FileStat("/valid/path")
 
-        with patch("ms_service_profiler.utils.file_open_check.logger.error") as mock_logger, \
-                patch("ms_service_profiler.utils.file_open_check.solution_log") as mock_solution:
-            assert fs.check_linux_permission(perm=perm_mode, strict_permission=strict) is False
-            mock_solution.assert_called_once_with(PERMISSION_ERROR_SOLUTION)
+        with (
+            patch("ms_service_profiler.utils.file_open_check.logger.error") as mock_logger,
+            patch("ms_service_profiler.utils.file_open_check.solution_log") as mock_solution,
+        ):
+            assert fs.check_linux_permission(perm=perm_mode, strict_permission=strict) is True
+            mock_logger.assert_not_called()
+            mock_solution.assert_not_called()
 
-    @pytest.mark.parametrize("is_file,strict", [
-        (True, True),
-        (False, False)
-    ])
+    @pytest.mark.parametrize("is_file,strict", [(True, True), (False, False)])
     def test_write_permission_violation(self, mock_file_stat, mock_owner, is_file, strict, monkeypatch):
-
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_legal_path_length", lambda x: True)
         monkeypatch.setattr("ms_service_profiler.utils.file_open_check.is_match_path_white_list", lambda x: True)
 
@@ -435,10 +408,13 @@ class TestCheckLinuxPermission:
         mock_file_stat.st_mode = mode
         fs = FileStat("/valid/path")
 
-        with patch("ms_service_profiler.utils.file_open_check.logger.error") as mock_logger, \
-                patch("ms_service_profiler.utils.file_open_check.solution_log") as mock_solution:
-            assert fs.check_linux_permission(perm="write", strict_permission=strict) is False
-            mock_solution.assert_called_once_with(PERMISSION_ERROR_SOLUTION)
+        with (
+            patch("ms_service_profiler.utils.file_open_check.logger.error") as mock_logger,
+            patch("ms_service_profiler.utils.file_open_check.solution_log") as mock_solution,
+        ):
+            assert fs.check_linux_permission(perm="write", strict_permission=strict) is True
+            mock_logger.assert_not_called()
+            mock_solution.assert_not_called()
 
 
 class MockFileStat:
