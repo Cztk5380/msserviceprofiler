@@ -23,6 +23,7 @@ class ExecBenchmark(CommandExecutor):
         super().__init__()
         self.model_name = "llama"
         self.model_path = "/model"
+        self.dataset_type = "gsm8k"
         self.dataset_path = "/dataset"
         self.server_port = 1078
         self.server_ip = "127.0.0.9"
@@ -48,19 +49,30 @@ class ExecBenchmark(CommandExecutor):
     def curl_test(self):
         # 执行
         self.execute(
-            ["curl", f"http://{self.server_ip}:{self.server_port}",
-             "-X", "POST",
-             "-d", '{"inputs":"Please introduce yourself.","parameters":{"max_new_tokens":250, "temperature":0.3, "top_p":0.3, "top_k":5, "do_sample":true, "repetition_penalty":1.05, "seed":128}}'
-             ])
+            [
+                "curl",
+                f"http://{self.server_ip}:{self.server_port}",
+                "-X",
+                "POST",
+                "-d",
+                '{"inputs":"Please introduce yourself.","parameters":{"max_new_tokens":250, "temperature":0.3, "top_p":0.3, "top_k":5, "do_sample":true, "repetition_penalty":1.05, "seed":128}}',
+            ]
+        )
 
         exit_code, _ = self.wait()
         return exit_code == 0
 
-
-    def curl_vllm_test(self, server_ip="0.0.0.0", server_port=8000):
-        self.execute(["curl", f"http://{server_ip}:{server_port}/v1/completions", "-H", "Content-Type: application/json",
-                      "-d", '{"model": "/data/Qwen2.5-0.5B-Instruct", "prompt": "Beijing is a", "max_tokens": 5, "temperature": 0}'
-                      ])
+    def curl_vllm_test(self, server_ip="0.0.0.0", server_port=8000, model_path="/data/Qwen2.5-0.5B-Instruct"):
+        self.execute(
+            [
+                "curl",
+                f"http://{server_ip}:{server_port}/v1/completions",
+                "-H",
+                "Content-Type: application/json",
+                "-d",
+                json.dumps({"model": model_path, "prompt": "Beijing is a", "max_tokens": 5, "temperature": 0}),
+            ]
+        )
 
         exit_code, _ = self.wait()
         return exit_code == 0
@@ -68,19 +80,33 @@ class ExecBenchmark(CommandExecutor):
     def ready_go(self, wait_for=None):
         # 执行
         self.execute(
-            ["benchmark",
-             "--DatasetPath", self.dataset_path,
-             "--DatasetType", self.dataset_type,
-             "--ModelName", self.model_name,
-             "--ModelPath", self.model_path,
-             "--TestType", "client",
-             "--Http", f"http://{self.server_ip}:{self.server_port}",
-             "--ManagementHttp", f"http://{self.server_mannager_ip}:{self.server_mannager_port}",
-             "--Concurrency", 200,
-             "--RequestRate", 10,
-             "--MaxOutputLen", 128,
-             "--Tokenizer", True],
-            dict(MINDIE_LOG_TO_STDOUT="benchmark:1; client:1"))
+            [
+                "benchmark",
+                "--DatasetPath",
+                self.dataset_path,
+                "--DatasetType",
+                self.dataset_type,
+                "--ModelName",
+                self.model_name,
+                "--ModelPath",
+                self.model_path,
+                "--TestType",
+                "client",
+                "--Http",
+                f"http://{self.server_ip}:{self.server_port}",
+                "--ManagementHttp",
+                f"http://{self.server_mannager_ip}:{self.server_mannager_port}",
+                "--Concurrency",
+                200,
+                "--RequestRate",
+                10,
+                "--MaxOutputLen",
+                128,
+                "--Tokenizer",
+                True,
+            ],
+            dict(MINDIE_LOG_TO_STDOUT="benchmark:1; client:1"),
+        )
 
         exit_code, _ = self.wait(target=wait_for)
         print("wait result: ", exit_code)

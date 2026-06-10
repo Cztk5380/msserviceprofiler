@@ -18,11 +18,13 @@ import subprocess
 import os
 import sys
 import time
-from typing import Optional, Union, List
+from typing import Optional
 from queue import Queue
 import queue
 import threading
 import select
+
+OUTPUT_TAIL_LIMIT = 500
 
 
 class CommandExecutor:
@@ -33,6 +35,7 @@ class CommandExecutor:
         self.inst_in_queue = Queue()
         self.thread = None
         self.env = dict()
+        self.output_lines = []
 
     def execute(self, command, env=None) -> None:
         """执行已设置的命令"""
@@ -47,7 +50,7 @@ class CommandExecutor:
         if env:
             sub_process_env.update(env)
 
-        self.process = subprocess.Popen(
+        self.process = subprocess.Popen(  # pylint: disable=consider-using-with
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -57,7 +60,7 @@ class CommandExecutor:
         )
         self.thread = threading.Thread(target=self._monitor, daemon=True)
         self.thread.start()
-    
+
     def clean_msg_out_queue(self):
         while not self.msg_out_queue.empty():
             try:
@@ -68,7 +71,7 @@ class CommandExecutor:
     def _monitor(self):
         is_get_output = False
         process = self.process
-        
+
         def read_instruction():
             nonlocal is_get_output
             if self.inst_in_queue.empty():
@@ -85,7 +88,7 @@ class CommandExecutor:
             else:
                 return False
             return False
-            
+
         while True:
             if read_instruction():
                 break
@@ -103,6 +106,10 @@ class CommandExecutor:
                     sys.stdout.write(line)
                 else:
                     sys.stderr.write(line)
+
+                self.output_lines.append(line)
+                if len(self.output_lines) > OUTPUT_TAIL_LIMIT:
+                    self.output_lines = self.output_lines[-OUTPUT_TAIL_LIMIT:]
 
                 if is_get_output:
                     self.msg_out_queue.put(line)
@@ -158,10 +165,13 @@ class CommandExecutor:
     def kill(self) -> None:
         """重置执行状态"""
         if self.process is not None:
-            subprocess.run(["/usr/bin/pkill", "-P", f"{self.process.pid}"])
-            subprocess.run(["/usr/bin/kill", "-9", f"{self.process.pid}"])
+            subprocess.run(["/usr/bin/pkill", "-P", f"{self.process.pid}"], check=False)
+            subprocess.run(["/usr/bin/kill", "-9", f"{self.process.pid}"], check=False)
         self.process = None
         self._exit_code = None
+
+    def get_output_tail(self, limit: int = 80) -> str:
+        return "".join(self.output_lines[-limit:])
 
     def _reset(self) -> None:
         """重置执行状态"""
@@ -169,6 +179,7 @@ class CommandExecutor:
             self.process.terminate()
         self.process = None
         self._exit_code = None
+        self.output_lines = []
 
     def __del__(self):
         """析构函数，确保清理资源"""
