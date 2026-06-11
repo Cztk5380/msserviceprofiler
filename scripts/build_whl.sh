@@ -6,7 +6,20 @@ VERSION="${1:-26.0.0}"
 
 cd "${PROJECT_ROOT}"
 
-echo "Building version: ${VERSION}"
+echo "Building ms_service_profiler version: ${VERSION}"
+
+# 修改版本号
+sed -i.bak "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
+
+# 打包
+python3 -m build --wheel . --outdir "${TOP_DIR:-${PROJECT_ROOT}}/build/output_whl_dir"
+
+# 恢复原文件
+mv pyproject.toml.bak pyproject.toml
+
+cd ms_service_metric
+
+echo "Building ms_service_metric version: ${VERSION}"
 
 # 修改版本号
 sed -i.bak "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
