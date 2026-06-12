@@ -32,6 +32,13 @@ def main() -> int:
     parser.add_argument("--metric-skip-npu-busy-check", action="store_true", default=False)
     parser.add_argument("--metric-npu-memory-threshold", type=int, default=90)
     parser.add_argument("--metric-request-count", type=int, default=1)
+    parser.add_argument("--metric-poll-timeout", type=float, default=None)
+    parser.add_argument("--metric-poll-interval", type=float, default=1.0)
+    parser.add_argument("--eplb-heat-collection-interval", type=int, default=4)
+    parser.add_argument("--eplb-algorithm-execution-interval", type=int, default=1)
+    parser.add_argument("--eplb-policy-type", type=int, default=2)
+    parser.add_argument("--eplb-num-redundant-experts", type=int, default=4)
+    parser.add_argument("--eplb-max-model-len", type=int, default=4096)
     parser.add_argument("--vllm-extra-arg", action="append", default=[])
     args = parser.parse_args()
 
@@ -51,6 +58,15 @@ def main() -> int:
                 metric_npu_memory_threshold=args.metric_npu_memory_threshold,
                 vllm_extra_args=args.vllm_extra_arg,
                 metric_request_count=args.metric_request_count,
+                metric_poll_timeout=args.metric_poll_timeout,
+                metric_poll_interval=args.metric_poll_interval,
+                scenario_options={
+                    "eplb_heat_collection_interval": args.eplb_heat_collection_interval,
+                    "eplb_algorithm_execution_interval": args.eplb_algorithm_execution_interval,
+                    "eplb_policy_type": args.eplb_policy_type,
+                    "eplb_num_redundant_experts": args.eplb_num_redundant_experts,
+                    "eplb_max_model_len": args.eplb_max_model_len,
+                },
             )
         )
     except metric_scenarios.ScenarioUnavailable as exc:

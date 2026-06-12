@@ -5,6 +5,7 @@
 # MindStudio is licensed under Mulan PSL v2.
 # -------------------------------------------------------------------------
 import importlib
+import json
 import sys
 from pathlib import Path
 
@@ -15,12 +16,16 @@ ST_PYTHON_DIR = Path(__file__).resolve().parents[2] / "st" / "python"
 sys.path.insert(0, str(ST_PYTHON_DIR))
 
 metric_assertions = importlib.import_module("metric.metric_assertions")
+metric_log_health = importlib.import_module("metric.metric_log_health")
 metric_scenarios = importlib.import_module("metric.metric_scenarios")
 metric_smoke_utils = importlib.import_module("metric.metric_smoke_utils")
 
 MetricExpectation = metric_assertions.MetricExpectation
 assert_metric_expectations = metric_assertions.assert_metric_expectations
 parse_prometheus_text = metric_assertions.parse_prometheus_text
+wait_for_metric_expectations = metric_assertions.wait_for_metric_expectations
+assert_metric_log_health = metric_log_health.assert_metric_log_health
+scan_metric_log_health = metric_log_health.scan_metric_log_health
 ScenarioContext = metric_scenarios.ScenarioContext
 get_scenario = metric_scenarios.get_scenario
 MetricSmokeError = metric_smoke_utils.MetricSmokeError
@@ -115,6 +120,80 @@ metric_total{dp="1"} 2
     )
 
 
+def test_expectation_requires_metric_increase_from_baseline():
+    expectation = MetricExpectation(names=["request_count"], increase=True)
+
+    report = assert_metric_expectations(
+        "request_count 3\n",
+        [expectation],
+        baseline_text="request_count 2\n",
+    )
+    assert len(report.passed) == 1
+
+    with pytest.raises(MetricSmokeError):
+        assert_metric_expectations(
+            "request_count 2\n",
+            [expectation],
+            baseline_text="request_count 2\n",
+        )
+
+
+def test_triggered_optional_metric_skips_when_not_increased():
+    report = assert_metric_expectations(
+        "eplb_update_count 2\n",
+        [
+            MetricExpectation(
+                names=["eplb_update_count"],
+                required=False,
+                increase=True,
+                triggered=True,
+            )
+        ],
+        baseline_text="eplb_update_count 2\n",
+    )
+
+    assert len(report.skipped_optional) == 1
+    assert "should increase" in report.skipped_optional[0]["reason"]
+
+
+def test_metric_polling_retries_until_expectation_passes():
+    samples = iter(["request_count 1\n", "request_count 2\n"])
+    calls = []
+
+    def fetcher():
+        calls.append(1)
+        return next(samples)
+
+    metrics_text, report = wait_for_metric_expectations(
+        fetcher=fetcher,
+        expectations=[MetricExpectation(names=["request_count"], increase=True)],
+        baseline_text="request_count 1\n",
+        timeout=1,
+        interval=0,
+    )
+
+    assert metrics_text == "request_count 2\n"
+    assert len(calls) == 2
+    assert len(report.passed) == 1
+
+
+def test_metric_log_health_flags_only_metric_failures(tmp_path):
+    service_log = """
+WARNING 06-11 NIXL is not available
+[ms_service_metric.symbol] ERROR Failed to apply hook for module: boom
+[ms_service_metric.metrics_manager] WARNING Failed to record metric scheduler:duration: bad labels
+[ms_service_metric.symbol] WARNING No target available for symbol optional.module:func
+"""
+
+    report = scan_metric_log_health(service_log)
+
+    assert len(report.fatal) == 2
+    assert len(report.warnings) == 1
+    with pytest.raises(MetricSmokeError):
+        assert_metric_log_health(service_log, report_path=tmp_path / "log_health_report.json")
+    assert (tmp_path / "log_health_report.json").exists()
+
+
 def test_scenario_registry_and_vllm_args(tmp_path):
     context = ScenarioContext(
         model_path="/model",
@@ -136,6 +215,32 @@ def test_scenario_registry_and_vllm_args(tmp_path):
         "4096",
     ]
     assert eplb.build_service_env(context) == {"DYNAMIC_EPLB": "true"}
+    eplb_config = json.loads(eplb_args[eplb_args.index("--additional-config") + 1])
+    assert eplb_config["eplb_config"]["expert_heat_collection_interval"] == 4
+
+    custom_eplb_context = ScenarioContext(
+        model_path="/model",
+        devices=[0, 1],
+        port=8000,
+        artifact_dir=tmp_path,
+        options={
+            "eplb_heat_collection_interval": 8,
+            "eplb_algorithm_execution_interval": 2,
+            "eplb_policy_type": 1,
+            "eplb_num_redundant_experts": 0,
+            "eplb_max_model_len": 8192,
+        },
+    )
+    custom_eplb_args = eplb.build_vllm_args(custom_eplb_context)
+    custom_eplb_config = json.loads(custom_eplb_args[custom_eplb_args.index("--additional-config") + 1])
+    assert custom_eplb_args[custom_eplb_args.index("--max-model-len") + 1] == "8192"
+    assert custom_eplb_config["eplb_config"] == {
+        "dynamic_eplb": True,
+        "expert_heat_collection_interval": 8,
+        "algorithm_execution_interval": 2,
+        "eplb_policy_type": 1,
+        "num_redundant_experts": 0,
+    }
 
     dplb = get_scenario("dplb")
     assert dplb.build_vllm_args(context, ["--trust-remote-code"]) == [
@@ -150,6 +255,17 @@ def test_scenario_registry_and_vllm_args(tmp_path):
 
     with pytest.raises(MetricSmokeError):
         get_scenario("unknown")
+
+
+def test_scenario_expectations_cover_stable_and_triggered_metrics():
+    basic_expectations = get_scenario("basic").expectations()
+    eplb_expectations = get_scenario("eplb").expectations()
+
+    assert len([item for item in basic_expectations if item.required]) == 4
+    assert all(item.increase for item in basic_expectations if item.required)
+    assert len([item for item in basic_expectations if item.triggered]) == 1
+    assert len([item for item in eplb_expectations if item.required]) == 2
+    assert len([item for item in eplb_expectations if item.triggered]) == 3
 
 
 def test_explicit_devices_override_visible_devices(monkeypatch):

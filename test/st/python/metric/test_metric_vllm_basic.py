@@ -34,6 +34,9 @@ def test_vllm_metric_basic(
     metric_npu_memory_threshold,
     vllm_extra_args,
     metric_request_count,
+    metric_poll_timeout,
+    metric_poll_interval,
+    metric_scenario_options,
 ):
     try:
         run_metric_scenario(
@@ -51,6 +54,9 @@ def test_vllm_metric_basic(
                 metric_npu_memory_threshold=metric_npu_memory_threshold,
                 vllm_extra_args=vllm_extra_args,
                 metric_request_count=metric_request_count,
+                metric_poll_timeout=metric_poll_timeout,
+                metric_poll_interval=metric_poll_interval,
+                scenario_options=metric_scenario_options,
             )
         )
     except ScenarioUnavailable as exc:

@@ -7,9 +7,10 @@
 import json
 import math
 import re
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from metric.metric_smoke_utils import MetricSmokeError
 
@@ -37,6 +38,8 @@ class MetricExpectation:
     rules: list[str] = field(default_factory=lambda: ["exists"])
     labels: dict[str, object] = field(default_factory=dict)
     min_distinct_labels: dict[str, int] = field(default_factory=dict)
+    increase: bool = False
+    triggered: bool = False
     description: str = ""
 
 
@@ -65,7 +68,8 @@ class AssertionReport:
             lines.append(f"[metric-assertions] PASS {desc}: {matched[0]}")
         for item in self.skipped_optional:
             desc = item["expectation"].get("description") or ",".join(item["expectation"].get("names", []))
-            lines.append(f"[metric-assertions] OPTIONAL-SKIP {desc}")
+            reason = item.get("reason", "metric was not emitted")
+            lines.append(f"[metric-assertions] OPTIONAL-SKIP {desc}: {reason}")
         for item in self.failed:
             desc = item["expectation"].get("description") or ",".join(item["expectation"].get("names", []))
             lines.append(f"[metric-assertions] FAIL {desc}: {item.get('reason')}")
@@ -95,9 +99,12 @@ def parse_prometheus_text(metrics_text: str) -> list[MetricSample]:
 def assert_metric_expectations(
     metrics_text: str,
     expectations: list[MetricExpectation],
+    baseline_text: str = "",
     report_path: Optional[Path] = None,
+    print_summary: bool = True,
 ) -> AssertionReport:
     samples = parse_prometheus_text(metrics_text)
+    baseline_samples = parse_prometheus_text(baseline_text)
     report = AssertionReport()
 
     for expectation in expectations:
@@ -114,25 +121,70 @@ def assert_metric_expectations(
             if expectation.required:
                 report.failed.append(_failure(expectation, "required metric was not found", [], samples))
             else:
-                report.skipped_optional.append(_success(expectation, []))
+                report.skipped_optional.append(_optional_skip(expectation, "metric was not emitted"))
             continue
 
         rule_error = _check_rules(expectation.rules, matched)
         if not rule_error:
             rule_error = _check_distinct_labels(expectation.min_distinct_labels, matched)
+        if not rule_error and expectation.increase:
+            rule_error = _check_increase(matched, baseline_samples)
+            if rule_error and expectation.triggered and not expectation.required:
+                report.skipped_optional.append(_optional_skip(expectation, rule_error, matched, baseline_samples))
+                continue
         if rule_error:
-            report.failed.append(_failure(expectation, rule_error, matched, samples))
+            report.failed.append(_failure(expectation, rule_error, matched, samples, baseline_samples))
         else:
-            report.passed.append(_success(expectation, matched))
+            report.passed.append(_success(expectation, matched, baseline_samples))
 
     if report_path:
         report.write(report_path)
 
-    print(report.summary())
+    if print_summary:
+        print(report.summary())
 
     if report.failed:
         raise MetricSmokeError(json.dumps(report.failed, ensure_ascii=False, indent=2, default=_json_default))
     return report
+
+
+def wait_for_metric_expectations(
+    fetcher: Callable[[], str],
+    expectations: list[MetricExpectation],
+    baseline_text: str,
+    timeout: float,
+    interval: float,
+    report_path: Optional[Path] = None,
+) -> tuple[str, AssertionReport]:
+    deadline = time.monotonic() + timeout
+    metrics_text = ""
+
+    while True:
+        metrics_text = fetcher()
+        try:
+            report = assert_metric_expectations(
+                metrics_text,
+                expectations,
+                baseline_text=baseline_text,
+                print_summary=False,
+            )
+        except MetricSmokeError:
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(interval)
+            continue
+
+        if report_path:
+            report.write(report_path)
+        print(report.summary())
+        return metrics_text, report
+
+    return metrics_text, assert_metric_expectations(
+        metrics_text,
+        expectations,
+        baseline_text=baseline_text,
+        report_path=report_path,
+    )
 
 
 def _parse_labels(raw_labels: str) -> dict[str, str]:
@@ -214,11 +266,23 @@ def _check_distinct_labels(
     return None
 
 
+def _check_increase(
+    samples: list[MetricSample],
+    baseline_samples: list[MetricSample],
+) -> Optional[str]:
+    baseline_values = {_sample_key(sample): sample.value for sample in baseline_samples}
+    for sample in samples:
+        if sample.value > baseline_values.get(_sample_key(sample), 0.0):
+            return None
+    return "metric should increase after the scenario request"
+
+
 def _failure(
     expectation: MetricExpectation,
     reason: str,
     matched: list[MetricSample],
     samples: list[MetricSample],
+    baseline_samples: Optional[list[MetricSample]] = None,
 ) -> dict:
     prefixes = {_metric_prefix(name) for name in expectation.names}
     candidates = [sample.raw for sample in samples if any(sample.name.startswith(prefix) for prefix in prefixes)][:50]
@@ -226,15 +290,43 @@ def _failure(
         "expectation": expectation.__dict__,
         "reason": reason,
         "matched": [sample.raw for sample in matched][:20],
+        "baseline": _matching_raw_samples(expectation, baseline_samples or []),
         "candidates": candidates,
     }
 
 
-def _success(expectation: MetricExpectation, matched: list[MetricSample]) -> dict:
+def _success(
+    expectation: MetricExpectation,
+    matched: list[MetricSample],
+    baseline_samples: Optional[list[MetricSample]] = None,
+) -> dict:
     return {
         "expectation": expectation.__dict__,
         "matched": [sample.raw for sample in matched[:5]],
+        "baseline": _matching_raw_samples(expectation, baseline_samples or []),
     }
+
+
+def _optional_skip(
+    expectation: MetricExpectation,
+    reason: str,
+    matched: Optional[list[MetricSample]] = None,
+    baseline_samples: Optional[list[MetricSample]] = None,
+) -> dict:
+    result = _success(expectation, matched or [], baseline_samples)
+    result["reason"] = reason
+    return result
+
+
+def _matching_raw_samples(
+    expectation: MetricExpectation,
+    samples: list[MetricSample],
+) -> list[str]:
+    return [sample.raw for sample in _find_matches(samples, expectation)[:5]]
+
+
+def _sample_key(sample: MetricSample) -> tuple[str, tuple[tuple[str, str], ...]]:
+    return sample.name, tuple(sorted(sample.labels.items()))
 
 
 def _metric_prefix(name: str) -> str:

@@ -16,6 +16,7 @@
 
 import json
 import os
+import platform
 import re
 import shutil
 import socket
@@ -289,6 +290,48 @@ print(json.dumps({
     if not info.get("vllm_entry_point"):
         raise MetricSmokeError(f"vLLM entry point 'ms_service_metric' is not registered: {info}")
     print("[metric-install]", json.dumps(info, ensure_ascii=False, indent=2))
+    return info
+
+
+def collect_runtime_info() -> dict:
+    script = r"""
+import importlib.metadata as metadata
+import json
+import platform
+import sys
+
+packages = {}
+for package in ("ms-service-metric", "vllm", "vllm-ascend"):
+    try:
+        packages[package] = metadata.version(package)
+    except metadata.PackageNotFoundError:
+        packages[package] = None
+
+print(json.dumps({
+    "python": sys.version.split()[0],
+    "platform": platform.platform(),
+    "packages": packages,
+}, ensure_ascii=False))
+"""
+    result = run_command([sys.executable, "-c", script], timeout=60)
+    if result.returncode != 0:
+        return {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+            "packages": {},
+            "inspection_error": result.stdout.strip(),
+        }
+    json_line = next((line for line in reversed(result.stdout.splitlines()) if line.strip().startswith("{")), "")
+    try:
+        info = json.loads(json_line)
+    except json.JSONDecodeError:
+        info = {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+            "packages": {},
+            "inspection_error": result.stdout.strip(),
+        }
+    print("[metric-runtime]", json.dumps(info, ensure_ascii=False, indent=2))
     return info
 
 

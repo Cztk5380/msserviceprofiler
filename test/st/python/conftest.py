@@ -104,6 +104,13 @@ def pytest_addoption(parser):
         default=1,
         help="Number of completion requests sent by the metric ST scenario",
     )
+    parser.addoption("--metric-poll-timeout", action="store", type=float, default=None)
+    parser.addoption("--metric-poll-interval", action="store", type=float, default=1.0)
+    parser.addoption("--eplb-heat-collection-interval", action="store", type=int, default=4)
+    parser.addoption("--eplb-algorithm-execution-interval", action="store", type=int, default=1)
+    parser.addoption("--eplb-policy-type", action="store", type=int, default=2)
+    parser.addoption("--eplb-num-redundant-experts", action="store", type=int, default=4)
+    parser.addoption("--eplb-max-model-len", action="store", type=int, default=4096)
 
 
 @pytest.fixture(scope="session")
@@ -196,6 +203,27 @@ def vllm_extra_args(request):
 @pytest.fixture(scope="session")
 def metric_request_count(request):
     return request.config.getoption("--metric-request-count")
+
+
+@pytest.fixture(scope="session")
+def metric_poll_timeout(request):
+    return request.config.getoption("--metric-poll-timeout")
+
+
+@pytest.fixture(scope="session")
+def metric_poll_interval(request):
+    return request.config.getoption("--metric-poll-interval")
+
+
+@pytest.fixture(scope="session")
+def metric_scenario_options(request):
+    return {
+        "eplb_heat_collection_interval": request.config.getoption("--eplb-heat-collection-interval"),
+        "eplb_algorithm_execution_interval": request.config.getoption("--eplb-algorithm-execution-interval"),
+        "eplb_policy_type": request.config.getoption("--eplb-policy-type"),
+        "eplb_num_redundant_experts": request.config.getoption("--eplb-num-redundant-experts"),
+        "eplb_max_model_len": request.config.getoption("--eplb-max-model-len"),
+    }
 
 
 @pytest.fixture(scope="function")
