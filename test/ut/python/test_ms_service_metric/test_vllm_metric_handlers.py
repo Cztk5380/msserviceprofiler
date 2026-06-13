@@ -33,6 +33,21 @@ def _make_time_mock(values):
     return _mock_time
 
 
+def test_given_phase_all_handler_when_called_then_records_fixed_phase(monkeypatch):
+    calls = []
+    manager = SimpleNamespace(
+        get_or_create_metric=lambda *a, **k: None,
+        record_metric=lambda *a, **k: calls.append((a, k)),
+    )
+    monkeypatch.setattr(mh, "get_metrics_manager", lambda: manager)
+    monkeypatch.setattr(mh.time, "time", _make_time_mock([1.0, 1.25]))
+
+    handler = mh.phase_all_handler([{"name": "plain:duration", "type": "timer"}])
+
+    assert handler(lambda: "ok") == "ok"
+    assert calls == [(("plain:duration", 0.25, {"phase": "all"}), {})]
+
+
 def _make_scheduler_ret():
     return SimpleNamespace(
         num_scheduled_tokens=[],
@@ -265,7 +280,7 @@ def test_given_running_full_and_waiting_when_scheduler_hook_called_then_records_
 
     assert out is ret
     assert call_count["original"] == 1
-    assert ((mh.REQUEST_PREFILL_PENDING_NUMS, 1, None), {}) in calls
+    assert ((mh.REQUEST_PREFILL_PENDING_NUMS, 1, {"phase": "all"}), {}) in calls
 
 
 def test_given_running_full_and_only_skipped_waiting_when_scheduler_hook_called_then_records_pending(monkeypatch):
@@ -277,7 +292,7 @@ def test_given_running_full_and_only_skipped_waiting_when_scheduler_hook_called_
 
     mh.scheduler_scheduler_hooker(lambda *_a, **_k: _make_scheduler_ret(), scheduler)
 
-    assert ((mh.REQUEST_PREFILL_PENDING_NUMS, 1, None), {}) in calls
+    assert ((mh.REQUEST_PREFILL_PENDING_NUMS, 1, {"phase": "all"}), {}) in calls
 
 
 def test_given_running_not_full_or_missing_attrs_when_scheduler_hook_called_then_does_not_record_pending(monkeypatch):
@@ -337,7 +352,7 @@ def test_given_engine_core_scheduler_blocked_when_step_hook_called_then_records_
 
     assert out is ret
     assert call_count["original"] == 1
-    assert calls == [((mh.REQUEST_PREFILL_PENDING_NUMS, 1, None), {})]
+    assert calls == [((mh.REQUEST_PREFILL_PENDING_NUMS, 1, {"phase": "all"}), {})]
 
 
 def test_given_step_and_scheduler_run_in_same_cycle_when_pending_blocked_then_records_once(monkeypatch):
@@ -353,7 +368,7 @@ def test_given_step_and_scheduler_run_in_same_cycle_when_pending_blocked_then_re
     assert mh.scheduler_scheduler_hooker(lambda *_a, **_k: ret, scheduler) is ret
 
     pending_calls = [entry for entry in calls if entry[0][0] == mh.REQUEST_PREFILL_PENDING_NUMS]
-    assert pending_calls == [((mh.REQUEST_PREFILL_PENDING_NUMS, 1, None), {})]
+    assert pending_calls == [((mh.REQUEST_PREFILL_PENDING_NUMS, 1, {"phase": "all"}), {})]
 
 
 def test_given_engine_core_without_blocked_scheduler_when_step_hook_called_then_does_not_record(monkeypatch):
@@ -447,8 +462,8 @@ def test_given_v1_preempt_request_when_hook_called_then_records_exact_recompute_
 
     assert out == "ok"
     assert "r1" not in phase_state.request_id_to_prompt_token_len
-    assert (("running_to_waiting_count", 1), {}) in calls
-    assert (("scheduler:recompute_events", 1), {}) in calls
+    assert (("running_to_waiting_count", 1, {"phase": "all"}), {}) in calls
+    assert (("scheduler:recompute_events", 1, {"phase": "all"}), {}) in calls
 
 
 def test_given_block_allocate_failed_return_when_hook_called_then_records_failure(monkeypatch):
@@ -458,7 +473,7 @@ def test_given_block_allocate_failed_return_when_hook_called_then_records_failur
     out = mh.block_allocate_failure_hooker(lambda *_a, **_k: None, object())
 
     assert out is None
-    assert calls == [(("block_allocate_failures", 1), {})]
+    assert calls == [(("block_allocate_failures", 1, {"phase": "all"}), {})]
 
 
 def test_given_block_allocate_false_return_when_hook_called_then_records_failure(monkeypatch):
@@ -468,7 +483,7 @@ def test_given_block_allocate_false_return_when_hook_called_then_records_failure
     out = mh.block_allocate_failure_hooker(lambda *_a, **_k: False, object())
 
     assert out is False
-    assert calls == [(("block_allocate_failures", 1), {})]
+    assert calls == [(("block_allocate_failures", 1, {"phase": "all"}), {})]
 
 
 def test_given_block_allocate_exception_when_hook_called_then_records_and_reraises(monkeypatch):
@@ -485,7 +500,7 @@ def test_given_block_allocate_exception_when_hook_called_then_records_and_rerais
     else:
         raise AssertionError("expected RuntimeError")
 
-    assert calls == [(("block_allocate_failures", 1), {})]
+    assert calls == [(("block_allocate_failures", 1, {"phase": "all"}), {})]
 
 
 def test_given_block_allocate_success_when_hook_called_then_does_not_record(monkeypatch):
@@ -512,7 +527,7 @@ def test_given_rpc_timeout_when_hook_called_then_records_and_reraises(monkeypatc
     else:
         raise AssertionError("expected TimeoutError")
 
-    assert calls == [(("rpc_errors", 1, {"exception_type": "TimeoutError"}), {})]
+    assert calls == [(("rpc_errors", 1, {"exception_type": "TimeoutError", "phase": "all"}), {})]
 
 
 def test_given_rpc_connection_reset_when_hook_called_then_records_connection_reset(monkeypatch):
@@ -527,7 +542,7 @@ def test_given_rpc_connection_reset_when_hook_called_then_records_connection_res
     except ConnectionError:
         pass
 
-    assert calls == [(("rpc_errors", 1, {"exception_type": "ConnectionError"}), {})]
+    assert calls == [(("rpc_errors", 1, {"exception_type": "ConnectionError", "phase": "all"}), {})]
 
 
 def test_given_rpc_runtime_error_when_hook_called_then_records_actual_exception_type(monkeypatch):
@@ -542,7 +557,7 @@ def test_given_rpc_runtime_error_when_hook_called_then_records_actual_exception_
     except RuntimeError:
         pass
 
-    assert calls == [(("rpc_errors", 1, {"exception_type": "RuntimeError"}), {})]
+    assert calls == [(("rpc_errors", 1, {"exception_type": "RuntimeError", "phase": "all"}), {})]
 
 
 def test_given_health_ok_when_hook_called_then_does_not_record(monkeypatch):
@@ -570,7 +585,7 @@ def test_given_health_503_when_hook_called_then_records_failure(monkeypatch):
     out = mh.health_check_failed_hooker(lambda *_a, **_k: response, object())
 
     assert out is response
-    assert calls == [((mh.HEALTH_CHECK_FAILED, 1, None), {})]
+    assert calls == [((mh.HEALTH_CHECK_FAILED, 1, {"phase": "all"}), {})]
 
 
 def test_given_async_health_503_when_hook_called_then_records_failure(monkeypatch):
@@ -587,7 +602,7 @@ def test_given_async_health_503_when_hook_called_then_records_failure(monkeypatc
 
     assert out is response
     assert call_count["original"] == 1
-    assert calls == [((mh.HEALTH_CHECK_FAILED, 1, None), {})]
+    assert calls == [((mh.HEALTH_CHECK_FAILED, 1, {"phase": "all"}), {})]
 
 
 def test_given_health_engine_dead_error_when_hook_called_then_records_and_reraises(monkeypatch):
@@ -607,7 +622,7 @@ def test_given_health_engine_dead_error_when_hook_called_then_records_and_rerais
     else:
         raise AssertionError("expected EngineDeadError")
 
-    assert calls == [((mh.HEALTH_CHECK_FAILED, 1, None), {})]
+    assert calls == [((mh.HEALTH_CHECK_FAILED, 1, {"phase": "all"}), {})]
 
 
 def test_given_health_metric_record_fails_when_hook_called_then_response_preserved(monkeypatch):
@@ -646,7 +661,7 @@ def test_given_health_request_when_engine_client_wrapped_then_records_engine_dea
     else:
         raise AssertionError("expected EngineDeadError")
 
-    assert calls == [((mh.HEALTH_CHECK_FAILED, 1, None), {})]
+    assert calls == [((mh.HEALTH_CHECK_FAILED, 1, {"phase": "all"}), {})]
 
 
 def test_given_eplb_do_update_when_worker_exposes_hotness_then_records_hotness_and_imbalance(monkeypatch):
@@ -682,6 +697,8 @@ def test_given_eplb_do_update_when_worker_exposes_hotness_then_records_hotness_a
     assert "eplb:expert_hotness:current_max" in metric_names
     assert "eplb:expert_hotness:update_mean" in metric_names
     assert "eplb:expert_hotness:update_max" in metric_names
+    summary_calls = [kwargs for args, kwargs in calls if args[0] == "eplb:expert_hotness:current_mean"]
+    assert summary_calls[0]["labels"] == {"rank": "0", "phase": "all"}
 
     imbalance_calls = [kwargs for args, kwargs in calls if args[0] == "eplb:expert_hotness:imbalance"]
     assert len(imbalance_calls) == 4
@@ -795,7 +812,7 @@ def test_given_engine_memory_handler_when_metric_config_object_then_registers_wi
 
     assert result == "ok"
     assert registered == [(("engine:memory:total_gb",), {"metric_type": mh.MetricType.GAUGE})]
-    assert calls == [(("engine:memory:total_gb", 16.0, {}), {})]
+    assert calls == [(("engine:memory:total_gb", 16.0, {"phase": "all"}), {})]
 
 
 def test_given_runtime_memory_handler_when_worker_executes_then_records_torch_memory(monkeypatch):

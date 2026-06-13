@@ -8,6 +8,7 @@ import importlib
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -17,6 +18,7 @@ sys.path.insert(0, str(ST_PYTHON_DIR))
 
 metric_assertions = importlib.import_module("metric.metric_assertions")
 metric_log_health = importlib.import_module("metric.metric_log_health")
+metric_runner = importlib.import_module("metric.metric_runner")
 metric_scenarios = importlib.import_module("metric.metric_scenarios")
 metric_smoke_utils = importlib.import_module("metric.metric_smoke_utils")
 
@@ -266,6 +268,87 @@ def test_scenario_expectations_cover_stable_and_triggered_metrics():
     assert len([item for item in basic_expectations if item.triggered]) == 1
     assert len([item for item in eplb_expectations if item.required]) == 2
     assert len([item for item in eplb_expectations if item.triggered]) == 3
+
+
+def test_metric_runner_restarts_collection_before_service_start(monkeypatch, tmp_path):
+    events = []
+
+    class FakeScenario:
+        name = "basic"
+        startup_timeout = 1
+        metric_poll_timeout = 1
+
+        def preflight(self, _context, report):
+            report.pass_("scenario:basic", "ok")
+
+        def build_service_env(self, _context):
+            return {}
+
+        def build_vllm_args(self, _context, _extra_args):
+            return []
+
+        def expectations(self):
+            return []
+
+        def validate_startup(self, _service_output):
+            events.append("validate_startup")
+
+        def run_requests(self, _context):
+            events.append("run_requests")
+            return SimpleNamespace(get_output_tail=lambda _limit: "request log")
+
+    class FakeServer:
+        output_lines = ["service log"]
+
+        def __init__(self, **_kwargs):
+            events.append("server_init")
+
+        def ready_go(self):
+            events.append("ready_go")
+            return True
+
+        def get_output_tail(self, _limit=None):
+            return "service log"
+
+        def kill(self):
+            events.append("kill")
+
+    monkeypatch.setattr(metric_runner, "get_scenario", lambda _name: FakeScenario())
+    monkeypatch.setattr(metric_runner, "require_command", lambda name, _report: events.append(f"require:{name}"))
+    monkeypatch.setattr(metric_runner, "check_model_path", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(metric_runner, "check_npu", lambda devices, **_kwargs: devices)
+    monkeypatch.setattr(metric_runner, "choose_service_port", lambda *_args, **_kwargs: 8000)
+    monkeypatch.setattr(metric_runner, "prepare_prometheus_dir", lambda *_args, **_kwargs: str(tmp_path / "prom"))
+    monkeypatch.setattr(metric_runner, "install_metric_source", lambda **_kwargs: {})
+    monkeypatch.setattr(metric_runner, "collect_runtime_info", lambda: {})
+    monkeypatch.setattr(metric_runner, "restart_metric_collection", lambda: events.append("restart"))
+    monkeypatch.setattr(metric_runner, "ExecVLLMServer", FakeServer)
+    monkeypatch.setattr(metric_runner, "wait_http_ok", lambda _url: events.append("wait_http_ok"))
+    monkeypatch.setattr(metric_runner, "fetch_text", lambda _url: "metrics")
+    monkeypatch.setattr(
+        metric_runner,
+        "wait_for_metric_expectations",
+        lambda **_kwargs: ("metrics", SimpleNamespace(passed=[], failed=[], skipped_optional=[])),
+    )
+    monkeypatch.setattr(
+        metric_runner,
+        "assert_metric_log_health",
+        lambda *_args, **_kwargs: SimpleNamespace(fatal=[], warnings=[], scanned_metric_lines=0),
+    )
+
+    metric_runner.run_metric_scenario(
+        metric_runner.MetricRunnerConfig(
+            scenario="basic",
+            model_path="/model",
+            devices=[0],
+            workspace=str(tmp_path),
+            debug=True,
+        )
+    )
+
+    assert events.index("restart") < events.index("server_init")
+    assert events.index("restart") < events.index("ready_go")
+    assert events.index("wait_http_ok") < events.index("run_requests")
 
 
 def test_explicit_devices_override_visible_devices(monkeypatch):

@@ -80,9 +80,19 @@ metrics_client.get_or_create_metric(RUNNING_PHASE_BATCH_SIZE, buckets=SIZE_BUCKE
 metrics_client.get_or_create_metric(WAITING_PHASE_BATCH_SIZE, buckets=SIZE_BUCKETS, label_names=["req_phase"])
 
 
+def _with_phase_all(labels: Dict[str, str] | None = None) -> Dict[str, str]:
+    fixed_labels = labels.copy() if labels is not None else {}
+    fixed_labels.setdefault("phase", "all")
+    return fixed_labels
+
+
 def _record_queue_phase_metrics(metric_name: str, phase_counts: Dict[str, int]):
     for phase in QUEUE_PHASES:
-        metrics_client.record_metric(metric_name, labels={"req_phase": phase}, value=phase_counts.get(phase, 0))
+        metrics_client.record_metric(
+            metric_name,
+            labels=_with_phase_all({"req_phase": phase}),
+            value=phase_counts.get(phase, 0),
+        )
 
 
 def _get_scheduler_queue(scheduler, attr_name: str):
@@ -117,7 +127,8 @@ def make_stats(original_func, this, *args, **kwargs):
     }
 
     # 记录block数量metrics
-    labels = {"dp": state.dp_rank}
+    # KVCache block 数量是全局状态，不随迭代 phase 变化，因此固定 phase="all" 避免被 meta_state 的动态 phase 拆分为多条时间线
+    labels = _with_phase_all({"dp": state.dp_rank})
     for kv_metric_name, values in kvcache_values_list.items():
         metrics_client.record_metric(kv_metric_name, labels=labels, value=values)
     ret = original_func(this, *args, **kwargs)
@@ -149,6 +160,7 @@ def _record_scheduler_metrics(scheduler_stats, labels: Dict[str, str]):
         logger.debug("No scheduler stats")
         return
 
+    labels = _with_phase_all(labels)
     metrics_client.record_metric(BATCH_SIZE, labels=labels, value=scheduler_stats.num_running_reqs)
     metrics_client.record_metric(WAITING_BATCH_SIZE, labels=labels, value=scheduler_stats.num_waiting_reqs)
 
@@ -188,7 +200,7 @@ _DECODE_LATENCY_THRESHOLD = 1.0
 
 def _record_metric_safely(metric_name: str, value: int = 1, labels: Dict[str, str] | None = None) -> None:
     try:
-        metrics_client.record_metric(metric_name, value, labels)
+        metrics_client.record_metric(metric_name, value, _with_phase_all(labels))
     except Exception as exc:
         logger.warning("Failed to record metric %s safely: %s", metric_name, exc)
 
@@ -263,7 +275,7 @@ def iteration_stats_update_from_output_hooker(
     if second_token_latency >= 0:
         metrics_client.record_metric(
             SECOND_TOKEN_LATENCY,
-            labels={"dp": get_meta_state().dp_rank},
+            labels=_with_phase_all({"dp": get_meta_state().dp_rank}),
             value=second_token_latency,
         )
 
@@ -274,6 +286,8 @@ def _record_iteration_metrics(iteration_stats, labels: Dict[str, str]):
     if not iteration_stats:
         logger.debug("No iteration stats")
         return
+
+    labels = _with_phase_all(labels)
 
     # Total tokens
     if iteration_stats.num_prompt_tokens is not None and iteration_stats.num_generation_tokens is not None:

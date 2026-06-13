@@ -55,6 +55,12 @@ _PHASE_SENSITIVE_OPERATION_NAMES = frozenset(
 )
 
 
+def _with_phase_all(labels: dict[str, str] | None = None) -> dict[str, str]:
+    fixed_labels = labels.copy() if labels is not None else {}
+    fixed_labels.setdefault("phase", "all")
+    return fixed_labels
+
+
 class TimeRecord(NamedTuple):
     start: float
     end: float
@@ -108,7 +114,7 @@ class Timeline:
                     end_time,
                 )
                 continue
-            metrics_client.record_metric(metric_name, duration_value, {})
+            metrics_client.record_metric(metric_name, duration_value, _with_phase_all())
 
 
 timeline_recorder: Timeline = Timeline()
@@ -165,8 +171,9 @@ def _resolve_phase_from_iteration_stats_or_last(args: tuple[Any, ...], kwargs: d
     return get_meta_state().get("last_async_llm_phase", "mixed")
 
 
-def _build_metrics_recorder(metrics_config):
+def _build_metrics_recorder(metrics_config, default_labels: dict[str, str] | None = None):
     manager = get_metrics_manager()
+    default_labels = default_labels or {}
     expr_evaluators = {}
     label_evaluators = {}
     for metric in metrics_config:
@@ -213,6 +220,7 @@ def _build_metrics_recorder(metrics_config):
                 else:
                     value = 1
             labels = {}
+            labels.update(default_labels)
             for label_name, evaluator in label_evaluators.get(name, {}).items():
                 try:
                     labels[label_name] = evaluator(eval_context)
@@ -221,6 +229,28 @@ def _build_metrics_recorder(metrics_config):
             manager.record_metric(name, value, labels)
 
     return _record
+
+
+def phase_all_handler(metrics_config, is_async: bool = False, **_kwargs):
+    """Record metrics that are not semantically split by prefill/decode phase."""
+    record = _build_metrics_recorder(metrics_config, default_labels=_with_phase_all())
+    if is_async:
+
+        async def async_handler(ori, *args, **kwargs):
+            start_time = time.time()
+            ret = await ori(*args, **kwargs)
+            record(time.time() - start_time, ret)
+            return ret
+
+        return async_handler
+
+    def sync_handler(ori, *args, **kwargs):
+        start_time = time.time()
+        ret = ori(*args, **kwargs)
+        record(time.time() - start_time, ret)
+        return ret
+
+    return sync_handler
 
 
 def _format_gib_value(b: int) -> float:
@@ -269,7 +299,7 @@ def engine_memory_phase_handler(metrics_config, **_kwargs):
                 if accessor is None:
                     logger.debug("Skip unknown engine memory metric: %s", name)
                     continue
-                metrics_client.record_metric(name, accessor(self), {})
+                metrics_client.record_metric(name, accessor(self), _with_phase_all())
         except Exception:
             logger.warning("Failed to record engine memory metrics", exc_info=True)
         return ret
@@ -295,7 +325,7 @@ def runtime_memory_phase_handler(metrics_config, **_kwargs):
                 if accessor is None:
                     logger.debug("Skip unknown runtime memory metric: %s", name)
                     continue
-                metrics_client.record_metric(name, accessor(self), {})
+                metrics_client.record_metric(name, accessor(self), _with_phase_all())
         except Exception:
             logger.warning("Failed to record runtime memory metrics", exc_info=True)
         return ret
@@ -485,7 +515,7 @@ def runner_get_output_hooker(original_func, *args, **kwargs):
     ret = original_func(*args, **kwargs)
     duration = time.time() - start_time
 
-    metrics_client.record_metric("worker:model_runner_get_output:duration", duration, {})
+    metrics_client.record_metric("worker:model_runner_get_output:duration", duration, _with_phase_all())
     timeline_recorder.record("model_runner_get_output", start_time, duration)
     return ret
 
@@ -524,7 +554,7 @@ metrics_client.get_or_create_metric(HEALTH_CHECK_FAILED, metric_type=MetricType.
 
 def _record_metric_safely(metric_name: str, value: int = 1, labels: dict[str, str] | None = None) -> None:
     try:
-        metrics_client.record_metric(metric_name, value, labels)
+        metrics_client.record_metric(metric_name, value, _with_phase_all(labels))
     except Exception as exc:
         logger.warning("Failed to record metric %s safely: %s", metric_name, exc)
 
@@ -599,9 +629,10 @@ def scheduler_scheduler_hooker(original_func, self, *args, **kwargs):
     meta_state.set("last_scheduler_phase", scheduler_phase)
     meta_state.set("phase", scheduler_phase)
 
-    metrics_client.record_metric("scheduler:duration", duration)
-    metrics_client.record_metric("scheduler:batch_size", len(ret.num_scheduled_tokens))
-    metrics_client.record_metric("scheduler:running_queue_size", len(self.running))
+    phase_all_labels = _with_phase_all()
+    metrics_client.record_metric("scheduler:duration", duration, phase_all_labels)
+    metrics_client.record_metric("scheduler:batch_size", len(ret.num_scheduled_tokens), phase_all_labels)
+    metrics_client.record_metric("scheduler:running_queue_size", len(self.running), phase_all_labels)
 
     seqlen_sum = 0
     seqlen_cnt = len(ret.scheduled_new_reqs) + len(ret.scheduled_cached_reqs.num_computed_tokens)
@@ -614,12 +645,12 @@ def scheduler_scheduler_hooker(original_func, self, *args, **kwargs):
     seqlen_sum += ret.total_num_scheduled_tokens
 
     if seqlen_cnt > 0 and seqlen_sum > 0:
-        metrics_client.record_metric("scheduler:seqlen:avg", seqlen_sum / seqlen_cnt)
+        metrics_client.record_metric("scheduler:seqlen:avg", seqlen_sum / seqlen_cnt, phase_all_labels)
     if seqlen_sum > 0:
-        metrics_client.record_metric("scheduler:seqlen:sum", seqlen_sum)
+        metrics_client.record_metric("scheduler:seqlen:sum", seqlen_sum, phase_all_labels)
 
     for req_phase, phase_values in phase_metrics.items():
-        labels = {"req_phase": req_phase}
+        labels = _with_phase_all({"req_phase": req_phase})
         batch_size = phase_values["batch_size"]
         scheduled_tokens_sum = phase_values["scheduled_tokens_sum"]
         if batch_size <= 0:
@@ -646,8 +677,8 @@ def engine_core_pending_hooker(original_func, self, *args, **kwargs):
 def scheduler_preempt_request_hooker(original_func, self, *args, **kwargs):
     ret = original_func(self, *args, **kwargs)
     _clear_request_phase_state(_get_scheduler_phase_state(), *args, *kwargs.values(), ret)
-    metrics_client.record_metric(RUNNING_TO_WAITING_COUNT, 1)
-    metrics_client.record_metric("scheduler:recompute_events", 1)
+    metrics_client.record_metric(RUNNING_TO_WAITING_COUNT, 1, _with_phase_all())
+    metrics_client.record_metric("scheduler:recompute_events", 1, _with_phase_all())
     return ret
 
 
@@ -655,11 +686,11 @@ def block_allocate_failure_hooker(original_func, self, *args, **kwargs):
     try:
         ret = original_func(self, *args, **kwargs)
     except Exception:
-        metrics_client.record_metric(BLOCK_ALLOCATE_FAILURES, 1)
+        metrics_client.record_metric(BLOCK_ALLOCATE_FAILURES, 1, _with_phase_all())
         raise
 
     if _is_failed_allocation_result(ret):
-        metrics_client.record_metric(BLOCK_ALLOCATE_FAILURES, 1)
+        metrics_client.record_metric(BLOCK_ALLOCATE_FAILURES, 1, _with_phase_all())
 
     return ret
 
@@ -668,7 +699,7 @@ def rpc_error_hooker(original_func, *args, **kwargs):
     try:
         return original_func(*args, **kwargs)
     except Exception as exc:
-        metrics_client.record_metric(RPC_ERRORS, 1, {"exception_type": _get_exception_type(exc)})
+        metrics_client.record_metric(RPC_ERRORS, 1, _with_phase_all({"exception_type": _get_exception_type(exc)}))
         raise
 
 
@@ -791,7 +822,11 @@ def eplb_do_update_hotness_handler(original_func, self, *args, **kwargs):
                 suffix,
             )
             continue
-        metrics_client.record_metric(f"eplb:expert_hotness:{suffix}", value=float(value), labels=labels)
+        metrics_client.record_metric(
+            f"eplb:expert_hotness:{suffix}",
+            value=float(value),
+            labels=_with_phase_all(labels),
+        )
 
     for phase, key in (
         ("current", "current_imbalance_list"),

@@ -133,6 +133,7 @@ def run_metric_scenario(config: MetricRunnerConfig) -> None:
                 f"names={expectation.names}, rules={expectation.rules}, "
                 f"labels={expectation.labels}, desc={expectation.description}"
             )
+        restart_metric_collection()
         server = ExecVLLMServer(
             model_path=config.model_path,
             port=port,
@@ -147,7 +148,6 @@ def run_metric_scenario(config: MetricRunnerConfig) -> None:
         metrics_url = f"http://127.0.0.1:{port}/metrics"
         wait_http_ok(f"http://127.0.0.1:{port}/health")
 
-        restart_metric_collection()
         baseline_text = fetch_text(metrics_url)
         (artifact_dir / "metrics.before.raw").write_text(baseline_text, encoding="utf-8")
         benchmark = scenario.run_requests(context)

@@ -39,6 +39,14 @@ export PROMETHEUS_MULTIPROC_DIR=/dev/shm/vllm_metrics && mkdir -p $PROMETHEUS_MU
 # 可选，清理上次的指标文件
 # rm -rf $PROMETHEUS_MULTIPROC_DIR/*
 
+# 开启指标采集并确认已经开启
+ms-service-metric on
+
+ms-service-metric status
+
+# 如之前已开启过指标，之后修改了内容，需要重启
+ms-service-metric restart
+
 # 启动vllm
 # vllm serve --model your_model
 ```

@@ -79,6 +79,16 @@ def test_given_make_stats_when_called_then_records_kv_metrics_and_injects_dp(mon
     assert out is ret_obj
     assert len(mock_client.calls) == 9
     assert ret_obj.kv_connector_stats["dp"] == 5
+    kv_calls = [
+        kwargs["labels"]
+        for args, kwargs in mock_client.calls
+        if args and args[0] in (mh.TOTAL_KVCACHE_BLOCKS, mh.FREE_KVCACHE_BLOCKS, mh.ALLOCATED_KVCACHE_BLOCKS)
+    ]
+    assert kv_calls == [
+        {"dp": 5, "phase": "all"},
+        {"dp": 5, "phase": "all"},
+        {"dp": 5, "phase": "all"},
+    ]
 
 
 def test_given_existing_kv_connector_stats_when_make_stats_then_dp_is_merged(monkeypatch):
@@ -275,10 +285,10 @@ def test_given_slow_decode_and_prefill_when_update_from_output_then_threshold_co
     )
 
     assert out == "ok"
-    assert ((mh.DECODE_OVER_1S_COUNT, 2, None), {}) in recorded
-    assert ((mh.PREFILL_OVER_THRESHOLD_COUNT, 3, {"threshold": "5s"}), {}) in recorded
-    assert ((mh.PREFILL_OVER_THRESHOLD_COUNT, 2, {"threshold": "10s"}), {}) in recorded
-    assert ((mh.PREFILL_OVER_THRESHOLD_COUNT, 1, {"threshold": "20s"}), {}) in recorded
+    assert ((mh.DECODE_OVER_1S_COUNT, 2, {"phase": "all"}), {}) in recorded
+    assert ((mh.PREFILL_OVER_THRESHOLD_COUNT, 3, {"threshold": "5s", "phase": "all"}), {}) in recorded
+    assert ((mh.PREFILL_OVER_THRESHOLD_COUNT, 2, {"threshold": "10s", "phase": "all"}), {}) in recorded
+    assert ((mh.PREFILL_OVER_THRESHOLD_COUNT, 1, {"threshold": "20s", "phase": "all"}), {}) in recorded
 
 
 def test_given_empty_latency_lists_when_update_from_output_then_threshold_counters_not_recorded(monkeypatch):
@@ -341,8 +351,8 @@ def test_given_threshold_metric_record_fails_when_update_from_output_then_existi
     )
 
     assert out == "ok"
-    assert ((mh.PREFILL_OVER_THRESHOLD_COUNT, 1, {"threshold": "5s"}), {}) in recorded
-    assert ((mh.SECOND_TOKEN_LATENCY,), {"labels": {"dp": 8}, "value": 0.25}) in recorded
+    assert ((mh.PREFILL_OVER_THRESHOLD_COUNT, 1, {"threshold": "5s", "phase": "all"}), {}) in recorded
+    assert ((mh.SECOND_TOKEN_LATENCY,), {"labels": {"dp": 8, "phase": "all"}, "value": 0.25}) in recorded
 
 
 def test_given_none_stats_when_record_helpers_then_return_without_recording(monkeypatch):
@@ -376,7 +386,7 @@ def test_given_second_decode_output_when_update_from_output_then_records_second_
     )
     assert out == "ok"
 
-    assert ((mh.SECOND_TOKEN_LATENCY,), {"labels": {"dp": 8}, "value": 0.25}) in recorded
+    assert ((mh.SECOND_TOKEN_LATENCY,), {"labels": {"dp": 8, "phase": "all"}, "value": 0.25}) in recorded
 
 
 def test_given_master_style_args_when_update_from_output_then_records_second_token_latency(monkeypatch):
@@ -398,7 +408,7 @@ def test_given_master_style_args_when_update_from_output_then_records_second_tok
         None,
     )
     assert out == "ok-master"
-    assert ((mh.SECOND_TOKEN_LATENCY,), {"labels": {"dp": 6}, "value": 0.5}) in recorded
+    assert ((mh.SECOND_TOKEN_LATENCY,), {"labels": {"dp": 6, "phase": "all"}, "value": 0.5}) in recorded
 
 
 def test_given_prefill_or_later_decode_when_update_from_output_then_skip_second_token_latency(monkeypatch):
