@@ -18,10 +18,10 @@ import os
 import re
 import argparse
 import shlex
+import subprocess  # nosec B404
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple
-import subprocess
 
 from ms_service_profiler.data_source.db_data_source import DBDataSource
 from ms_service_profiler.exporters.utils import save_dataframe_to_csv, check_input_dir_valid, check_output_path_valid
@@ -43,8 +43,8 @@ def _find_ascend_pt_dirs(parent_dir: str) -> List[str]:
             # 仅保留是目录且名称以 'ascend_pt' 结尾的项
             if os.path.isdir(full_path) and item.endswith('ascend_pt'):
                 ascend_pt_dirs.append(full_path)
-    except Exception as e:
-        logger.warning(f"Failed to list {parent_dir}: {e}")
+    except OSError as err:
+        logger.warning("Failed to list %s: %s", parent_dir, err)
     return sorted(ascend_pt_dirs)
 
 
@@ -55,6 +55,23 @@ def _extract_prof_number(prof_name: str) -> int:
     """
     match = re.search(r'PROF_(\d+)_', prof_name)
     return int(match.group(1)) if match else float('inf')
+
+
+def _scan_ascend_pt_devices(pt_dir: str) -> Dict[int, Tuple[int, str]]:
+    device_map = {}
+    for item in os.listdir(pt_dir):
+        prof_path = os.path.join(pt_dir, item)
+        if not (item.startswith('PROF_') and os.path.isdir(prof_path)):
+            continue
+
+        prof_num = _extract_prof_number(item)
+        for dev_item in os.listdir(prof_path):
+            if not (dev_item.startswith('device_') and dev_item[7:].isdigit()):
+                continue
+            dev_num = int(dev_item[7:])
+            if dev_num not in device_map or prof_num < device_map[dev_num][0]:
+                device_map[dev_num] = (prof_num, pt_dir)
+    return device_map
 
 
 def extract_device_to_ascend_pt_map(root_dir: str) -> Dict[int, str]:
@@ -68,20 +85,9 @@ def extract_device_to_ascend_pt_map(root_dir: str) -> Dict[int, str]:
     # 遍历每个 ascend_pt 目录（如 xxx/ascend_pt）
     for pt_dir in ascend_pt_dirs:
         try:
-            # 遍历该目录下的所有 PROF_* 子目录
-            for item in os.listdir(pt_dir):
-                if item.startswith('PROF_') and os.path.isdir(os.path.join(pt_dir, item)):
-                    prof_num = _extract_prof_number(item)
-                    prof_path = os.path.join(pt_dir, item)
-                    # 遍历 PROF_* 下的 device_* 目录
-                    for dev_item in os.listdir(prof_path):
-                        if dev_item.startswith('device_') and dev_item[7:].isdigit():
-                            dev_num = int(dev_item[7:])
-                            # 为每个 device_id 保留 PROF 编号最小的 ascend_pt 路径
-                            if dev_num not in device_map or prof_num < device_map[dev_num][0]:
-                                device_map[dev_num] = (prof_num, pt_dir)
-        except Exception as e:
-            logger.warning(f"Error scanning {pt_dir}: {e}")
+            device_map.update(_scan_ascend_pt_devices(pt_dir))
+        except OSError as err:
+            logger.warning("Error scanning %s: %s", pt_dir, err)
             continue
 
     # 返回最终映射：device_id -> ascend_pt 路径
@@ -132,7 +138,7 @@ def read_sql_from_given_path(given_path: str) -> pd.DataFrame:
     """
     trace_service_dir = os.path.join(given_path, "Trace_Service")
     if not os.path.isdir(trace_service_dir):
-        logger.error(f"'Trace_Service' directory not found in: {given_path}")
+        logger.error("'Trace_Service' directory not found in: %s", given_path)
         return pd.DataFrame()
 
     profiler_inputs = []
@@ -146,12 +152,12 @@ def read_sql_from_given_path(given_path: str) -> pd.DataFrame:
                 df = data_dict.get('tx_data_df')
                 if isinstance(df, pd.DataFrame) and not df.empty:
                     profiler_inputs.append(df)
-            except Exception as e:
-                logger.warning(f"Failed to process {db_path}: {e}")
+            except Exception as err:
+                logger.warning("Failed to process %s: %s", db_path, err)
 
     # 若未加载任何有效数据，记录错误
     if not profiler_inputs:
-        logger.error(f'No valid .db data found in Trace_Service directory: {trace_service_dir}')
+        logger.error("No valid .db data found in Trace_Service directory: %s", trace_service_dir)
         return pd.DataFrame()
 
     # 合并所有 DataFrame（纵向拼接）
@@ -166,13 +172,13 @@ def validate_and_clean_df(df: pd.DataFrame, source_name: str) -> pd.DataFrame:
       - 剔除 'name' 为空的行。
     """
     if df.empty:
-        logger.error(f"{source_name} data is empty.")
+        logger.error("%s data is empty.", source_name)
         return pd.DataFrame()
     if 'name' not in df.columns:
-        logger.error(f"Column 'name' not found in {source_name} data.")
+        logger.error("Column 'name' not found in %s data.", source_name)
         return pd.DataFrame()
     cleaned = df.dropna(subset=['name']).reset_index(drop=True)
-    logger.info(f"{source_name}: loaded {len(cleaned)} valid records.")
+    logger.info("%s: loaded %d valid records.", source_name, len(cleaned))
     return cleaned
 
 
@@ -182,11 +188,9 @@ def compute_stats(df: pd.DataFrame, label: str) -> pd.DataFrame:
     label 用于标识数据来源，如 'Input' 或 'Golden'。
     返回以 'name' 为索引的统计 DataFrame。
     """
-    stats = df.groupby('name')['during_time'].agg([
-        ('AVG', 'mean'),
-        ('P50', lambda x: x.quantile(0.5)),
-        ('P90', lambda x: x.quantile(0.9))
-    ])
+    stats = df.groupby('name')['during_time'].agg(
+        [('AVG', 'mean'), ('P50', lambda x: x.quantile(0.5)), ('P90', lambda x: x.quantile(0.9))]
+    )
     # 重命名列为 Input-AVG / Golden-P90 等格式
     stats.columns = [f"{label}-{col}" for col in stats.columns]
     return stats
@@ -301,14 +305,9 @@ def arg_parse(subparsers):
         "--output-path",
         type=check_output_path_valid,
         default=os.path.join(os.getcwd(), 'compare_result'),
-        help="Output directory for comparison result"
+        help="Output directory for comparison result",
     )
-    parser.add_argument(
-        '--log-level',
-        choices=['debug', 'info', 'warning', 'error'],
-        default='info',
-        help='Log level'
-    )
+    parser.add_argument('--log-level', choices=['debug', 'info', 'warning', 'error'], default='info', help='Log level')
     parser.set_defaults(func=main)
 
 
@@ -332,28 +331,41 @@ def main(args):
     #   - 输出 HTML/CSV 报告至 --output_path；
     #   - 若路径无效（如缺少 device 目录），则跳过此步骤并记录原因。
     if input_pt and golden_pt:
+        normalized_input_pt = os.path.abspath(os.path.normpath(input_pt))
+        normalized_golden_pt = os.path.abspath(os.path.normpath(golden_pt))
+        normalized_output_path = os.path.abspath(os.path.normpath(args.output_path))
         cmd = [
-            "msprof-analyze", "compare",
-            "-d", input_pt,
-            "-bp", golden_pt,
-            "--output_path", args.output_path
+            "msprof-analyze",
+            "compare",
+            "-d",
+            normalized_input_pt,
+            "-bp",
+            normalized_golden_pt,
+            "--output_path",
+            normalized_output_path,
         ]
-        logger.info(f"Executing operator comparison command: {' '.join(shlex.quote(c) for c in cmd)}")
-        subprocess.run(cmd, check=True)
+        # subprocess.run receives an argument list with shell=False, so path
+        # values are not interpreted by a shell. shlex.quote is only for logs.
+        logger.info("Executing operator comparison command: %s", ' '.join(shlex.quote(c) for c in cmd))
+        subprocess.run(cmd, check=True)  # nosec B603
     else:
         missing_parts = []
         if not input_pt:
             missing_parts.append(
                 f"input path '{args.input_path}' does not contain a valid 'ascend_pt' directory "
-                f"(e.g., */ascend_pt/PROF_*/device_*/)")
+                f"(e.g., */ascend_pt/PROF_*/device_*/)"
+            )
         if not golden_pt:
             missing_parts.append(
                 f"golden path '{args.golden_path}' does not contain a valid 'ascend_pt' directory "
-                f"(e.g., */ascend_pt/PROF_*/device_*/)")
+                f"(e.g., */ascend_pt/PROF_*/device_*/)"
+            )
 
         reason = "; ".join(missing_parts) if missing_parts else "unknown reason"
-        logger.info(f"Skipping operator comparison: {reason}. "
-                    f"Expected structure: <root>/ascend_pt/PROF_<num>_<suffix>/device_<id>/")
+        logger.info(
+            "Skipping operator comparison: %s. Expected structure: <root>/ascend_pt/PROF_<num>_<suffix>/device_<id>/",
+            reason,
+        )
 
     # === Step 3: 自定义 Span 级别性能比对（基于 Trace_Service 中的 tx_data_df）===
     # 说明：
@@ -382,4 +394,8 @@ def main(args):
 
 
 if __name__ == '__main__':
-    main()
+    argument_parser = argparse.ArgumentParser()
+    sub_parser = argument_parser.add_subparsers()
+    arg_parse(sub_parser)
+    parsed_args = argument_parser.parse_args()
+    parsed_args.func(parsed_args)

@@ -15,18 +15,15 @@
 # -------------------------------------------------------------------------
 
 import os
-import re
 import shutil
 import sqlite3
 
-from pathlib import Path
 import pandas as pd
 import pytest
 
 from unittest.mock import patch, MagicMock, mock_open
 from ms_service_profiler.data_source.msprof_data_source import MsprofDataSource
 from ms_service_profiler.utils.error import LoadDataError
-from ms_service_profiler.utils.file_open_check import ms_open
 
 
 def build_db(db_path):
@@ -60,8 +57,8 @@ def build_db(db_path):
     conn.close()
 
 
-@pytest.fixture
-def setup_test_msprof_directory(tmp_path):
+@pytest.fixture(name="msprof_directory")
+def fixture_msprof_directory(tmp_path):
     # 创建测试目录结构
     prof_dir = tmp_path / "PROF_test"
     prof_dir.mkdir()
@@ -74,8 +71,7 @@ def setup_test_msprof_directory(tmp_path):
         clock_monotonic_raw: 456
     """)
     (prof_dir / "info.json").write_text('{"key": "value"}')
-    (prof_dir / "start_info").write_text(
-        '{"collectionTimeBegin": "123456.789", "clockMonotonicRaw": "0"}')
+    (prof_dir / "start_info").write_text('{"collectionTimeBegin": "123456.789", "clockMonotonicRaw": "0"}')
     (prof_dir / "msprof_20250211122756.json").write_text('{"data": "example data"}')
 
     # 创建测试数据库文件
@@ -126,7 +122,7 @@ def test_load(mock_load_prof, mock_get_filepaths, mock_gen_cmd):
         "host_start": "host_start.log",
         "info": "info.json",
         "start_info": "start_info",
-        "msprof": "msprof_*.json"
+        "msprof": "msprof_*.json",
     }
     mock_load_prof.return_value = {"data": "dummy_data"}
     mock_gen_cmd.return_value = "dummy command"
@@ -147,13 +143,13 @@ def test_load(mock_load_prof, mock_get_filepaths, mock_gen_cmd):
         msprof_data_source.load('dummy_path')
 
 
-def test_load_start_cnt(setup_test_msprof_directory):
+def test_load_start_cnt(msprof_directory):
     mock_file_content = "cntvct: 123\nclock_monotonic_raw: 456"
-    mock_path = setup_test_msprof_directory / "PROF_test" / "host_start.log"
+    mock_path = msprof_directory / "PROF_test" / "host_start.log"
 
     # 创建测试目录和文件
     mock_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(mock_path, 'w') as f:
+    with open(mock_path, 'w', encoding='utf-8') as f:
         f.write(mock_file_content)
 
     # 修改文件权限，确保文件和目录是安全的
@@ -167,14 +163,14 @@ def test_load_start_cnt(setup_test_msprof_directory):
         assert clock_monotonic_raw == 456
 
 
-def test_load_start_time(setup_test_msprof_directory):
+def test_load_start_time(msprof_directory):
     mock_file_content = '{"collectionTimeBegin": 123456.789, "clockMonotonicRaw": 0}'
 
-    mock_path = setup_test_msprof_directory / "PROF_test" / "start_info"
+    mock_path = msprof_directory / "PROF_test" / "start_info"
 
     # 创建测试目录和文件
     mock_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(mock_path, 'w') as f:
+    with open(mock_path, 'w', encoding='utf-8') as f:
         f.write(mock_file_content)
 
     # 修改文件权限，确保文件和目录是安全的
@@ -186,22 +182,24 @@ def test_load_start_time(setup_test_msprof_directory):
         assert result == (123456.789, 0)
 
 
-def test_load_tx_data(setup_test_msprof_directory):
-    db_path = setup_test_msprof_directory / "PROF_test" / "msproftx.db"
+def test_load_tx_data(msprof_directory):
+    db_path = msprof_directory / "PROF_test" / "msproftx.db"
     result = MsprofDataSource.load_tx_data(db_path)
 
     # 验证结果
     assert result is not None
-    assert all(result.columns == ['pid', 'tid', 'event_type', 'start_time', 'end_time', 'mark_id',
-       'ori_msg', 'message', 'name', 'span_id'])
+    assert all(
+        result.columns
+        == ['pid', 'tid', 'event_type', 'start_time', 'end_time', 'mark_id', 'ori_msg', 'message', 'name', 'span_id']
+    )
     assert result.shape[0] == 1
 
 
-def test_load_cpu_data_with_valid_db_path(setup_test_msprof_directory):
+def test_load_cpu_data_with_valid_db_path(msprof_directory):
     """
     测试当 db_path 有效时，load_cpu_data 函数是否正确加载数据。
     """
-    tmp_path = setup_test_msprof_directory
+    tmp_path = msprof_directory
     db_path = tmp_path / "PROF_test" / "msproftx.db"
 
     # 确保数据库文件存在
@@ -238,11 +236,11 @@ def test_load_cpu_data_with_valid_db_path(setup_test_msprof_directory):
     pd.testing.assert_frame_equal(result, expected_df)
 
 
-def test_load_memory_data_with_valid_db_path(setup_test_msprof_directory):
+def test_load_memory_data_with_valid_db_path(msprof_directory):
     """
     测试当 db_path 有效时，load_memory_data 函数是否正确加载数据。
     """
-    tmp_path = setup_test_msprof_directory
+    tmp_path = msprof_directory
     db_path = tmp_path / "PROF_test" / "msproftx.db"
 
     # 确保数据库文件存在
@@ -294,25 +292,25 @@ class TestGenMsprofCommand:
     def test_basic_command_without_format_args(self):
         """测试不带 format_args 时生成基本命令"""
         result = MsprofDataSource.gen_msprof_command("/output/path")
-        assert result == "msprof --export=on --output=/output/path"
+        assert result == ["msprof", "--export=on", "--output=/output/path"]
 
     def test_command_with_json_format_args(self):
         """测试 format_args 包含 json 时不添加 --type=db"""
         result = MsprofDataSource.gen_msprof_command("/output/path", format_args=['json', 'csv'])
-        assert result == "msprof --export=on --output=/output/path"
+        assert result == ["msprof", "--export=on", "--output=/output/path"]
         assert "--type=db" not in result
 
     def test_command_with_db_format_args(self):
         """测试 format_args 不包含 json 时添加 --type=db"""
         result = MsprofDataSource.gen_msprof_command("/output/path", format_args=['db', 'csv'])
-        assert result == "msprof --export=on --output=/output/path --type=db"
+        assert result == ["msprof", "--export=on", "--output=/output/path", "--type=db"]
 
     def test_command_with_empty_format_args(self):
         """测试 format_args 为空列表时不添加 --type=db"""
         result = MsprofDataSource.gen_msprof_command("/output/path", format_args=[])
-        assert result == "msprof --export=on --output=/output/path"
+        assert result == ["msprof", "--export=on", "--output=/output/path"]
 
-    def test_invalid_path_with_spaces(self):
+    def test_path_with_spaces(self):
         """测试路径包含空格时抛出异常"""
-        with pytest.raises(ValueError, match="is invalid"):
-            MsprofDataSource.gen_msprof_command("/output/path with spaces")
+        result = MsprofDataSource.gen_msprof_command("/output/path with spaces")
+        assert result == ["msprof", "--export=on", "--output=/output/path with spaces"]

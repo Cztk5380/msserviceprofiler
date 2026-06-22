@@ -16,7 +16,7 @@
 
 import os
 import json
-import subprocess
+import subprocess  # nosec B404
 from pathlib import Path
 from json import JSONDecodeError
 import sqlite3
@@ -26,17 +26,13 @@ import pandas as pd
 from ms_service_profiler.data_source.base_data_source import BaseDataSource, Task
 from ms_service_profiler.utils.error import LoadDataError
 from ms_service_profiler.utils.file_open_check import ms_open
-from ms_service_profiler.utils.log import logger, set_log_level
-from ms_service_profiler.constant import US_PER_SECOND, MSPROF_REPORTS_PATH
-from ms_service_profiler.exporters.utils import (
-    create_sqlite_db, check_input_dir_valid, check_output_path_valid,
-    find_file_in_dir, delete_dir_safely, find_all_file_complete
-)
+from ms_service_profiler.utils.log import logger
+from ms_service_profiler.constant import US_PER_SECOND
+from ms_service_profiler.exporters.utils import delete_dir_safely, find_all_file_complete
 
 
 @Task.register("data_source:msprof")
 class MsprofDataSource(BaseDataSource):
-
     @classmethod
     def outputs(cls):
         return ["data_source:service"]
@@ -134,7 +130,7 @@ class MsprofDataSource(BaseDataSource):
             try:
                 data = json.load(info)
             except JSONDecodeError:
-                logger.error(f"file {info_path} is not a json file. ")
+                logger.error("file %s is not a json file. ", info_path)
                 return 0
             if 'CPU' not in data or not isinstance(data['CPU'], list) or len(data['CPU']) == 0:
                 raise ValueError(f"Invalid or missing 'CPU' data in {info_path}.")
@@ -156,7 +152,7 @@ class MsprofDataSource(BaseDataSource):
             host_clock_monotonic_raw=host_clock_monotonic_raw,
             collection_time_begin=collection_time_begin,
             start_clock_monotonic_raw=start_clock_monotonic_raw,
-            cpu_frequency=cpu_frequency
+            cpu_frequency=cpu_frequency,
         )
 
     @classmethod
@@ -176,9 +172,7 @@ class MsprofDataSource(BaseDataSource):
                     clock_monotonic_raw = clock_val
 
         if cntvct == 0 or clock_monotonic_raw == 0:
-            raise ValueError(
-                f"Failed to find 'cntvct' or 'clock_monotonic_raw' in {config_path}, please check."
-            )
+            raise ValueError(f"Failed to find 'cntvct' or 'clock_monotonic_raw' in {config_path}, please check.")
 
         return cntvct, clock_monotonic_raw
 
@@ -188,12 +182,8 @@ class MsprofDataSource(BaseDataSource):
             try:
                 data = json.load(info)
             except JSONDecodeError:
-                logger.error(f"file {info_path} is not a json file. ")
-                data = {
-                    "hostname": "",
-                    "hostUid": "",
-                    "pid": None
-                }
+                logger.error("file %s is not a json file. ", info_path)
+                data = {"hostname": "", "hostUid": "", "pid": None}
             host_name = data.get("hostname")
             host_uid = data.get("hostUid")
         if tx_data_df is not None:
@@ -239,11 +229,11 @@ class MsprofDataSource(BaseDataSource):
         memory_data_df = cls.load_memory_data(filepaths.get("memory"))
         time_info = cls.load_time_info(filepaths)
         msprof_files = filepaths.get("msprof", [])
-        
+
         host_info = cls.load_host_name(tx_data_df, filepaths.get("info"))
         if host_info is None:
             host_info = {}
-        
+
         host_info["msprof_files"] = msprof_files
 
         return dict(
@@ -256,22 +246,18 @@ class MsprofDataSource(BaseDataSource):
 
     @classmethod
     def gen_msprof_command(cls, full_path, format_args=None):
-        if len(full_path.split()) != 1:
-            raise ValueError(f"{full_path} is invalid.")
-
-        command = f"msprof --export=on --output={full_path}"
+        command = ["msprof", "--export=on", f"--output={full_path}"]
 
         if format_args and 'json' not in format_args:
-            command += " --type=db"
+            command.append("--type=db")
 
-        logger.debug("command: %s", command)
+        logger.debug("command: %s", " ".join(command))
         return command
 
     @classmethod
     def run_msprof_command(cls, command):
-        command_list = command.split()
         try:
-            subprocess.run(command_list, stdout=subprocess.DEVNULL, check=True)
+            subprocess.run(command, stdout=subprocess.DEVNULL, check=True)  # nosec B603
         except subprocess.CalledProcessError as e:
             logger.error("parse msprof data failed using command %r, error is: %r", command, str(e))
         except Exception as e:
@@ -319,7 +305,7 @@ class MsprofDataSource(BaseDataSource):
             "host_start": "host_start.log",
             "info": "info.json",
             "start_info": "start_info",
-            "msprof": ("msprof_*.json", True)
+            "msprof": ("msprof_*.json", True),
         }
         format_args = getattr(self._args, 'format', None)
         cur_path = str(prof_path)
