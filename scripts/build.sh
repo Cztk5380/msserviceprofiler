@@ -26,9 +26,8 @@ VERSION_INFO=version.info
 
 PKG_LIMIT_SIZE=524288000 # 500M
 
-# 编python的whl包
-cd ${TOP_DIR}/
-python3 -m build --wheel . --outdir ${TOP_DIR}/build/output_whl_dir
+# 编python的whl包（cwd 切到工程根目录之外，避免 -m build 被根目录下的 build.py 同名遮蔽）
+(cd /tmp && python3 -m build --wheel ${TOP_DIR} --outdir ${TOP_DIR}/build/output_whl_dir)
 
 # 打包成run包（main.sh、install.sh）
 function parse_script_args() {
