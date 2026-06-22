@@ -21,7 +21,7 @@ vLLM Service Profiler 适用于在 vLLM-Ascend 推理服务过程中进行性能
 
 |产品类型| 是否支持 |
 |--|:----:|
-|Atlas 350 加速卡|√|
+|Ascend 950 系列产品|√|
 |Atlas A3 训练系列产品/Atlas A3 推理系列产品|√|
 |Atlas A2 训练系列产品/Atlas A2 推理系列产品|√|
 |Atlas 200I/500 A2 推理产品|√|
@@ -34,7 +34,7 @@ vLLM Service Profiler 适用于在 vLLM-Ascend 推理服务过程中进行性能
 
 1. 在昇腾环境安装配套版本的CANN Toolkit开发套件包和ops算子包并配置CANN环境变量，具体请参见[CANN快速安装](https://www.hiascend.com/cann/download)。
 2. 完成 vLLM 和 vLLM-Ascend 的安装和配置并确认 vLLM-Ascend 可以正常运行，具体请参见《 [vLLM-Ascend安装指南](https://docs.vllm.ai/projects/ascend/zh-cn/v0.13.0/installation.html)》。
-3. 升级 msServiceProfiler 工具，请参见《msServiceProfiler工具安装指南》文档中“[4. 升级](./msserviceprofiler_install_guide.md#4-升级)”章节。
+3. 升级 msServiceProfiler 工具，请参见《msServiceProfiler工具安装指南》文档中“[4. 升级](./msserviceprofiler_install_guide.md#5-升级)”章节。
 
 #### 约束
 
