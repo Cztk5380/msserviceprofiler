@@ -12,7 +12,7 @@ This metric monitoring tool enhances the native monitoring capability of the vLL
 
 >[!NOTE]
 >
->For details about Ascend product models, see [Ascend Product Models](<>).
+>For details about Ascend product models, see [Ascend Product Models](https://www.hiascend.com/document/detail/en/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html).
 
 |Product Type| Supported (Yes/No)|
 |--|:----:|
@@ -26,7 +26,7 @@ This metric monitoring tool enhances the native monitoring capability of the vLL
 
 ### Environment Setup
 
-1. In the Ascend environment, install the matching CANN Toolkit and ops operator packages, and configure CANN environment variables. For details, see [CANN Installation Guide](<>).
+1. In the Ascend environment, install the matching CANN Toolkit and ops operator packages, and configure CANN environment variables. For details, see [CANN Installation Guide](https://www.hiascend.com/cann/download).
 2. Install vLLM and vLLM-Ascend. Verify that vLLM-ascend can run properly and the metrics endpoint is accessible. For details, see [vLLM-Ascend Installation Guide](https://vllm-ascend.readthedocs.io/en/latest/installation.html).
 3. Build the .run package from the source code and upgrade the tool. For details, see the section *Upgrade* in [msServiceProfiler Installation Guide](./msserviceprofiler_install_guide.md#upgrade).
 
@@ -201,5 +201,5 @@ The following are metric symbols built into the tool. All metric names are autom
 
 ## Relevant Documents
 
-- [vLLM Service Profiler] (./vLLM_service_oriented_performance_collection_tool.md): Performance Profiling and Trace Analysis
+- [vLLM Service Profiler](./vLLM_service_oriented_performance_collection_tool.md): Performance Profiling and Trace Analysis
 - [Data Collection Configuration Description](./msserviceprofiler_serving_tuning_instruct.md#Data Collection): `ms_service_profiler_config.json` Configuration Description

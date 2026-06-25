@@ -4,7 +4,7 @@
 
 >[!NOTE]
 >
->For details about Ascend product models, see [Ascend Product Models](<>).
+>For details about Ascend product models, see [Ascend Product Models](https://www.hiascend.com/document/detail/en/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html).
 
 |Product Type|Supported (Yes/No)|
 |--|:-:|
@@ -25,7 +25,7 @@ Parses HTTP trace information and attaches it to the current context.
 
 ## Function Prototype <a name="section1121883194711"></a>
 
-```CPP
+```cpp
 size_t ExtractAndAttach(const std::string& traceParentOfW3C, const std::string& traceOfB3)
 ```
 
@@ -40,4 +40,4 @@ size_t ExtractAndAttach(const std::string& traceParentOfW3C, const std::string& 
 
 ## Return Values<a name="section16621124213476"></a>
 
-Returns a context index, whihc is used as the argument when calling [Unattach](Unattach.md).
+Returns a context index, which is used as the argument when calling [Unattach](Unattach.md).

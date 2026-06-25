@@ -24,7 +24,7 @@
 
 ## 函数原型<a name="section1121883194711"></a>
 
-```CPP
+```cpp
 template <Level levelAttr = level, typename T>
 Profiler &ArrayAttr(const char *attrName, const T &startIter, const T &endIter, typename ArrayCollectorHelper<Profiler<level>, T>::AttrCollectCallback callback)
 ```

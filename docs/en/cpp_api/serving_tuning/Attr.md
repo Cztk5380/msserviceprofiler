@@ -4,7 +4,7 @@
 
 >[!NOTE]
 >
->For details about Ascend product models, see [Ascend Product Models](<>).
+>For details about Ascend product models, see [Ascend Product Models](https://www.hiascend.com/document/detail/en/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html).
 
 |Product Type|Supported (Yes/No)|
 |--|:-:|
@@ -25,7 +25,7 @@ Adds an attribute and returns the current object, allowing multiple method calls
 
 ## Function Prototype<a name="section1121883194711"></a>
 
-```CPP
+```cpp
 template <Level levelAttr = level, typename T>
 inline Profiler &Attr(const char *attrName, const T value)
 ```

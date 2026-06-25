@@ -4,7 +4,7 @@
 
 >[!NOTE]
 >
->For details about Ascend product models, see [Ascend Product Models](<>).
+>For details about Ascend product models, see [Ascend Product Models](https://www.hiascend.com/document/detail/en/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html).
 
 |Product Type|Supported (Yes/No)|
 |--|:-:|
@@ -25,7 +25,7 @@ Adds an array attribute through a callback function.
 
 ## Function Prototype<a name="section1121883194711"></a>
 
-```CPP
+```cpp
 template <Level levelAttr = level, typename T>
 Profiler &ArrayAttr(const char *attrName, const T &startIter, const T &endIter, typename ArrayCollectorHelper<Profiler<level>, T>::AttrCollectCallback callback)
 ```

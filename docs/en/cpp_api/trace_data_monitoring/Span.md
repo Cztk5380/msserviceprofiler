@@ -4,7 +4,7 @@
 
 >[!NOTE]
 >
->For details about Ascend product models, see [Ascend Product Models](<>).
+>For details about Ascend product models, see [Ascend Product Models](https://www.hiascend.com/document/detail/en/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html).
 
 |Product Type|Supported (Yes/No)|
 |--|:-:|
@@ -25,7 +25,7 @@ Creates a span.
 
 ## Function Prototype<a name="section1121883194711"></a>
 
-```CPP
+```cpp
 Span(const char* spanName, TraceContext& ctx, bool isSampled = true,const char* moduleName = nullptr, bool autoEnd = true)
 ```
 

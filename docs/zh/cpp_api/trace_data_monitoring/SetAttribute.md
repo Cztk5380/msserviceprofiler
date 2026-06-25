@@ -24,7 +24,7 @@
 
 ## 函数原型<a name="section1121883194711"></a>
 
-```CPP
+```cpp
 Span& SetAttribute(const char* attrName, const char* value)
 ```
 

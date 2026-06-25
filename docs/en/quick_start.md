@@ -12,9 +12,9 @@ msServiceProfiler provides end-to-end performance profiling. It clearly displays
 
 - Before using msServiceProfiler, read about the restrictions in "[Constraints](msserviceprofiler_install_guide.md#constraints)" in the [msServiceProfiler Installation Guide](msserviceprofiler_install_guide.md).
 - Ensure that the corresponding service framework has been installed and its availability has been verified (the service starts successfully, and can process an inference request using official example scripts or APIs).
-  - **MindIE Motor**: Install and configure MindIE as described in [MindIE Installation Guide](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/en/user_guide/README.md) and ensure that the MindIE Motor service can start successfully and complete a sample inference request.
-  - **vLLM-ascend**: Set up the environment and verify that the vLLM service can provide inference APIs for external systems. For details, see [vLLM Service Profiler User Guide] (vLLM_service_oriented_performance_collection_tool.md) and official  vLLM-ascend installation document.
-  - **SGLang**: Set up the environment and verify that the SGLang service can provide inference APIs for external systems. For details, see [SGLang Service Profiler User Guide] (SGLang_service_oriented_performance_collection_tool.md) and official SGLang installation document.
+  - **MindIE Motor**: Install and configure MindIE as described in [MindIE Installation Guide](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/zh/user_guide/install/installing_mindie.md) and ensure that the MindIE Motor service can start successfully and complete a sample inference request.
+  - **vLLM-ascend**: Set up the environment and verify that the vLLM service can provide inference APIs for external systems. For details, see [vLLM Service Profiler User Guide](vLLM_service_oriented_performance_collection_tool.md) and official  vLLM-ascend installation document.
+  - **SGLang**: Set up the environment and verify that the SGLang service can provide inference APIs for external systems. For details, see [SGLang Service Profiler User Guide](SGLang_service_oriented_performance_collection_tool.md) and official SGLang installation document.
 
 ## Procedure <a name="section166491954201410"></a>
 
@@ -26,7 +26,7 @@ To enable msServiceProfiler's profiling capability, set the environment variable
 
 - **General Note**
 
-  - `SERVICE_PROF_CONFIG_PATH`: specifies the path to the performance profiling configuration file (JSON). This file controls whether profiling is enabled, specifies the data output directory, and confiogures other settings.
+  - `SERVICE_PROF_CONFIG_PATH`: specifies the path to the performance profiling configuration file (JSON). This file controls whether profiling is enabled, specifies the data output directory, and configures other settings.
 
 - Example (using the configuration file in the current working directory as an example)
 
@@ -37,7 +37,7 @@ To enable msServiceProfiler's profiling capability, set the environment variable
 The value of `SERVICE_PROF_CONFIG_PATH` must include the JSON file name. The JSON file is the configuration file for controlling profile data collection. For example, it specifies the path for storing profile metadata and enables or disables operator collection. For details about the fields, see [3. Collect Data](#3-collect-data). If no configuration file exists at the specified path, the tool automatically generates a default configuration (with the profiling feature disabled by default).
 
 >[!NOTE]
->  
+>
 > In multi-node deployments, it is advised not to place the configuration file or its specified data storage path in a shared directory (such as a network shared location). Because data writing may involve additional network or buffering steps rather than direct disk writing, such configurations may lead to unexpected system behavior or results in certain situations.
 
 ### 2. Start Services
@@ -162,31 +162,8 @@ Similarly, the tool generates the original profile data of the inference service
 
 #### 4.2 Tuning Analysis
 
-The parsed profile data is available in `.db`, `.csv`, and `.json` formats. You can perform quick analysis from different dimensions (such as requests and scheduling) using the CSV files, or import the `.db` or `.json` files into MindStudio Insight for visualization. For detailed instructions and analysis explanations, see the section "Serving Tuning" in the [MindStudio Insight User Guide](https://www.hiascend.com/document/detail/zh/mindstudio/830/GUI_baseddevelopmenttool/msascendinsightug/Insight_userguide_0002.html).
+The parsed profile data is available in `.db`, `.csv`, and `.json` formats. You can perform quick analysis from different dimensions (such as requests and scheduling) using the CSV files, or import the `.db` or `.json` files into MindStudio Insight for visualization. For detailed instructions and analysis explanations, see the section "Serving Tuning" in the [MindStudio Insight User Guide](https://gitcode.com/Ascend/msinsight/blob/26.0.0/docs/en/user_guide/mindstudio_insight_install_guide.md).
 
 The following figure shows an example of profile data visualized using MindStudio Insight.
 
-       ```bash
-       python >= 3.10
-       pandas >= 2.2
-       numpy >= 1.24.3
-       psutil >= 5.9.5
-       ```
-
-   2. Run the parsing command.
-
-       ```bash
-       python3 -m ms_service_profiler.parse --input-path=${PATH}/prof_dir
-       ```
-
-       --`input-path` is set to the path specified by `prof_dir` in [Collect Data](#li10670349115211).
-
-       After parsing, parsed profile data files are generated in the directory where the command is executed.
-
-5. Tuning Analysis
-
-   The parsed profile data is available in `.db`, `.csv`, and `.json` formats. You can perform quick analysis from different dimensions (such as requests and scheduling) using the CSV files, or import the `.db` or `.json` files into MindStudio Insight for visualization. For detailed instructions and analysis explanations, see the section "Serving Tuning" in the [MindStudio Insight User Guide](<>).
-
-   The following figure shows an example of profile data visualized using MindStudio Insight.
-
-   ![](figures/zh-cn_image_0000002478067012.png)
+![](figures/zh-cn_image_0000002478067012.png)

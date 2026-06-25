@@ -13,7 +13,7 @@ Based on performance data collected by msServiceProfiler, Service Performance Sp
 
 >[!NOTE]
 >
->For details about Ascend product models, see [Ascend Product Models](<>).
+>For details about Ascend product models, see [Ascend Product Models](https://www.hiascend.com/document/detail/en/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html).
 
 |Product Type| Supported (Yes/No)|
 |--|:----:|
@@ -21,7 +21,7 @@ Based on performance data collected by msServiceProfiler, Service Performance Sp
 |Atlas A2 training products and Atlas A2 inference products|  Yes  |
 |Atlas 200I/500 A2 inference products|  Yes  |
 |Atlas inference products|  Yes  |
-|Atlas training products|  x   |
+|Atlas training products|  No   |
 
 >[!NOTE]
 >

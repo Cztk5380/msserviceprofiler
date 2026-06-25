@@ -24,7 +24,7 @@
 
 ## 函数原型<a name="section1121883194711"></a>
 
-```CPP
+```cpp
 Span(const char* spanName, TraceContext& ctx, bool isSampled = true,const char* moduleName = nullptr, bool autoEnd = true)
 ```
 

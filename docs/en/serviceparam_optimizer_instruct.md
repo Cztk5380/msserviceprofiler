@@ -130,7 +130,7 @@ msserviceprofiler optimizer [options]
 |-lb or --load_breakpoint|No|Specifies whether to resume optimization from a breakpoint. Including this parameter enables breakpoint resumption; omitting it disables this feature.|
 |-d or --deploy_policy|No|Specifies a deployment policy. The options are as follows:<br>&#8226;`single`: single-node deployment<br>&#8226;`multiple`: multi-node deployment<br>The default value is `single`.|
 |--backup|No|Specifies whether to back up data during optimization. The options are as follows:<br>&#8226; `True`: enables backup.<br>&#8226; `False`: disables backup.<br>The default value is `False`.|
-|-b or --benchmark_policy|No|Specifies a benchmark tool. The options are as follows:<br>&#8226;`vllm_benchmark`: vllm_benchmark is used as the benchmark tool.<br>&#8226;`ais_bench`: ais_bench is used as as the benchmark tool.<br>The default value is `ais_bench`.<br>You need to select a benchmark tool compatible with your inference framework.|
+|-b or --benchmark_policy|No|Specifies a benchmark tool. The options are as follows:<br>&#8226;`vllm_benchmark`: vllm_benchmark is used as the benchmark tool.<br>&#8226;`ais_bench`: ais_bench is used as the benchmark tool.<br>The default value is `ais_bench`.<br>You need to select a benchmark tool compatible with your inference framework.|
 |-e or --engine|No|Specifies an inference framework. The options are as follows:<br>&#8226;`mindie`: MindIE is used as the inference framework.<br>&#8226;`vllm`: vLLM is used as the inference framework.<br>The default value is `mindie`.|
 |--pd|No|Specifies an inference framework mode. The options are as follows:<br>&#8226;`competition`: PD competition mode<br>&#8226;`disaggregation`: PD disaggregation mode<br>The default value is `competition`.|
 
@@ -218,7 +218,7 @@ The simulation mode requires training on collected serving data. Run the MindIE 
 |-lb or --load_breakpoint|No|Specifies whether to resume optimization from a breakpoint. Including this parameter enables breakpoint resumption; omitting it disables this feature.|
 |-d or --deploy_policy|No|Specifies a deployment policy. The options are as follows:<br>&#8226;`single`: single-node deployment<br>&#8226;`multiple`: multi-node deployment<br>The default value is `single`.|
 |--backup|No|Specifies whether to back up data during optimization. The options are as follows:<br>&#8226; `True`: enables backup.<br>&#8226; `False`: disables backup.<br>The default value is `False`.|
-|-b or --benchmark_policy|No|Specifies a benchmark tool. The options are as follows:<br>&#8226;`vllm_benchmark`: vllm_benchmark is used as the benchmark tool.<br>&#8226;`ais_bench`: ais_bench is used as as the benchmark tool.<br>The default value is `ais_bench`.<br>You need to select a benchmark tool compatible with your inference framework.|
+|-b or --benchmark_policy|No|Specifies a benchmark tool. The options are as follows:<br>&#8226;`vllm_benchmark`: vllm_benchmark is used as the benchmark tool.<br>&#8226;`ais_bench`: ais_bench is used as the benchmark tool.<br>The default value is `ais_bench`.<br>You need to select a benchmark tool compatible with your inference framework.|
 |-e or --engine|No|Specifies an inference framework. The options are as follows:<br>&#8226;`mindie`: MindIE is used as the inference framework.<br>&#8226;`vllm`: vLLM is used as the inference framework.<br>The default value is `mindie`.|
 |--pd|No|Specifies an inference framework mode. The options are as follows:<br>&#8226;`competition`: PD competition mode<br>&#8226;`disaggregation`: PD disaggregation mode<br>The default value is `competition`.|
 
@@ -229,7 +229,7 @@ The simulation mode requires training on collected serving data. Run the MindIE 
 2. Train a model:
 
     ```bash
-    msserviceprofiler train -i=/path/to/input -o=/path/to/output 
+    msserviceprofiler train -i=/path/to/input -o=/path/to/output
     ```
 
 3. Set environment variables before optimization:
@@ -291,12 +291,12 @@ You can configure the number of particles and iterations based on the estimated 
 |sample_size|No|Dataset sampling size for improved efficiency. The value is an integer ranging from 1000 to 10000. The recommended value is 1/3 of original dataset size.|
 
 **Benchmark tool parameters**:
-If `ais_bench` is used for the test, modify the following parameters. For details, see [ais_bench Usage Description] (<https://gitee.com/aisbench/benchmark/blob/master/README.md>).
+If `ais_bench` is used for the test, modify the following parameters. For details, see [ais_bench Usage Description](<https://gitee.com/aisbench/benchmark/blob/master/README.md>).
 
 |Parameter|Description|
 |---|---|
-|models| Specifies a model task. You can configure it as described in [Model Configuration Description] (<https://gitee.com/aisbench/benchmark/blob/master/doc/users_guide/models.md>).|
-|datasets| Specifies a dataset task. For details, see [Dataset Preparation Guide] (<https://gitee.com/aisbench/benchmark/blob/master/doc/users_guide/datasets.md>).|
+|models| Specifies a model task. You can configure it as described in [Model Configuration Description](<https://gitee.com/aisbench/benchmark/blob/master/doc/users_guide/models.md>).|
+|datasets| Specifies a dataset task. For details, see [Dataset Preparation Guide](<https://gitee.com/aisbench/benchmark/blob/master/doc/users_guide/datasets.md>).|
 |mode| Specifies the operation mode. For details, see [Operation Mode Description](https://gitee.com/aisbench/benchmark/blob/master/doc/users_guide/mode.md).| 
 |num_prompts| Specifies the number of prompts to run from the dataset. This parameter is valid only when `mode` is set to `perf`.| 
 
@@ -310,10 +310,10 @@ If `vllm_benchmark` is used for the test, modify the following parameters:
 |served_model_name|Yes| Model name, which must match `served_model_name` in `[vllm.command]`.|
 |dataset_name|Yes| Dataset name|
 |dataset_path|Yes| Dataset path|
-|num_prompts|Yes| Specifies the number of prompts to run from the dataset.| The value is an integer ranging from 1 to 10000.|
+|num_prompts|Yes| Specifies the number of prompts to run from the dataset.<br>The value is an integer ranging from 1 to 10000.|
 |others|No| Additional parameters. Use spaces to separate them, and no space is allowed within the parameters, for example, `--ignore-eos --custom-output-len 1500`. This parameter is left empty by default.| 
 
-**Serving parameters**: Modify these parameters as described in [MindIE Server Configuration Parameter Description] (<https://www.hiascend.com/document/detail/zh/mindie/20RC1/mindieservice/servicedev/mindie_service0285.html>).
+**Serving parameters**: Modify these parameters as described in [MindIE Server Configuration Parameter Description](<https://www.hiascend.com/document/detail/zh/mindie/20RC1/mindieservice/servicedev/mindie_service0285.html>).
 You can define search ranges directly using these parameters. For example, to set the optimization search space for `max_batch_size` to 10 to 400:
 
 ```shell

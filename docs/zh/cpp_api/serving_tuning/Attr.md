@@ -24,7 +24,7 @@
 
 ## 函数原型<a name="section1121883194711"></a>
 
-```CPP
+```cpp
 template <Level levelAttr = level, typename T>
 inline Profiler &Attr(const char *attrName, const T value)
 ```

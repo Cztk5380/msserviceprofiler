@@ -75,7 +75,7 @@ Related log messages (the following logs are reported only once per hour):
     - Setting `MS_TRACE_ENABLE` to `1` enables trace collection.
     - If this variable is not set or is set to any other value, trace collection is disabled.
 
-2. Flexibly control sampling by confiuring the following environment variables.
+2. Flexibly control sampling by configuring the following environment variables.
 
     | Environment Variable| Description| 
     |------------|------|
@@ -102,7 +102,7 @@ Related log messages (the following logs are reported only once per hour):
 
 >[!NOTE]
 >
->For security purposes, you are advised to usesecure mode with Transport Layer Security (TLS) authentication
+>For security purposes, you are advised to use secure mode with Transport Layer Security (TLS) authentication
 
 Before [starting the trace forward process](#starting-the-trace-forward-process), you need to specify a target collector using environment variables.
 
@@ -138,7 +138,7 @@ Currently, the following four protocols are supported:
     export OTEL_EXPORTER_OTLP_CERTIFICATE=/home/certificates/ca/ca.crt # Set the absolute path to the certificate. The directory owner and file owner must match the current user. The directory permission is 700 and the file permission is 600.
     ```
 
->[!NOTE]NOTE
+>[!NOTE]
 >
 >This tool depends on the third-party OpenTelemetry library. This document describes only the mandatory parameters required by the tool. For additional features and APIs, see the official documents.
 >
@@ -271,7 +271,7 @@ curl http://127.0.0.1:1025/v1/chat/completions \
 -d '{
 "model": "qwen",
 "messages": [
-{"role": "user", "content": "Use Python to write a simple bubble sort algorithm: "}.
+{"role": "user", "content": "Use Python to write a simple bubble sort algorithm: "}
 ],
 "max_tokens": 300,
 "temperature": 0.5,
@@ -280,10 +280,10 @@ curl http://127.0.0.1:1025/v1/chat/completions \
 
 ## Output Description<a name="ZH-CN_TOPIC_0000002486322050"></a>
 
-After [sending a request] (#sending-a-request), you can view the visualization result on an OTLP-compatible open-source monitoring platform such as Jaeger (the Jaeger service must be started beforehand). See the following example for details.
+After [sending a request](#sending-requests), you can view the visualization result on an OTLP-compatible open-source monitoring platform such as Jaeger (the Jaeger service must be started beforehand). See the following example for details.
 
 **Figure 1** Visualization result<a name="fig485163113451"></a> 
-![](figures/Visualization result .png "Visualized result")
+![](figures/visualization-result.png "Visualized result")
 
 The fields are described as follows:
 

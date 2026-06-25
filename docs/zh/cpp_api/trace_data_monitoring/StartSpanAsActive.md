@@ -24,7 +24,7 @@
 
 ## 函数原型<a name="section1121883194711"></a>
 
-```CPP
+```cpp
 static Span StartSpanAsActive(const char* spanName, const char* moduleName = nullptr, bool autoEnd = true)
 ```
 

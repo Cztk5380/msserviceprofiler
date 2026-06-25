@@ -24,7 +24,7 @@
 
 ## 函数原型<a name="section1121883194711"></a>
 
-```CPP
+```cpp
 size_t ExtractAndAttach(const std::string& traceParentOfW3C, const std::string& traceOfB3)
 ```
 

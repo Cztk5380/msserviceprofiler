@@ -16,7 +16,7 @@ Replace *`$\{INSTALL\_DIR\}`* with the CANN software installation path. For exam
 
 The following code example illustrates key steps and is for reference only. Do not copy and compile it directly.
 
-```CPP
+```cpp
 // Set global resource attributes.
 if (msServiceProfiler::Tracer::IsEnable()) {
     msServiceProfiler::TraceContext::addResAttribute("service.name", "my-service");
