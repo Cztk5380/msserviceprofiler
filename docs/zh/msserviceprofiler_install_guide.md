@@ -66,7 +66,17 @@ Successfully installed ... ms_service_profiler-x.x.x
 > - 若未设置 `ASCEND_TOOLKIT_HOME` 且未指定 `--install-path`，将执行失败并提示需手动指定 CANN 安装路径。
 > - 若安装中途终止或因依赖缺失等异常终止，请先删除 `msserviceprofiler/build` 目录后再重新执行，命令：`rm -r msserviceprofiler/build`。
 
-## 3. 卸载
+## 3. 验证安装
+
+安装完成后，执行以下命令验证工具是否安装成功：
+
+```shell
+  pip list | grep msserviceprofiler
+```
+
+若输出不报错，且能显示版本信息，则表明安装成功。
+
+## 4. 卸载
 
 可通过如下步骤卸载：
 
@@ -95,6 +105,7 @@ Successfully installed ... ms_service_profiler-x.x.x
    Successfully uninstalled 1 tool ({tools_name})
    ```
 
-## 4. 升级
+## 5. 升级
 
-升级即“先卸后装”。直接执行安装命令，工具将自动卸载旧版本，并引导您完成覆盖安装。
+升级即“先卸后装”。直接执行安装命令，工具将自动卸载旧版本，并引导您完成覆盖安装。<br>
+可通过`pip list | grep msserviceprofiler`命令查看当前环境的版本信息，再选择需要升级的版本。升级版本时需要关注版本配套关系，请参见《[版本说明](https://gitcode.com/Ascend/release-management/blob/master/MindStudio/26.0.0/release_notes.md)》。
